@@ -1114,16 +1114,6 @@ func LoadTChooks(mon *SystemMonitor) {
 			fmt.Println("  -> No IP addresses found.")
 			continue
 		}
-		// for _, addr := range addrs {
-		// 	var ip net.IP
-		// 	// Type-assert the address to see if it's an IP network
-		// 	if ipnet, ok := addr.(*net.IPNet); ok {
-		// 		ip = ipnet.IP
-		// 		fmt.Printf("  -> %s\n", ip.String())
-		// 	}
-		// }
-		/////////////////////
-
 		l, err := link.AttachTCX(link.TCXOptions{
 			Interface: iface.Index,
 			Program:   mon.BpfModule.Programs["handle_ingress"],

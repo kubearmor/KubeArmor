@@ -588,8 +588,8 @@ func (mon *SystemMonitor) UpdateLogs() {
 				log.Type = "SystemEvent"
 				log.MaxAlertsPerSec = cfg.GlobalCfg.MaxAlertPerSec
 				log.DroppingAlertsInterval = cfg.GlobalCfg.ThrottleSec
-			case NetLimit: // network limit alert
-				fmt.Println("Got network log", log)
+
+			case NetLimit: // network limit alert ( treating it as network event only)
 				log.Operation = "NetworkLimit"
 				log.Data = "Direction = " + kl.GetNetworkDirection(msg.ContextArgs[0].(uint8))
 

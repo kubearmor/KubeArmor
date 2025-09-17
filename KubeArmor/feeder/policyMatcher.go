@@ -4,6 +4,7 @@
 package feeder
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -86,7 +87,17 @@ func fetchProtocol(resource string) string {
 	}
 	return resource
 }
+func getNetworkLimitData(logData, res string) string {
+	if strings.Contains(logData, "Egress") {
+		return "Direction=Egress, Limit=" + res
+	}
+	if strings.Contains(logData, "Ingress") {
+		return "Direction=Ingress, Limit=" + res
 
+	}
+	return ""
+
+}
 func getFileProcessUID(path string) string {
 	info, err := os.Stat(path)
 	if err == nil {
@@ -269,6 +280,20 @@ func (fd *Feeder) newMatchPolicy(policyEnabled int, policyName, src string, mp i
 		} else {
 			match.Action = npt.Action
 		}
+	} else if npt, ok := mp.(tp.TrafficType); ok {
+		match.Severity = strconv.Itoa(npt.Severity)
+		match.Tags = npt.Tags
+		match.Message = npt.Message
+
+		match.Operation = "Network"
+		match.Resource = npt.Limit
+		match.ResourceType = "NetworkLimit"
+
+		// TODO: Handle cases where AppArmor network enforcement is not present
+		// https://github.com/kubearmor/KubeArmor/issues/1285
+
+		match.Action = "Audit"
+
 	} else if cct, ok := mp.(tp.CapabilitiesCapabilityType); ok {
 		match.Severity = strconv.Itoa(cct.Severity)
 		match.Tags = cct.Tags
@@ -1174,6 +1199,10 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 		if log.Type == "SystemEvent" {
 			return log
 		}
+		if log.Operation == "NetworkLimit" {
+			fmt.Println("got network limit log in policy matcher")
+			log.Operation = "Network" // treating it as a network operation for matching with network policies
+		}
 		fd.SecurityPoliciesLock.RLock()
 
 		key := cfg.GlobalCfg.Host
@@ -1617,6 +1646,14 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 
 					log.Enforcer = "eBPF Monitor"
 					log.Action = "Audit"
+				}
+				if strings.Contains(log.Data, "Direction") {
+					// NetworkLimit event
+					log.Type = "MatchedPolicy"
+					log.PolicyName = "NetworkLimit"
+					log.Enforcer = "eBPF Monitor"
+					log.Action = "Audit"
+					log.Data = getNetworkLimitData(log.Data, log.Resource)
 				}
 
 			case "Device":

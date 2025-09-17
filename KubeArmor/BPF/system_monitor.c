@@ -99,6 +99,7 @@
 #define QTYPE 27UL
 #define U8_T 28UL
 #define U16_T 29UL
+#define U64_T 30UL
 
 #define MAX_LABELS 10 // max labels in domain name
 #define MAX_LABEL_LEN 63
@@ -2760,6 +2761,8 @@ u64 _first_packet_ts_ingress = -1;
 u64 _first_packet_ts_egress = -1;
 u64 _total_bytes_egress = 0;
 u64 _total_bytes_ingress = 0;
+u8 _egress_log_flag = 0;
+u8 _ingress_log_flag = 0;
 enum pkt_direction
 {
     DIR_INGRESS = 111,
@@ -2788,7 +2791,7 @@ struct
 
 // Index 0 for ingress, Index 1 for egress.
 
-SEC("tc")
+SEC("tc/ingress")
 int handle_ingress(struct __sk_buff *skb)
 {
 
@@ -2829,15 +2832,40 @@ int handle_ingress(struct __sk_buff *skb)
                 bpf_printk("Ingress Resetting counters as duration exceeded %llu ns\n", rval->duration);
                 _first_packet_ts_ingress = current_ts;
                 _total_bytes_ingress = 0;
+                _ingress_log_flag = 0;
             }
             else
             {
                 __sync_fetch_and_add(&_total_bytes_ingress, skb->len);
-                bpf_printk("new total bytes ingress %llu  limit %llu \n ", _total_bytes_ingress, rval->pkt_len_bytes);
             }
             if (_total_bytes_ingress > rval->pkt_len_bytes)
             {
-                bpf_printk("Ingress limit reached total bytes %llu exceeded limit %llu\n", _total_bytes_ingress, rval->pkt_len_bytes);
+                if (_ingress_log_flag == 0)
+                {
+                    bpf_printk("ingress limit reached total bytes %llu exceeded limit %llu FirstLog\n", _total_bytes_egress, rval->pkt_len_bytes);
+
+                    _ingress_log_flag = 1;
+                    sys_context_t context = {};
+                    context.event_id = _NET_LIMIT;
+                    context.argnum = 1;
+                    struct rule_map_key rkey = {};
+                    rkey.direction = DIR_INGRESS;
+
+                    set_buffer_offset(DATA_BUF_TYPE, sizeof(sys_context_t));
+
+                    bufs_t *bufs_p = get_buffer(DATA_BUF_TYPE);
+                    if (bufs_p == NULL)
+                        return 0;
+                    save_context_to_buffer(bufs_p, (void *)&context);
+
+                    save_to_buffer(bufs_p, DATA_BUF_TYPE, &rkey.direction, sizeof(rkey.direction), U8_T);
+
+                    events_perf_submit_skb(skb, DATA_BUF_TYPE);
+                }
+                else
+                {
+                    bpf_printk("Ingress limit reached total bytes %llu exceeded limit %llu\n Log already sent", _total_bytes_ingress, rval->pkt_len_bytes);
+                }
                 return TC_ACT_OK;
             }
         }
@@ -2846,7 +2874,7 @@ int handle_ingress(struct __sk_buff *skb)
     return TC_ACT_OK;
 }
 
-SEC("tc")
+SEC("tc/egress")
 int handle_egress(struct __sk_buff *skb)
 {
     void *data_end = (void *)(long)skb->data_end;
@@ -2890,31 +2918,39 @@ int handle_egress(struct __sk_buff *skb)
                 bpf_printk("Egress Resetting counters as duration exceeded %llu ns\n", rval->duration);
                 _first_packet_ts_egress = current_ts;
                 _total_bytes_egress = 0;
+                _egress_log_flag = 0;
             }
             else
             {
                 __sync_fetch_and_add(&_total_bytes_egress, skb->len);
-                bpf_printk("new total bytes egress %llu\n", _total_bytes_egress);
             }
             if (_total_bytes_egress > rval->pkt_len_bytes)
             {
-                sys_context_t context = {};
-                context.event_id = _NET_LIMIT;
-                context.argnum = 1;
-                struct rule_map_key rkey = {};
-                rkey.direction = DIR_EGRESS;
+                if (_egress_log_flag == 0)
+                {
+                    bpf_printk("Egress limit reached total bytes %llu exceeded limit %llu FirstLog\n", _total_bytes_egress, rval->pkt_len_bytes);
 
-                set_buffer_offset(DATA_BUF_TYPE, sizeof(sys_context_t));
+                    _egress_log_flag = 1;
+                    sys_context_t context = {};
+                    context.event_id = _NET_LIMIT;
+                    context.argnum = 1;
+                    struct rule_map_key rkey = {};
+                    rkey.direction = DIR_EGRESS;
 
-                bufs_t *bufs_p = get_buffer(DATA_BUF_TYPE);
-                if (bufs_p == NULL)
-                    return 0;
-                save_to_buffer(bufs_p, DATA_BUF_TYPE, &rkey.direction, sizeof(rkey.direction), U8_T);
+                    set_buffer_offset(DATA_BUF_TYPE, sizeof(sys_context_t));
 
-                bpf_printk("Egress limit reached total bytes %llu exceeded limit %llu\n", _total_bytes_egress, rval->pkt_len_bytes);
+                    bufs_t *bufs_p = get_buffer(DATA_BUF_TYPE);
+                    if (bufs_p == NULL)
+                        return 0;
+                    save_context_to_buffer(bufs_p, (void *)&context);
+                    save_to_buffer(bufs_p, DATA_BUF_TYPE, &rkey.direction, sizeof(rkey.direction), U8_T);
+                    events_perf_submit_skb(skb, DATA_BUF_TYPE);
+                }
+                else
+                {
+                    bpf_printk("Egress limit reached total bytes %llu exceeded limit %llu log already sent\n", _total_bytes_egress, rval->pkt_len_bytes);
+                }
 
-                save_context_to_buffer(bufs_p, (void *)&context);
-                events_perf_submit_skb(skb, DATA_BUF_TYPE);
                 return TC_ACT_OK;
             }
         }

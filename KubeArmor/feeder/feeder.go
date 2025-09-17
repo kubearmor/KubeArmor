@@ -534,6 +534,7 @@ func (fd *Feeder) PushLog(log tp.Log) {
 	   in case of enforcer = AppArmor only Default Posture logs will be converted to
 	   container/host log depending upon the defaultPostureLogs flag
 	*/
+
 	if !common.IsPresetEnforcer(log.Enforcer) {
 		if (cfg.GlobalCfg.EnforcerAlerts && fd.Enforcer == "BPFLSM" && log.Enforcer == "") || (fd.Enforcer != "BPFLSM" && !cfg.GlobalCfg.DefaultPostureLogs) {
 			log = fd.UpdateMatchedPolicy(log)
@@ -545,9 +546,13 @@ func (fd *Feeder) PushLog(log tp.Log) {
 				}
 			}
 		} else {
+
 			log = fd.UpdateMatchedPolicy(log)
 			if fd.Enforcer == "BPFLSM" {
 				log.Enforcer = "BPFLSM"
+			}
+			if log.Operation == "NetworkLimit" {
+				fmt.Println("Network Limit log received", log)
 			}
 		}
 	}
@@ -555,6 +560,9 @@ func (fd *Feeder) PushLog(log tp.Log) {
 	if log.Source == "" {
 		// even if a log doesn't have a source, it must have a type
 		if log.Type == "" {
+			if log.Operation == "NetworkLimit" {
+				fmt.Println("Network Limit log received no log type", log)
+			}
 			if strings.Contains(log.Enforcer, "PRESET") {
 				kg.Printf("no source and type: %s\n", log.Enforcer)
 			}
@@ -583,7 +591,7 @@ func (fd *Feeder) PushLog(log tp.Log) {
 	}
 
 	// gRPC output
-	if log.Type == "MatchedPolicy" || log.Type == "MatchedHostPolicy" || log.Type == "SystemEvent" {
+	if log.Type == "MatchedPolicy" || log.Type == "MatchedHostPolicy" || log.Type == "SystemEvent" || log.Type == "NetworkLimit" {
 
 		// checking throttling condition for "Audit" alerts when enforcer is 'eBPF Monitor'
 		if cfg.GlobalCfg.AlertThrottling && ((strings.Contains(log.Action, "Audit") && log.Enforcer == "eBPF Monitor") || (log.Type == "MatchedHostPolicy" && (log.Enforcer == "AppArmor" || log.Enforcer == "eBPF Monitor"))) {
@@ -597,6 +605,9 @@ func (fd *Feeder) PushLog(log tp.Log) {
 				log.MaxAlertsPerSec = cfg.GlobalCfg.MaxAlertPerSec
 				log.DroppingAlertsInterval = cfg.GlobalCfg.ThrottleSec
 			}
+		}
+		if log.Operation == "NetworkLimit" {
+			fmt.Println("ALert is being generated", log)
 		}
 		pbAlert := pb.Alert{}
 
