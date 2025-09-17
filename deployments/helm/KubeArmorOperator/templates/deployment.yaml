@@ -23,15 +23,19 @@ spec:
     spec:
       {{- with .Values.kubearmorOperator.podSecurityContext }}
       securityContext:
-            {{- toYaml . | nindent 8 }}
+        {{- toYaml . | nindent 8 }}
       {{- end }}      
       {{- if .Values.kubearmorOperator.image.imagePullSecrets }}
-      imagePullSecrets:
+      imagePullSecrets: 
         {{- toYaml .Values.kubearmorOperator.image.imagePullSecrets | nindent 8 }}
       {{- end }}
       {{- if .Values.kubearmorOperator.tolerations }}
-      tolerations:
+      tolerations: 
         {{- toYaml .Values.kubearmorOperator.tolerations | nindent 8 }}
+      {{- end }}
+      {{- if .Values.kubearmorOperator.nodeSelector }}
+      nodeSelector: 
+        {{- .Values.kubearmorOperator.nodeSelector | toYaml | nindent 8}}
       {{- end }}
       containers:
       - name: {{ .Values.kubearmorOperator.name }}
@@ -45,7 +49,10 @@ spec:
           value: "yes"
         {{- end }}
         {{- if .Values.imagePinning -}}
-          {{ include "pinnedImages" .Values.oci_meta | trim | nindent 8 }}
+          {{- include "pinnedImages" .Values.oci_meta | trim | nindent 8 }}
+        {{- end }}
+        {{- if .Values.kubearmorOperator.env -}}
+          {{- .Values.kubearmorOperator.env | toYaml | nindent 8 }}
         {{- end }}
         image: {{ include "operatorImage" . }}
         imagePullPolicy: {{ .Values.kubearmorOperator.imagePullPolicy }}
@@ -57,7 +64,7 @@ spec:
         {{- end }}
         {{- with .Values.kubearmorOperator.securityContext }}
         securityContext:
-              {{- toYaml . | nindent 10 }}
+          {{- toYaml . | nindent 10 }}
         {{- end }}
         {{- with .Values.kubearmorOperator.resources }}
         resources:
