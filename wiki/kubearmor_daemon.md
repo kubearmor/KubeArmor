@@ -139,8 +139,9 @@ func KubeArmor() {
 	// ... Node info setup (whether in K8s or standalone) ...
 
 	// initialize log feeder component
-	if !dm.InitLogger() {
+	if err := dm.InitLogger(); err != nil {
 		// handle error and destroy daemon
+		kg.Errf("Failed to initialize KubeArmor Logger: %s", err.Error())
 		return
 	}
 	dm.Logger.Print("Initialized KubeArmor Logger")
@@ -152,8 +153,9 @@ func KubeArmor() {
 
 	// initialize system monitor component
 	if cfg.GlobalCfg.Policy || cfg.GlobalCfg.HostPolicy { // Only if policy/hostpolicy is enabled
-		if !dm.InitSystemMonitor() {
+		if err := dm.InitSystemMonitor(); err != nil {
 			// handle error and destroy daemon
+			dm.Logger.Errf("Failed to initialize KubeArmor Monitor: %s", err.Error())
 			return
 		}
 		dm.Logger.Print("Initialized KubeArmor Monitor")
@@ -211,7 +213,7 @@ func NewKubeArmorDaemon() *KubeArmorDaemon {
 }
 
 // InitSystemMonitor Function (Called by Daemon)
-func (dm *KubeArmorDaemon) InitSystemMonitor() bool {
+func (dm *KubeArmorDaemon) InitSystemMonitor() error {
     // Create a new SystemMonitor instance, passing it data it needs
 	dm.SystemMonitor = mon.NewSystemMonitor(
         &dm.Node, &dm.NodeLock, // Node info
@@ -221,14 +223,14 @@ func (dm *KubeArmorDaemon) InitSystemMonitor() bool {
         &dm.MonitorLock, // Monitor's own lock
     )
 	if dm.SystemMonitor == nil {
-		return false
+		return fmt.Errorf("failed to create system monitor")
 	}
 
     // Initialize BPF inside the monitor
 	if err := dm.SystemMonitor.InitBPF(); err != nil {
-		return false
+		return fmt.Errorf("failed to initialize BPF: %w", err)
 	}
-	return true
+	return nil
 }
 
 // InitRuntimeEnforcer Function (Called by Daemon)
