@@ -4,6 +4,7 @@
 package core
 
 import (
+	"strings"
 	"testing"
 
 	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
@@ -72,5 +73,23 @@ func TestOriginalBehaviorPreserved(t *testing.T) {
 			t.Error("Error message should not be empty")
 		}
 		t.Logf("Got descriptive error as expected: %s", err.Error())
+	}
+}
+
+// TestInitInclusterAPIClientError tests the error handling for in-cluster API client initialization
+func TestInitInclusterAPIClientError(t *testing.T) {
+	k8sHandler := NewK8sHandler()
+
+	// Test InitInclusterAPIClient when service account token is not available
+	err := k8sHandler.InitInclusterAPIClient()
+	if err == nil {
+		t.Error("Expected error when service account token is not available")
+	}
+	if err != nil {
+		// Verify we get a descriptive error about the token
+		if !strings.Contains(err.Error(), "service account token") {
+			t.Errorf("Expected error message to mention service account token, got: %s", err.Error())
+		}
+		t.Logf("Got expected error for missing service account token: %s", err.Error())
 	}
 }
