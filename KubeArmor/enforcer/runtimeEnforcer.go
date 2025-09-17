@@ -22,7 +22,6 @@ import (
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 )
 
-// RuntimeEnforcer Structure
 type RuntimeEnforcer struct {
 	// logger
 	Logger *fd.Feeder
@@ -243,7 +242,6 @@ func (re *RuntimeEnforcer) UpdateHostSecurityPolicies(secPolicies []tp.HostSecur
 	if re == nil {
 		return
 	}
-
 	if re.EnforcerType == "BPFLSM" {
 		re.bpfEnforcer.UpdateHostSecurityPolicies(secPolicies)
 	} else if re.EnforcerType == "AppArmor" {

@@ -669,3 +669,77 @@ func GetCurrentTimeStamp() uint64 {
 func IsPresetEnforcer(enforcer string) bool {
 	return strings.Contains(enforcer, "PRESET")
 }
+
+func ConvertToNanoSeconds(duration string) uint64 {
+	if duration == "" {
+		return 0
+	}
+
+	re := regexp.MustCompile(`^(\d+)(s|m|h)?$`)
+	matches := re.FindStringSubmatch(duration)
+	if len(matches) != 3 {
+		return 0
+	}
+
+	value, err := strconv.ParseUint(matches[1], 10, 64)
+	if err != nil {
+		return 0
+	}
+
+	const nsPerSec = 1_000_000_000
+
+	switch matches[2] {
+	case "s", "":
+		return value * nsPerSec
+	case "m":
+		return value * 60 * nsPerSec
+	case "h":
+		return value * 3600 * nsPerSec
+	default:
+		return 0
+	}
+}
+
+func ConvertToBytes(size string) uint64 {
+	if size == "" {
+		return 0
+	}
+
+	re := regexp.MustCompile(`^(\d+)\s?(M|G)$`)
+	matches := re.FindStringSubmatch(size)
+	if len(matches) != 3 {
+		return 0
+	}
+
+	value, err := strconv.ParseUint(matches[1], 10, 64)
+	if err != nil {
+		return 0
+	}
+
+	switch matches[2] {
+	case "M":
+		return value * 1024 * 1024 // MB to bytes
+	case "G":
+		return value * 1024 * 1024 * 1024 // GB to bytes
+	default:
+		return 0
+	}
+}
+func GetNetworkDirection(dir uint8) string {
+	if dir == 111 {
+		return "Ingress"
+
+	}
+	if dir == 112 {
+		return "Egress"
+
+	}
+	return ""
+}
+func ConvertToU64(num string) uint64 {
+	if len(num) > 0 {
+		val, _ := strconv.ParseUint(num, 10, 64)
+		return val
+	}
+	return 0
+}

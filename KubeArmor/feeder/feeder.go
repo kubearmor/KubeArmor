@@ -553,10 +553,12 @@ func (fd *Feeder) PushLog(log tp.Log) {
 				}
 			}
 		} else {
+
 			log = fd.UpdateMatchedPolicy(log)
 			if isBPFLSM {
 				log.Enforcer = "BPFLSM"
 			}
+
 		}
 	}
 
@@ -591,7 +593,7 @@ func (fd *Feeder) PushLog(log tp.Log) {
 	}
 
 	// gRPC output
-	if log.Type == "MatchedPolicy" || log.Type == "MatchedHostPolicy" || log.Type == "SystemEvent" {
+	if log.Type == "MatchedPolicy" || log.Type == "MatchedHostPolicy" || log.Type == "SystemEvent" || log.Type == "NetworkLimit" {
 
 		// checking throttling condition for "Audit" alerts when enforcer is 'eBPF Monitor'
 		if cfg.GlobalCfg.AlertThrottling && ((strings.Contains(log.Action, "Audit") && log.Enforcer == "eBPF Monitor") || (log.Type == "MatchedHostPolicy" && (log.Enforcer == "AppArmor" || log.Enforcer == "eBPF Monitor"))) {
@@ -606,6 +608,7 @@ func (fd *Feeder) PushLog(log tp.Log) {
 				log.DroppingAlertsInterval = cfg.GlobalCfg.ThrottleSec
 			}
 		}
+
 		pbAlert := pb.Alert{}
 
 		node := fd.GetNodeInfo()
