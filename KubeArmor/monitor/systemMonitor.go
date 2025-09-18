@@ -623,56 +623,73 @@ func (mon *SystemMonitor) InitBPF() error {
 			}
 		}
 
-		for range 1 {
-			lsms := []string{}
-			lsmFile := []byte{}
-			lsmPath := "/sys/kernel/security/lsm"
-
-			if !kl.IsK8sLocal() {
-				// mount securityfs
-				if err := kl.RunCommandAndWaitWithErr("mount", []string{"-t", "securityfs", "securityfs", "/sys/kernel/security"}); err != nil {
-					if _, err := os.Stat(filepath.Clean("/sys/kernel/security")); err != nil {
-						mon.Logger.Warnf("Failed to read /sys/kernel/security (%s)", err.Error())
-						goto probeBPFLSM
-					}
-				}
-			}
-
-			if _, err := os.Stat(filepath.Clean(lsmPath)); err == nil {
-				lsmFile, err = os.ReadFile(lsmPath)
-				if err != nil {
-					mon.Logger.Warnf("Failed to read /sys/kernel/security/lsm (%s)", err.Error())
-					goto probeBPFLSM
-				}
-			}
-
-			lsms = strings.Split(string(lsmFile), ",")
-
-		probeBPFLSM:
-			if !kl.ContainsElement(lsms, "bpf") {
-				err := probe.CheckBPFLSMSupport()
-				if err != nil {
-					mon.Logger.Warnf("BPF LSM not supported for Ima Hash %s", err.Error())
-					break
-				}
-			}
-
-			if mon.ImaHash, err = NewImaHash(mon.Logger, mon.PinPath); err != nil {
-				mon.Logger.Warnf("Failed to initialize IMA hash probes: %s", err)
-				break
-			}
-			mon.Logger.Printf("Initialize Ima Hash Probes")
-
-		}
-
 		mon.SyscallChannel = make(chan []byte, SyscallChannelSize)
 
 		mon.SyscallPerfMap, err = perf.NewReader(mon.BpfModule.Maps["sys_events"], os.Getpagesize()*1024)
 		if err != nil {
 			mon.Logger.Warnf("error initializing events perf map: %v", err)
 		}
+
+		if cfg.GlobalCfg.EnableIMA {
+			if err := mon.InitImaHash(); err != nil {
+				mon.Logger.Warnf("error initializing IMA hash module: %s", err)
+			}
+		}
 	}
 
+	return nil
+}
+
+// InitImaHash func initializes IMA hash bpf module
+func (mon *SystemMonitor) InitImaHash() error {
+	if mon.ImaHash != nil {
+		return nil
+	}
+
+	var err error
+
+	err = mon.CheckBPFLSMSupport()
+	if err != nil {
+		return err
+	}
+
+	if mon.ImaHash, err = NewImaHash(mon.Logger, mon.PinPath); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// CheckBPFLSMSupport func checks if BPF-LSM is supported
+func (mon *SystemMonitor) CheckBPFLSMSupport() error {
+	lsms := []string{}
+	lsmFile := []byte{}
+	lsmPath := "/sys/kernel/security/lsm"
+
+	if !kl.IsK8sLocal() {
+		// mount securityfs
+		if err := kl.RunCommandAndWaitWithErr("mount", []string{"-t", "securityfs", "securityfs", "/sys/kernel/security"}); err != nil {
+			if _, err := os.Stat(filepath.Clean("/sys/kernel/security")); err != nil {
+				mon.Logger.Warnf("Failed to read /sys/kernel/security (%s)", err.Error())
+				goto probeBPFLSM
+			}
+		}
+	}
+
+	if _, err := os.Stat(filepath.Clean(lsmPath)); err == nil {
+		lsmFile, err = os.ReadFile(lsmPath)
+		if err != nil {
+			mon.Logger.Warnf("Failed to read /sys/kernel/security/lsm (%s)", err.Error())
+			goto probeBPFLSM
+		}
+	}
+
+	lsms = strings.Split(string(lsmFile), ",")
+
+probeBPFLSM:
+	if !kl.ContainsElement(lsms, "bpf") {
+		return probe.CheckBPFLSMSupport()
+	}
 	return nil
 }
 
