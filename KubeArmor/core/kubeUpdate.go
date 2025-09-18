@@ -2946,6 +2946,15 @@ func (dm *KubeArmorDaemon) WatchConfigMap() cache.InformerSynced {
 					}
 					cfg.GlobalCfg.ThrottleSec = int32(throttleSec)
 				}
+				if _, ok := cm.Data[cfg.ConfigEnableIma]; ok {
+					enableIMA, err := strconv.ParseBool(cm.Data[cfg.ConfigEnableIma])
+					if err != nil {
+						dm.Logger.Warnf("Error parsing IMA config: %s", err)
+					} else {
+						cfg.GlobalCfg.EnableIMA = enableIMA
+					}
+				}
+				dm.UpdateIMA(cfg.GlobalCfg.EnableIMA)
 				dm.SystemMonitor.UpdateThrottlingConfig()
 
 				dm.Logger.Printf("Current Global Posture is %v", currentGlobalPosture)
@@ -3000,6 +3009,16 @@ func (dm *KubeArmorDaemon) WatchConfigMap() cache.InformerSynced {
 				}
 				cfg.GlobalCfg.ThrottleSec = int32(throttleSec)
 				dm.SystemMonitor.UpdateThrottlingConfig()
+
+				if _, ok := cm.Data[cfg.ConfigEnableIma]; ok {
+					enableIMA, err := strconv.ParseBool(cm.Data[cfg.ConfigEnableIma])
+					if err != nil {
+						dm.Logger.Warnf("Error parsing IMA config: %s", err)
+					} else {
+						cfg.GlobalCfg.EnableIMA = enableIMA
+					}
+				}
+				dm.UpdateIMA(cfg.GlobalCfg.EnableIMA)
 			}
 		},
 		DeleteFunc: func(obj interface{}) {
@@ -3013,6 +3032,27 @@ func (dm *KubeArmorDaemon) WatchConfigMap() cache.InformerSynced {
 
 	go factory.Start(StopChan)
 	return registration.HasSynced
+}
+
+// UpdateIMA func updates the status of IMA module
+func (dm *KubeArmorDaemon) UpdateIMA(enabled bool) {
+	if enabled && dm.SystemMonitor.ImaHash == nil {
+		if err := dm.SystemMonitor.InitImaHash(); err != nil {
+			dm.Logger.Warnf("error initializing IMA module: %s", err)
+			return
+		}
+		dm.Logger.Print("Successfully initialized IMA module")
+		return
+	}
+	if !enabled && dm.SystemMonitor.ImaHash != nil {
+		if err := dm.SystemMonitor.ImaHash.DestroyImaHash(); err != nil {
+			dm.Logger.Warnf("error uninitializing IMA module: %s", err)
+			return
+		}
+		dm.SystemMonitor.ImaHash = nil
+		dm.Logger.Print("Successfully uninitialized IMA module")
+		return
+	}
 }
 
 // GetConfigMapNS Returns KubeArmor configmap namespace

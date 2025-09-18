@@ -34,6 +34,8 @@ type KubearmorConfig struct {
 	Visibility     string // Container visibility to use
 	HostVisibility string // Host visibility to use
 
+	EnableIMA bool // Enable/Disable file integrity IMA hash
+
 	Policy     bool // Enable/Disable policy enforcement
 	HostPolicy bool // Enable/Disable host policy enforcement
 	KVMAgent   bool // Enable/Disable KVM Agent
@@ -119,6 +121,7 @@ const (
 	ConfigProcFsMount                    string = "procfsMount"
 	ConfigMachineIDPath                  string = "machineIDPath"
 	UseOCIHooks                          string = "useOCIHooks"
+	ConfigEnableIma                      string = "enableIMA"
 )
 
 func readCmdLineParams() {
@@ -183,6 +186,8 @@ func readCmdLineParams() {
 	machineIDPath := flag.String(ConfigMachineIDPath, "/etc/machine-id", "Path to machine-id file")
 
 	useOCIHooks := flag.Bool(UseOCIHooks, false, "Use OCI hooks to get new containers instead of using container runtime socket")
+
+	enableIMA := flag.Bool(ConfigEnableIma, false, "to enable/disable file integrity IMA hash using bpf_file_ima_hash")
 
 	flags := []string{}
 	flag.VisitAll(func(f *flag.Flag) {
@@ -254,6 +259,8 @@ func readCmdLineParams() {
 	viper.SetDefault(ConfigMachineIDPath, *machineIDPath)
 
 	viper.SetDefault(UseOCIHooks, *useOCIHooks)
+
+	viper.SetDefault(ConfigEnableIma, *enableIMA)
 }
 
 // LoadConfig Load configuration
@@ -379,6 +386,8 @@ func LoadDynamicConfig() {
 	GlobalCfg.StateAgent = viper.GetBool(ConfigStateAgent)
 
 	GlobalCfg.UseOCIHooks = viper.GetBool(UseOCIHooks)
+
+	GlobalCfg.EnableIMA = viper.GetBool(ConfigEnableIma)
 
 	kg.Printf("Final Configuration [%+v]", GlobalCfg)
 }
