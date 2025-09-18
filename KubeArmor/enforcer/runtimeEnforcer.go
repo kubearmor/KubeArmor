@@ -242,9 +242,6 @@ func (re *RuntimeEnforcer) UpdateHostSecurityPolicies(secPolicies []tp.HostSecur
 	if re == nil {
 		return
 	}
-
-	fmt.Println("host sec policy", secPolicies)
-
 	if re.EnforcerType == "BPFLSM" {
 		re.bpfEnforcer.UpdateHostSecurityPolicies(secPolicies)
 	} else if re.EnforcerType == "AppArmor" {

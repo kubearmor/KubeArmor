@@ -1076,13 +1076,8 @@ func (mon *SystemMonitor) TraceSyscall() {
 	}
 }
 func LoadTChooks(mon *SystemMonitor) {
-	// objs := bpfObjects{}
-	// if err := loadBpfObjects(&objs, nil); err != nil {
-	// 	log.Fatalf("loading objects: %s", err)
-	// }
-	// defer objs.Close()
 
-	// list of interfaces
+	// Get list of interfaces
 	ifaces, err := net.Interfaces()
 	if err != nil {
 		log.Fatalf("failed to get network interfaces: %v", err)
@@ -1094,24 +1089,19 @@ func LoadTChooks(mon *SystemMonitor) {
 		if iface.Flags&net.FlagLoopback != 0 || iface.Flags&net.FlagUp == 0 {
 			continue
 		}
-		//////////////////////
 		x, err := net.InterfaceByIndex(iface.Index)
 		if err != nil {
 			log.Printf("Unable to find interface with index %d: %v", x, err)
 			return
 		}
 
-		// Get all addresses assigned to that interface
 		addrs, err := x.Addrs()
 		if err != nil {
 			log.Printf("Unable to get addresses for interface %s: %v", x.Name, err)
 			continue
 		}
 
-		fmt.Printf("IP Addresses for interface '%s' (index %d):\n", x.Name, x.Index)
-
 		if len(addrs) == 0 {
-			fmt.Println("  -> No IP addresses found.")
 			continue
 		}
 		l, err := link.AttachTCX(link.TCXOptions{

@@ -14,7 +14,6 @@ import (
 // UpdateHostRules updates host rules map with new rules and resolves conflicting rules
 func (be *BPFEnforcer) UpdateHostRules(securityPolicies []tp.HostSecurityPolicy) {
 	id := "host"
-	fmt.Println("update host rules func", securityPolicies)
 	var hostPolicies []tp.SecurityPolicy
 
 	// Typecast HostSecurityPolicy spec to normal SecurityPolicies

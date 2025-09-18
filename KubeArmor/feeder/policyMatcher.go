@@ -4,7 +4,6 @@
 package feeder
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -856,6 +855,49 @@ func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.Hos
 				matches.Policies = append(matches.Policies, match)
 			}
 		}
+		if len(secPolicy.Spec.Network.Egress.Duration) > 0 {
+			fromSource := ""
+			match := fd.newMatchPolicy(fd.Node.PolicyEnabled, policyName, fromSource, secPolicy.Spec.Network.Egress)
+			matches.Policies = append(matches.Policies, match)
+
+		}
+		if len(secPolicy.Spec.Network.Ingress.Duration) > 0 {
+			fromSource := ""
+			match := fd.newMatchPolicy(fd.Node.PolicyEnabled, policyName, fromSource, secPolicy.Spec.Network.Ingress)
+			matches.Policies = append(matches.Policies, match)
+
+		}
+		for _, proto := range secPolicy.Spec.Network.MatchProtocols {
+			if len(proto.Protocol) == 0 {
+				continue
+			}
+
+			fromSource := ""
+
+			if len(proto.FromSource) == 0 {
+				match := fd.newMatchPolicy(fd.Node.PolicyEnabled, policyName, fromSource, proto)
+				if len(match.Resource) == 0 {
+					continue
+				}
+				matches.Policies = append(matches.Policies, match)
+				continue
+			}
+
+			for _, src := range proto.FromSource {
+				if len(src.Path) > 0 {
+					fromSource = src.Path
+				} else {
+					continue
+				}
+
+				match := fd.newMatchPolicy(fd.Node.PolicyEnabled, policyName, fromSource, proto)
+				if len(match.Resource) == 0 {
+					continue
+				}
+				match.IsFromSource = len(fromSource) > 0
+				matches.Policies = append(matches.Policies, match)
+			}
+		}
 
 		for _, device := range secPolicy.Spec.Device.MatchDevice {
 			if len(device.Class) == 0 {
@@ -1200,8 +1242,8 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 			return log
 		}
 		if log.Operation == "NetworkLimit" {
-			fmt.Println("got network limit log in policy matcher")
-			log.Operation = "Network" // treating it as a network operation for matching with network policies
+			// treating NetworkLimitevent as a network operation for matching with network policies
+			log.Operation = "Network"
 		}
 		fd.SecurityPoliciesLock.RLock()
 
@@ -1465,7 +1507,6 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 				if secPolicy.Operation != log.Operation {
 					continue
 				}
-
 				// when one of the below rule is already matched for the log event, we will skip for further matches
 				if skip {
 					break // break, so that once source is matched for a log it doesn't look for other cases
@@ -1653,7 +1694,7 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 					log.PolicyName = "NetworkLimit"
 					log.Enforcer = "eBPF Monitor"
 					log.Action = "Audit"
-					log.Data = getNetworkLimitData(log.Data, log.Resource)
+					log.Data = getNetworkLimitData(log.Data, secPolicy.Resource)
 				}
 
 			case "Device":

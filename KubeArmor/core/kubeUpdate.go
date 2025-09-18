@@ -2006,8 +2006,6 @@ func (dm *KubeArmorDaemon) ParseAndUpdateHostSecurityPolicy(event tp.K8sKubeArmo
 	if secPolicy.Spec.Severity == 0 {
 		secPolicy.Spec.Severity = 1 // the lowest severity, by default
 	}
-	fmt.Println("parsee update", event.Object.Spec, secPolicy.Spec)
-
 	switch secPolicy.Spec.Action {
 	case "allow":
 		secPolicy.Spec.Action = "Allow"
@@ -2471,7 +2469,6 @@ func (dm *KubeArmorDaemon) ParseAndUpdateHostSecurityPolicy(event tp.K8sKubeArmo
 	dm.HostSecurityPoliciesLock.Unlock()
 
 	dm.Logger.Printf("Detected a Host Security Policy (%s/%s)", strings.ToLower(event.Type), secPolicy.Metadata["policyName"])
-	fmt.Println(secPolicy)
 	// apply security policies to a host
 	dm.UpdateHostSecurityPolicies()
 

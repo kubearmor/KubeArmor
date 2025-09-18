@@ -2789,8 +2789,6 @@ struct
     __uint(pinning, LIBBPF_PIN_BY_NAME);
 } kubearmor_network_quota_rules SEC(".maps");
 
-// Index 0 for ingress, Index 1 for egress.
-
 SEC("tc/ingress")
 int handle_ingress(struct __sk_buff *skb)
 {
@@ -2862,11 +2860,6 @@ int handle_ingress(struct __sk_buff *skb)
 
                     events_perf_submit_skb(skb, DATA_BUF_TYPE);
                 }
-                else
-                {
-                    bpf_printk("Ingress limit reached total bytes %llu exceeded limit %llu\n Log already sent", _total_bytes_ingress, rval->pkt_len_bytes);
-                }
-                return TC_ACT_OK;
             }
         }
     }
@@ -2946,12 +2939,6 @@ int handle_egress(struct __sk_buff *skb)
                     save_to_buffer(bufs_p, DATA_BUF_TYPE, &rkey.direction, sizeof(rkey.direction), U8_T);
                     events_perf_submit_skb(skb, DATA_BUF_TYPE);
                 }
-                else
-                {
-                    bpf_printk("Egress limit reached total bytes %llu exceeded limit %llu log already sent\n", _total_bytes_egress, rval->pkt_len_bytes);
-                }
-
-                return TC_ACT_OK;
             }
         }
     }
