@@ -15,8 +15,13 @@ LABEL name="kubearmor-init" \
       description="kubearmor-init image for kubearmor init container image"
 
 RUN microdnf -y update && \
-    microdnf -y install --nodocs --setopt=install_weak_deps=0 --setopt=keepcache=0 shadow-utils git clang llvm make gcc libbpf tar gzip && \
-    microdnf clean all
+    microdnf -y install --nodocs --setopt=install_weak_deps=0 --setopt=keepcache=0 \
+        shadow-utils git clang llvm make gcc tar gzip elfutils-libelf-devel zlib-devel && \
+    microdnf clean all && \
+    git clone --depth=1 https://github.com/libbpf/libbpf.git /tmp/libbpf && \
+    cd /tmp/libbpf/src && make -j$(nproc) && make install && \
+    rm -rf /tmp/libbpf
+
 
 # install bpftool  
 RUN arch=$(uname -m) bpftool_version=v7.2.0 && \
