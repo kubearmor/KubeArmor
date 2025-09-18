@@ -68,10 +68,24 @@ func (in *ImageSpec) DeepCopyInto(out *ImageSpec) {
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
+	if in.Env != nil {
+		in, out := &in.Env, &out.Env
+		*out = make([]corev1.EnvVar, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
+	}
 	if in.ImagePullSecrets != nil {
 		in, out := &in.ImagePullSecrets, &out.ImagePullSecrets
 		*out = make([]corev1.LocalObjectReference, len(*in))
 		copy(*out, *in)
+	}
+	if in.NodeSelector != nil {
+		in, out := &in.NodeSelector, &out.NodeSelector
+		*out = make(map[string]string, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
+		}
 	}
 	if in.Tolerations != nil {
 		in, out := &in.Tolerations, &out.Tolerations
@@ -163,6 +177,20 @@ func (in *KubeArmorConfigSpec) DeepCopyInto(out *KubeArmorConfigSpec) {
 	if in.GlobalTolerations != nil {
 		in, out := &in.GlobalTolerations, &out.GlobalTolerations
 		*out = make([]corev1.Toleration, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
+	}
+	if in.GlobalNodeSelector != nil {
+		in, out := &in.GlobalNodeSelector, &out.GlobalNodeSelector
+		*out = make(map[string]string, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
+		}
+	}
+	if in.GlobalEnv != nil {
+		in, out := &in.GlobalEnv, &out.GlobalEnv
+		*out = make([]corev1.EnvVar, len(*in))
 		for i := range *in {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}

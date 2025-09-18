@@ -40,12 +40,14 @@ kubearmorOperator:
   # https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/
   tolerations: []
   # Optional, but if there are a lot of image pulls required, Docker might be rate-limited. So, it's good to add pull secrets for production.
-  imagePullSecrets: ""
+  imagePullSecrets: []
   resources: {}
   podLabels: {}
   podAnnotations: {}
   podSecurityContext: {}
   securityContext: {}
+  env: []
+  nodeSelector: {}
 
 kubearmorConfig:
   defaultCapabilitiesPosture: audit

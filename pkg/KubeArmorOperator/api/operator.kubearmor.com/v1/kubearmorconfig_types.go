@@ -17,6 +17,8 @@ import (
 type ImageSpec struct {
 	Args []string `json:"args,omitempty"`
 
+	Env []corev1.EnvVar `json:"env,omitempty"`
+
 	Image string `json:"image,omitempty"`
 
 	// +kubebuilder:validation:Enum=Always;IfNotPresent;Never
@@ -24,6 +26,8 @@ type ImageSpec struct {
 	ImagePullPolicy string `json:"imagePullPolicy,omitempty"`
 
 	ImagePullSecrets []corev1.LocalObjectReference `json:"imagePullSecrets,omitempty"`
+
+	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
 
 	Tolerations []corev1.Toleration `json:"tolerations,omitempty"`
 }
@@ -84,6 +88,10 @@ type KubeArmorConfigSpec struct {
 	GloabalImagePullSecrets []corev1.LocalObjectReference `json:"globalImagePullSecrets,omitempty"`
 
 	GlobalTolerations []corev1.Toleration `json:"globalTolerations,omitempty"`
+
+	GlobalNodeSelector map[string]string `json:"globalNodeSelector,omitempty"`
+
+	GlobalEnv []corev1.EnvVar `json:"globalEnv,omitempty"`
 
 	KubeArmorImage ImageSpec `json:"kubearmorImage,omitempty"`
 
