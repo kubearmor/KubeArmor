@@ -305,16 +305,7 @@ func (mon *SystemMonitor) DestroyBPFMaps() {
 			mon.Logger.Warnf("error closing bpf map kubearmor_config %v", err)
 		}
 	}
-	if mon.NetworkMonitorRules != nil {
-		err := mon.NetworkMonitorRules.Unpin()
-		if err != nil {
-			mon.Logger.Warnf("error unpinning bpf map kubearmor_config %v", err)
-		}
-		err = mon.NetworkMonitorRules.Close()
-		if err != nil {
-			mon.Logger.Warnf("error closing bpf map kubearmor_config %v", err)
-		}
-	}
+
 }
 
 func (mon *SystemMonitor) UpdateThrottlingConfig() {
@@ -625,25 +616,10 @@ func (mon *SystemMonitor) InitBPF() error {
 			mon.Logger.Warnf("error initializing events perf map: %v", err)
 		}
 	}
-	networkRulesMap, errconfig := cle.NewMapWithOptions(
-		&cle.MapSpec{
-			Name:       "kubearmor_network_quota_rules",
-			Type:       cle.Hash,
-			KeySize:    1,
-			ValueSize:  16,
-			MaxEntries: 2,
-			Pinning:    cle.PinByName,
-		}, cle.MapOptions{
-			PinPath: mon.PinPath,
-		})
-	if errconfig != nil {
-		mon.Logger.Errf("error initializing network rules map: %v", err)
 
+	if cfg.GlobalCfg.NetworkLimit {
+		err = mon.SetupNetworkLimitObservability()
 	}
-	fmt.Println("hello")
-	LoadTChooks(mon)
-
-	mon.NetworkMonitorRules = networkRulesMap
 
 	return nil
 }
@@ -675,13 +651,9 @@ func (mon *SystemMonitor) DestroySystemMonitor() error {
 			return err
 		}
 	}
-	for _, link := range mon.TC {
-		if err := link.Close(); err != nil {
-			return err
-		}
-	}
 
 	mon.DestroyBPFMaps()
+	mon.DestroyNetworkLimitObservability()
 	return nil
 }
 
@@ -1091,7 +1063,7 @@ func LoadTChooks(mon *SystemMonitor) {
 		}
 		x, err := net.InterfaceByIndex(iface.Index)
 		if err != nil {
-			log.Printf("Unable to find interface with index %d: %v", x, err)
+			log.Printf("Unable to find interface with index: %v", x, err)
 			return
 		}
 
@@ -1134,4 +1106,51 @@ func LoadTChooks(mon *SystemMonitor) {
 	mon.TC = append(mon.TC, links...)
 
 	mon.Logger.Print("Initialized the eBPF TC hooks")
+}
+func (mon *SystemMonitor) SetupNetworkLimitObservability() error {
+
+	networkRulesMap, err := cle.NewMapWithOptions(
+		&cle.MapSpec{
+			Name:       "kubearmor_network_quota_rules",
+			Type:       cle.Hash,
+			KeySize:    1,
+			ValueSize:  16,
+			MaxEntries: 2,
+			Pinning:    cle.PinByName,
+		}, cle.MapOptions{
+			PinPath: mon.PinPath,
+		})
+	if err != nil {
+		mon.Logger.Errf("error initializing network rules map: %v", err)
+
+	}
+	mon.Logger.Print("Initialized the eBPF network limit observability rules map")
+
+	mon.NetworkMonitorRules = networkRulesMap
+
+	LoadTChooks(mon)
+
+	mon.Logger.Print("Initialized the eBPF network limit observability")
+	return nil
+}
+func (mon *SystemMonitor) DestroyNetworkLimitObservability() error {
+
+	// close TC hooks
+	for _, link := range mon.TC {
+		if err := link.Close(); err != nil {
+			return err
+		}
+	}
+	// close network rules map
+	if mon.NetworkMonitorRules != nil {
+		err := mon.NetworkMonitorRules.Unpin()
+		if err != nil {
+			mon.Logger.Warnf("error unpinning bpf map kubearmor_config %v", err)
+		}
+		err = mon.NetworkMonitorRules.Close()
+		if err != nil {
+			mon.Logger.Warnf("error closing bpf map kubearmor_config %v", err)
+		}
+	}
+	return nil
 }

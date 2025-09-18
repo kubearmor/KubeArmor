@@ -2952,6 +2952,16 @@ func (dm *KubeArmorDaemon) WatchConfigMap() cache.InformerSynced {
 				}
 				dm.SystemMonitor.UpdateThrottlingConfig()
 
+				// Network Limit observability
+				if _, ok := cm.Data[cfg.ConfigNetworkLimit]; ok {
+					cfg.GlobalCfg.NetworkLimit = cm.Data[cfg.ConfigNetworkLimit] == "true"
+					if cfg.GlobalCfg.NetworkLimit {
+						dm.SystemMonitor.SetupNetworkLimitObservability()
+						dm.UpdateHostSecurityPolicies()
+					} else {
+						dm.SystemMonitor.DestroyNetworkLimitObservability()
+					}
+				}
 				dm.Logger.Printf("Current Global Posture is %v", currentGlobalPosture)
 				dm.UpdateGlobalPosture(globalPosture)
 
@@ -3004,6 +3014,17 @@ func (dm *KubeArmorDaemon) WatchConfigMap() cache.InformerSynced {
 				}
 				cfg.GlobalCfg.ThrottleSec = int32(throttleSec)
 				dm.SystemMonitor.UpdateThrottlingConfig()
+
+				// Network Limit observability
+				if _, ok := cm.Data[cfg.ConfigNetworkLimit]; ok {
+					cfg.GlobalCfg.NetworkLimit = cm.Data[cfg.ConfigNetworkLimit] == "true"
+					if cfg.GlobalCfg.NetworkLimit {
+						dm.SystemMonitor.SetupNetworkLimitObservability()
+						dm.UpdateHostSecurityPolicies()
+					} else {
+						dm.SystemMonitor.DestroyNetworkLimitObservability()
+					}
+				}
 			}
 		},
 		DeleteFunc: func(obj interface{}) {
