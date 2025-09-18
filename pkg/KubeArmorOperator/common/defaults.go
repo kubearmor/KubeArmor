@@ -97,6 +97,8 @@ var (
 
 	GlobalImagePullSecrets []corev1.LocalObjectReference = []corev1.LocalObjectReference{}
 	GlobalTolerations      []corev1.Toleration           = []corev1.Toleration{}
+	GlobalNodeSelectors                                  = map[string]string{}
+	GlobalEnv                                            = []corev1.EnvVar{}
 	//KubearmorRelayEnvVariables
 
 	EnableStdOutAlerts string = "enableStdOutAlerts"
@@ -114,6 +116,8 @@ var (
 	KubeArmorImagePullPolicy  string                        = "Always"
 	KubeArmorImagePullSecrets []corev1.LocalObjectReference = []corev1.LocalObjectReference{}
 	KubeArmorTolerations      []corev1.Toleration           = []corev1.Toleration{}
+	KubeArmorNodeSelector                                   = map[string]string{}
+	KubeArmorEnv                                            = []corev1.EnvVar{}
 
 	KubeArmorInitName             string                        = "kubearmor-init"
 	KubeArmorInitArgs             []string                      = []string{}
@@ -121,6 +125,7 @@ var (
 	KubeArmorInitImagePullPolicy  string                        = "Always"
 	KubeArmorInitImagePullSecrets []corev1.LocalObjectReference = []corev1.LocalObjectReference{}
 	KubeArmorInitTolerations      []corev1.Toleration           = []corev1.Toleration{}
+	KubeArmorInitEnv                                            = []corev1.EnvVar{}
 
 	KubeArmorRelayName string   = "kubearmor-relay"
 	KubeArmorRelayArgs []string = []string{
@@ -130,6 +135,8 @@ var (
 	KubeArmorRelayImagePullPolicy  string                        = "Always"
 	KubeArmorRelayImagePullSecrets []corev1.LocalObjectReference = []corev1.LocalObjectReference{}
 	KubeArmorRelayTolerations      []corev1.Toleration           = []corev1.Toleration{}
+	KubeArmorRelayNodeSelector                                   = map[string]string{}
+	KubeArmorRelayEnv                                            = []corev1.EnvVar{}
 
 	KubeArmorControllerName string   = "kubearmor-controller"
 	KubeArmorControllerArgs []string = []string{
@@ -142,6 +149,8 @@ var (
 	KubeArmorControllerImagePullSecrets   []corev1.LocalObjectReference = []corev1.LocalObjectReference{}
 	KubeArmorControllerTolerations        []corev1.Toleration           = []corev1.Toleration{}
 	KubeArmorControllerWebhookServiceName                               = "kubearmor-controller-webhook-service"
+	KubeArmorControllerNodeSelector                                     = map[string]string{}
+	KubeArmorControllerEnv                                              = []corev1.EnvVar{}
 
 	SeccompProfile     = "kubearmor-seccomp.json"
 	SeccompInitProfile = "kubearmor-init-seccomp.json"

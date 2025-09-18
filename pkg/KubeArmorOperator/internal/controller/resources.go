@@ -102,6 +102,10 @@ func generateDaemonset(name, enforcer, runtime, socket, nriSocket, btfPresent, a
 		common.BTFLabel:      btfPresent,
 		common.SeccompLabel:  seccompPresent,
 	}
+
+	AddOrUpdateNodeSelector(labels, common.GlobalNodeSelectors)
+	AddOrUpdateNodeSelector(labels, common.KubeArmorNodeSelector)
+
 	if nriSocket != "" {
 		labels[common.NRISocketLabel] = nriSocket
 	}
@@ -122,6 +126,11 @@ func generateDaemonset(name, enforcer, runtime, socket, nriSocket, btfPresent, a
 			},
 		}
 	}
+
+	AddOrUpdateEnv(&daemonset.Spec.Template.Spec.Containers[0].Env, common.GlobalEnv)
+	AddOrUpdateEnv(&daemonset.Spec.Template.Spec.Containers[0].Env, common.KubeArmorEnv)
+	AddOrUpdateEnv(&daemonset.Spec.Template.Spec.InitContainers[0].Env, common.GlobalEnv)
+	AddOrUpdateEnv(&daemonset.Spec.Template.Spec.InitContainers[0].Env, common.KubeArmorInitEnv)
 
 	// TODO: handle passing annotateResource flag to kubearmor
 	// ideally this configuration should be part of kubearmoconfig to avoid hardcoding version checks
@@ -573,6 +582,15 @@ func (clusterWatcher *ClusterWatcher) deployControllerDeployment(deployment *app
 	} else {
 		deployment.Spec.Template.Spec.NodeSelector = nil
 	}
+
+	// update envs from kubearmorconfig
+	AddOrUpdateEnv(&deployment.Spec.Template.Spec.Containers[0].Env, common.GlobalEnv)
+	AddOrUpdateEnv(&deployment.Spec.Template.Spec.Containers[0].Env, common.KubeArmorControllerEnv)
+
+	// update nodeSelector from kubearmorconfig
+	AddOrUpdateNodeSelector(deployment.Spec.Template.Spec.NodeSelector, common.GlobalNodeSelectors)
+	AddOrUpdateNodeSelector(deployment.Spec.Template.Spec.NodeSelector, common.KubeArmorControllerNodeSelector)
+
 	controller, err := clusterWatcher.Client.AppsV1().Deployments(common.Namespace).Get(context.Background(), deployment.Name, metav1.GetOptions{})
 	if isNotfound(err) {
 		clusterWatcher.Log.Infof("Creating deployment %s", deployment.Name)
@@ -920,6 +938,14 @@ func (clusterWatcher *ClusterWatcher) WatchRequiredResources() {
 			},
 		},
 	}
+
+	// update env from kubearmorconfig
+	AddOrUpdateEnv(&relayServer.Spec.Template.Spec.Containers[0].Env, common.GlobalEnv)
+	AddOrUpdateEnv(&relayServer.Spec.Template.Spec.Containers[0].Env, common.KubeArmorRelayEnv)
+
+	// update node selector from kubearmorconfig
+	AddOrUpdateNodeSelector(relayServer.Spec.Template.Spec.NodeSelector, common.GlobalNodeSelectors)
+	AddOrUpdateNodeSelector(relayServer.Spec.Template.Spec.NodeSelector, common.KubeArmorRelayNodeSelector)
 
 	ElasticSearchAdapterCaVolume := []corev1.Volume{
 		{
