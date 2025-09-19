@@ -7,11 +7,13 @@
 
 char LICENSE[] SEC("license") = "Dual BSD/GPL";
 
-typedef struct {
+typedef struct
+{
   bool exec;
 } event;
 
-struct {
+struct
+{
   __uint(type, BPF_MAP_TYPE_RINGBUF);
   __uint(max_entries, 1 << 24);
 } kubearmor_events SEC(".maps");
@@ -20,11 +22,13 @@ struct {
 const event *unused __attribute__((unused));
 
 SEC("lsm/mmap_file")
-int test_memfd() {
+int test_memfd()
+{
   event *task_info;
 
   task_info = bpf_ringbuf_reserve(&kubearmor_events, sizeof(event), 0);
-  if (!task_info) {
+  if (!task_info)
+  {
     return 0;
   }
 

@@ -22,7 +22,6 @@ import (
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 )
 
-// RuntimeEnforcer Structure
 type RuntimeEnforcer struct {
 	// logger
 	Logger *fd.Feeder
@@ -243,7 +242,6 @@ func (re *RuntimeEnforcer) UpdateHostSecurityPolicies(secPolicies []tp.HostSecur
 	if re == nil {
 		return
 	}
-
 	if re.EnforcerType == "BPFLSM" {
 		re.bpfEnforcer.UpdateHostSecurityPolicies(secPolicies)
 	} else if re.EnforcerType == "AppArmor" {
@@ -299,3 +297,23 @@ func (re *RuntimeEnforcer) DestroyRuntimeEnforcer() error {
 	re = nil
 	return nil
 }
+
+// if cfg.GlobalCfg.AlertThrottling {
+// 	if err := mon.BpfConfigMap.Update(uint32(3), uint32(1), cle.UpdateAny); err != nil {
+// 		mon.Logger.Errf("Error Updating System Monitor Config Map to enable alert throttling : %s", err.Error())
+// 	}
+// } else {
+// 	if err := mon.BpfConfigMap.Update(uint32(3), uint32(0), cle.UpdateAny); err != nil {
+// 		mon.Logger.Errf("Error Updating System Monitor Config Map to enable alert throttling : %s", err.Error())
+// 	}
+// }
+// if err := mon.BpfConfigMap.Update(uint32(4), uint32(cfg.GlobalCfg.MaxAlertPerSec), cle.UpdateAny); err != nil {
+// 	mon.Logger.Errf("Error Updating System Monitor Config Map to set max alerts per sec : %s", err.Error())
+// }
+// if err := mon.BpfConfigMap.Update(uint32(5), uint32(cfg.GlobalCfg.ThrottleSec), cle.UpdateAny); err != nil {
+// 	mon.Logger.Errf("Error Updating System Monitor Config Map to set time interval for dropping subsequent alerts : %s", err.Error())
+// }
+// mon.Logger.Printf("Alert Throttling configured {alertThrottling:%v, maxAlertPerSec:%v, throttleSec:%v}",
+// 	cfg.GlobalCfg.AlertThrottling,
+// 	cfg.GlobalCfg.MaxAlertPerSec,
+// 	cfg.GlobalCfg.ThrottleSec)

@@ -73,7 +73,7 @@ func (mon *SystemMonitor) BuildLogBase(eventID int32, msg ContextCombined, readl
 		log.CapabilitiesVisibilityEnabled = mon.Node.CapabilitiesVisibilityEnabled
 	}
 
-	if eventID != int32(DropAlert) {
+	if eventID != int32(DropAlert) && eventID != int32(NetLimit) {
 		log.HostPPID = int32(msg.ContextSys.HostPPID)
 		log.HostPID = int32(msg.ContextSys.HostPID)
 
@@ -588,6 +588,10 @@ func (mon *SystemMonitor) UpdateLogs() {
 				log.Type = "SystemEvent"
 				log.MaxAlertsPerSec = cfg.GlobalCfg.MaxAlertPerSec
 				log.DroppingAlertsInterval = cfg.GlobalCfg.ThrottleSec
+
+			case NetLimit: // network limit alert ( treating it as network event only)
+				log.Operation = "NetworkLimit"
+				log.Data = "Direction = " + kl.GetNetworkDirection(msg.ContextArgs[0].(uint8))
 
 			default:
 				continue

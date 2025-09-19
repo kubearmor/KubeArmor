@@ -68,6 +68,8 @@ type KubearmorConfig struct {
 	ProcFsMount string // path where procfs is hosted
 
 	MachineIDPath string // path to machine-id
+
+	NetworkLimit bool // enable network limit obsevability
 }
 
 // GlobalCfg Global configuration for Kubearmor
@@ -119,6 +121,7 @@ const (
 	ConfigProcFsMount                    string = "procfsMount"
 	ConfigMachineIDPath                  string = "machineIDPath"
 	UseOCIHooks                          string = "useOCIHooks"
+	ConfigNetworkLimit                   string = "enableNetworkLimit"
 )
 
 func readCmdLineParams() {
@@ -183,6 +186,8 @@ func readCmdLineParams() {
 	machineIDPath := flag.String(ConfigMachineIDPath, "/etc/machine-id", "Path to machine-id file")
 
 	useOCIHooks := flag.Bool(UseOCIHooks, false, "Use OCI hooks to get new containers instead of using container runtime socket")
+
+	networkLimit := flag.Bool(ConfigNetworkLimit, false, "Enable network limit obsevability")
 
 	flags := []string{}
 	flag.VisitAll(func(f *flag.Flag) {
@@ -254,6 +259,8 @@ func readCmdLineParams() {
 	viper.SetDefault(ConfigMachineIDPath, *machineIDPath)
 
 	viper.SetDefault(UseOCIHooks, *useOCIHooks)
+
+	viper.SetDefault(ConfigNetworkLimit, *networkLimit)
 }
 
 // LoadConfig Load configuration
@@ -340,6 +347,8 @@ func LoadConfig() error {
 
 	GlobalCfg.MachineIDPath = viper.GetString(ConfigMachineIDPath)
 
+	GlobalCfg.NetworkLimit = viper.GetBool(ConfigNetworkLimit)
+
 	LoadDynamicConfig()
 
 	kg.Printf("Final Configuration [%+v]", GlobalCfg)
@@ -379,6 +388,8 @@ func LoadDynamicConfig() {
 	GlobalCfg.StateAgent = viper.GetBool(ConfigStateAgent)
 
 	GlobalCfg.UseOCIHooks = viper.GetBool(UseOCIHooks)
+
+	GlobalCfg.NetworkLimit = viper.GetBool(ConfigNetworkLimit)
 
 	kg.Printf("Final Configuration [%+v]", GlobalCfg)
 }

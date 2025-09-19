@@ -4,6 +4,8 @@
 package bpflsm
 
 import (
+	"fmt"
+
 	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
 	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
@@ -12,7 +14,6 @@ import (
 // UpdateHostRules updates host rules map with new rules and resolves conflicting rules
 func (be *BPFEnforcer) UpdateHostRules(securityPolicies []tp.HostSecurityPolicy) {
 	id := "host"
-
 	var hostPolicies []tp.SecurityPolicy
 
 	// Typecast HostSecurityPolicy spec to normal SecurityPolicies
@@ -27,6 +28,7 @@ func (be *BPFEnforcer) UpdateHostRules(securityPolicies []tp.HostSecurityPolicy)
 		if err := kl.Clone(secPolicy.Spec.Network, &hostPolicy.Spec.Network); err != nil {
 			be.Logger.Warnf("Error cloning host policy spec network to sec policy construct")
 		}
+		fmt.Println("network:", hostPolicy.Spec.Network)
 		hostPolicies = append(hostPolicies, hostPolicy)
 	}
 

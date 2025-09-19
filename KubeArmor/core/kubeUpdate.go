@@ -27,6 +27,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/tools/cache"
+
+	cle "github.com/cilium/ebpf"
 )
 
 const (
@@ -41,7 +43,16 @@ const (
 	addEvent    string = "ADDED"
 	updateEvent string = "MODIFIED"
 	deleteEvent string = "DELETED"
+
+	// RuntimeEnforcer Structure
+	INGRESS uint8 = 111
+	EGRESS  uint8 = 112
 )
+
+type NetworkRuleValue struct {
+	Duration uint64
+	Limit    uint64
+}
 
 // ================= //
 // == Node Update == //
@@ -1954,7 +1965,6 @@ func (dm *KubeArmorDaemon) UpdateHostSecurityPolicies() {
 		dm.EndPointsLock.RLock()
 		policy := dm.HostSecurityPolicies[idx]
 		dm.EndPointsLock.RUnlock()
-
 		if kl.MatchIdentities(policy.Spec.NodeSelector.Identities, dm.Node.Identities) {
 			secPolicies = append(secPolicies, policy)
 		}
@@ -1968,6 +1978,9 @@ func (dm *KubeArmorDaemon) UpdateHostSecurityPolicies() {
 			if dm.Node.PolicyEnabled == tp.KubeArmorPolicyEnabled {
 				// enforce host security policies
 				dm.RuntimeEnforcer.UpdateHostSecurityPolicies(secPolicies)
+				//
+				// extract and update network traffic rules from host security policies
+				dm.ExtractAndUpdateNetworkTrafficRules(secPolicies)
 			}
 		}
 	}
@@ -1993,7 +2006,6 @@ func (dm *KubeArmorDaemon) ParseAndUpdateHostSecurityPolicy(event tp.K8sKubeArmo
 	if secPolicy.Spec.Severity == 0 {
 		secPolicy.Spec.Severity = 1 // the lowest severity, by default
 	}
-
 	switch secPolicy.Spec.Action {
 	case "allow":
 		secPolicy.Spec.Action = "Allow"
@@ -2457,7 +2469,6 @@ func (dm *KubeArmorDaemon) ParseAndUpdateHostSecurityPolicy(event tp.K8sKubeArmo
 	dm.HostSecurityPoliciesLock.Unlock()
 
 	dm.Logger.Printf("Detected a Host Security Policy (%s/%s)", strings.ToLower(event.Type), secPolicy.Metadata["policyName"])
-
 	// apply security policies to a host
 	dm.UpdateHostSecurityPolicies()
 
@@ -2941,6 +2952,16 @@ func (dm *KubeArmorDaemon) WatchConfigMap() cache.InformerSynced {
 				}
 				dm.SystemMonitor.UpdateThrottlingConfig()
 
+				// Network Limit observability
+				if _, ok := cm.Data[cfg.ConfigNetworkLimit]; ok {
+					cfg.GlobalCfg.NetworkLimit = cm.Data[cfg.ConfigNetworkLimit] == "true"
+					if cfg.GlobalCfg.NetworkLimit {
+						dm.SystemMonitor.SetupNetworkLimitObservability()
+						dm.UpdateHostSecurityPolicies()
+					} else {
+						dm.SystemMonitor.DestroyNetworkLimitObservability()
+					}
+				}
 				dm.Logger.Printf("Current Global Posture is %v", currentGlobalPosture)
 				dm.UpdateGlobalPosture(globalPosture)
 
@@ -2993,6 +3014,17 @@ func (dm *KubeArmorDaemon) WatchConfigMap() cache.InformerSynced {
 				}
 				cfg.GlobalCfg.ThrottleSec = int32(throttleSec)
 				dm.SystemMonitor.UpdateThrottlingConfig()
+
+				// Network Limit observability
+				if _, ok := cm.Data[cfg.ConfigNetworkLimit]; ok {
+					cfg.GlobalCfg.NetworkLimit = cm.Data[cfg.ConfigNetworkLimit] == "true"
+					if cfg.GlobalCfg.NetworkLimit {
+						dm.SystemMonitor.SetupNetworkLimitObservability()
+						dm.UpdateHostSecurityPolicies()
+					} else {
+						dm.SystemMonitor.DestroyNetworkLimitObservability()
+					}
+				}
 			}
 		},
 		DeleteFunc: func(obj interface{}) {
@@ -3019,4 +3051,47 @@ func (dm *KubeArmorDaemon) GetConfigMapNS() string {
 		return "kubearmor"
 	}
 	return envNamespace
+}
+
+/*
+ExtractAndUpdateNetworkTraffic rules from host security
+policies updates the system monitor's map for both apparmor and bpflsm enforcers
+*/
+func (dm *KubeArmorDaemon) ExtractAndUpdateNetworkTrafficRules(secPolicies []tp.HostSecurityPolicy) {
+	egress := tp.TrafficType{}
+	ingress := tp.TrafficType{}
+
+	for _, secPolicy := range secPolicies {
+		if len(secPolicy.Spec.Network.Egress.Duration) > 0 {
+			egress.Duration = secPolicy.Spec.Network.Egress.Duration
+			egress.Limit = secPolicy.Spec.Network.Egress.Limit
+
+		}
+		if len(secPolicy.Spec.Network.Ingress.Duration) > 0 {
+			ingress.Duration = secPolicy.Spec.Network.Ingress.Duration
+			ingress.Limit = secPolicy.Spec.Network.Ingress.Limit
+
+		}
+	}
+	ingressVal := NetworkRuleValue{
+		Duration: kl.ConvertToNanoSeconds(ingress.Duration),
+		Limit:    kl.ConvertToBytes(ingress.Limit),
+	}
+	egressVal := NetworkRuleValue{
+		Duration: kl.ConvertToNanoSeconds(egress.Duration),
+		Limit:    kl.ConvertToBytes(egress.Limit),
+	}
+	if ingressVal.Duration > 0 {
+		err := dm.SystemMonitor.NetworkMonitorRules.Update(EGRESS, egressVal, cle.UpdateAny)
+		if err != nil {
+			dm.Logger.Errf("Error Updating System Monitor Network Egress Rules : %s", err.Error())
+		}
+	}
+	if egressVal.Duration > 0 {
+		err := dm.SystemMonitor.NetworkMonitorRules.Update(INGRESS, ingressVal, cle.UpdateAny)
+		if err != nil {
+			dm.Logger.Errf("Error Updating System Monitor Network Ingress Rules : %s", err.Error())
+		}
+	}
+
 }

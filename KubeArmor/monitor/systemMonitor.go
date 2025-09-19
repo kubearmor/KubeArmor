@@ -9,6 +9,8 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"log"
+	"net"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -16,6 +18,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/cilium/ebpf"
 	cle "github.com/cilium/ebpf"
 
 	"github.com/cilium/ebpf/link"
@@ -122,7 +125,7 @@ type SystemMonitor struct {
 	// container id -> container
 	Containers     *map[string]tp.Container
 	ContainersLock **sync.RWMutex
- 
+
 	// container id -> host pid
 	ActiveHostPidMap *map[string]tp.PidMap
 	ActivePidMapLock **sync.RWMutex
@@ -145,6 +148,9 @@ type SystemMonitor struct {
 	// Probes Links
 	Probes map[string]link.Link
 
+	// TC hooks
+	TC []link.Link
+
 	// context + args
 	ContextChan chan ContextCombined
 
@@ -163,6 +169,9 @@ type SystemMonitor struct {
 	Status          bool
 	UptimeTimeStamp float64
 	HostByteOrder   binary.ByteOrder
+
+	// network monitor map
+	NetworkMonitorRules *cle.Map
 }
 
 // NewSystemMonitor Function
@@ -255,6 +264,19 @@ func (mon *SystemMonitor) initBPFMaps() error {
 		}
 	}
 
+	networkBandwidthRulesMap, errconfig := cle.NewMapWithOptions(
+		&cle.MapSpec{
+			Name:       "kubearmor-network-bandwidth-rules",
+			Type:       cle.Hash,
+			KeySize:    1,
+			ValueSize:  16,
+			MaxEntries: 2,
+			Pinning:    cle.PinByName,
+		}, cle.MapOptions{
+			PinPath: mon.PinPath,
+		})
+	mon.NetworkMonitorRules = networkBandwidthRulesMap
+
 	mon.UpdateThrottlingConfig()
 
 	return errors.Join(errviz, errconfig)
@@ -283,6 +305,7 @@ func (mon *SystemMonitor) DestroyBPFMaps() {
 			mon.Logger.Warnf("error closing bpf map kubearmor_config %v", err)
 		}
 	}
+
 }
 
 func (mon *SystemMonitor) UpdateThrottlingConfig() {
@@ -594,6 +617,10 @@ func (mon *SystemMonitor) InitBPF() error {
 		}
 	}
 
+	if cfg.GlobalCfg.NetworkLimit {
+		err = mon.SetupNetworkLimitObservability()
+	}
+
 	return nil
 }
 
@@ -626,6 +653,7 @@ func (mon *SystemMonitor) DestroySystemMonitor() error {
 	}
 
 	mon.DestroyBPFMaps()
+	mon.DestroyNetworkLimitObservability()
 	return nil
 }
 
@@ -1007,6 +1035,10 @@ func (mon *SystemMonitor) TraceSyscall() {
 				if len(args) != 9 {
 					continue
 				}
+			} else if ctx.EventID == NetLimit {
+				if len(args) != 1 {
+					continue
+				}
 			}
 			MonitorLock.Lock()
 			// push the context to the channel for logging
@@ -1014,4 +1046,111 @@ func (mon *SystemMonitor) TraceSyscall() {
 			MonitorLock.Unlock()
 		}
 	}
+}
+func LoadTChooks(mon *SystemMonitor) {
+
+	// Get list of interfaces
+	ifaces, err := net.Interfaces()
+	if err != nil {
+		log.Fatalf("failed to get network interfaces: %v", err)
+	}
+	var links []link.Link
+
+	for _, iface := range ifaces {
+		// Skip loopback interfaces and interfaces that are down.
+		if iface.Flags&net.FlagLoopback != 0 || iface.Flags&net.FlagUp == 0 {
+			continue
+		}
+		x, err := net.InterfaceByIndex(iface.Index)
+		if err != nil {
+			log.Printf("Unable to find interface with index: %v", x, err)
+			return
+		}
+
+		addrs, err := x.Addrs()
+		if err != nil {
+			log.Printf("Unable to get addresses for interface %s: %v", x.Name, err)
+			continue
+		}
+
+		if len(addrs) == 0 {
+			continue
+		}
+		l, err := link.AttachTCX(link.TCXOptions{
+			Interface: iface.Index,
+			Program:   mon.BpfModule.Programs["handle_ingress"],
+			Attach:    ebpf.AttachTCXIngress,
+		})
+		if err != nil {
+			log.Printf("could not attach ingress program to %s: %s", iface.Name, err)
+			continue
+		}
+
+		links = append(links, l) // for cleanup later
+
+		// Attach the egress TC program.
+		l2, err := link.AttachTCX(link.TCXOptions{
+			Interface: iface.Index,
+			Program:   mon.BpfModule.Programs["handle_egress"],
+			Attach:    ebpf.AttachTCXEgress,
+		})
+
+		fmt.Println("Attached TC hooks to interface:", iface.Name)
+		if err != nil {
+			log.Printf("could not attach egress %s , %v", iface.Name, err)
+			continue
+		}
+
+		links = append(links, l2)
+	}
+	mon.TC = append(mon.TC, links...)
+
+	mon.Logger.Print("Initialized the eBPF TC hooks")
+}
+func (mon *SystemMonitor) SetupNetworkLimitObservability() error {
+
+	networkRulesMap, err := cle.NewMapWithOptions(
+		&cle.MapSpec{
+			Name:       "kubearmor_network_quota_rules",
+			Type:       cle.Hash,
+			KeySize:    1,
+			ValueSize:  16,
+			MaxEntries: 2,
+			Pinning:    cle.PinByName,
+		}, cle.MapOptions{
+			PinPath: mon.PinPath,
+		})
+	if err != nil {
+		mon.Logger.Errf("error initializing network rules map: %v", err)
+
+	}
+	mon.Logger.Print("Initialized the eBPF network limit observability rules map")
+
+	mon.NetworkMonitorRules = networkRulesMap
+
+	LoadTChooks(mon)
+
+	mon.Logger.Print("Initialized the eBPF network limit observability")
+	return nil
+}
+func (mon *SystemMonitor) DestroyNetworkLimitObservability() error {
+
+	// close TC hooks
+	for _, link := range mon.TC {
+		if err := link.Close(); err != nil {
+			return err
+		}
+	}
+	// close network rules map
+	if mon.NetworkMonitorRules != nil {
+		err := mon.NetworkMonitorRules.Unpin()
+		if err != nil {
+			mon.Logger.Warnf("error unpinning bpf map kubearmor_config %v", err)
+		}
+		err = mon.NetworkMonitorRules.Close()
+		if err != nil {
+			mon.Logger.Warnf("error closing bpf map kubearmor_config %v", err)
+		}
+	}
+	return nil
 }
