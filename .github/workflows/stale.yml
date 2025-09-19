@@ -1,0 +1,114 @@
+name: 'Close stale issues and PRs'
+
+on:
+  schedule:
+    # Run every day at 1:30 AM UTC
+    - cron: '30 1 * * *'
+  workflow_dispatch: # Allow manual triggering
+
+permissions:
+  issues: write
+  pull-requests: write
+
+jobs:
+  stale:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/stale@v10
+        with:
+          # Repository token for authentication
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          
+          # Enable statistics output for monitoring
+          enable-statistics: true
+          
+          # Increase operations for better coverage
+          operations-per-run: 1000
+          
+          # === Issue Configuration ===
+          # Mark issues as stale after 90 days of inactivity
+          days-before-issue-stale: 90
+          # Close stale issues after 14 additional days
+          days-before-issue-close: 14
+          
+          # Stale issue message
+          stale-issue-message: |
+            This issue has been automatically marked as stale because it has been open for 90 days with no activity.
+            
+            If this issue is still relevant, please:
+            - Remove the `stale` label
+            - Add a comment with current status or updates
+            - Continue working on the issue
+            
+            This issue will be automatically closed in 14 days if no further activity occurs.
+            
+            Thank you for your contributions to KubeArmor!
+          
+          # Close issue message  
+          close-issue-message: |
+            This issue has been automatically closed due to inactivity. 
+            
+            If you believe this issue is still relevant, please:
+            - Reopen the issue
+            - Provide updated context or reproduction steps
+            - Reference any related work or changes
+            
+            Thank you for your contributions to KubeArmor!
+          
+          # === Pull Request Configuration ===
+          # Mark PRs as stale after 90 days of inactivity
+          days-before-pr-stale: 90
+          # Close stale PRs after 14 additional days  
+          days-before-pr-close: 14
+          
+          # Stale PR message
+          stale-pr-message: |
+            This pull request has been automatically marked as stale because it has been open for 90 days with no activity.
+            
+            If this PR is still relevant, please:
+            - Remove the `stale` label
+            - Rebase or update the PR
+            - Address any review feedback
+            - Add a comment with current status
+            
+            This PR will be automatically closed in 14 days if no further activity occurs.
+            
+            Thank you for your contributions to KubeArmor!
+            
+          # Close PR message
+          close-pr-message: |
+            This pull request has been automatically closed due to inactivity.
+            
+            If you'd like to continue this work:
+            - Reopen this PR or create a new one
+            - Rebase on the latest main branch
+            - Address any merge conflicts or review feedback
+            
+            Thank you for your contributions to KubeArmor!
+          
+          # === Label Configuration ===
+          stale-issue-label: 'stale'
+          stale-pr-label: 'stale'
+          
+          # Exempt issues with these labels from going stale
+          exempt-issue-labels: |
+            work-in-progress,
+            do-not-close
+          
+          # Exempt PRs with these labels from going stale  
+          exempt-pr-labels: |
+            work-in-progress,
+            needs-review,
+            needs-rebase,
+            do-not-close,
+            dependencies
+          
+          # Exempt all issues and PRs with milestones
+          exempt-all-issue-milestones: true
+          exempt-all-pr-milestones: true
+          
+          # Sort by creation date for consistent processing
+          sort-by: 'created'
+          
+          # Don't ignore updates to ensure recent activity keeps items fresh
+          ignore-updates: false
