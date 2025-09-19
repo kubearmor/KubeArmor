@@ -81,6 +81,8 @@ func (ih *ImaHash) DestroyImaHash() error {
 			return err
 		}
 	}
-	ih.obj.Close()
+	if err := ih.obj.Close(); err != nil {
+		return err
+	}
 	return nil
 }
