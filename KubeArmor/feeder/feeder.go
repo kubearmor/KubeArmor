@@ -224,9 +224,14 @@ type Feeder struct {
 }
 
 // NewFeeder Function
-func NewFeeder(node *tp.Node, nodeLock **sync.RWMutex) *Feeder {
+func NewFeeder(node *tp.Node, nodeLock **sync.RWMutex) (feeder *Feeder) {
 	fd := &Feeder{}
 
+	defer func() {
+		if feeder == nil {
+			fd.DestroyFeeder()
+		}
+	}()
 	// base feeder //
 
 	// node
