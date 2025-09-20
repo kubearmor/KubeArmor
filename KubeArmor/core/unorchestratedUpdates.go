@@ -7,7 +7,7 @@ import (
 	"encoding/json"
 	"os"
 	"regexp"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/fsnotify/fsnotify"
@@ -184,7 +184,8 @@ func (dm *KubeArmorDaemon) handlePolicyEvent(eventType string, createEndPoint bo
 	}
 
 	var privilegedProfiles map[string]struct{}
-	if eventType == "ADDED" {
+	switch eventType {
+	case "ADDED":
 		dm.RuntimeEnforcer.UpdateAppArmorProfiles(containername, "ADDED", appArmorAnnotations, privilegedProfiles)
 
 		newPoint.SecurityPolicies = append(newPoint.SecurityPolicies, secPolicy)
@@ -227,7 +228,7 @@ func (dm *KubeArmorDaemon) handlePolicyEvent(eventType string, createEndPoint bo
 				}
 			}
 		}
-	} else if eventType == "MODIFIED" {
+	case "MODIFIED":
 		dm.EndPoints[endpointIdx] = newPoint
 		if cfg.GlobalCfg.Policy {
 			// update security policies
@@ -244,7 +245,7 @@ func (dm *KubeArmorDaemon) handlePolicyEvent(eventType string, createEndPoint bo
 				}
 			}
 		}
-	} else { // DELETED
+	default: // DELETED
 		// update security policies after policy deletion
 		if endpointIdx >= 0 {
 			dm.EndPoints[endpointIdx] = newPoint
@@ -325,9 +326,7 @@ func (dm *KubeArmorDaemon) ParseAndUpdateContainerSecurityPolicy(event tp.K8sKub
 		}
 	}
 
-	sort.Slice(secPolicy.Spec.Selector.Identities, func(i, j int) bool {
-		return secPolicy.Spec.Selector.Identities[i] < secPolicy.Spec.Selector.Identities[j]
-	})
+	slices.Sort(secPolicy.Spec.Selector.Identities)
 
 	// add severities, tags, messages, and actions
 
@@ -736,16 +735,18 @@ func (dm *KubeArmorDaemon) ParseAndUpdateContainerSecurityPolicy(event tp.K8sKub
 
 	// backup/remove container policies
 	if !dm.K8sEnabled && (cfg.GlobalCfg.KVMAgent || cfg.GlobalCfg.Policy) {
-		if event.Type == "ADDED" || event.Type == "MODIFIED" {
+		switch event.Type {
+		case "ADDED", "MODIFIED":
 			// backup SecurityPolicy to file
 			dm.backupKubeArmorContainerPolicy(secPolicy)
-		} else if event.Type == "DELETED" {
+		case "DELETED":
 			dm.removeBackUpPolicy(secPolicy.Metadata["policyName"])
 		}
 	}
-	if event.Type == "ADDED" {
+	switch event.Type {
+	case "ADDED":
 		return pb.PolicyStatus_Applied
-	} else if event.Type == "DELETED" {
+	case "DELETED":
 		return pb.PolicyStatus_Deleted
 	}
 

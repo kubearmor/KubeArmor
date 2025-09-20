@@ -8,9 +8,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"maps"
 	"os"
 	"reflect"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -91,11 +92,12 @@ func (dm *KubeArmorDaemon) HandleNodeAnnotations(node *tp.Node) {
 		}
 	}
 
-	if node.Annotations["kubearmor-policy"] == "enabled" {
+	switch node.Annotations["kubearmor-policy"] {
+	case "enabled":
 		node.PolicyEnabled = tp.KubeArmorPolicyEnabled
-	} else if node.Annotations["kubearmor-policy"] == "audited" {
+	case "audited":
 		node.PolicyEnabled = tp.KubeArmorPolicyAudited
-	} else { // disabled
+	default: // disabled
 		node.PolicyEnabled = tp.KubeArmorPolicyDisabled
 	}
 
@@ -103,14 +105,15 @@ func (dm *KubeArmorDaemon) HandleNodeAnnotations(node *tp.Node) {
 		node.Annotations["kubearmor-visibility"] = cfg.GlobalCfg.HostVisibility
 	}
 
-	for _, visibility := range strings.Split(node.Annotations["kubearmor-visibility"], ",") {
-		if visibility == "process" {
+	for visibility := range strings.SplitSeq(node.Annotations["kubearmor-visibility"], ",") {
+		switch visibility {
+		case "process":
 			node.ProcessVisibilityEnabled = true
-		} else if visibility == "file" {
+		case "file":
 			node.FileVisibilityEnabled = true
-		} else if visibility == "network" {
+		case "network":
 			node.NetworkVisibilityEnabled = true
-		} else if visibility == "capabilities" {
+		case "capabilities":
 			node.CapabilitiesVisibilityEnabled = true
 		}
 	}
@@ -134,9 +137,7 @@ func (dm *KubeArmorDaemon) checkAndUpdateNode(item *corev1.Node) {
 	node.Identities = []string{}
 
 	// update annotations
-	for k, v := range item.ObjectMeta.Annotations {
-		node.Annotations[k] = v
-	}
+	maps.Copy(node.Annotations, item.ObjectMeta.Annotations)
 
 	// update labels and identities
 	for k, v := range item.ObjectMeta.Labels {
@@ -144,9 +145,7 @@ func (dm *KubeArmorDaemon) checkAndUpdateNode(item *corev1.Node) {
 		node.Identities = append(node.Identities, k+"="+v)
 	}
 
-	sort.Slice(node.Identities, func(i, j int) bool {
-		return node.Identities[i] < node.Identities[j]
-	})
+	slices.Sort(node.Identities)
 
 	// node info
 	node.Architecture = item.Status.NodeInfo.Architecture
@@ -185,12 +184,12 @@ func (dm *KubeArmorDaemon) WatchK8sNodes() {
 	informer := factory.Core().V1().Nodes().Informer()
 
 	if _, err := informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
+		AddFunc: func(obj any) {
 			if item, ok := obj.(*corev1.Node); ok {
 				dm.checkAndUpdateNode(item)
 			}
 		},
-		UpdateFunc: func(oldObj, newObj interface{}) {
+		UpdateFunc: func(oldObj, newObj any) {
 			if item, ok := newObj.(*corev1.Node); ok {
 				dm.checkAndUpdateNode(item)
 			}
@@ -228,28 +227,28 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 			newPoint.Identities = append(newPoint.Identities, k+"="+v)
 		}
 
-		sort.Slice(newPoint.Identities, func(i, j int) bool {
-			return newPoint.Identities[i] < newPoint.Identities[j]
-		})
+		slices.Sort(newPoint.Identities)
 
 		// update policy flag
-		if pod.Annotations["kubearmor-policy"] == "enabled" {
+		switch pod.Annotations["kubearmor-policy"] {
+		case "enabled":
 			newPoint.PolicyEnabled = tp.KubeArmorPolicyEnabled
-		} else if pod.Annotations["kubearmor-policy"] == "audited" {
+		case "audited":
 			newPoint.PolicyEnabled = tp.KubeArmorPolicyAudited
-		} else { // disabled
+		default: // disabled
 			newPoint.PolicyEnabled = tp.KubeArmorPolicyDisabled
 		}
 
 		// parse annotations and update visibility flags
-		for _, visibility := range strings.Split(pod.Annotations["kubearmor-visibility"], ",") {
-			if visibility == "process" {
+		for visibility := range strings.SplitSeq(pod.Annotations["kubearmor-visibility"], ",") {
+			switch visibility {
+			case "process":
 				newPoint.ProcessVisibilityEnabled = true
-			} else if visibility == "file" {
+			case "file":
 				newPoint.FileVisibilityEnabled = true
-			} else if visibility == "network" {
+			case "network":
 				newPoint.NetworkVisibilityEnabled = true
-			} else if visibility == "capabilities" {
+			case "capabilities":
 				newPoint.CapabilitiesVisibilityEnabled = true
 			}
 		}
@@ -405,16 +404,15 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 				newEndPoint.Identities = append(newEndPoint.Identities, k+"="+v)
 			}
 
-			sort.Slice(newEndPoint.Identities, func(i, j int) bool {
-				return newEndPoint.Identities[i] < newEndPoint.Identities[j]
-			})
+			slices.Sort(newEndPoint.Identities)
 
 			// update policy flag
-			if pod.Annotations["kubearmor-policy"] == "enabled" {
+			switch pod.Annotations["kubearmor-policy"] {
+			case "enabled":
 				newEndPoint.PolicyEnabled = tp.KubeArmorPolicyEnabled
-			} else if pod.Annotations["kubearmor-policy"] == "audited" {
+			case "audited":
 				newEndPoint.PolicyEnabled = tp.KubeArmorPolicyAudited
-			} else { // disabled
+			default: // disabled
 				newEndPoint.PolicyEnabled = tp.KubeArmorPolicyDisabled
 			}
 
@@ -424,14 +422,15 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 			newEndPoint.CapabilitiesVisibilityEnabled = false
 
 			// parse annotations and update visibility flags
-			for _, visibility := range strings.Split(pod.Annotations["kubearmor-visibility"], ",") {
-				if visibility == "process" {
+			for visibility := range strings.SplitSeq(pod.Annotations["kubearmor-visibility"], ",") {
+				switch visibility {
+				case "process":
 					newEndPoint.ProcessVisibilityEnabled = true
-				} else if visibility == "file" {
+				case "file":
 					newEndPoint.FileVisibilityEnabled = true
-				} else if visibility == "network" {
+				case "network":
 					newEndPoint.NetworkVisibilityEnabled = true
-				} else if visibility == "capabilities" {
+				case "capabilities":
 					newEndPoint.CapabilitiesVisibilityEnabled = true
 				}
 			}
@@ -656,9 +655,7 @@ func (dm *KubeArmorDaemon) handlePodEvent(event string, obj *corev1.Pod) {
 	//get the owner , then check if that owner has owner if...do it recusivelt until you get the no owner
 
 	pod.Annotations = map[string]string{}
-	for k, v := range obj.Annotations {
-		pod.Annotations[k] = v
-	}
+	maps.Copy(pod.Annotations, obj.Annotations)
 
 	pod.Labels = map[string]string{}
 	for k, v := range obj.Labels {
@@ -764,36 +761,36 @@ func (dm *KubeArmorDaemon) handlePodEvent(event string, obj *corev1.Pod) {
 		updateAppArmor := false
 
 		if dm.OwnerInfo[pod.Metadata["podName"]].Name != "" {
-			if dm.OwnerInfo[pod.Metadata["podName"]].Ref == "StatefulSet" {
+			switch dm.OwnerInfo[pod.Metadata["podName"]].Ref {
+			case "StatefulSet":
 				statefulset, err := K8s.K8sClient.AppsV1().StatefulSets(pod.Metadata["namespaceName"]).Get(context.Background(), podOwnerName, metav1.GetOptions{})
 				if err == nil {
 					for _, c := range statefulset.Spec.Template.Spec.Containers {
 						containers = append(containers, c.Name)
 					}
 				}
-			} else if dm.OwnerInfo[pod.Metadata["podName"]].Ref == "ReplicaSet" {
+			case "ReplicaSet":
 				replica, err := K8s.K8sClient.AppsV1().ReplicaSets(pod.Metadata["namespaceName"]).Get(context.Background(), podOwnerName, metav1.GetOptions{})
 				if err == nil {
 					for _, c := range replica.Spec.Template.Spec.Containers {
 						containers = append(containers, c.Name)
 					}
 				}
-
-			} else if dm.OwnerInfo[pod.Metadata["podName"]].Ref == "DaemonSet" {
+			case "DaemonSet":
 				daemon, err := K8s.K8sClient.AppsV1().DaemonSets(pod.Metadata["namespaceName"]).Get(context.Background(), podOwnerName, metav1.GetOptions{})
 				if err == nil {
 					for _, c := range daemon.Spec.Template.Spec.Containers {
 						containers = append(containers, c.Name)
 					}
 				}
-			} else if dm.OwnerInfo[pod.Metadata["podName"]].Ref == "Deployment" {
+			case "Deployment":
 				deploy, err := K8s.K8sClient.AppsV1().Deployments(pod.Metadata["namespaceName"]).Get(context.Background(), podOwnerName, metav1.GetOptions{})
 				if err == nil {
 					for _, c := range deploy.Spec.Template.Spec.Containers {
 						containers = append(containers, c.Name)
 					}
 				}
-			} else if dm.OwnerInfo[pod.Metadata["podName"]].Ref == "Pod" {
+			case "Pod":
 				pod, err := K8s.K8sClient.CoreV1().Pods(pod.Metadata["namespaceName"]).Get(context.Background(), podOwnerName, metav1.GetOptions{})
 				if err == nil {
 					for _, c := range pod.Spec.Containers {
@@ -801,7 +798,7 @@ func (dm *KubeArmorDaemon) handlePodEvent(event string, obj *corev1.Pod) {
 					}
 				}
 
-			} else if dm.OwnerInfo[pod.Metadata["podName"]].Ref == "Job" {
+			case "Job":
 				job, err := K8s.K8sClient.BatchV1().Jobs(pod.Metadata["namespaceName"]).Get(context.Background(), podOwnerName, metav1.GetOptions{})
 				if err == nil {
 					for _, c := range job.Spec.Template.Spec.Containers {
@@ -809,7 +806,7 @@ func (dm *KubeArmorDaemon) handlePodEvent(event string, obj *corev1.Pod) {
 					}
 				}
 
-			} else if dm.OwnerInfo[pod.Metadata["podName"]].Ref == "CronJob" {
+			case "CronJob":
 				cronJob, err := K8s.K8sClient.BatchV1().CronJobs(pod.Metadata["namespaceName"]).Get(context.Background(), podOwnerName, metav1.GetOptions{})
 				if err == nil {
 					for _, c := range cronJob.Spec.JobTemplate.Spec.Template.Spec.Containers {
@@ -979,17 +976,17 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 	var err error
 	if _, err = informer.AddEventHandler(
 		cache.ResourceEventHandlerFuncs{
-			AddFunc: func(obj interface{}) {
+			AddFunc: func(obj any) {
 				if pod, ok := obj.(*corev1.Pod); ok {
 					dm.handlePodEvent(addEvent, pod)
 				}
 			},
-			UpdateFunc: func(_, newObj interface{}) {
+			UpdateFunc: func(_, newObj any) {
 				if pod, ok := newObj.(*corev1.Pod); ok {
 					dm.handlePodEvent(updateEvent, pod)
 				}
 			},
-			DeleteFunc: func(obj interface{}) {
+			DeleteFunc: func(obj any) {
 				if pod, ok := obj.(*corev1.Pod); ok {
 					dm.handlePodEvent(deleteEvent, pod)
 				}
@@ -1093,7 +1090,7 @@ func (dm *KubeArmorDaemon) UpdateSecurityPolicy(action string, secPolicyType str
 	endPointsLength := len(dm.EndPoints)
 	dm.EndPointsLock.RUnlock()
 
-	for idx := 0; idx < endPointsLength; idx++ {
+	for idx := range endPointsLength {
 		dm.EndPointsLock.RLock()
 		endPoint := dm.EndPoints[idx]
 		dm.EndPointsLock.RUnlock()
@@ -1245,10 +1242,11 @@ func (dm *KubeArmorDaemon) UpdateSecurityPolicy(action string, secPolicyType str
 }
 
 // CreateSecurityPolicy - creates `KubeArmorPolicy` & `KubeArmorClusterPolicy` object from crd
-func (dm *KubeArmorDaemon) CreateSecurityPolicy(policyType string, securityPolicy interface{}) (secPolicy tp.SecurityPolicy, err error) {
+func (dm *KubeArmorDaemon) CreateSecurityPolicy(policyType string, securityPolicy any) (secPolicy tp.SecurityPolicy, err error) {
 	var namespace, name string
 
-	if policyType == KubeArmorPolicy {
+	switch policyType {
+	case KubeArmorPolicy:
 		kubearmorPolicy := securityPolicy.(ksp.KubeArmorPolicy)
 
 		namespace = kubearmorPolicy.Namespace
@@ -1265,8 +1263,7 @@ func (dm *KubeArmorDaemon) CreateSecurityPolicy(policyType string, securityPolic
 			if k == "kubearmor.io/container.name" {
 				if len(v) > 2 {
 					containerArray := v[1 : len(v)-1]
-					containers := strings.Split(containerArray, ",")
-					for _, container := range containers {
+					for container := range strings.SplitSeq(containerArray, ",") {
 						if len(container) > 0 {
 							secPolicy.Spec.Selector.Containers = append(secPolicy.Spec.Selector.Containers, strings.TrimSpace(container))
 						}
@@ -1294,17 +1291,11 @@ func (dm *KubeArmorDaemon) CreateSecurityPolicy(policyType string, securityPolic
 			}
 		}
 
-		sort.Slice(secPolicy.Spec.Selector.Identities, func(i, j int) bool {
-			return secPolicy.Spec.Selector.Identities[i] < secPolicy.Spec.Selector.Identities[j]
-		})
-		sort.Slice(secPolicy.Spec.Selector.MatchExpIdentities, func(i, j int) bool {
-			return secPolicy.Spec.Selector.MatchExpIdentities[i] < secPolicy.Spec.Selector.MatchExpIdentities[j]
-		})
-		sort.Slice(secPolicy.Spec.Selector.NonIdentities, func(i, j int) bool {
-			return secPolicy.Spec.Selector.NonIdentities[i] < secPolicy.Spec.Selector.NonIdentities[j]
-		})
+		slices.Sort(secPolicy.Spec.Selector.Identities)
+		slices.Sort(secPolicy.Spec.Selector.MatchExpIdentities)
+		slices.Sort(secPolicy.Spec.Selector.NonIdentities)
 
-	} else if policyType == KubeArmorClusterPolicy {
+	case KubeArmorClusterPolicy:
 		kubearmorClusterPolicy := securityPolicy.(ksp.KubeArmorClusterPolicy)
 
 		namespace = kubearmorClusterPolicy.Namespace
@@ -1319,7 +1310,8 @@ func (dm *KubeArmorDaemon) CreateSecurityPolicy(policyType string, securityPolic
 		excludedNamespaces := make(map[string]bool)
 
 		for _, matchExpression := range secPolicy.Spec.Selector.MatchExpressions {
-			if matchExpression.Key == NamespaceKey {
+			switch matchExpression.Key {
+			case NamespaceKey:
 				if matchExpression.Operator == InOperator {
 					hasNsInOperator = true
 					secPolicy.Spec.Selector.NamespaceList = append(secPolicy.Spec.Selector.NamespaceList, matchExpression.Values...)
@@ -1328,7 +1320,7 @@ func (dm *KubeArmorDaemon) CreateSecurityPolicy(policyType string, securityPolic
 						excludedNamespaces[value] = true
 					}
 				}
-			} else if matchExpression.Key == LabelKey {
+			case LabelKey:
 				if matchExpression.Operator == InOperator {
 					for _, label := range matchExpression.Values {
 						hasLabelInOperator = true
@@ -1342,12 +1334,8 @@ func (dm *KubeArmorDaemon) CreateSecurityPolicy(policyType string, securityPolic
 			}
 		}
 
-		sort.Slice(secPolicy.Spec.Selector.MatchExpIdentities, func(i, j int) bool {
-			return secPolicy.Spec.Selector.MatchExpIdentities[i] < secPolicy.Spec.Selector.MatchExpIdentities[j]
-		})
-		sort.Slice(secPolicy.Spec.Selector.NonIdentities, func(i, j int) bool {
-			return secPolicy.Spec.Selector.NonIdentities[i] < secPolicy.Spec.Selector.NonIdentities[j]
-		})
+		slices.Sort(secPolicy.Spec.Selector.MatchExpIdentities)
+		slices.Sort(secPolicy.Spec.Selector.NonIdentities)
 
 		// this logic will also work when selector is not defined, and policy rule will be applied across all the namespaces
 		if !hasNsInOperator {
@@ -1749,7 +1737,7 @@ func (dm *KubeArmorDaemon) WatchSecurityPolicies() cache.InformerSynced {
 	informer := factory.Security().V1().KubeArmorPolicies().Informer()
 	registration, err := informer.AddEventHandler(
 		cache.ResourceEventHandlerFuncs{
-			AddFunc: func(obj interface{}) {
+			AddFunc: func(obj any) {
 				// create a security policy
 				if policy, ok := obj.(*ksp.KubeArmorPolicy); ok {
 
@@ -1777,7 +1765,7 @@ func (dm *KubeArmorDaemon) WatchSecurityPolicies() cache.InformerSynced {
 
 				}
 			},
-			UpdateFunc: func(oldObj, newObj interface{}) {
+			UpdateFunc: func(oldObj, newObj any) {
 				if policy, ok := newObj.(*ksp.KubeArmorPolicy); ok {
 					secPolicy, err := dm.CreateSecurityPolicy(KubeArmorPolicy, *policy)
 					if err != nil {
@@ -1799,7 +1787,7 @@ func (dm *KubeArmorDaemon) WatchSecurityPolicies() cache.InformerSynced {
 					dm.UpdateSecurityPolicy(updateEvent, KubeArmorPolicy, secPolicy)
 				}
 			},
-			DeleteFunc: func(obj interface{}) {
+			DeleteFunc: func(obj any) {
 				if policy, ok := obj.(*ksp.KubeArmorPolicy); ok {
 					secPolicy, err := dm.CreateSecurityPolicy(KubeArmorPolicy, *policy)
 					if err != nil {
@@ -1856,7 +1844,7 @@ func (dm *KubeArmorDaemon) WatchClusterSecurityPolicies(timeout time.Duration) c
 	informer := factory.Security().V1().KubeArmorClusterPolicies().Informer()
 	registration, err := informer.AddEventHandler(
 		cache.ResourceEventHandlerFuncs{
-			AddFunc: func(obj interface{}) {
+			AddFunc: func(obj any) {
 				// create a security policy
 				if policy, ok := obj.(*ksp.KubeArmorClusterPolicy); ok {
 
@@ -1884,7 +1872,7 @@ func (dm *KubeArmorDaemon) WatchClusterSecurityPolicies(timeout time.Duration) c
 
 				}
 			},
-			UpdateFunc: func(oldObj, newObj interface{}) {
+			UpdateFunc: func(oldObj, newObj any) {
 				if policy, ok := newObj.(*ksp.KubeArmorClusterPolicy); ok {
 					secPolicy, err := dm.CreateSecurityPolicy(KubeArmorClusterPolicy, *policy)
 					if err != nil {
@@ -1906,7 +1894,7 @@ func (dm *KubeArmorDaemon) WatchClusterSecurityPolicies(timeout time.Duration) c
 					dm.UpdateSecurityPolicy(updateEvent, KubeArmorClusterPolicy, secPolicy)
 				}
 			},
-			DeleteFunc: func(obj interface{}) {
+			DeleteFunc: func(obj any) {
 				if policy, ok := obj.(*ksp.KubeArmorClusterPolicy); ok {
 					secPolicy, err := dm.CreateSecurityPolicy(KubeArmorClusterPolicy, *policy)
 					if err != nil {
@@ -1950,7 +1938,7 @@ func (dm *KubeArmorDaemon) UpdateHostSecurityPolicies() {
 
 	secPolicies := []tp.HostSecurityPolicy{}
 
-	for idx := 0; idx < hostSecurityPoliciesLength; idx++ {
+	for idx := range hostSecurityPoliciesLength {
 		dm.EndPointsLock.RLock()
 		policy := dm.HostSecurityPolicies[idx]
 		dm.EndPointsLock.RUnlock()
@@ -2013,9 +2001,7 @@ func (dm *KubeArmorDaemon) ParseAndUpdateHostSecurityPolicy(event tp.K8sKubeArmo
 		secPolicy.Spec.NodeSelector.Identities = append(secPolicy.Spec.NodeSelector.Identities, k+"="+v)
 	}
 
-	sort.Slice(secPolicy.Spec.NodeSelector.Identities, func(i, j int) bool {
-		return secPolicy.Spec.NodeSelector.Identities[i] < secPolicy.Spec.NodeSelector.Identities[j]
-	})
+	slices.Sort(secPolicy.Spec.NodeSelector.Identities)
 
 	// add severities, tags, messages, and actions
 
@@ -2462,16 +2448,18 @@ func (dm *KubeArmorDaemon) ParseAndUpdateHostSecurityPolicy(event tp.K8sKubeArmo
 	dm.UpdateHostSecurityPolicies()
 
 	if !cfg.GlobalCfg.K8sEnv && (cfg.GlobalCfg.KVMAgent || cfg.GlobalCfg.HostPolicy) {
-		if event.Type == addEvent || event.Type == updateEvent {
+		switch event.Type {
+		case addEvent, updateEvent:
 			// backup HostSecurityPolicy to file
 			dm.backupKubeArmorHostPolicy(secPolicy)
-		} else if event.Type == deleteEvent {
+		case deleteEvent:
 			dm.removeBackUpPolicy(secPolicy.Metadata["policyName"])
 		}
 	}
-	if event.Type == addEvent {
+	switch event.Type {
+	case addEvent:
 		return pb.PolicyStatus_Applied
-	} else if event.Type == deleteEvent {
+	case deleteEvent:
 		return pb.PolicyStatus_Deleted
 	}
 	return pb.PolicyStatus_Modified
@@ -2551,7 +2539,6 @@ func (dm *KubeArmorDaemon) updatEndpointsWithCM(cm *corev1.ConfigMap, action str
 
 	// for each namespace if needed change endpoint depfault posture
 	for _, ns := range nsList.Items {
-		ns := ns
 		fp, fa := validateDefaultPosture("kubearmor-file-posture", &ns, cm.Data[cfg.ConfigDefaultFilePosture])
 		np, na := validateDefaultPosture("kubearmor-network-posture", &ns, cm.Data[cfg.ConfigDefaultNetworkPosture])
 		cp, ca := validateDefaultPosture("kubearmor-capabilities-posture", &ns, cm.Data[cfg.ConfigDefaultCapabilitiesPosture])
@@ -2615,9 +2602,10 @@ func (dm *KubeArmorDaemon) UpdateDefaultPostureWithCM(endPoint *tp.EndPoint, act
 // returns default posture and a boolean value states, if annotation is set or not
 func validateDefaultPosture(key string, ns *corev1.Namespace, defaultPosture string) (string, bool) {
 	if posture, ok := ns.Annotations[key]; ok {
-		if posture == "audit" || posture == "Audit" {
+		switch strings.ToLower(posture) {
+		case "audit":
 			return "audit", true
-		} else if posture == "block" || posture == "Block" {
+		case "block":
 			return "block", true
 		}
 		// Invalid Annotation Value, Updating the value to global default
@@ -2653,7 +2641,7 @@ func (dm *KubeArmorDaemon) UpdateDefaultPosture(action string, namespace string,
 	endPointsLen := len(dm.EndPoints)
 	dm.EndPointsLock.RUnlock()
 
-	for idx := 0; idx < endPointsLen; idx++ {
+	for idx := range endPointsLen {
 		dm.EndPointsLock.RLock()
 		endPoint := dm.EndPoints[idx]
 		dm.EndPointsLock.RUnlock()
@@ -2712,7 +2700,8 @@ func (dm *KubeArmorDaemon) UpdateVisibility(action string, namespace string, vis
 	dm.SystemMonitor.BpfMapLock.Lock()
 	defer dm.SystemMonitor.BpfMapLock.Unlock()
 
-	if action == addEvent || action == updateEvent {
+	switch action {
+	case addEvent, updateEvent:
 		if val, ok := dm.SystemMonitor.NamespacePidsMap[namespace]; ok {
 			val.Capability = visibility.Capabilities
 			val.File = visibility.File
@@ -2734,7 +2723,7 @@ func (dm *KubeArmorDaemon) UpdateVisibility(action string, namespace string, vis
 			}
 		}
 		dm.Logger.Printf("Namespace %s visibiliy configured %+v", namespace, visibility)
-	} else if action == deleteEvent {
+	case deleteEvent:
 		if val, ok := dm.SystemMonitor.NamespacePidsMap[namespace]; ok {
 			for _, nskey := range val.NsKeys {
 				dm.SystemMonitor.UpdateNsKeyMap(deleteEvent, nskey, tp.Visibility{})
@@ -2746,7 +2735,7 @@ func (dm *KubeArmorDaemon) UpdateVisibility(action string, namespace string, vis
 
 var visibilityKey string = "kubearmor-visibility"
 
-func (dm *KubeArmorDaemon) updateVisibilityWithCM(cm *corev1.ConfigMap, action string) {
+func (dm *KubeArmorDaemon) updateVisibilityWithCM(cm *corev1.ConfigMap, _ string) {
 
 	dm.SystemMonitor.UpdateVisibility() // update host and global default bpf maps
 
@@ -2800,7 +2789,7 @@ func (dm *KubeArmorDaemon) WatchDefaultPosture() cache.InformerSynced {
 	informer := factory.Core().V1().Namespaces().Informer()
 
 	registration, err := informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
+		AddFunc: func(obj any) {
 			if ns, ok := obj.(*corev1.Namespace); ok {
 				fp, fa := validateDefaultPosture("kubearmor-file-posture", ns, cfg.GlobalCfg.DefaultFilePosture)
 				np, na := validateDefaultPosture("kubearmor-network-posture", ns, cfg.GlobalCfg.DefaultNetworkPosture)
@@ -2834,7 +2823,7 @@ func (dm *KubeArmorDaemon) WatchDefaultPosture() cache.InformerSynced {
 				dm.UpdateVisibility(addEvent, ns.Name, visibility)
 			}
 		},
-		UpdateFunc: func(_, new interface{}) {
+		UpdateFunc: func(_, new any) {
 			if ns, ok := new.(*corev1.Namespace); ok {
 				fp, fa := validateDefaultPosture("kubearmor-file-posture", ns, cfg.GlobalCfg.DefaultFilePosture)
 				np, na := validateDefaultPosture("kubearmor-network-posture", ns, cfg.GlobalCfg.DefaultNetworkPosture)
@@ -2869,7 +2858,7 @@ func (dm *KubeArmorDaemon) WatchDefaultPosture() cache.InformerSynced {
 
 			}
 		},
-		DeleteFunc: func(obj interface{}) {
+		DeleteFunc: func(obj any) {
 			if ns, ok := obj.(*corev1.Namespace); ok {
 				_, fa := validateDefaultPosture("kubearmor-file-posture", ns, cfg.GlobalCfg.DefaultFilePosture)
 				_, na := validateDefaultPosture("kubearmor-network-posture", ns, cfg.GlobalCfg.DefaultNetworkPosture)
@@ -2901,7 +2890,7 @@ func (dm *KubeArmorDaemon) WatchConfigMap() cache.InformerSynced {
 
 	var err error
 	registration, err := informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
+		AddFunc: func(obj any) {
 			if cm, ok := obj.(*corev1.ConfigMap); ok && cm.Namespace == cmNS {
 				cfg.GlobalCfg.HostVisibility = cm.Data[cfg.ConfigHostVisibility]
 				cfg.GlobalCfg.Visibility = cm.Data[cfg.ConfigVisibility]
@@ -2950,7 +2939,7 @@ func (dm *KubeArmorDaemon) WatchConfigMap() cache.InformerSynced {
 				dm.updateVisibilityWithCM(cm, addEvent)
 			}
 		},
-		UpdateFunc: func(_, new interface{}) {
+		UpdateFunc: func(_, new any) {
 			if cm, ok := new.(*corev1.ConfigMap); ok && cm.Namespace == cmNS {
 				cfg.GlobalCfg.HostVisibility = cm.Data[cfg.ConfigHostVisibility]
 				cfg.GlobalCfg.Visibility = cm.Data[cfg.ConfigVisibility]
@@ -2995,7 +2984,7 @@ func (dm *KubeArmorDaemon) WatchConfigMap() cache.InformerSynced {
 				dm.SystemMonitor.UpdateThrottlingConfig()
 			}
 		},
-		DeleteFunc: func(obj interface{}) {
+		DeleteFunc: func(obj any) {
 			// nothing to do here
 		},
 	})
