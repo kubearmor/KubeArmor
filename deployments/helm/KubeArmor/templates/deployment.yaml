@@ -109,10 +109,10 @@ spec:
             port: 8081
           initialDelaySeconds: 5
           periodSeconds: 10
+        {{- with .Values.kubearmorRelay.resources }}
         resources:
-          requests:
-            cpu: 10m
-            memory: 64Mi
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
         securityContext:
           allowPrivilegeEscalation: false
           capabilities:

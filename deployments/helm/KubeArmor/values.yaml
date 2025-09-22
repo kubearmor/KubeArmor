@@ -27,6 +27,12 @@ kubearmorRelay:
   enableStdoutAlerts: "false"
   enableStdoutMsg: "false"
 
+  # Set resource limits — KubeArmor’s memory usage tends to grow significantly over time.
+  resources:
+    requests:
+      cpu: 10m
+      memory: 64Mi
+
   tls:
     extraDnsNames: ["localhost"]
     extraIpAddresses: ["127.0.0.1"]
