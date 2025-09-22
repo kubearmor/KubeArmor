@@ -51,7 +51,7 @@
 #include "syscalls.h"
 #include "throttling.h"
 
-#include <bpf/bpf_endian.h>
+// #include <bpf/bpf_endian.h>
 
 #ifdef RHEL_RELEASE_CODE
 #if (RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(8, 0))
@@ -118,6 +118,7 @@
 #define TC_ACT_OK 0
 #define TC_ACT_SHOT 2
 #define ETH_P_IP 0x0800
+#define ETH_P_IPV6 0x86DD
 //-----------------------//
 
 #define AF_UNIX 1
@@ -665,6 +666,7 @@ static __always_inline u32 *get_buffer_offset(int buf_type)
 }
 
 static __always_inline int save_context_to_buffer(bufs_t *bufs_p, void *ptr)
+
 {
     if (bpf_probe_read_kernel(&(bufs_p->buf[0]), sizeof(sys_context_t), ptr) == 0)
     {
@@ -2763,6 +2765,9 @@ u64 _total_bytes_egress = 0;
 u64 _total_bytes_ingress = 0;
 u8 _egress_log_flag = 0;
 u8 _ingress_log_flag = 0;
+u64 _no_of_pkt_ingress = 0;
+u64 _no_of_pkt_egress = 0;
+
 enum pkt_direction
 {
     DIR_INGRESS = 111,
@@ -2801,8 +2806,10 @@ int handle_ingress(struct __sk_buff *skb)
         return TC_ACT_OK;
     }
 
-    if (eth->h_proto != bpf_htons(ETH_P_IP))
+    if (eth->h_proto != __builtin_bswap16(ETH_P_IP) && eth->h_proto != __builtin_bswap16(ETH_P_IPV6))
     {
+        // ignoring non-ip packets since they contain no actual payload
+        bpf_printk("non i packet len %d", skb->len);
         return TC_ACT_OK;
     }
 
@@ -2811,6 +2818,7 @@ int handle_ingress(struct __sk_buff *skb)
     {
         return TC_ACT_OK;
     }
+    __sync_fetch_and_add(&_no_of_pkt_ingress, 1);
 
     if (_first_packet_ts_ingress == -1)
     {
@@ -2879,7 +2887,7 @@ int handle_egress(struct __sk_buff *skb)
         return TC_ACT_OK;
     }
 
-    if (eth->h_proto != bpf_htons(ETH_P_IP))
+    if (eth->h_proto != __builtin_bswap16(ETH_P_IP) && eth->h_proto != __builtin_bswap16(ETH_P_IPV6))
     {
         return TC_ACT_OK;
     }
