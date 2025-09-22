@@ -28,6 +28,7 @@ helm upgrade --install kubearmor . -n kubearmor --create-namespace
 | kubearmorRelay.image.repository | string | kubearmor/kubearmor-relay | kubearmor-relay image repo |
 | kubearmorRelay.image.tag | string | latest | kubearmor-relay image tag |
 | kubearmorRelay.imagePullPolicy | string | Always | kubearmor-relay imagePullPolicy |
+| kubearmorRelay.resources | object | { requests: { cpu: 10m, memory: 64Mi } } | kubearmor-relay container resources requests/limits |
 | kubearmorInit.image.repository | string | kubearmor/kubearmor-init | kubearmor-init image repo |
 | kubearmorInit.image.tag | string | stable | kubearmor-init image tag |
 | kubearmorInit.imagePullPolicy | string | Always | kubearmor-init imagePullPolicy |
