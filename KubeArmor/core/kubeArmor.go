@@ -9,6 +9,7 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
+	"fmt"
 	"os"
 	"os/signal"
 	"strings"
@@ -227,9 +228,12 @@ func (dm *KubeArmorDaemon) DestroyKubeArmorDaemon() {
 // ============ //
 
 // InitLogger Function
-func (dm *KubeArmorDaemon) InitLogger() bool {
+func (dm *KubeArmorDaemon) InitLogger() error {
 	dm.Logger = fd.NewFeeder(&dm.Node, &dm.NodeLock)
-	return dm.Logger != nil
+	if dm.Logger == nil {
+		return fmt.Errorf("failed to create logger feeder")
+	}
+	return nil
 }
 
 // ServeLogFeeds Function
@@ -254,18 +258,17 @@ func (dm *KubeArmorDaemon) CloseLogger() bool {
 // ==================== //
 
 // InitSystemMonitor Function
-func (dm *KubeArmorDaemon) InitSystemMonitor() bool {
+func (dm *KubeArmorDaemon) InitSystemMonitor() error {
 	dm.SystemMonitor = mon.NewSystemMonitor(&dm.Node, &dm.NodeLock, dm.Logger, &dm.Containers, &dm.ContainersLock, &dm.ActiveHostPidMap, &dm.ActivePidMapLock, &dm.MonitorLock)
 	if dm.SystemMonitor == nil {
-		return false
+		return fmt.Errorf("failed to create system monitor")
 	}
 
 	if err := dm.SystemMonitor.InitBPF(); err != nil {
-		kg.Errf("Failed to initialize BPF (%s)", err.Error())
-		return false
+		return fmt.Errorf("failed to initialize BPF: %w", err)
 	}
 
-	return true
+	return nil
 }
 
 // MonitorSystemEvents Function
@@ -445,8 +448,8 @@ func KubeArmor() {
 		dm.NodeLock.Unlock()
 
 	} else if cfg.GlobalCfg.K8sEnv {
-		if !K8s.InitK8sClient() {
-			kg.Err("Failed to initialize Kubernetes client")
+		if err := K8s.InitK8sClient(); err != nil {
+			kg.Errf("Failed to initialize Kubernetes client: %s", err.Error())
 
 			// destroy the daemon
 			dm.DestroyKubeArmorDaemon()
@@ -523,8 +526,8 @@ func KubeArmor() {
 	// == //
 
 	// initialize log feeder
-	if !dm.InitLogger() {
-		kg.Err("Failed to initialize KubeArmor Logger")
+	if err := dm.InitLogger(); err != nil {
+		kg.Errf("Failed to initialize KubeArmor Logger: %s", err.Error())
 
 		// destroy the daemon
 		dm.DestroyKubeArmorDaemon()
@@ -571,8 +574,8 @@ func KubeArmor() {
 	// Containerized workloads with Host
 	if cfg.GlobalCfg.Policy || cfg.GlobalCfg.HostPolicy {
 		// initialize system monitor
-		if !dm.InitSystemMonitor() {
-			dm.Logger.Err("Failed to initialize KubeArmor Monitor")
+		if err := dm.InitSystemMonitor(); err != nil {
+			dm.Logger.Errf("Failed to initialize KubeArmor Monitor: %s", err.Error())
 
 			// destroy the daemon
 			dm.DestroyKubeArmorDaemon()
