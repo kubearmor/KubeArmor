@@ -4,6 +4,7 @@
 package feeder
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -88,10 +89,10 @@ func fetchProtocol(resource string) string {
 }
 func getNetworkLimitData(logData, res string) string {
 	if strings.Contains(logData, "Egress") {
-		return "Direction=Egress, Limit=" + res
+		return fmt.Sprintf("DIRECTION=EGRESS %s", res)
 	}
 	if strings.Contains(logData, "Ingress") {
-		return "Direction=Ingress, Limit=" + res
+		return fmt.Sprintf("DIRECTION=INGRESS %s", res)
 
 	}
 	return ""
@@ -285,12 +286,16 @@ func (fd *Feeder) newMatchPolicy(policyEnabled int, policyName, src string, mp i
 		match.Message = npt.Message
 
 		match.Operation = "Network"
-		match.Resource = npt.Limit
+
+		res := ""
+		if len(npt.LimitSize) > 0 {
+			res = fmt.Sprintf("LIMIT_SIZE=%s", npt.LimitSize)
+		}
+		if len(npt.LimitCount) > 0 {
+			res = res + fmt.Sprintf("LIMIT_COUNT=%s", npt.LimitCount)
+		}
+		match.Resource = res
 		match.ResourceType = "NetworkLimit"
-
-		// TODO: Handle cases where AppArmor network enforcement is not present
-		// https://github.com/kubearmor/KubeArmor/issues/1285
-
 		match.Action = "Audit"
 
 	} else if cct, ok := mp.(tp.CapabilitiesCapabilityType); ok {
@@ -1688,10 +1693,11 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 					log.Enforcer = "eBPF Monitor"
 					log.Action = "Audit"
 				}
+				// handling for network limit policies
 				if strings.Contains(log.Data, "Direction") {
 					// NetworkLimit event
 					log.Type = "MatchedPolicy"
-					log.PolicyName = "NetworkLimit"
+					log.PolicyName = secPolicy.PolicyName
 					log.Enforcer = "eBPF Monitor"
 					log.Action = "Audit"
 					log.Data = getNetworkLimitData(log.Data, secPolicy.Resource)

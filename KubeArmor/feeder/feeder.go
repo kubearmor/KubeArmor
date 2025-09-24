@@ -551,18 +551,13 @@ func (fd *Feeder) PushLog(log tp.Log) {
 			if fd.Enforcer == "BPFLSM" {
 				log.Enforcer = "BPFLSM"
 			}
-			if log.Operation == "NetworkLimit" {
-				fmt.Println("Network Limit log received", log)
-			}
+
 		}
 	}
 
 	if log.Source == "" {
 		// even if a log doesn't have a source, it must have a type
 		if log.Type == "" {
-			if log.Operation == "NetworkLimit" {
-				fmt.Println("Network Limit log received no log type", log)
-			}
 			if strings.Contains(log.Enforcer, "PRESET") {
 				kg.Printf("no source and type: %s\n", log.Enforcer)
 			}
@@ -606,9 +601,7 @@ func (fd *Feeder) PushLog(log tp.Log) {
 				log.DroppingAlertsInterval = cfg.GlobalCfg.ThrottleSec
 			}
 		}
-		if log.Operation == "NetworkLimit" {
-			fmt.Println("ALert is being generated", log)
-		}
+
 		pbAlert := pb.Alert{}
 
 		pbAlert.KubeArmorVersion = log.KubeArmorVersion

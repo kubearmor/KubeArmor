@@ -736,3 +736,10 @@ func GetNetworkDirection(dir uint8) string {
 	}
 	return ""
 }
+func ConvertToU64(num string) uint64 {
+	if len(num) > 0 {
+		val, _ := strconv.ParseUint(num, 10, 64)
+		return val
+	}
+	return 0
+}

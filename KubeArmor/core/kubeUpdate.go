@@ -50,8 +50,9 @@ const (
 )
 
 type NetworkRuleValue struct {
-	Duration uint64
-	Limit    uint64
+	Duration   uint64
+	LimitSize  uint64
+	LimitCount uint64
 }
 
 // ================= //
@@ -1979,8 +1980,10 @@ func (dm *KubeArmorDaemon) UpdateHostSecurityPolicies() {
 				// enforce host security policies
 				dm.RuntimeEnforcer.UpdateHostSecurityPolicies(secPolicies)
 				//
-				// extract and update network traffic rules from host security policies
-				dm.ExtractAndUpdateNetworkTrafficRules(secPolicies)
+				if cfg.GlobalCfg.NetworkLimit {
+					// extract and update network traffic rules from host security policies
+					dm.ExtractAndUpdateNetworkTrafficRules(secPolicies)
+				}
 			}
 		}
 	}
@@ -3060,38 +3063,57 @@ policies updates the system monitor's map for both apparmor and bpflsm enforcers
 func (dm *KubeArmorDaemon) ExtractAndUpdateNetworkTrafficRules(secPolicies []tp.HostSecurityPolicy) {
 	egress := tp.TrafficType{}
 	ingress := tp.TrafficType{}
-
 	for _, secPolicy := range secPolicies {
 		if len(secPolicy.Spec.Network.Egress.Duration) > 0 {
 			egress.Duration = secPolicy.Spec.Network.Egress.Duration
-			egress.Limit = secPolicy.Spec.Network.Egress.Limit
+			egress.LimitSize = secPolicy.Spec.Network.Egress.LimitSize
+			egress.LimitCount = secPolicy.Spec.Network.Egress.LimitCount
 
 		}
 		if len(secPolicy.Spec.Network.Ingress.Duration) > 0 {
 			ingress.Duration = secPolicy.Spec.Network.Ingress.Duration
-			ingress.Limit = secPolicy.Spec.Network.Ingress.Limit
+			ingress.LimitSize = secPolicy.Spec.Network.Ingress.LimitSize
+			ingress.LimitCount = secPolicy.Spec.Network.Ingress.LimitCount
 
 		}
 	}
 	ingressVal := NetworkRuleValue{
-		Duration: kl.ConvertToNanoSeconds(ingress.Duration),
-		Limit:    kl.ConvertToBytes(ingress.Limit),
+		Duration:   kl.ConvertToNanoSeconds(ingress.Duration),
+		LimitSize:  kl.ConvertToBytes(ingress.LimitSize),
+		LimitCount: kl.ConvertToU64(ingress.LimitCount),
 	}
 	egressVal := NetworkRuleValue{
-		Duration: kl.ConvertToNanoSeconds(egress.Duration),
-		Limit:    kl.ConvertToBytes(egress.Limit),
+		Duration:   kl.ConvertToNanoSeconds(egress.Duration),
+		LimitSize:  kl.ConvertToBytes(egress.LimitSize),
+		LimitCount: kl.ConvertToU64(egress.LimitCount),
 	}
 	if ingressVal.Duration > 0 {
 		err := dm.SystemMonitor.NetworkMonitorRules.Update(EGRESS, egressVal, cle.UpdateAny)
 		if err != nil {
 			dm.Logger.Errf("Error Updating System Monitor Network Egress Rules : %s", err.Error())
 		}
+		dm.Logger.Printf("Updating System Monitor Network Ingress Rules")
+	} else {
+		// Delete existing rules
+		err := dm.SystemMonitor.NetworkMonitorRules.Delete(EGRESS)
+		if err != nil {
+			dm.Logger.Errf("Error Updating System Monitor Network Egress Rules : %s", err.Error())
+		}
+		dm.Logger.Printf("Updating System Monitor Network Ingress Rules")
 	}
 	if egressVal.Duration > 0 {
 		err := dm.SystemMonitor.NetworkMonitorRules.Update(INGRESS, ingressVal, cle.UpdateAny)
 		if err != nil {
 			dm.Logger.Errf("Error Updating System Monitor Network Ingress Rules : %s", err.Error())
 		}
+		dm.Logger.Printf("Updating System Monitor Network egress Rules")
+	} else {
+		// deleting existing rules
+		err := dm.SystemMonitor.NetworkMonitorRules.Delete(INGRESS)
+		if err != nil {
+			dm.Logger.Errf("Error Updating System Monitor Network Ingress Rules : %s", err.Error())
+		}
+		dm.Logger.Printf("Updating System Monitor Network egress Rules")
 	}
 
 }

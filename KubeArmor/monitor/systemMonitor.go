@@ -264,19 +264,6 @@ func (mon *SystemMonitor) initBPFMaps() error {
 		}
 	}
 
-	networkBandwidthRulesMap, errconfig := cle.NewMapWithOptions(
-		&cle.MapSpec{
-			Name:       "kubearmor-network-bandwidth-rules",
-			Type:       cle.Hash,
-			KeySize:    1,
-			ValueSize:  16,
-			MaxEntries: 2,
-			Pinning:    cle.PinByName,
-		}, cle.MapOptions{
-			PinPath: mon.PinPath,
-		})
-	mon.NetworkMonitorRules = networkBandwidthRulesMap
-
 	mon.UpdateThrottlingConfig()
 
 	return errors.Join(errviz, errconfig)
@@ -618,7 +605,7 @@ func (mon *SystemMonitor) InitBPF() error {
 	}
 
 	if cfg.GlobalCfg.NetworkLimit {
-		err = mon.SetupNetworkLimitObservability()
+		mon.SetupNetworkLimitObservability()
 	}
 
 	return nil
@@ -1035,10 +1022,6 @@ func (mon *SystemMonitor) TraceSyscall() {
 				if len(args) != 9 {
 					continue
 				}
-			} else if ctx.EventID == NetLimit {
-				if len(args) != 1 {
-					continue
-				}
 			}
 			MonitorLock.Lock()
 			// push the context to the channel for logging
@@ -1061,28 +1044,13 @@ func LoadTChooks(mon *SystemMonitor) {
 		if iface.Flags&net.FlagLoopback != 0 || iface.Flags&net.FlagUp == 0 {
 			continue
 		}
-		x, err := net.InterfaceByIndex(iface.Index)
-		if err != nil {
-			log.Printf("Unable to find interface with index: %v", x, err)
-			return
-		}
-
-		addrs, err := x.Addrs()
-		if err != nil {
-			log.Printf("Unable to get addresses for interface %s: %v", x.Name, err)
-			continue
-		}
-
-		if len(addrs) == 0 {
-			continue
-		}
 		l, err := link.AttachTCX(link.TCXOptions{
 			Interface: iface.Index,
 			Program:   mon.BpfModule.Programs["handle_ingress"],
 			Attach:    ebpf.AttachTCXIngress,
 		})
 		if err != nil {
-			log.Printf("could not attach ingress program to %s: %s", iface.Name, err)
+			mon.Logger.Warnf("could not attach ingress program to %s: %s", iface.Name, err)
 			continue
 		}
 
@@ -1095,9 +1063,8 @@ func LoadTChooks(mon *SystemMonitor) {
 			Attach:    ebpf.AttachTCXEgress,
 		})
 
-		fmt.Println("Attached TC hooks to interface:", iface.Name)
 		if err != nil {
-			log.Printf("could not attach egress %s , %v", iface.Name, err)
+			mon.Logger.Warnf("could not attach egress %s , %v", iface.Name, err)
 			continue
 		}
 
@@ -1107,14 +1074,14 @@ func LoadTChooks(mon *SystemMonitor) {
 
 	mon.Logger.Print("Initialized the eBPF TC hooks")
 }
-func (mon *SystemMonitor) SetupNetworkLimitObservability() error {
+func (mon *SystemMonitor) SetupNetworkLimitObservability() {
 
 	networkRulesMap, err := cle.NewMapWithOptions(
 		&cle.MapSpec{
 			Name:       "kubearmor_network_quota_rules",
 			Type:       cle.Hash,
 			KeySize:    1,
-			ValueSize:  16,
+			ValueSize:  24,
 			MaxEntries: 2,
 			Pinning:    cle.PinByName,
 		}, cle.MapOptions{
@@ -1131,26 +1098,25 @@ func (mon *SystemMonitor) SetupNetworkLimitObservability() error {
 	LoadTChooks(mon)
 
 	mon.Logger.Print("Initialized the eBPF network limit observability")
-	return nil
 }
-func (mon *SystemMonitor) DestroyNetworkLimitObservability() error {
+func (mon *SystemMonitor) DestroyNetworkLimitObservability() {
 
 	// close TC hooks
 	for _, link := range mon.TC {
 		if err := link.Close(); err != nil {
-			return err
+			mon.Logger.Errf("error closing TC links %v", err)
+
 		}
 	}
 	// close network rules map
 	if mon.NetworkMonitorRules != nil {
 		err := mon.NetworkMonitorRules.Unpin()
 		if err != nil {
-			mon.Logger.Warnf("error unpinning bpf map kubearmor_config %v", err)
+			mon.Logger.Errf("error unpinning bpf map kubearmor_config %v", err)
 		}
 		err = mon.NetworkMonitorRules.Close()
 		if err != nil {
-			mon.Logger.Warnf("error closing bpf map kubearmor_config %v", err)
+			mon.Logger.Errf("error closing bpf map kubearmor_config %v", err)
 		}
 	}
-	return nil
 }

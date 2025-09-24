@@ -51,6 +51,8 @@
 #include "syscalls.h"
 #include "throttling.h"
 
+#include "tc_helpers.h"
+
 // #include <bpf/bpf_endian.h>
 
 #ifdef RHEL_RELEASE_CODE
@@ -668,12 +670,8 @@ static __always_inline u32 *get_buffer_offset(int buf_type)
 static __always_inline int save_context_to_buffer(bufs_t *bufs_p, void *ptr)
 
 {
-    if (bpf_probe_read_kernel(&(bufs_p->buf[0]), sizeof(sys_context_t), ptr) == 0)
-    {
-        return sizeof(sys_context_t);
-    }
-
-    return 0;
+    __builtin_memcpy(&(bufs_p->buf[0]), ptr, sizeof(sys_context_t));
+    return sizeof(sys_context_t);
 }
 
 static __always_inline int save_str_to_buffer(bufs_t *bufs_p, void *ptr)
@@ -883,7 +881,7 @@ static __always_inline int save_to_buffer(bufs_t *bufs_p, int buf_type, void *pt
         return 0;
     }
 
-    if (bpf_probe_read_kernel(&(bufs_p->buf[*off]), 1, &type) != 0)
+    if (bpf_probe_read(&(bufs_p->buf[*off]), 1, &type) != 0)
     {
         return 0;
     }
@@ -895,7 +893,7 @@ static __always_inline int save_to_buffer(bufs_t *bufs_p, int buf_type, void *pt
         return 0;
     }
 
-    if (bpf_probe_read_kernel(&(bufs_p->buf[*off]), size, ptr) == 0)
+    if (bpf_probe_read(&(bufs_p->buf[*off]), size, ptr) == 0)
     {
         *off += size;
         set_buffer_offset(buf_type, *off);
@@ -2759,40 +2757,7 @@ int kretprobe__usb_set_configuration(struct pt_regs *ctx)
     return 0;
 }
 
-u64 _first_packet_ts_ingress = -1;
-u64 _first_packet_ts_egress = -1;
-u64 _total_bytes_egress = 0;
-u64 _total_bytes_ingress = 0;
-u8 _egress_log_flag = 0;
-u8 _ingress_log_flag = 0;
-u64 _no_of_pkt_ingress = 0;
-u64 _no_of_pkt_egress = 0;
-
-enum pkt_direction
-{
-    DIR_INGRESS = 111,
-    DIR_EGRESS = 112,
-};
-
-struct rule_map_key
-{
-    __u8 direction;
-} rule_key;
-struct rule_map_val
-{
-    __u64 duration;
-    __u64 pkt_len_bytes;
-
-} rule_val;
-
-struct
-{
-    __uint(type, BPF_MAP_TYPE_HASH);
-    __uint(max_entries, 2);
-    __type(key, rule_key);
-    __type(value, rule_val);
-    __uint(pinning, LIBBPF_PIN_BY_NAME);
-} kubearmor_network_quota_rules SEC(".maps");
+// ===== Network TC programs for egress and ingress monitoring ===== //
 
 SEC("tc/ingress")
 int handle_ingress(struct __sk_buff *skb)
@@ -2809,7 +2774,6 @@ int handle_ingress(struct __sk_buff *skb)
     if (eth->h_proto != __builtin_bswap16(ETH_P_IP) && eth->h_proto != __builtin_bswap16(ETH_P_IPV6))
     {
         // ignoring non-ip packets since they contain no actual payload
-        bpf_printk("non i packet len %d", skb->len);
         return TC_ACT_OK;
     }
 
@@ -2818,58 +2782,64 @@ int handle_ingress(struct __sk_buff *skb)
     {
         return TC_ACT_OK;
     }
-    __sync_fetch_and_add(&_no_of_pkt_ingress, 1);
 
-    if (_first_packet_ts_ingress == -1)
+    // check if rule exists
+    struct rule_map_key rkey = {};
+    rkey.direction = DIR_INGRESS;
+    struct rule_map_val *rval = bpf_map_lookup_elem(&kubearmor_network_quota_rules, &rkey);
+    if (rval)
     {
-        _first_packet_ts_ingress = bpf_ktime_get_ns();
-        bpf_printk("Ingress First packet timestamp set to %llu\n", _first_packet_ts_ingress);
-    }
-    else
-    {
-        struct rule_map_key rkey = {};
-        rkey.direction = DIR_INGRESS;
-        struct rule_map_val *rval = bpf_map_lookup_elem(&kubearmor_network_quota_rules, &rkey);
-        if (rval)
+        __sync_fetch_and_add(&_no_of_pkt_ingress, 1);
+        if (_first_packet_ts_ingress == -1)
         {
+            _first_packet_ts_ingress = bpf_ktime_get_ns();
+        }
+        else
+        {
+
             u64 current_ts = bpf_ktime_get_ns();
             if ((current_ts - _first_packet_ts_ingress) > rval->duration)
             {
-                bpf_printk("Ingress Resetting counters as duration exceeded %llu ns\n", rval->duration);
                 _first_packet_ts_ingress = current_ts;
                 _total_bytes_ingress = 0;
                 _ingress_log_flag = 0;
+                _no_of_pkt_ingress = 0;
             }
             else
             {
                 __sync_fetch_and_add(&_total_bytes_ingress, skb->len);
             }
-            if (_total_bytes_ingress > rval->pkt_len_bytes)
+            if ((rval->pkt_len_bytes > 0 && _total_bytes_ingress > rval->pkt_len_bytes) || (rval->pkt_count > 0 && _no_of_pkt_ingress > rval->pkt_count))
             {
                 if (_ingress_log_flag == 0)
                 {
-                    bpf_printk("ingress limit reached total bytes %llu exceeded limit %llu FirstLog\n", _total_bytes_egress, rval->pkt_len_bytes);
-
                     _ingress_log_flag = 1;
                     sys_context_t context = {};
-                    context.event_id = _NET_LIMIT;
-                    context.argnum = 1;
-                    struct rule_map_key rkey = {};
-                    rkey.direction = DIR_INGRESS;
 
+                    context.event_id = _NET_LIMIT;
+                    context.argnum = 0;
+                    context.ts = bpf_ktime_get_ns();
+                    // context.argnum = 1;
+                    context.exec_id = DIR_INGRESS;
                     set_buffer_offset(DATA_BUF_TYPE, sizeof(sys_context_t));
 
                     bufs_t *bufs_p = get_buffer(DATA_BUF_TYPE);
                     if (bufs_p == NULL)
                         return 0;
                     save_context_to_buffer(bufs_p, (void *)&context);
-
-                    save_to_buffer(bufs_p, DATA_BUF_TYPE, &rkey.direction, sizeof(rkey.direction), U8_T);
-
+                    // save_to_buffer(bufs_p, DATA_BUF_TYPE, &rkey.direction, sizeof(rkey.direction), U8_T);
                     events_perf_submit_skb(skb, DATA_BUF_TYPE);
                 }
             }
         }
+    }
+    else
+    {
+        // if there are no rules or the rules have been deleted
+        _first_packet_ts_ingress = -1;
+        _total_bytes_ingress = 0;
+        _ingress_log_flag = 0;
+        _no_of_pkt_ingress = 0;
     }
 
     return TC_ACT_OK;
@@ -2897,46 +2867,43 @@ int handle_egress(struct __sk_buff *skb)
     {
         return TC_ACT_OK;
     }
-
-    if (_first_packet_ts_egress == -1)
+    // u64 types = ARG_TYPE0(U8_T);
+    struct rule_map_key rkey = {};
+    rkey.direction = DIR_EGRESS;
+    struct rule_map_val *rval = bpf_map_lookup_elem(&kubearmor_network_quota_rules, &rkey);
+    if (rval)
     {
-        _first_packet_ts_egress = bpf_ktime_get_ns();
-        bpf_printk(" Egress First packet timestamp set to %llu\n", _first_packet_ts_egress);
-    }
-    else
-    {
+        __sync_fetch_and_add(&_no_of_pkt_egress, 1);
 
-        // u64 types = ARG_TYPE0(U8_T);
-        struct rule_map_key rkey = {};
-        rkey.direction = DIR_EGRESS;
-        struct rule_map_val *rval = bpf_map_lookup_elem(&kubearmor_network_quota_rules, &rkey);
-        if (rval)
+        if (_first_packet_ts_egress == -1)
         {
-
+            _first_packet_ts_egress = bpf_ktime_get_ns();
+        }
+        else
+        {
             u64 current_ts = bpf_ktime_get_ns();
             if ((current_ts - _first_packet_ts_egress) > rval->duration)
             {
-                bpf_printk("Egress Resetting counters as duration exceeded %llu ns\n", rval->duration);
                 _first_packet_ts_egress = current_ts;
                 _total_bytes_egress = 0;
                 _egress_log_flag = 0;
+                _no_of_pkt_egress = 0;
             }
             else
             {
+
                 __sync_fetch_and_add(&_total_bytes_egress, skb->len);
             }
-            if (_total_bytes_egress > rval->pkt_len_bytes)
+            if ((rval->pkt_len_bytes > 0 && _total_bytes_egress > rval->pkt_len_bytes) || (rval->pkt_count > 0 && _no_of_pkt_egress > rval->pkt_count))
             {
                 if (_egress_log_flag == 0)
                 {
-                    bpf_printk("Egress limit reached total bytes %llu exceeded limit %llu FirstLog\n", _total_bytes_egress, rval->pkt_len_bytes);
-
                     _egress_log_flag = 1;
                     sys_context_t context = {};
+                    context.ts = bpf_ktime_get_ns();
                     context.event_id = _NET_LIMIT;
-                    context.argnum = 1;
-                    struct rule_map_key rkey = {};
-                    rkey.direction = DIR_EGRESS;
+                    // context.argnum = 1;
+                    context.exec_id = DIR_EGRESS;
 
                     set_buffer_offset(DATA_BUF_TYPE, sizeof(sys_context_t));
 
@@ -2944,13 +2911,20 @@ int handle_egress(struct __sk_buff *skb)
                     if (bufs_p == NULL)
                         return 0;
                     save_context_to_buffer(bufs_p, (void *)&context);
-                    save_to_buffer(bufs_p, DATA_BUF_TYPE, &rkey.direction, sizeof(rkey.direction), U8_T);
+                    // save_to_buffer(bufs_p, DATA_BUF_TYPE, &rkey.direction, sizeof(rkey.direction), U8_T);
                     events_perf_submit_skb(skb, DATA_BUF_TYPE);
                 }
             }
         }
     }
-
+    else
+    {
+        // if there are no rules or the rules have been deleted
+        _first_packet_ts_egress = -1;
+        _total_bytes_egress = 0;
+        _egress_log_flag = 0;
+        _no_of_pkt_egress = 0;
+    }
     return TC_ACT_OK;
 }
 
