@@ -105,6 +105,11 @@ kubearmorController:
     failurePolicy: Ignore
   # kubearmor-controller imagePullPolicy
   imagePullPolicy: Always
+  # Set resource limits — KubeArmor’s memory usage tends to grow significantly over time.
+  resources:
+    requests:
+      cpu: 10m
+      memory: 64Mi
 
 kubearmorConfigMap:
   defaultFilePosture: audit
