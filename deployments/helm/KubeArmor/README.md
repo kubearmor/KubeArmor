@@ -40,6 +40,7 @@ helm upgrade --install kubearmor . -n kubearmor --create-namespace
 | kubearmorController.image.tag | string | latest | kubearmor-controller image tag |
 | kubearmorController.mutation.failurePolicy | string | Ignore | kubearmor-controller failure policy |
 | kubearmorController.imagePullPolicy | string | Always | kubearmor-controller imagePullPolicy |
+| kubearmorController.resources | object | { requests: { cpu: 10m, memory: 64Mi } } | kubearmor-controller container resources requests/limits |
 
 ## kubearmor-args
 ```
