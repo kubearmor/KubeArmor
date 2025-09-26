@@ -28,6 +28,7 @@ import (
 	"github.com/kubearmor/KubeArmor/pkg/KubeArmorController/handlers"
 	"github.com/kubearmor/KubeArmor/pkg/KubeArmorController/informer"
 	controllers "github.com/kubearmor/KubeArmor/pkg/KubeArmorController/internal/controller"
+	_ "github.com/kubearmor/KubeArmor/pkg/KubeArmorController/metrics"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -50,6 +51,7 @@ func main() {
 	var secureMetrics bool
 	var enableHTTP2 bool
 	var annotateExisting bool
+	var enablePolicyMetrics bool
 	var webhookPort int
 	var tlsOpts []func(*tls.Config)
 	flag.StringVar(&metricsAddr, "metrics-bind-address", "0", "The address the metrics endpoint binds to. "+
@@ -64,6 +66,8 @@ func main() {
 		"If set, HTTP/2 will be enabled for the metrics and webhook servers")
 	flag.BoolVar(&annotateExisting, "annotateExisting", false,
 		"If 'true', controller will restart and annotate existing resources with required annotations")
+	flag.BoolVar(&enablePolicyMetrics, "enable-policy-metrics", false,
+		"Enable Prometheus metrics for KubeArmor policies")
 	flag.IntVar(&webhookPort, "webhook-port", 9443, "The address the webhook server binds to.")
 	opts := zap.Options{
 		Development: true,
@@ -140,15 +144,17 @@ func main() {
 	}
 
 	if err = (&controllers.KubeArmorPolicyReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
+		Client:        mgr.GetClient(),
+		Scheme:        mgr.GetScheme(),
+		EnableMetrics: enablePolicyMetrics,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "KubeArmorPolicy")
 		os.Exit(1)
 	}
 	if err = (&controllers.KubeArmorHostPolicyReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
+		Client:        mgr.GetClient(),
+		Scheme:        mgr.GetScheme(),
+		EnableMetrics: enablePolicyMetrics,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "KubeArmorHostPolicy")
 		os.Exit(1)
