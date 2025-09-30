@@ -764,16 +764,13 @@ func GetUSBResource(class, subClass, protocol, level uint8) string {
 
 	res := "USB"
 
-	// HID special handling
-	if class == 3 && subClass == 1 {
-		if protoMap, ok := hidMap[subClass]; ok {
-			if name, ok := protoMap[protocol]; ok {
-				res += " " + name
-			}
-		}
-	} else if usbClassName, ok := usbClass[class]; ok {
+	if usbClassName, ok := usbClass[class]; ok {
 		res += " " + usbClassName
 	}
+
+	res += "_" + strconv.Itoa(int(subClass))
+
+	res += "_" + strconv.Itoa(int(protocol))
 
 	if level > 0 {
 		res += " " + strconv.Itoa(int(level))

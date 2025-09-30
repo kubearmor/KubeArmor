@@ -580,6 +580,7 @@ func (mon *SystemMonitor) UpdateLogs() {
 
 				log.Operation = "Device"
 				log.Resource = GetUSBResource(class, subClass, protocol, level)
+				fmt.Println(log.Resource)
 
 				log.Data = "Class=" + strconv.Itoa(int(class)) + " SubClass=" + strconv.Itoa(int(subClass)) + " Protocol=" + strconv.Itoa(int(protocol)) + " VendorID=" + strconv.Itoa(int(vendorId)) + " ProductID=" + strconv.Itoa(int(productId)) + " USB=" + fmt.Sprintf("%x.%02x", (usb>>8)&0xFF, (usb>>4)&0x0F) + " Speed=" + strconv.Itoa(int(speed)) + " PortNumber=" + strconv.Itoa(int(portnum)) + " Level=" + strconv.Itoa(int(level))
 
