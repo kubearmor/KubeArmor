@@ -962,6 +962,10 @@ func UpdateEnvIfDefinedAndUpdated(defaultEnv *[]corev1.EnvVar, in []corev1.EnvVa
 }
 
 func AddOrUpdateNodeSelector(dst map[string]string, src map[string]string) {
+	if dst == nil {
+		return
+	}
+
 	deletedEntries := []string{}
 	// add or update
 	for k, v := range src {
@@ -978,6 +982,11 @@ func AddOrUpdateNodeSelector(dst map[string]string, src map[string]string) {
 }
 
 func AddOrUpdateEnv(dst *[]corev1.EnvVar, src []corev1.EnvVar) {
+
+	if dst == nil {
+		return
+	}
+
 	deletedEntries := []string{}
 
 	// add or update
