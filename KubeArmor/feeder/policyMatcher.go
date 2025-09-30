@@ -4,6 +4,7 @@
 package feeder
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -112,12 +113,71 @@ func getOperationAndCapabilityFromName(capName string) (op, capability string) {
 	return op, capability
 }
 
+var usbClass = map[uint8]string{
+	1:   "AUDIO",
+	2:   "COMMUNICATION-CDC",
+	3:   "HID",
+	5:   "PHYSICAL",
+	6:   "IMAGE",
+	7:   "PRINTER",
+	8:   "MASS-STORAGE",
+	9:   "HUB",
+	10:  "CDC-DATA",
+	11:  "SMART-CARD",
+	13:  "CONTENT-SECURITY",
+	14:  "VIDEO",
+	15:  "PERSONAL-HEALTHCARE",
+	16:  "AUDIO/VIDEO",
+	17:  "BILLBOARD",
+	18:  "TYPE-C-BRIDGE",
+	19:  "BULK-DISPLAY",
+	20:  "MCTP",
+	60:  "I3C",
+	220: "DIAGNOSTIC",
+	224: "WIRELESS-CONTROLLER",
+	239: "MISCELLANEOUS",
+	254: "APPLICATION-SPECIFIC",
+	255: "VENDOR-SPECIFIC",
+}
+
+func parseDeviceClass(class string) string {
+	class = strings.TrimSpace(class)
+
+	// try parse as decimal
+	if c, err := strconv.ParseUint(class, 10, 8); err == nil {
+		if name, ok := usbClass[uint8(c)]; ok {
+			return name
+		}
+	}
+
+	// try parse as hex
+	if strings.HasPrefix(class, "0x") {
+		if c, err := strconv.ParseUint(class[2:], 16, 64); err == nil {
+			if name, ok := usbClass[uint8(c)]; ok {
+				return name
+			}
+		}
+	}
+
+	return class
+}
+
 // getDeviceResource Function
-func getDeviceResource(class, subClass string, level uint8) string {
+func getDeviceResource(class string, subClass, protocol *int32, level uint8) string {
+	class = parseDeviceClass(class)
+
 	res := "USB " + class
 
-	if subClass != "" {
-		res += " " + subClass
+	if subClass != nil {
+		res += "_" + strconv.Itoa(int(*subClass))
+	} else {
+		res += "_*"
+	}
+
+	if protocol != nil {
+		res += "_" + strconv.Itoa(int(*protocol))
+	} else {
+		res += "_*"
 	}
 
 	if level > 0 {
@@ -313,8 +373,9 @@ func (fd *Feeder) newMatchPolicy(policyEnabled int, policyName, src string, mp i
 		match.Message = dmt.Message
 		match.Operation = "Device"
 		match.Action = "Audit"
-		match.Resource = getDeviceResource(dmt.Class, dmt.SubClass, uint8(dmt.Level))
+		match.Resource = getDeviceResource(dmt.Class, dmt.SubClass, dmt.Protocol, uint8(dmt.Level))
 		match.ResourceType = "USB Device"
+		fmt.Println(match.Resource)
 	} else {
 		return tp.MatchPolicy{}
 	}
@@ -1042,12 +1103,6 @@ func matchResources(secPolicy tp.MatchPolicy, log tp.Log) bool {
 
 // matchDeviceResource Function
 func matchDeviceResource(logResource, spResource string) bool {
-
-	isNumber := func(s string) bool {
-		_, err := strconv.Atoi(s)
-		return err == nil
-	}
-
 	parseLevel := func(s string) uint8 {
 		l, err := strconv.ParseUint(s, 10, 8)
 		if err != nil {
@@ -1056,51 +1111,46 @@ func matchDeviceResource(logResource, spResource string) bool {
 		return uint8(l)
 	}
 
-	// Split log and policy resources into parts
-	logParts := strings.Fields(logResource) // e.g., ["USB", "HID", "KEYBOARD", "2"] or ["USB", "MASS-STORAGE", "1"]
-	spParts := strings.Fields(spResource)   // e.g., ["USB", "HID", "2"] or ["USB", "HID", "MOUSE"] or ["USB", "ALL"]
+	logParts := strings.Fields(logResource) // ["USB", "HID_2_1", "2"]
+	spParts := strings.Fields(spResource)   // ["USB", "HID_*_*"] or ["USB", "HID_2_*", "2"]
 
-	// Compare class
-	if logParts[1] != spParts[1] && spParts[1] != "ALL" {
-		return false
-	}
+	logMain := strings.Split(logParts[1], "_") // ["HID","2","1"]
+	logClass := logMain[0]
+	logSubClass := logMain[1]
+	logProtocol := logMain[2]
 
-	// Extract log subclass and level
-	logSubClass := ""
 	logLevel := uint8(0)
-	if len(logParts) > 3 {
-		logSubClass = logParts[2]
-		logLevel = parseLevel(logParts[3])
-	} else if len(logParts) > 2 {
-		if isNumber(logParts[2]) {
-			logLevel = parseLevel(logParts[2])
-		} else {
-			logSubClass = logParts[2]
-		}
+	if len(logParts) > 2 {
+		logLevel = parseLevel(logParts[2])
 	}
 
-	// Extract policy subclass and level
-	policySubClass := ""
+	policyMain := strings.Split(spParts[1], "_") // ["HID","2","*"] or ["ALL","*","*"]
+	policyClass := policyMain[0]
+	policySubClass := policyMain[1]
+	policyProtocol := policyMain[2]
+
 	policyLevel := uint8(0)
 	if len(spParts) > 2 {
-		if isNumber(spParts[len(spParts)-1]) {
-			policyLevel = parseLevel(spParts[len(spParts)-1])
-		}
-		if len(spParts) == 3 && !isNumber(spParts[2]) {
-			policySubClass = spParts[2]
-		}
-		if len(spParts) > 3 {
-			policySubClass = spParts[2]
-		}
+		policyLevel = parseLevel(spParts[2])
 	}
 
-	// Match subclass: if policy doesn't specify subclass, match any
-	if policySubClass != "" && policySubClass != logSubClass {
+	// class
+	if policyClass != "ALL" && policyClass != logClass {
 		return false
 	}
 
-	// Match level: if policy specifies level, it must match log level
-	if policyLevel > 0 && policyLevel != logLevel {
+	// subClass
+	if policySubClass != "*" && policySubClass != logSubClass {
+		return false
+	}
+
+	// protocol
+	if policyProtocol != "*" && policyProtocol != logProtocol {
+		return false
+	}
+
+	// level
+	if policyLevel != 0 && policyLevel != logLevel {
 		return false
 	}
 

@@ -122,7 +122,7 @@ type SystemMonitor struct {
 	// container id -> container
 	Containers     *map[string]tp.Container
 	ContainersLock **sync.RWMutex
- 
+
 	// container id -> host pid
 	ActiveHostPidMap *map[string]tp.PidMap
 	ActivePidMapLock **sync.RWMutex
