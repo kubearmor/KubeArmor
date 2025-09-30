@@ -677,6 +677,12 @@ func (fd *Feeder) PushLog(log tp.Log) {
 		if len(log.Data) > 0 {
 			pbAlert.Data = log.Data
 		}
+		pbAlert.ProcessHash = log.ProcessHash[:]
+		pbAlert.ParentHash = log.ParentHash[:]
+		pbAlert.ResourceHash = log.ResourceHash[:]
+		if len(log.HashAlgo) > 0 {
+			pbAlert.HashAlgo = log.HashAlgo
+		}
 
 		if len(log.Action) > 0 {
 			pbAlert.Action = log.Action
@@ -759,6 +765,12 @@ func (fd *Feeder) PushLog(log tp.Log) {
 
 		if len(log.Data) > 0 {
 			pbLog.Data = log.Data
+		}
+		pbLog.ProcessHash = log.ProcessHash[:]
+		pbLog.ParentHash = log.ParentHash[:]
+		pbLog.ResourceHash = log.ResourceHash[:]
+		if len(log.HashAlgo) > 0 {
+			pbLog.HashAlgo = log.HashAlgo
 		}
 
 		pbLog.Result = log.Result

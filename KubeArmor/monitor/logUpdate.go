@@ -93,6 +93,9 @@ func (mon *SystemMonitor) BuildLogBase(eventID int32, msg ContextCombined, readl
 		log.Cwd = strings.TrimRight(string(msg.ContextSys.Cwd[:]), "\x00") + "/"
 		log.TTY = strings.TrimRight(string(msg.ContextSys.TTY[:]), "\x00")
 		log.OID = int32(msg.ContextSys.OID)
+
+		// update ima hashes
+		updateHashData(&log, msg.HashData)
 	}
 
 	return log
@@ -651,6 +654,18 @@ func (mon *SystemMonitor) UpdateLogs() {
 					go mon.Logger.PushLog(log)
 				}
 			}
+		}
+	}
+}
+
+func updateHashData(log *tp.Log, hash HashContext) {
+	log.ParentHash = hash.ParentHash
+	log.ProcessHash = hash.ProcessHash
+	log.ResourceHash = hash.ResourceHash
+
+	if log.ParentHash != "" || log.ProcessHash != "" || log.ResourceHash != "" {
+		if hash.HashAlgo == 1 {
+			log.HashAlgo = "sha256"
 		}
 	}
 }
