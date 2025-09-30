@@ -50,6 +50,7 @@ type KubearmorConfig struct {
 	HostDefaultFilePosture         string // Default Enforcement Action in Global File Context
 	HostDefaultNetworkPosture      string // Default Enforcement Action in Global Network Context
 	HostDefaultCapabilitiesPosture string // Default Enforcement Action in Global Capabilities Context
+	HostDefaultDevicePosture       string // Default Enforcement Action in Global USB Device Conntext
 
 	CoverageTest       bool     // Enable/Disable Coverage Test
 	ConfigUntrackedNs  []string // untracked namespaces
@@ -70,6 +71,8 @@ type KubearmorConfig struct {
 	ProcFsMount string // path where procfs is hosted
 
 	MachineIDPath string // path to machine-id
+
+	USBDeviceHandler bool // enable USB device observability and enforcement
 }
 
 // GlobalCfg Global configuration for Kubearmor
@@ -104,6 +107,7 @@ const (
 	ConfigHostDefaultFilePosture         string = "hostDefaultFilePosture"
 	ConfigHostDefaultNetworkPosture      string = "hostDefaultNetworkPosture"
 	ConfigHostDefaultCapabilitiesPosture string = "hostDefaultCapabilitiesPosture"
+	ConfigHostDefaultDevicePosture       string = "hostDefaultDevicePosture"
 	ConfigCoverageTest                   string = "coverageTest"
 	ConfigK8sEnv                         string = "k8s"
 	ConfigDebug                          string = "debug"
@@ -122,6 +126,7 @@ const (
 	ConfigMachineIDPath                  string = "machineIDPath"
 	UseOCIHooks                          string = "useOCIHooks"
 	ConfigEnableIma                      string = "enableIMA"
+	ConfigUSBDeviceHandler               string = "enableUSBDeviceHandler"
 )
 
 func readCmdLineParams() {
@@ -157,6 +162,7 @@ func readCmdLineParams() {
 	hostDefaultFilePosture := flag.String(ConfigHostDefaultFilePosture, "audit", "configuring default enforcement action in global file context {allow|audit|block}")
 	hostDefaultNetworkPosture := flag.String(ConfigHostDefaultNetworkPosture, "audit", "configuring default enforcement action in global network context {allow|audit|block}")
 	hostDefaultCapabilitiesPosture := flag.String(ConfigHostDefaultCapabilitiesPosture, "audit", "configuring default enforcement action in global capability context {allow|audit|block}")
+	hostDefaultDevicePosture := flag.String(ConfigHostDefaultDevicePosture, "audit", "configuring default enforcement action in global capability context {allow|audit|block}")
 
 	coverageTestB := flag.Bool(ConfigCoverageTest, false, "enabling CoverageTest")
 
@@ -188,6 +194,7 @@ func readCmdLineParams() {
 	useOCIHooks := flag.Bool(UseOCIHooks, false, "Use OCI hooks to get new containers instead of using container runtime socket")
 
 	enableIMA := flag.Bool(ConfigEnableIma, false, "to enable/disable file integrity IMA hash using bpf_file_ima_hash")
+	usbDeviceHandler := flag.Bool(ConfigUSBDeviceHandler, false, "Enable USB device observability and enforcement")
 
 	flags := []string{}
 	flag.VisitAll(func(f *flag.Flag) {
@@ -229,6 +236,7 @@ func readCmdLineParams() {
 	viper.SetDefault(ConfigHostDefaultFilePosture, *hostDefaultFilePosture)
 	viper.SetDefault(ConfigHostDefaultNetworkPosture, *hostDefaultNetworkPosture)
 	viper.SetDefault(ConfigHostDefaultCapabilitiesPosture, *hostDefaultCapabilitiesPosture)
+	viper.SetDefault(ConfigHostDefaultDevicePosture, *hostDefaultDevicePosture)
 
 	viper.SetDefault(ConfigCoverageTest, *coverageTestB)
 
@@ -261,6 +269,8 @@ func readCmdLineParams() {
 	viper.SetDefault(UseOCIHooks, *useOCIHooks)
 
 	viper.SetDefault(ConfigEnableIma, *enableIMA)
+
+	viper.SetDefault(ConfigUSBDeviceHandler, *usbDeviceHandler)
 }
 
 // LoadConfig Load configuration
@@ -347,6 +357,8 @@ func LoadConfig() error {
 
 	GlobalCfg.MachineIDPath = viper.GetString(ConfigMachineIDPath)
 
+	GlobalCfg.USBDeviceHandler = viper.GetBool(ConfigUSBDeviceHandler)
+
 	LoadDynamicConfig()
 
 	kg.Printf("Final Configuration [%+v]", GlobalCfg)
@@ -363,6 +375,7 @@ func LoadDynamicConfig() {
 	GlobalCfg.HostDefaultFilePosture = viper.GetString(ConfigHostDefaultFilePosture)
 	GlobalCfg.HostDefaultNetworkPosture = viper.GetString(ConfigHostDefaultNetworkPosture)
 	GlobalCfg.HostDefaultCapabilitiesPosture = viper.GetString(ConfigHostDefaultCapabilitiesPosture)
+	GlobalCfg.HostDefaultDevicePosture = viper.GetString(ConfigHostDefaultDevicePosture)
 
 	GlobalCfg.Visibility = viper.GetString(ConfigVisibility)
 	GlobalCfg.HostVisibility = viper.GetString(ConfigHostVisibility)
@@ -388,6 +401,8 @@ func LoadDynamicConfig() {
 	GlobalCfg.UseOCIHooks = viper.GetBool(UseOCIHooks)
 
 	GlobalCfg.EnableIMA = viper.GetBool(ConfigEnableIma)
+
+	GlobalCfg.USBDeviceHandler = viper.GetBool(ConfigUSBDeviceHandler)
 
 	kg.Printf("Final Configuration [%+v]", GlobalCfg)
 }
