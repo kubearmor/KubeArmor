@@ -556,8 +556,9 @@ type SyscallsType struct {
 // DeviceMatchType Structure
 type DeviceMatchType struct {
 	Class    string `json:"class"`
-	SubClass string `json:"subClass,omitempty"`
-	Level    int32  `json:"level,omitempty"`
+	SubClass *int32 `json:"subClass,omitempty"`
+	Protocol *int32 `json:"protocol,omitempty"`
+	Level    *int32 `json:"level,omitempty"`
 
 	Severity int      `json:"severity,omitempty"`
 	Tags     []string `json:"tags,omitempty"`
@@ -662,6 +663,7 @@ type DefaultPosture struct {
 	FileAction         string `json:"file,omitempty"`
 	NetworkAction      string `json:"network,omitempty"`
 	CapabilitiesAction string `json:"capabilties,omitempty"`
+	DeviceAction       string `json:"device,omitempty"`
 }
 
 // Visibility Structure
