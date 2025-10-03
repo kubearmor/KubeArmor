@@ -30,7 +30,7 @@ require (
 	github.com/containerd/containerd/v2 v2.1.3
 	github.com/containerd/nri v0.9.0
 	github.com/containerd/typeurl/v2 v2.2.3
-	github.com/docker/docker v28.3.1+incompatible
+	github.com/docker/docker v28.3.3+incompatible
 	github.com/fsnotify/fsnotify v1.9.0
 	github.com/google/uuid v1.6.0
 	github.com/kubearmor/KubeArmor/pkg/KubeArmorController v0.0.0-20250701060635-600e11526ec1
