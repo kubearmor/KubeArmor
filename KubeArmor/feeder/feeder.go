@@ -534,6 +534,7 @@ func (fd *Feeder) PushLog(log tp.Log) {
 	   in case of enforcer = AppArmor only Default Posture logs will be converted to
 	   container/host log depending upon the defaultPostureLogs flag
 	*/
+
 	if !common.IsPresetEnforcer(log.Enforcer) {
 		if (cfg.GlobalCfg.EnforcerAlerts && fd.Enforcer == "BPFLSM" && log.Enforcer == "") || (fd.Enforcer != "BPFLSM" && !cfg.GlobalCfg.DefaultPostureLogs) {
 			log = fd.UpdateMatchedPolicy(log)
@@ -545,10 +546,12 @@ func (fd *Feeder) PushLog(log tp.Log) {
 				}
 			}
 		} else {
+
 			log = fd.UpdateMatchedPolicy(log)
 			if fd.Enforcer == "BPFLSM" {
 				log.Enforcer = "BPFLSM"
 			}
+
 		}
 	}
 
@@ -583,7 +586,7 @@ func (fd *Feeder) PushLog(log tp.Log) {
 	}
 
 	// gRPC output
-	if log.Type == "MatchedPolicy" || log.Type == "MatchedHostPolicy" || log.Type == "SystemEvent" {
+	if log.Type == "MatchedPolicy" || log.Type == "MatchedHostPolicy" || log.Type == "SystemEvent" || log.Type == "NetworkLimit" {
 
 		// checking throttling condition for "Audit" alerts when enforcer is 'eBPF Monitor'
 		if cfg.GlobalCfg.AlertThrottling && ((strings.Contains(log.Action, "Audit") && log.Enforcer == "eBPF Monitor") || (log.Type == "MatchedHostPolicy" && (log.Enforcer == "AppArmor" || log.Enforcer == "eBPF Monitor"))) {
@@ -598,6 +601,7 @@ func (fd *Feeder) PushLog(log tp.Log) {
 				log.DroppingAlertsInterval = cfg.GlobalCfg.ThrottleSec
 			}
 		}
+
 		pbAlert := pb.Alert{}
 
 		pbAlert.KubeArmorVersion = log.KubeArmorVersion
