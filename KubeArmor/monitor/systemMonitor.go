@@ -50,6 +50,85 @@ type NsKey struct {
 	MntNS uint32
 }
 
+// containerIDFromProcCgroup attempts to resolve the container ID for a given host PID by parsing /proc/<pid>/cgroup
+// This is best-effort and used as a guardrail to avoid occasional namespace-to-container mixups.
+func (mon *SystemMonitor) containerIDFromProcCgroup(hostPid uint32) string {
+	// Build the cgroup file path under the configured procfs mount
+	cgPath := filepath.Join(cfg.GlobalCfg.ProcFsMount, strconv.FormatUint(uint64(hostPid), 10), "cgroup")
+	data, err := os.ReadFile(cgPath)
+	if err != nil || len(data) == 0 {
+		return ""
+	}
+
+	lines := strings.Split(string(data), "\n")
+	var token string
+	for _, line := range lines {
+		if line == "" {
+			continue
+		}
+		parts := strings.SplitN(line, ":", 3)
+		if len(parts) != 3 {
+			continue
+		}
+		p := parts[2]
+		// containerd (systemd cgroups): .../cri-containerd-<id>.scope
+		if idx := strings.Index(p, "cri-containerd-"); idx != -1 {
+			s := p[idx+len("cri-containerd-"):]
+			if j := strings.Index(s, ".scope"); j != -1 {
+				token = s[:j]
+				break
+			}
+		}
+		// CRI-O (systemd cgroups): .../crio-<id>.scope
+		if idx := strings.Index(p, "crio-"); idx != -1 {
+			s := p[idx+len("crio-"):]
+			if j := strings.Index(s, ".scope"); j != -1 {
+				token = s[:j]
+				break
+			}
+		}
+		// Docker cgroups: .../docker/<id>(/...) or containerd legacy: .../containers/<id>(/...)
+		if idx := strings.Index(p, "/docker/"); idx != -1 {
+			s := p[idx+len("/docker/"):]
+			if k := strings.IndexByte(s, '/'); k != -1 {
+				token = s[:k]
+			} else {
+				token = s
+			}
+			if token != "" {
+				break
+			}
+		}
+		if idx := strings.Index(p, "/containers/"); idx != -1 {
+			s := p[idx+len("/containers/"):]
+			if k := strings.IndexByte(s, '/'); k != -1 {
+				token = s[:k]
+			} else {
+				token = s
+			}
+			if token != "" {
+				break
+			}
+		}
+	}
+	if token == "" {
+		return ""
+	}
+
+	// Find a matching container in the current container map using several heuristics
+	Containers := *(mon.Containers)
+	ContainersLock := *(mon.ContainersLock)
+	ContainersLock.RLock()
+	defer ContainersLock.RUnlock()
+	for cid, c := range Containers {
+		if cid == token || strings.HasSuffix(cid, token) || strings.Contains(cid, token) ||
+			c.ContainerID == token || strings.HasSuffix(c.ContainerID, token) || strings.Contains(c.ContainerID, token) {
+			return cid
+		}
+	}
+	return ""
+}
+
 // NsVisibility Structure
 type NsVisibility struct {
 	NsKeys     []NsKey
@@ -707,13 +786,12 @@ func (mon *SystemMonitor) TraceSyscall() {
 						mon.Logger.Warn("Event droped due to busy event channel")
 					}
 
-				}
+		}
 				mon.Logger.Debug("Event dropped due to replay timeout")
 			}()
 		}
 	}()
 	MonitorLock := *(mon.MonitorLock)
-
 	for {
 		select {
 		case <-StopChan:
@@ -741,21 +819,33 @@ func (mon *SystemMonitor) TraceSyscall() {
 				continue
 			}
 			containerID := ""
-
+			
 			if ctx.PidID != 0 && ctx.MntID != 0 {
 				containerID = mon.LookupContainerID(ctx.PidID, ctx.MntID)
-
-				if containerID != "" {
-					ContainersLock.RLock()
-					namespace := Containers[containerID].NamespaceName
-					if kl.ContainsElement(mon.UntrackedNamespaces, namespace) {
-						ContainersLock.RUnlock()
-						continue
+			}
+			// For exec events, cross-check container resolution via /proc/<HostPID>/cgroup to avoid rare namespace-map mixups
+			if ctx.EventID == SysExecve || ctx.EventID == SysExecveAt {
+				if alt := mon.containerIDFromProcCgroup(ctx.HostPID); alt != "" && alt != containerID {
+					containerID = alt
+					// refresh NsMap for this namespace to correct future lookups
+					if ctx.PidID != 0 && ctx.MntID != 0 {
+						mon.NsMapLock.Lock()
+						mon.NsMap[NsKey{PidNS: ctx.PidID, MntNS: ctx.MntID}] = containerID
+						mon.NsMapLock.Unlock()
 					}
-					ContainersLock.RUnlock()
 				}
 			}
-
+			
+			if containerID != "" {
+				ContainersLock.RLock()
+				namespace := Containers[containerID].NamespaceName
+				if kl.ContainsElement(mon.UntrackedNamespaces, namespace) {
+					ContainersLock.RUnlock()
+					continue
+				}
+				ContainersLock.RUnlock()
+			}
+			
 			if ctx.PidID != 0 && ctx.MntID != 0 && containerID == "" {
 				ReplayChannel <- dataRaw
 				continue
