@@ -154,4 +154,33 @@ func TestAddorUpdateEnv(t *testing.T) {
 	assert.Equal(t, 1, len(commonEnv))
 	assert.Equal(t, "env1", commonEnv[0].Name)
 	assert.Equal(t, "val1-updated", commonEnv[0].Value)
+
+	t.Run("no panic on nil", func(t *testing.T) {
+		defer func() {
+			if r := recover(); r != nil {
+				t.Errorf("Expected no panic but got when executed with nil")
+			}
+		}()
+
+		AddOrUpdateEnv(nil, []corev1.EnvVar{
+			{
+				Name:  "env",
+				Value: "val",
+			},
+		})
+	})
+}
+
+func TestAddorUpdateNodeSelector(t *testing.T) {
+	t.Run("no panic on nil", func(t *testing.T) {
+		defer func() {
+			if r := recover(); r != nil {
+				t.Errorf("Expected no panic but got when executed with nil")
+			}
+		}()
+
+		AddOrUpdateNodeSelector(nil, map[string]string{
+			"env": "test",
+		})
+	})
 }
