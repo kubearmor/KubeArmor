@@ -36,6 +36,7 @@ require (
 	github.com/kubearmor/KubeArmor/pkg/KubeArmorController v0.0.0-20250701060635-600e11526ec1
 	github.com/kubearmor/KubeArmor/protobuf v0.0.0-20250701060635-600e11526ec1
 	github.com/opencontainers/runtime-spec v1.2.1
+	github.com/prometheus/client_golang v1.23.2
 	github.com/spf13/viper v1.21.0
 	go.uber.org/zap v1.27.0
 	golang.org/x/exp v0.0.0-20250911091902-df9299821621
@@ -124,7 +125,6 @@ require (
 	github.com/pelletier/go-toml/v2 v2.2.4 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
-	github.com/prometheus/client_golang v1.23.2 // indirect
 	github.com/prometheus/client_model v0.6.2 // indirect
 	github.com/prometheus/common v0.66.1 // indirect
 	github.com/prometheus/procfs v0.17.0 // indirect

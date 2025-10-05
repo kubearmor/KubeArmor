@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -25,6 +26,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/kubearmor/KubeArmor/KubeArmor/cert"
 	pb "github.com/kubearmor/KubeArmor/protobuf"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/keepalive"
@@ -385,7 +387,24 @@ func NewFeeder(node *tp.Node, nodeLock **sync.RWMutex) (feeder *Feeder) {
 	fd.DefaultPostures = map[string]tp.DefaultPosture{}
 	fd.DefaultPosturesLock = new(sync.Mutex)
 
+	// Start metrics server
+	fd.StartMetricsServer()
+
 	return fd
+}
+
+// StartMetricsServer starts the HTTP server for Prometheus metrics
+func (fd *Feeder) StartMetricsServer() {
+	http.Handle("/metrics", promhttp.Handler())
+
+	metricsAddr := ":8080"
+	kg.Printf("Starting metrics server on %s", metricsAddr)
+
+	go func() {
+		if err := http.ListenAndServe(metricsAddr, nil); err != nil && err != http.ErrServerClosed {
+			kg.Warnf("Metrics server failed: %s", err.Error())
+		}
+	}()
 }
 
 // DestroyFeeder Function
@@ -783,6 +802,10 @@ func (fd *Feeder) PushLog(log tp.Log) {
 
 			}
 		}
+
+		// Increment alert metric
+		nodeName := cfg.GlobalCfg.Host
+		AlertsTotal.WithLabelValues(nodeName).Inc()
 	} else { // ContainerLog || HostLog
 		pbLog := pb.Log{}
 		node := fd.GetNodeInfo()
