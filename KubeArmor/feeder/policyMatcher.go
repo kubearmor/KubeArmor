@@ -330,6 +330,14 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, endPoint tp.EndPoint) {
 		if _, ok := fd.SecurityPolicies[name]; ok {
 			delete(fd.SecurityPolicies, name)
 		}
+
+		// Update policy metrics - remove policies for this endpoint
+		for _, policy := range endPoint.SecurityPolicies {
+			if policyName, ok := policy.Metadata["policyName"]; ok {
+				fd.removePolicyMetric(policyName)
+			}
+		}
+		return
 	}
 
 	// ADDED | MODIFIED
@@ -643,6 +651,24 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, endPoint tp.EndPoint) {
 	fd.SecurityPoliciesLock.Lock()
 	fd.SecurityPolicies[name] = matches
 	fd.SecurityPoliciesLock.Unlock()
+
+	// Update policy metrics - add/update policies for this endpoint
+	for _, policy := range endPoint.SecurityPolicies {
+		policyName := policy.Metadata["policyName"]
+
+		// Determine policy type (KubeArmorPolicy or ClusterPolicy)
+		policyType := "KubeArmorPolicy"
+		if policy.Metadata["type"] == "ClusterPolicy" {
+			policyType = "KubeArmorClusterPolicy"
+		}
+
+		fd.updatePolicyMetric(PolicyMetricInfo{
+			Name:      policyName,
+			Namespace: endPoint.NamespaceName,
+			Type:      policyType,
+			Status:    "active",
+		})
+	}
 }
 
 // ============================ //
@@ -653,6 +679,13 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, endPoint tp.EndPoint) {
 func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.HostSecurityPolicy) {
 	if action == "DELETED" {
 		delete(fd.SecurityPolicies, fd.Node.NodeName)
+
+		// Update policy metrics - remove host policies
+		for _, policy := range secPolicies {
+			if policyName, ok := policy.Metadata["policyName"]; ok {
+				fd.removePolicyMetric(policyName)
+			}
+		}
 		return
 	}
 
@@ -979,6 +1012,18 @@ func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.Hos
 	fd.SecurityPoliciesLock.Lock()
 	fd.SecurityPolicies[fd.Node.NodeName] = matches
 	fd.SecurityPoliciesLock.Unlock()
+
+	// Update policy metrics - add/update host policies
+	for _, policy := range secPolicies {
+		policyName := policy.Metadata["policyName"]
+
+		fd.updatePolicyMetric(PolicyMetricInfo{
+			Name:      policyName,
+			Namespace: "", // Host policies are cluster-scoped, no namespace
+			Type:      "KubeArmorHostPolicy",
+			Status:    "active",
+		})
+	}
 }
 
 // ===================== //
