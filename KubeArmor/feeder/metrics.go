@@ -17,4 +17,22 @@ var (
 		},
 		[]string{"node"},
 	)
+
+	// PoliciesTotal tracks total number of active KubeArmor policies by type
+	PoliciesTotal = promauto.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "kubearmor_policies_total",
+			Help: "Total number of active KubeArmor policies by type",
+		},
+		[]string{"type"},
+	)
+
+	// PolicyInfo tracks detailed information about KubeArmor policies
+	PolicyInfo = promauto.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "kubearmor_policy_info",
+			Help: "Information about KubeArmor policies",
+		},
+		[]string{"name", "namespace", "type", "status"},
+	)
 )
