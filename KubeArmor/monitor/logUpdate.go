@@ -31,7 +31,9 @@ func (mon *SystemMonitor) UpdateContainerInfoByContainerID(log tp.Log) tp.Log {
 		log.NamespaceName = val.NamespaceName
 		log.Owner = &val.Owner
 		log.PodName = val.EndPointName
-		log.Labels = val.Labels
+		mon.PodLabelsMapLock.RLock()
+		log.Labels = mon.PodLabelsMap[val.EndPointName]
+		mon.PodLabelsMapLock.RUnlock()
 
 		// update container info
 		log.ContainerName = val.ContainerName

@@ -214,7 +214,10 @@ func (dm *KubeArmorDaemon) UpdateCrioContainer(ctx context.Context, containerID,
 
 	if action == "start" {
 		// get container info from client
-		container, err := Crio.GetContainerInfo(ctx, containerID, dm.Node.NodeID, dm.OwnerInfo)
+		dm.OwnerInfoLock.RLock()
+		owner := dm.OwnerInfo
+		dm.OwnerInfoLock.RUnlock()
+		container, err := Crio.GetContainerInfo(ctx, containerID, dm.Node.NodeID, owner)
 		if err != nil {
 			return false
 		}
