@@ -263,11 +263,11 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 		}
 
 		containersAppArmorProfiles := map[string]string{}
+		dm.ContainersLock.Lock()
 
 		// update containers and apparmors
 		for _, containerID := range newPoint.Containers {
 
-			dm.ContainersLock.Lock()
 			container := dm.Containers[containerID]
 
 			container.NamespaceName = newPoint.NamespaceName
@@ -306,7 +306,6 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 			}
 
 			dm.Containers[containerID] = container
-			dm.ContainersLock.Unlock()
 
 			// in case if container runtime detect the container and emit that event before pod event then
 			// the container id will be added to NsMap with "Unknown" namespace
@@ -314,7 +313,7 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 			// and delete the container id from  NamespacePidsMap within "Unknown" namespace
 			dm.HandleUnknownNamespaceNsMap(&container)
 		}
-		// dm.ContainersLock.Unlock()
+		dm.ContainersLock.Unlock()
 
 		dm.DefaultPosturesLock.Lock()
 		if val, ok := dm.DefaultPostures[newPoint.NamespaceName]; ok {
@@ -449,12 +448,10 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 
 			containersAppArmorProfiles := map[string]string{}
 
+			dm.ContainersLock.Lock()
 			// update containers and apparmors
 			for _, containerID := range newEndPoint.Containers {
-				dm.ContainersLock.RLock()
 				container := dm.Containers[containerID]
-				dm.ContainersLock.RUnlock()
-
 				container.NamespaceName = newEndPoint.NamespaceName
 				container.EndPointName = newEndPoint.EndPointName
 				if (container.Owner == tp.PodOwner{}) && (len(dm.OwnerInfo) > 0) {
@@ -487,9 +484,7 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 				if _, ok := pod.PrivilegedContainers[container.ContainerName]; ok {
 					container.Privileged = true
 				}
-				dm.ContainersLock.Lock()
 				dm.Containers[containerID] = container
-				dm.ContainersLock.Unlock()
 
 				// in case if container runtime detect the container and emit that event before pod event then
 				// the container id will be added to NsMap with "Unknown" namespace
@@ -497,7 +492,7 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 				// and delete the container id from  NamespacePidsMap within "Unknown" namespace
 				dm.HandleUnknownNamespaceNsMap(&container)
 			}
-			// dm.ContainersLock.Unlock()
+			dm.ContainersLock.Unlock()
 
 			dm.DefaultPosturesLock.Lock()
 			if val, ok := dm.DefaultPostures[newEndPoint.NamespaceName]; ok {
@@ -692,7 +687,6 @@ func (dm *KubeArmorDaemon) handlePodEvent(event string, obj *corev1.Pod) {
 
 	pod.Containers = map[string]string{}
 	pod.ContainerImages = map[string]string{}
-	fmt.Printf("container statuses %v", obj.Status.ContainerStatuses)
 	for _, container := range obj.Status.ContainerStatuses {
 		if len(container.ContainerID) > 0 {
 			cid := strings.Split(container.ContainerID, "://")
@@ -777,7 +771,7 @@ func (dm *KubeArmorDaemon) handlePodEvent(event string, obj *corev1.Pod) {
 	if dm.RuntimeEnforcer != nil && dm.RuntimeEnforcer.EnforcerType == "AppArmor" {
 		appArmorAnnotations := map[string]string{}
 		updateAppArmor := false
-
+		dm.OwnerInfoLock.RLock()
 		if dm.OwnerInfo[pod.Metadata["podName"]].Name != "" {
 			if dm.OwnerInfo[pod.Metadata["podName"]].Ref == "StatefulSet" {
 				statefulset, err := K8s.K8sClient.AppsV1().StatefulSets(pod.Metadata["namespaceName"]).Get(context.Background(), podOwnerName, metav1.GetOptions{})
@@ -835,6 +829,7 @@ func (dm *KubeArmorDaemon) handlePodEvent(event string, obj *corev1.Pod) {
 			}
 
 		}
+		dm.OwnerInfoLock.RUnlock()
 
 		for k, v := range pod.Annotations {
 			if strings.HasPrefix(k, "container.apparmor.security.beta.kubernetes.io") {
@@ -873,7 +868,7 @@ func (dm *KubeArmorDaemon) handlePodEvent(event string, obj *corev1.Pod) {
 		if event == addEvent {
 			// update apparmor profiles
 			dm.RuntimeEnforcer.UpdateAppArmorProfiles(pod.Metadata["podName"], addEvent, appArmorAnnotations, pod.PrivilegedAppArmorProfiles)
-
+			dm.OwnerInfoLock.RLock()
 			if updateAppArmor && pod.Annotations["kubearmor-policy"] == "enabled" && dm.OwnerInfo[pod.Metadata["podName"]].Ref != "Pod" {
 
 				// patch deployments only when kubearmor-controller is not present
@@ -888,7 +883,10 @@ func (dm *KubeArmorDaemon) handlePodEvent(event string, obj *corev1.Pod) {
 					pod.Annotations["kubearmor-policy"] = "patched"
 				}
 			}
+			dm.OwnerInfoLock.RUnlock()
+
 		} else if event == updateEvent {
+			dm.OwnerInfoLock.RLock()
 			for _, k8spod := range dm.K8sPods {
 				if k8spod.Metadata["namespaceName"] == pod.Metadata["namespaceName"] && k8spod.Metadata["podName"] == pod.Metadata["podName"] {
 					prevPolicyEnabled := "disabled"
@@ -915,6 +913,7 @@ func (dm *KubeArmorDaemon) handlePodEvent(event string, obj *corev1.Pod) {
 					break
 				}
 			}
+			dm.OwnerInfoLock.RUnlock()
 		} else if event == deleteEvent {
 			// update apparmor profiles
 			dm.RuntimeEnforcer.UpdateAppArmorProfiles(pod.Metadata["podName"], deleteEvent, appArmorAnnotations, pod.PrivilegedAppArmorProfiles)
