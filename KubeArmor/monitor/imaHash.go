@@ -56,14 +56,6 @@ func NewImaHash(logger *fd.Feeder, pinPath string) (*ImaHash, error) {
 		return nil, nil
 	}
 
-	ih.probes[ih.obj.ImaFileOpen.String()], err = link.AttachLSM(link.LSMOptions{
-		Program: ih.obj.ImaFileOpen,
-	})
-	if err != nil {
-		ih.logger.Errf("opening lsm %s: %s", ih.obj.ImaFileOpen.String(), err)
-		return ih, err
-	}
-
 	return ih, nil
 }
 

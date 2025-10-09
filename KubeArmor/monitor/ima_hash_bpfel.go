@@ -67,7 +67,6 @@ type ima_hashSpecs struct {
 // It can be passed ebpf.CollectionSpec.Assign.
 type ima_hashProgramSpecs struct {
 	ImaBprmCheckSecurity *ebpf.ProgramSpec `ebpf:"ima_bprm_check_security"`
-	ImaFileOpen          *ebpf.ProgramSpec `ebpf:"ima_file_open"`
 }
 
 // ima_hashMapSpecs contains maps before they are loaded into the kernel.
@@ -129,13 +128,11 @@ type ima_hashVariables struct {
 // It can be passed to loadIma_hashObjects or ebpf.CollectionSpec.LoadAndAssign.
 type ima_hashPrograms struct {
 	ImaBprmCheckSecurity *ebpf.Program `ebpf:"ima_bprm_check_security"`
-	ImaFileOpen          *ebpf.Program `ebpf:"ima_file_open"`
 }
 
 func (p *ima_hashPrograms) Close() error {
 	return _Ima_hashClose(
 		p.ImaBprmCheckSecurity,
-		p.ImaFileOpen,
 	)
 }
 

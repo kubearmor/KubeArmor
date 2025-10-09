@@ -33,13 +33,14 @@ int BPF_PROG(ima_bprm_check_security, struct linux_binprm *bprm) {
     return 0;
 }
 
+/*
 SEC("lsm.s/file_open")
 int BPF_PROG(ima_file_open, struct file *file) {
-    /*
-    bpf_ima_file_hash() leading to performance bottleneck for the system,
-    it appears as a high latency operation and due to frequency of the file events
-    every file operation becomes a potential bottleneck
-    */
+    
+    // bpf_ima_file_hash() leading to performance bottleneck for the system,
+    // it appears as a high latency operation and due to frequency of the file events
+    // every file operation becomes a potential bottleneck
+    
 
     // ima_hash_t hash = {0};
     // u32 algo = bpf_ima_file_hash(file, hash.digest, sizeof(hash.digest));
@@ -51,5 +52,6 @@ int BPF_PROG(ima_file_open, struct file *file) {
     // }
     return 0;
 }
+*/
 
 char LICENSE[] SEC("license") = "Dual BSD/GPL";
