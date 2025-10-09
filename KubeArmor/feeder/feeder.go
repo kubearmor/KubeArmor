@@ -593,7 +593,7 @@ func (fd *Feeder) PushLog(log tp.Log) {
 	}
 
 	// gRPC output
-	if log.Type == "MatchedPolicy" || log.Type == "MatchedHostPolicy" || log.Type == "SystemEvent" || log.Type == "NetworkLimit" {
+	if log.Type == "MatchedPolicy" || log.Type == "MatchedHostPolicy" || log.Type == "SystemEvent" {
 
 		// checking throttling condition for "Audit" alerts when enforcer is 'eBPF Monitor'
 		if cfg.GlobalCfg.AlertThrottling && ((strings.Contains(log.Action, "Audit") && log.Enforcer == "eBPF Monitor") || (log.Type == "MatchedHostPolicy" && (log.Enforcer == "AppArmor" || log.Enforcer == "eBPF Monitor"))) {

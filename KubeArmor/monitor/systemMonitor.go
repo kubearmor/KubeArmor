@@ -18,7 +18,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/cilium/ebpf"
 	cle "github.com/cilium/ebpf"
 
 	"github.com/cilium/ebpf/link"
@@ -1173,20 +1172,19 @@ func LoadTChooks(mon *SystemMonitor) {
 		l, err := link.AttachTCX(link.TCXOptions{
 			Interface: iface.Index,
 			Program:   mon.BpfModule.Programs["handle_ingress"],
-			Attach:    ebpf.AttachTCXIngress,
+			Attach:    cle.AttachTCXIngress,
 		})
 		if err != nil {
 			mon.Logger.Warnf("could not attach ingress program to %s: %s", iface.Name, err)
 			continue
 		}
-
 		links = append(links, l) // for cleanup later
 
 		// Attach the egress TC program.
 		l2, err := link.AttachTCX(link.TCXOptions{
 			Interface: iface.Index,
 			Program:   mon.BpfModule.Programs["handle_egress"],
-			Attach:    ebpf.AttachTCXEgress,
+			Attach:    cle.AttachTCXEgress,
 		})
 
 		if err != nil {

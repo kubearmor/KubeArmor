@@ -1247,7 +1247,7 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 			return log
 		}
 		if log.Operation == "NetworkLimit" {
-			// treating NetworkLimitevent as a network operation for matching with network policies
+			// treating NetworkLimit event as a network operation for matching with network policies
 			log.Operation = "Network"
 		}
 		fd.SecurityPoliciesLock.RLock()
