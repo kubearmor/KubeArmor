@@ -141,11 +141,11 @@ jobs:
           kubectl wait --for=condition=ready --timeout=5m -n kubearmor pod -l kubearmor-app=kubearmor-operator
           kubectl get pods -A
           if [[ ${{ steps.filter.outputs.controller }} == 'true' ]]; then
-            kubectl apply -f pkg/KubeArmorOperator/config/samples/kubearmor-test.yaml --dry-run=client -o json | \
+            kubectl apply -f pkg/KubeArmorOperator/config/samples/kubearmor-coverage.yaml --dry-run=client -o json | \
             jq '.spec.kubearmorControllerImage.imagePullPolicy = "Never"' | \
             kubectl apply -f -
           else 
-            kubectl apply -f pkg/KubeArmorOperator/config/samples/kubearmor-test.yaml
+            kubectl apply -f pkg/KubeArmorOperator/config/samples/kubearmor-coverage.yaml
           fi
 
           kubectl wait -n kubearmor --timeout=5m --for=jsonpath='{.status.phase}'=Running kubearmorconfigs/kubearmorconfig-test

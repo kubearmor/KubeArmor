@@ -19,10 +19,10 @@ spec:
   maxAlertPerSec: 10
   throttleSec: 30
   kubearmorImage:
-    image: kubearmor/kubearmor-test:latest
+    image: kubearmor/kubearmor:latest
     imagePullPolicy: Never
   kubearmorInitImage:
-    image: kubearmor/kubearmor-test-init:latest
+    image: kubearmor/kubearmor-init:latest
     imagePullPolicy: Never
   kubearmorRelayImage:
     image: docker.io/kubearmor/kubearmor-relay-server:latest

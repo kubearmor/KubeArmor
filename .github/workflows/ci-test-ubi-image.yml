@@ -92,7 +92,7 @@ jobs:
           sudo podman tag docker.io/kubearmor/kubearmor-test-init:latest kubearmor/kubearmor-test-init:latest
 
           docker save kubearmor/kubearmor-ubi-test:latest | sudo podman load
-          sudo podman tag docker.io/kubearmor/kubearmor-ubi-test:latest kubearmor/kubearmor-test:latest
+          sudo podman tag docker.io/kubearmor/kubearmor-ubi-test:latest kubearmor/kubearmor-ubi-test:latest
 
           docker save kubearmor/kubearmor-operator:latest | sudo podman load
           sudo podman tag docker.io/kubearmor/kubearmor-operator:latest kubearmor/kubearmor-operator:latest
@@ -187,8 +187,20 @@ jobs:
 
       - name: Kill KubeArmor process in the pod
         run: |
-          KUBEARMOR_PID=$(kubectl exec ${{ env.POD_NAME }} -n kubearmor -c kubearmor -- sh -c "ps aux | grep '[K]ubeArmor/kubearmor-test' | awk '{print \$1}'")
-          kubectl exec ${{ env.POD_NAME }} -n kubearmor -c kubearmor -- sh -c "kill -s SIGINT $KUBEARMOR_PID"
+          echo "Listing all processes in the pod"
+          kubectl exec ${{ env.POD_NAME }} -n kubearmor -c kubearmor -- ps aux
+
+          KUBEARMOR_PID=$(kubectl exec ${{ env.POD_NAME }} -n kubearmor -c kubearmor -- \
+            sh -c "ps aux | grep '[k]ubearmor-test' | awk '{print \$2}'")
+
+          if [ -n "$KUBEARMOR_PID" ]; then
+            echo "Killing KubeArmor PID: $KUBEARMOR_PID"
+            kubectl exec ${{ env.POD_NAME }} -n kubearmor -c kubearmor -- \
+              sh -c "kill -2 $KUBEARMOR_PID"
+          else
+            echo "No KubeArmor process found to kill."
+          fi
+
           sleep 10
         env:
           POD_NAME: ${{ env.POD_NAME }}
