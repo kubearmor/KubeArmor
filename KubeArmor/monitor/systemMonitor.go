@@ -1204,7 +1204,7 @@ func (mon *SystemMonitor) SetupNetworkLimitObservability() {
 		&cle.MapSpec{
 			Name:       "kubearmor_network_quota_rules",
 			Type:       cle.Hash,
-			KeySize:    1,
+			KeySize:    4,
 			ValueSize:  24,
 			MaxEntries: 2,
 			Pinning:    cle.PinByName,

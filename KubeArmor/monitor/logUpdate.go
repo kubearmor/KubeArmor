@@ -599,7 +599,7 @@ func (mon *SystemMonitor) UpdateLogs() {
 			case NetLimit: // network limit alert ( treating it as network event only)
 				log.Operation = "NetworkLimit"
 				// to support earlier kernel version the network direction is piggybacked in execID of log instead of seperate argument
-				log.Data = "Direction = " + kl.GetNetworkDirection(uint8(msg.ContextSys.ExecID))
+				log.Data = "Direction = " + kl.GetNetworkDirection(uint32(msg.ContextSys.ExecID))
 
 			default:
 				continue

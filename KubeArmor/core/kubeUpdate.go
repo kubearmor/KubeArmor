@@ -47,8 +47,8 @@ const (
 	deleteEvent string = "DELETED"
 
 	// RuntimeEnforcer Structure
-	INGRESS uint8 = 111
-	EGRESS  uint8 = 112
+	INGRESS uint32 = 0
+	EGRESS  uint32 = 1
 )
 
 type NetworkRuleValue struct {
@@ -3155,7 +3155,7 @@ func (dm *KubeArmorDaemon) ExtractAndUpdateNetworkTrafficRules(secPolicies []tp.
 		LimitCount: kl.ConvertToU64(egress.LimitCount),
 	}
 	if egressVal.Duration > 0 {
-		err := dm.SystemMonitor.NetworkMonitorRules.Update(EGRESS, egressVal, cle.UpdateAny)
+		err := dm.SystemMonitor.NetworkMonitorRules.Update(kl.EGRESS, egressVal, cle.UpdateAny)
 		if err != nil {
 			dm.Logger.Errf("Error Updating System Monitor Network Egress Rules : %s", err.Error())
 		} else {
@@ -3164,7 +3164,7 @@ func (dm *KubeArmorDaemon) ExtractAndUpdateNetworkTrafficRules(secPolicies []tp.
 		}
 	} else {
 		// Delete existing rules
-		err := dm.SystemMonitor.NetworkMonitorRules.Delete(EGRESS)
+		err := dm.SystemMonitor.NetworkMonitorRules.Delete(kl.EGRESS)
 		if err != nil && !errors.Is(err, cle.ErrKeyNotExist) {
 			dm.Logger.Errf("Error Updating System Monitor Network Egress Rules : %s", err.Error())
 		} else {
@@ -3172,7 +3172,7 @@ func (dm *KubeArmorDaemon) ExtractAndUpdateNetworkTrafficRules(secPolicies []tp.
 		}
 	}
 	if ingressVal.Duration > 0 {
-		err := dm.SystemMonitor.NetworkMonitorRules.Update(INGRESS, ingressVal, cle.UpdateAny)
+		err := dm.SystemMonitor.NetworkMonitorRules.Update(kl.INGRESS, ingressVal, cle.UpdateAny)
 		if err != nil {
 			dm.Logger.Errf("Error Updating System Monitor Network Ingress Rules : %s", err.Error())
 		} else {
@@ -3180,7 +3180,7 @@ func (dm *KubeArmorDaemon) ExtractAndUpdateNetworkTrafficRules(secPolicies []tp.
 		}
 	} else {
 		// deleting existing rules
-		err := dm.SystemMonitor.NetworkMonitorRules.Delete(INGRESS)
+		err := dm.SystemMonitor.NetworkMonitorRules.Delete(kl.INGRESS)
 		if err != nil && !errors.Is(err, cle.ErrKeyNotExist) {
 			dm.Logger.Errf("Error Updating System Monitor Network Ingress Rules : %s", err.Error())
 		} else {
