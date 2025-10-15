@@ -670,6 +670,11 @@ func IsPresetEnforcer(enforcer string) bool {
 	return strings.Contains(enforcer, "PRESET")
 }
 
+const (
+	INGRESS uint32 = 0
+	EGRESS  uint32 = 1
+)
+
 func ConvertToNanoSeconds(duration string) uint64 {
 	if duration == "" {
 		return 0
@@ -725,12 +730,12 @@ func ConvertToBytes(size string) uint64 {
 		return 0
 	}
 }
-func GetNetworkDirection(dir uint8) string {
-	if dir == 111 {
+func GetNetworkDirection(dir uint32) string {
+	if dir == INGRESS {
 		return "Ingress"
 
 	}
-	if dir == 112 {
+	if dir == EGRESS {
 		return "Egress"
 
 	}
