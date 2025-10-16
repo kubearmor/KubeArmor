@@ -13,11 +13,15 @@ permissions: read-all
 
 jobs:
   kubearmor-controller-test:
-    name: Build and Test KubeArmorController Using Ginkgo
-    runs-on: ubuntu-22.04
-    timeout-minutes: 30
+    name: Auto-testing Framework / ${{ matrix.os }} / ${{ matrix.runtime }}
+    runs-on: ${{ matrix.os }}
     env:
-      RUNTIME: "containerd"
+      RUNTIME: ${{ matrix.runtime }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [oracle-vm-16cpu-64gb-x86-64]
+        runtime: ["containerd"]
     steps:
       - uses: actions/checkout@v3
         with:
@@ -96,7 +100,8 @@ jobs:
             kubectl rollout status --timeout=5m deployment -n kubearmor -l kubearmor-app=kubearmor-controller -n kubearmor
             kubectl get pods -A
           done  
-          docker system prune -a -f 
+          docker system prune -a -f
+          docker buildx prune -a -f
 
       - name: Test KubeArmor using Ginkgo
         run: |
