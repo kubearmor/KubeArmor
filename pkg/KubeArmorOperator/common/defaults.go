@@ -72,7 +72,7 @@ var (
 	Privileged              bool   = false
 	HostPID                 bool   = false
 	SnitchName              string = "kubearmor-snitch"
-	SnitchImage             string = "kubearmor/kubearmor-snitch"
+	SnitchImage             string = "docker.io/kubearmor/kubearmor-snitch"
 	SnitchImageTag          string = "latest"
 	KubeArmorSnitchRoleName string = "kubearmor-snitch"
 
@@ -112,7 +112,7 @@ var (
 		"-procfsMount=/host/procfs",
 		"-tlsEnabled=false",
 	}
-	KubeArmorImage            string                        = "kubearmor/kubearmor:stable"
+	KubeArmorImage            string                        = "docker.io/kubearmor/kubearmor:stable"
 	KubeArmorImagePullPolicy  string                        = "Always"
 	KubeArmorImagePullSecrets []corev1.LocalObjectReference = []corev1.LocalObjectReference{}
 	KubeArmorTolerations      []corev1.Toleration           = []corev1.Toleration{}
@@ -121,7 +121,7 @@ var (
 
 	KubeArmorInitName             string                        = "kubearmor-init"
 	KubeArmorInitArgs             []string                      = []string{}
-	KubeArmorInitImage            string                        = "kubearmor/kubearmor-init:stable"
+	KubeArmorInitImage            string                        = "docker.io/kubearmor/kubearmor-init:stable"
 	KubeArmorInitImagePullPolicy  string                        = "Always"
 	KubeArmorInitImagePullSecrets []corev1.LocalObjectReference = []corev1.LocalObjectReference{}
 	KubeArmorInitTolerations      []corev1.Toleration           = []corev1.Toleration{}
@@ -131,7 +131,7 @@ var (
 	KubeArmorRelayArgs []string = []string{
 		"-tlsEnabled=false",
 	}
-	KubeArmorRelayImage            string                        = "kubearmor/kubearmor-relay-server:latest"
+	KubeArmorRelayImage            string                        = "docker.io/kubearmor/kubearmor-relay-server:latest"
 	KubeArmorRelayImagePullPolicy  string                        = "Always"
 	KubeArmorRelayImagePullSecrets []corev1.LocalObjectReference = []corev1.LocalObjectReference{}
 	KubeArmorRelayTolerations      []corev1.Toleration           = []corev1.Toleration{}
@@ -144,7 +144,7 @@ var (
 		"--health-probe-bind-address=:8081",
 		"--annotateExisting=false",
 	}
-	KubeArmorControllerImage              string                        = "kubearmor/kubearmor-controller:latest"
+	KubeArmorControllerImage              string                        = "docker.io/kubearmor/kubearmor-controller:latest"
 	KubeArmorControllerImagePullPolicy    string                        = "Always"
 	KubeArmorControllerImagePullSecrets   []corev1.LocalObjectReference = []corev1.LocalObjectReference{}
 	KubeArmorControllerTolerations        []corev1.Toleration           = []corev1.Toleration{}
