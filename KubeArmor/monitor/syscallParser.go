@@ -11,6 +11,7 @@ package monitor
 import (
 	"bytes"
 	"encoding/binary"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"net"
@@ -1183,6 +1184,41 @@ func readArgFromBuff(dataBuff io.Reader) (interface{}, error) {
 		return nil, fmt.Errorf("error unknown argument type %v", at)
 	}
 
+	return res, nil
+}
+
+// GetHashes function
+func GetHashes(dataBuff *bytes.Buffer) (HashContext, error) {
+	res := HashContext{}
+
+	numOfHashes, err := readInt8FromBuff(dataBuff)
+	if err != nil {
+		return res, err
+	}
+
+	for range numOfHashes {
+		hashType, err := readInt32FromBuff(dataBuff)
+		if err != nil {
+			return res, err
+		}
+		hash, err := readByteSliceFromBuff(dataBuff, 32)
+		if err != nil {
+			return res, err
+		}
+		switch hashType {
+		case 30:
+			res.ProcessHash = hex.EncodeToString(hash)
+		case 31:
+			res.ParentHash = hex.EncodeToString(hash)
+		case 32:
+			res.ResourceHash = hex.EncodeToString(hash)
+		default:
+			return res, fmt.Errorf("unknown hash type: %d", hashType)
+		}
+	}
+	if numOfHashes > 0 {
+		res.HashAlgo = 1
+	}
 	return res, nil
 }
 
