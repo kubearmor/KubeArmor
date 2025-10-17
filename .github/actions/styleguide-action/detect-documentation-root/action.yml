@@ -1,0 +1,59 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-action.json
+
+name: 'Detect Documentation Root'
+description: 'Detects the root directory containing documentation source and records it in .doc.holiday/config'
+
+outputs:
+  documentation-root:
+    description: 'The detected documentation root directory (relative path from repo root)'
+    value: ${{ steps.outputs.outputs.documentation-root }}
+  detection-method:
+    description: 'The method used to detect the root (explicit|common-path|config|density|repo-root|no-docs)'
+    value: ${{ steps.outputs.outputs.detection-method }}
+  candidates:
+    description: 'Other candidate directories considered (comma-separated)'
+    value: ${{ steps.outputs.outputs.candidates }}
+  summary:
+    description: 'Summary of the detection process'
+    value: ${{ steps.outputs.outputs.summary }}
+  config-updated:
+    description: 'Whether the config file was updated (true|false)'
+    value: ${{ steps.outputs.outputs.config-updated }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
+    - name: Run documentation root detection
+      id: detection
+      working-directory: ${{ github.action_path }}
+      run: |
+        node dist/index.cjs
+      shell: bash
+      env:
+        GITHUB_WORKSPACE: ${{ github.workspace }}
+
+    - name: Set outputs
+      id: outputs
+      working-directory: ${{ github.workspace }}
+      run: |
+        if [ -f ".action-outputs-docs-root.json" ]; then
+          # Use jq directly on the file to avoid shell expansion issues
+          echo "documentation-root=$(jq -r '."documentation-root"' .action-outputs-docs-root.json)" >> $GITHUB_OUTPUT
+          echo "detection-method=$(jq -r '."detection-method"' .action-outputs-docs-root.json)" >> $GITHUB_OUTPUT
+          echo "candidates=$(jq -r '.candidates' .action-outputs-docs-root.json)" >> $GITHUB_OUTPUT
+          echo "summary=$(jq -r '.summary' .action-outputs-docs-root.json)" >> $GITHUB_OUTPUT
+          echo "config-updated=$(jq -r '."config-updated"' .action-outputs-docs-root.json)" >> $GITHUB_OUTPUT
+          rm -f .action-outputs-docs-root.json
+        else
+          echo "::warning::No .action-outputs-docs-root.json file found"
+        fi
+      shell: bash
+
+branding:
+  icon: 'search'
+  color: 'green'

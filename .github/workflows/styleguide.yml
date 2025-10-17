@@ -1,0 +1,136 @@
+name: Generate Documentation Style Guide
+
+on:
+  # Run on installation (when workflow file is first created)
+  create:
+
+  workflow_call:
+    inputs:
+      commit-styleguide:
+        description: 'Commit the generated style guide to the repository'
+        required: false
+        default: true
+        type: boolean
+    secrets:
+      OPENAI_API_KEY:
+        description: 'OpenAI API key for enhanced AI-powered analysis'
+        required: false
+  
+  # Run on push to default branch
+  push:
+    branches: [ $default-branch ]
+    paths:
+      - '.github/workflows/styleguide.yml'
+      - '.github/actions/styleguide-action/**'
+      - '.doc.holiday/trigger-paths.txt'
+      - '.doc.holiday/installer.json'
+      - 'docs/**'
+      - '*.md'
+      - '**/*.md'
+      - '**/*.mdx'
+  
+  # Allow manual trigger
+  workflow_dispatch:
+    inputs:
+      commit-styleguide:
+        description: 'Commit the generated style guide to the repository'
+        required: false
+        default: true
+        type: boolean
+
+jobs:
+  generate-styleguide:
+    runs-on: ubuntu-latest
+    
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: read
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+        
+      - name: Initialize Doc Holiday Config
+        uses: ./.github/actions/styleguide-action/initialize-doc-holiday-config
+        id: init-config
+      
+      - name: Identify Documentation Framework
+        uses: ./.github/actions/styleguide-action/identify-publishing-framework
+        id: identify-framework
+      
+      - name: Detect Documentation Root
+        uses: ./.github/actions/styleguide-action/detect-documentation-root
+        id: detect-root
+
+      - name: Update installer version tracking
+        run: |
+          # Read version from package.json in the action directory
+          if [ -f ".github/actions/styleguide-action/generate-styleguide/package.json" ]; then
+            ACTION_VERSION=$(jq -r '.version' .github/actions/styleguide-action/generate-styleguide/package.json)
+          else
+            # Fallback: extract from the workflow files themselves
+            ACTION_VERSION="${{ github.run_number }}"
+          fi
+
+          # Create/update installer.json with current version
+          mkdir -p .doc.holiday
+          cat > .doc.holiday/installer.json <<EOF
+          {
+            "platform": "github",
+            "version": "${{ github.sha }}",
+            "workflow_version": "$ACTION_VERSION",
+            "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%S.%3NZ)",
+            "trigger": "${{ github.event_name }}"
+          }
+          EOF
+
+          echo "Updated installer.json with workflow version info"
+
+      - name: Generate Style Guide
+        uses: ./.github/actions/styleguide-action/generate-styleguide
+        with:
+          output-path: '.doc.holiday/styleguide.md'
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+
+      - name: Commit Style Guide
+        if: |
+          github.event_name != 'pull_request' &&
+          github.ref == format('refs/heads/{0}', github.event.repository.default_branch) &&
+          (github.event_name != 'workflow_dispatch' || github.event.inputs.commit-styleguide == 'true')
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+
+          # Check if there are changes to .doc.holiday/ (includes styleguide.md, installer.json, config, etc.)
+          if [ -n "$(git status --porcelain .doc.holiday/)" ]; then
+            git add .doc.holiday/
+            git commit -m "docs: update style guide and config [skip ci]"
+            git push
+            echo "Committed and pushed styleguide updates (including installer.json if changed)"
+          else
+            echo "No changes to commit"
+          fi
+        id: commit-styleguide
+
+      - name: Check generated files
+        id: check-styleguide
+        run: |
+          if [ -d .doc.holiday ]; then
+            echo "Found .doc.holiday directory with contents:"
+            ls -la .doc.holiday/
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "No .doc.holiday directory found - action may have failed"
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Upload Style Guide Artifact
+        if: steps.check-styleguide.outputs.exists == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: styleguide
+          path: .doc.holiday
+          include-hidden-files: true

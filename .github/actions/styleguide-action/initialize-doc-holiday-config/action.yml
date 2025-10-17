@@ -1,0 +1,34 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-action.json
+
+name: 'Initialize doc.holiday Configuration'
+description: 'Sets up the initial doc.holiday configuration directory and files'
+author: 'Sandgarden'
+
+inputs:
+  config-path:
+    description: 'Path to the doc.holiday config file'
+    required: false
+    default: '.doc.holiday'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Configure doc.holiday
+      shell: bash
+      run: |
+        # Check if config already exists
+        if [ -f "${{ inputs.config-path }}/config" ]; then
+          echo "doc.holiday configuration already exists, skipping initialization"
+          exit 0
+        fi
+        
+        # Create directory and config file only if it doesn't exist
+        mkdir -p ${{ inputs.config-path }}
+        [ -f "${{ inputs.config-path }}/config" ] || touch ${{ inputs.config-path }}/config
+        
+        echo "✅ doc.holiday configuration initialized at ${{ inputs.config-path }}"
+        echo "📝 Config file created: ${{ inputs.config-path }}/config"
+
+branding:
+  icon: 'settings'
+  color: 'green'
