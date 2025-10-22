@@ -30,6 +30,27 @@ import (
 	"google.golang.org/grpc/keepalive"
 )
 
+// parseDataString parses a space-separated key=value string into a map
+func parseDataString(data string) map[string]string {
+	if data == "" {
+		return nil
+	}
+	
+	result := make(map[string]string)
+	pairs := strings.Fields(data) // Split by whitespace
+	
+	for _, pair := range pairs {
+		if strings.Contains(pair, "=") {
+			parts := strings.SplitN(pair, "=", 2) // Split only on first "="
+			if len(parts) == 2 {
+				result[parts[0]] = parts[1]
+			}
+		}
+	}
+	
+	return result
+}
+
 // ============ //
 // == Global == //
 // ============ //
@@ -573,6 +594,11 @@ func (fd *Feeder) PushLog(log tp.Log) {
 	log.NetworkVisibilityEnabled = false
 	log.CapabilitiesVisibilityEnabled = false
 
+	// populate StructuredData for JSON logging
+	if len(log.Data) > 0 {
+		log.StructuredData = parseDataString(log.Data)
+	}
+
 	// standard output / file output
 	if fd.Output == "stdout" {
 		arr, _ := json.Marshal(log)
@@ -676,6 +702,7 @@ func (fd *Feeder) PushLog(log tp.Log) {
 
 		if len(log.Data) > 0 {
 			pbAlert.Data = log.Data
+			pbAlert.StructuredData = parseDataString(log.Data)
 		}
 		pbAlert.ProcessHash = log.ProcessHash[:]
 		pbAlert.ParentHash = log.ParentHash[:]
@@ -765,6 +792,7 @@ func (fd *Feeder) PushLog(log tp.Log) {
 
 		if len(log.Data) > 0 {
 			pbLog.Data = log.Data
+			pbLog.StructuredData = parseDataString(log.Data)
 		}
 		pbLog.ProcessHash = log.ProcessHash[:]
 		pbLog.ParentHash = log.ParentHash[:]
