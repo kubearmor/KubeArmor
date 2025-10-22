@@ -587,17 +587,17 @@ func (fd *Feeder) PushLog(log tp.Log) {
 	// set hostname
 	log.HostName = cfg.GlobalCfg.Host
 
+	// populate StructuredData once for all outputs
+	if len(log.Data) > 0 {
+		log.StructuredData = parseDataString(log.Data)
+	}
+
 	// remove flags
 	log.PolicyEnabled = 0
 	log.ProcessVisibilityEnabled = false
 	log.FileVisibilityEnabled = false
 	log.NetworkVisibilityEnabled = false
 	log.CapabilitiesVisibilityEnabled = false
-
-	// populate StructuredData for JSON logging
-	if len(log.Data) > 0 {
-		log.StructuredData = parseDataString(log.Data)
-	}
 
 	// standard output / file output
 	if fd.Output == "stdout" {
@@ -702,7 +702,9 @@ func (fd *Feeder) PushLog(log tp.Log) {
 
 		if len(log.Data) > 0 {
 			pbAlert.Data = log.Data
-			pbAlert.StructuredData = parseDataString(log.Data)
+		}
+		if log.StructuredData != nil {
+			pbAlert.StructuredData = log.StructuredData
 		}
 		pbAlert.ProcessHash = log.ProcessHash[:]
 		pbAlert.ParentHash = log.ParentHash[:]
@@ -792,7 +794,9 @@ func (fd *Feeder) PushLog(log tp.Log) {
 
 		if len(log.Data) > 0 {
 			pbLog.Data = log.Data
-			pbLog.StructuredData = parseDataString(log.Data)
+		}
+		if log.StructuredData != nil {
+			pbLog.StructuredData = log.StructuredData
 		}
 		pbLog.ProcessHash = log.ProcessHash[:]
 		pbLog.ParentHash = log.ParentHash[:]
