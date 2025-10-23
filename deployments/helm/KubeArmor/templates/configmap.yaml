@@ -7,6 +7,7 @@ data:
   alertThrottling: {{ .Values.kubearmorConfigMap.alertThrottling | quote }}
   maxAlertPerSec: {{ .Values.kubearmorConfigMap.maxAlertPerSec | quote }}
   throttleSec: {{ .Values.kubearmorConfigMap.throttleSec | quote }}
+  disableSystemMonitor: {{ .Values.kubearmor.disableSystemMonitor }}
 kind: ConfigMap
 metadata:
   labels:

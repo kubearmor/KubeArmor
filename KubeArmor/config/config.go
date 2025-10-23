@@ -43,6 +43,8 @@ type KubearmorConfig struct {
 
 	Debug bool // Enable/Disable KubeArmor debug mode
 
+	DisableSystemMonitor bool // Enable/Disable KubeArmor system monitoring
+
 	DefaultFilePosture         string // Default Enforcement Action in Global File Context
 	DefaultNetworkPosture      string // Default Enforcement Action in Global Network Context
 	DefaultCapabilitiesPosture string // Default Enforcement Action in Global Capabilities Context
