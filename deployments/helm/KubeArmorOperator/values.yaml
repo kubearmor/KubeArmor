@@ -31,6 +31,19 @@ kubearmorOperator:
   enableOCIHooks: false
   annotateResource: false
   annotateExisting: false
+  
+  # Snitch image configuration
+  snitch:
+    image:
+      # Repository for kubearmor-snitch image
+      # e.g., my-private-registry.com/team/kubearmor-snitch
+      repository: kubearmor/kubearmor-snitch
+      # Image tag
+      tag: latest
+    # Image pull policy for snitch
+    imagePullPolicy: IfNotPresent
+    # Optional image pull secrets for snitch
+    imagePullSecrets: []
   name: kubearmor-operator
   image:
     repository: kubearmor/kubearmor-operator
