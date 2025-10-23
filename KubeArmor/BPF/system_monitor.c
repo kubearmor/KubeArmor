@@ -51,14 +51,11 @@
 #include "syscalls.h"
 #include "throttling.h"
 
-#include <bpf/bpf_endian.h>
 #include "ima_hash.h"
 #include "kubearmor_config.h"
 #include "visibility.h"
 #include "kernel_helpers.h"
 #include "tc_helpers.h"
-
-// #include <bpf/bpf_endian.h>
 
 #ifdef RHEL_RELEASE_CODE
 #if (RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(8, 0))
@@ -2691,6 +2688,8 @@ int kretprobe__usb_set_configuration(struct pt_regs *ctx)
 // ===== Network TC programs for egress and ingress monitoring ===== //
 static __always_inline int handle_pkt(struct __sk_buff *skb, __u32 direction)
 {
+
+#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 0, 0) // skipping older 4.x.x kernels due to verifier issues
     void *data_end = (void *)(long)skb->data_end;
     void *data = (void *)(long)skb->data;
 
@@ -2772,6 +2771,7 @@ static __always_inline int handle_pkt(struct __sk_buff *skb, __u32 direction)
     }
 
     return TC_ACT_OK;
+#endif
 }
 
 SEC("tc")
