@@ -176,7 +176,7 @@ func (kh *K8sHandler) InitInclusterAPIClient() bool {
 // ============== //
 
 // DoRequest Function
-func (kh *K8sHandler) DoRequest(cmd string, data interface{}, path string) ([]byte, error) {
+func (kh *K8sHandler) DoRequest(cmd string, data any, path string) ([]byte, error) {
 	URL := ""
 
 	if kl.IsInK8sCluster() {
@@ -254,14 +254,14 @@ func (kh *K8sHandler) PatchResourceWithAppArmorAnnotations(namespaceName, deploy
 		spec = spec + `}}}}}`
 	}
 
-	if kind == "StatefulSet" {
+	switch kind {
+	case "StatefulSet":
 		_, err := kh.K8sClient.AppsV1().StatefulSets(namespaceName).Patch(context.Background(), deploymentName, types.StrategicMergePatchType, []byte(spec), metav1.PatchOptions{})
 		if err != nil {
 			return err
 		}
 		return nil
-
-	} else if kind == "ReplicaSet" {
+	case "ReplicaSet":
 		rs, err := kh.K8sClient.AppsV1().ReplicaSets(namespaceName).Get(context.Background(), deploymentName, metav1.GetOptions{})
 		if err != nil {
 			return err
@@ -286,24 +286,23 @@ func (kh *K8sHandler) PatchResourceWithAppArmorAnnotations(namespaceName, deploy
 		}
 
 		return nil
-	} else if kind == "DaemonSet" {
+	case "DaemonSet":
 		_, err := kh.K8sClient.AppsV1().DaemonSets(namespaceName).Patch(context.Background(), deploymentName, types.MergePatchType, []byte(spec), metav1.PatchOptions{})
 		if err != nil {
 			return err
 		}
 		return nil
-
-	} else if kind == "Deployment" {
+	case "Deployment":
 		_, err := kh.K8sClient.AppsV1().Deployments(namespaceName).Patch(context.Background(), deploymentName, types.StrategicMergePatchType, []byte(spec), metav1.PatchOptions{})
 		if err != nil {
 			return err
 		}
-	} else if kind == "CronJob" {
+	case "CronJob":
 		_, err := kh.K8sClient.BatchV1().CronJobs(namespaceName).Patch(context.Background(), deploymentName, types.StrategicMergePatchType, []byte(spec), metav1.PatchOptions{})
 		if err != nil {
 			return err
 		}
-	} else if kind == "Pod" {
+	case "Pod":
 		// this condition wont be triggered, handled by controller
 		return nil
 
