@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -25,6 +26,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/kubearmor/KubeArmor/KubeArmor/cert"
 	pb "github.com/kubearmor/KubeArmor/protobuf"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/keepalive"
@@ -39,6 +41,9 @@ var Running bool
 
 // QueueSize
 const QueueSize = 1000
+
+// metricsServerOnce ensures metrics endpoint is registered only once
+var metricsServerOnce sync.Once
 
 func init() {
 	Running = true
@@ -221,6 +226,18 @@ type Feeder struct {
 	AlertMap map[OuterKey]AlertThrottleState
 
 	ContainerNsKey map[string]common.OuterKey
+
+	// Policy metadata tracking for metrics
+	PolicyMetadata     map[string]PolicyMetricInfo
+	PolicyMetadataLock *sync.RWMutex
+}
+
+// PolicyMetricInfo stores policy information for metrics
+type PolicyMetricInfo struct {
+	Name      string
+	Namespace string
+	Type      string // "KubeArmorPolicy", "KubeArmorHostPolicy", "KubeArmorClusterPolicy"
+	Status    string // "active"
 }
 
 // NewFeeder Function
@@ -351,7 +368,101 @@ func NewFeeder(node *tp.Node, nodeLock **sync.RWMutex) *Feeder {
 	fd.DefaultPostures = map[string]tp.DefaultPosture{}
 	fd.DefaultPosturesLock = new(sync.Mutex)
 
+	// initialize policy metadata tracking for metrics
+	fd.PolicyMetadata = make(map[string]PolicyMetricInfo)
+	fd.PolicyMetadataLock = new(sync.RWMutex)
+
+	// Start metrics server
+	fd.StartMetricsServer()
+
 	return fd
+}
+
+// StartMetricsServer starts the HTTP server for Prometheus metrics
+func (fd *Feeder) StartMetricsServer() {
+	metricsAddr := ":8080"
+
+	// Register /metrics endpoint only once globally
+	metricsServerOnce.Do(func() {
+		http.Handle("/metrics", promhttp.Handler())
+		kg.Printf("Registered /metrics endpoint")
+	})
+
+	kg.Printf("Starting metrics server on %s", metricsAddr)
+
+	// Create server with timeouts to prevent slowloris attacks
+	server := &http.Server{
+		Addr:         metricsAddr,
+		Handler:      nil, // Use DefaultServeMux
+		ReadTimeout:  5 * time.Second,
+		WriteTimeout: 10 * time.Second,
+		IdleTimeout:  120 * time.Second,
+	}
+
+	go func() {
+		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			kg.Warnf("Metrics server failed: %s", err.Error())
+		}
+	}()
+}
+
+// updatePolicyMetric adds or updates a policy metric
+func (fd *Feeder) updatePolicyMetric(info PolicyMetricInfo) {
+	fd.PolicyMetadataLock.Lock()
+	defer fd.PolicyMetadataLock.Unlock()
+
+	// Store metadata
+	fd.PolicyMetadata[info.Name] = info
+
+	// Update Prometheus metrics
+	PolicyInfo.WithLabelValues(
+		info.Name,
+		info.Namespace,
+		info.Type,
+		info.Status,
+	).Set(1)
+
+	// Update total count by type
+	fd.updatePolicyCount()
+}
+
+// removePolicyMetric removes a policy from metrics
+func (fd *Feeder) removePolicyMetric(policyName string) {
+	fd.PolicyMetadataLock.Lock()
+	defer fd.PolicyMetadataLock.Unlock()
+
+	if info, exists := fd.PolicyMetadata[policyName]; exists {
+		// Remove from Prometheus
+		PolicyInfo.DeleteLabelValues(
+			info.Name,
+			info.Namespace,
+			info.Type,
+			info.Status,
+		)
+
+		// Remove from tracking map
+		delete(fd.PolicyMetadata, policyName)
+
+		// Update total count
+		fd.updatePolicyCount()
+	}
+}
+
+// updatePolicyCount recalculates and updates policy counts by type
+func (fd *Feeder) updatePolicyCount() {
+	typeCounts := map[string]int{
+		"KubeArmorPolicy":        0,
+		"KubeArmorHostPolicy":    0,
+		"KubeArmorClusterPolicy": 0,
+	}
+
+	for _, info := range fd.PolicyMetadata {
+		typeCounts[info.Type]++
+	}
+
+	for policyType, count := range typeCounts {
+		PoliciesTotal.WithLabelValues(policyType).Set(float64(count))
+	}
 }
 
 // DestroyFeeder Function
@@ -709,6 +820,10 @@ func (fd *Feeder) PushLog(log tp.Log) {
 
 			}
 		}
+
+		// Increment alert metric
+		nodeName := cfg.GlobalCfg.Host
+		AlertsTotal.WithLabelValues(nodeName).Inc()
 	} else { // ContainerLog || HostLog
 		pbLog := pb.Log{}
 
