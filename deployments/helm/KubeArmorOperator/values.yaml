@@ -33,7 +33,7 @@ kubearmorOperator:
   annotateExisting: false
   name: kubearmor-operator
   image:
-    repository: kubearmor/kubearmor-operator
+    repository: docker.io/kubearmor/kubearmor-operator
     tag: ""
     # Optional, but if there are a lot of image pulls required, Docker might be rate-limited. So, it's good to add pull secrets for production.
     imagePullSecrets: []
