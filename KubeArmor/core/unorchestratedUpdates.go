@@ -85,9 +85,17 @@ func (dm *KubeArmorDaemon) WatchConfigChanges() {
 		// Update throttling configs
 		dm.SystemMonitor.UpdateThrottlingConfig()
 
+		//update NetworkLimit configs
+
+		if cfg.GlobalCfg.NetworkLimit {
+			dm.SystemMonitor.SetupNetworkLimitObservability()
+		} else {
+			dm.SystemMonitor.DestroyNetworkLimitObservability()
+		}
 		// Update the default posture and visibility for the unorchestrated containers
 		dm.SystemMonitor.UpdateVisibility()
 		dm.UpdateHostSecurityPolicies()
+
 	})
 	viper.WatchConfig()
 }

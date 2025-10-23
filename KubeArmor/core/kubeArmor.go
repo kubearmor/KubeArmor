@@ -264,7 +264,6 @@ func (dm *KubeArmorDaemon) InitSystemMonitor() bool {
 		kg.Errf("Failed to initialize BPF (%s)", err.Error())
 		return false
 	}
-
 	return true
 }
 
