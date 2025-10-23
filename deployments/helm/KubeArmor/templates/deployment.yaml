@@ -43,6 +43,10 @@ spec:
           value: {{ quote .Values.kubearmorRelay.enableStdoutMsg }}
         ports:
         - containerPort: 32767
+        {{- with .Values.kubearmorRelay.resources }}
+        resources:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
         {{- if .Values.tls.enabled }}
         volumeMounts:
           {{- toYaml .Values.kubearmorRelay.tls.certVolumeMount | trim | nindent 10 }}
@@ -109,10 +113,10 @@ spec:
             port: 8081
           initialDelaySeconds: 5
           periodSeconds: 10
+        {{- with .Values.kubearmorController.resources }}
         resources:
-          requests:
-            cpu: 10m
-            memory: 64Mi
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
         securityContext:
           allowPrivilegeEscalation: false
           capabilities:
