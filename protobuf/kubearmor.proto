@@ -75,6 +75,7 @@ message Alert {
   string Operation = 19;
   string Resource = 20;
   string Data = 21;
+  map<string, string> StructuredData = 43;
 
   string Enforcer = 28;
   string Action = 22;
@@ -125,6 +126,7 @@ message Log {
   string Operation = 15;
   string Resource = 16;
   string Data = 17;
+  map<string, string> StructuredData = 43;
 
   string Result = 18;
   string Cwd = 25;
