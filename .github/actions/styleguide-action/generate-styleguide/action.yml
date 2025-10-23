@@ -1,0 +1,35 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-action.json
+
+name: 'Generate Style Guide'
+description: 'Generates a documentation style guide for the repository using AI-powered analysis'
+
+inputs:
+  output-path:
+    description: 'Path where the style guide should be saved'
+    required: false
+    default: '.doc.holiday/styleguide.md'
+  openai-api-key:
+    description: 'OpenAI API key for enhanced AI-powered analysis'
+    required: false
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
+    - name: Generate style guide
+      working-directory: ${{ github.action_path }}
+      run: |
+        node dist/index.cjs
+      shell: bash
+      env:
+        GITHUB_WORKSPACE: ${{ github.workspace }}
+        INPUT_OUTPUT_PATH: ${{ inputs.output-path }}
+        OPENAI_API_KEY: ${{ inputs.openai-api-key }}
+
+branding:
+  icon: 'file-text'
+  color: 'green'

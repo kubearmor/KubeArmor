@@ -1,0 +1,59 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-action.json
+
+name: 'Identify Publishing Framework'
+description: 'Identifies the publishing framework used in the repository and sets up doc.holiday configuration'
+
+outputs:
+  publishing-framework:
+    description: 'The identified publishing framework (primary or comma-separated list)'
+    value: ${{ steps.outputs.outputs.publishing-framework }}
+  summary:
+    description: 'Summary of the framework identification process'
+    value: ${{ steps.outputs.outputs.summary }}
+  confidence:
+    description: 'Confidence level of the detection (high, medium, low)'
+    value: ${{ steps.outputs.outputs.confidence }}
+  all-frameworks:
+    description: 'Comma-separated list of all detected frameworks'
+    value: ${{ steps.outputs.outputs.all-frameworks }}
+  evidence:
+    description: 'JSON string containing evidence for framework detection'
+    value: ${{ steps.outputs.outputs.evidence }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
+    - name: Run publishing framework detection
+      id: detection
+      working-directory: ${{ github.action_path }}
+      run: |
+        node dist/index.cjs
+      shell: bash
+      env:
+        GITHUB_WORKSPACE: ${{ github.workspace }}
+
+    - name: Set outputs
+      id: outputs
+      working-directory: ${{ github.workspace }}
+      run: |
+        if [ -f ".action-outputs.json" ]; then
+          # Use jq directly on the file to avoid shell expansion issues
+          echo "publishing-framework=$(jq -r '."publishing-framework"' .action-outputs.json)" >> $GITHUB_OUTPUT
+          echo "summary=$(jq -r '.summary' .action-outputs.json)" >> $GITHUB_OUTPUT
+          echo "confidence=$(jq -r '.confidence' .action-outputs.json)" >> $GITHUB_OUTPUT
+          echo "all-frameworks=$(jq -r '."all-frameworks"' .action-outputs.json)" >> $GITHUB_OUTPUT
+          echo "evidence=$(jq -r '.evidence' .action-outputs.json)" >> $GITHUB_OUTPUT
+          rm -f .action-outputs.json
+        else
+          echo "::warning::No .action-outputs.json file found"
+        fi
+      shell: bash
+
+branding:
+  icon: 'search'
+  color: 'green'
