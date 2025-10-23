@@ -333,20 +333,18 @@ type SyscallsType struct {
 	Message string `json:"message,omitempty"`
 }
 
-// +kubebuilder:validation:Enum=AUDIO;COMMUNICATION-CDC;HID;PHYSICAL;IMAGE;PRINTER;MASS-STORAGE;HUB;CDC-DATA;SMART-CARD;CONTENT-SECURITY;VIDEO;PERSONAL-HEALTHCARE;AUDIO/VIDEO;BILLBOARD;TYPE-C-BRIDGE;BULK-DISPLAY;MCTP;I3C;DIAGNOSTIC;WIRELESS-CONTROLLER;MISCELLANEOUS;APPLICATION-SPECIFIC;VENDOR-SPECIFIC;ALL
-type DeviceClass string
-
-// +kubebuilder:validation:Minimum:=1
-type DeviceLevel int32
-
 type DeviceMatchType struct {
-	Class DeviceClass `json:"class,omitempty"`
+	Class string `json:"class"`
 
 	// +kubebuilder:validation:optional
-	SubClass string `json:"subClass,omitempty"`
+	SubClass *int32 `json:"subClass,omitempty"`
 
 	// +kubebuilder:validation:optional
-	Level DeviceLevel `json:"level,omitempty"`
+	Protocol *int32 `json:"protocol,omitempty"`
+
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Optional
+	Level *int32 `json:"level,omitempty"`
 
 	// +kubebuilder:validation:optional
 	Severity SeverityType `json:"severity,omitempty"`

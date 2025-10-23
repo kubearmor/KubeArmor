@@ -67,8 +67,6 @@ const (
 	DropAlert = 0
 
 	UDPSendMsg = 10000
-
-	USBDevice = 20000
 )
 
 var syscalls = map[int32]string{

@@ -1970,6 +1970,13 @@ func (dm *KubeArmorDaemon) UpdateHostSecurityPolicies() {
 				dm.RuntimeEnforcer.UpdateHostSecurityPolicies(secPolicies)
 			}
 		}
+
+		if dm.USBDeviceHandler != nil {
+			if dm.Node.PolicyEnabled == tp.KubeArmorPolicyEnabled {
+				// enforce USB device security policies
+				dm.USBDeviceHandler.UpdateHostSecurityPolicies(secPolicies)
+			}
+		}
 	}
 }
 

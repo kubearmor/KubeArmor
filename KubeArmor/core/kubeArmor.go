@@ -33,6 +33,7 @@ import (
 	fd "github.com/kubearmor/KubeArmor/KubeArmor/feeder"
 	kvm "github.com/kubearmor/KubeArmor/KubeArmor/kvmAgent"
 	mon "github.com/kubearmor/KubeArmor/KubeArmor/monitor"
+	dvc "github.com/kubearmor/KubeArmor/KubeArmor/usbDeviceHandler"
 	pb "github.com/kubearmor/KubeArmor/protobuf"
 )
 
@@ -114,6 +115,9 @@ type KubeArmorDaemon struct {
 
 	// health-server
 	GRPCHealthServer *health.Server
+
+	// USB device handler
+	USBDeviceHandler *dvc.USBDeviceHandler
 }
 
 // NewKubeArmorDaemon Function
@@ -149,6 +153,7 @@ func NewKubeArmorDaemon() *KubeArmorDaemon {
 	dm.SystemMonitor = nil
 	dm.RuntimeEnforcer = nil
 	dm.KVMAgent = nil
+	dm.USBDeviceHandler = nil
 
 	dm.WgDaemon = sync.WaitGroup{}
 
@@ -181,6 +186,13 @@ func (dm *KubeArmorDaemon) DestroyKubeArmorDaemon() {
 		// close kvm agent
 		if dm.CloseKVMAgent() {
 			dm.Logger.Print("Stopped KVM Agent")
+		}
+	}
+
+	if dm.USBDeviceHandler != nil {
+		//close USB device handler
+		if dm.CloseUSBDeviceHandler() {
+			dm.Logger.Print("Stopped USB Device Handler")
 		}
 	}
 
@@ -303,6 +315,25 @@ func (dm *KubeArmorDaemon) InitRuntimeEnforcer(pinpath string) bool {
 func (dm *KubeArmorDaemon) CloseRuntimeEnforcer() bool {
 	if err := dm.RuntimeEnforcer.DestroyRuntimeEnforcer(); err != nil {
 		dm.Logger.Errf("Failed to destory KubeArmor Enforcer (%s)", err.Error())
+		return false
+	}
+	return true
+}
+
+// ======================== //
+// == USB Device Handler == //
+// ======================== //
+
+// InitUSBDeviceHandler Function
+func (dm *KubeArmorDaemon) InitUSBDeviceHandler() bool {
+	dm.USBDeviceHandler = dvc.NewUSBDeviceHandler(dm.Logger)
+	return dm.USBDeviceHandler != nil
+}
+
+// CloseUSBDeviceHandler Function
+func (dm *KubeArmorDaemon) CloseUSBDeviceHandler() bool {
+	if err := dm.USBDeviceHandler.DestroyUSBDeviceHandler(); err != nil {
+		dm.Logger.Errf("Failed to destroy KubeArmor USB Device Handler (%s)", err.Error())
 		return false
 	}
 	return true
@@ -783,6 +814,21 @@ func KubeArmor() {
 
 	// wait for a while
 	time.Sleep(time.Second * 1)
+
+	// == //
+
+	// Init USB Device Handler
+	if cfg.GlobalCfg.HostPolicy && cfg.GlobalCfg.USBDeviceHandler {
+		if !dm.InitUSBDeviceHandler() {
+			dm.Logger.Print("Failed to initialize KubeArmor USB Device Handler")
+
+			// destroy the daemon
+			dm.DestroyKubeArmorDaemon()
+
+			return
+		}
+		dm.Logger.Print("Initialized KubeArmor USB Device Handler")
+	}
 
 	// == //
 
