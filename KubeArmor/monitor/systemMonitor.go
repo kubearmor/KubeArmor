@@ -51,84 +51,152 @@ type NsKey struct {
 	MntNS uint32
 }
 
-// containerIDFromProcCgroup attempts to resolve the container ID for a given host PID by parsing /proc/<pid>/cgroup
-// This is best-effort and used as a guardrail to avoid occasional namespace-to-container mixups.
 func (mon *SystemMonitor) containerIDFromProcCgroup(hostPid uint32) string {
-	// Build the cgroup file path under the configured procfs mount
+	// Check cache first (5 second TTL)
+	mon.cgroupCacheLock.RLock()
+	if entry, ok := mon.cgroupCache[hostPid]; ok {
+		if time.Since(entry.timestamp) < 5*time.Second {
+			mon.cgroupCacheLock.RUnlock()
+			return entry.containerID
+		}
+	}
+	mon.cgroupCacheLock.RUnlock()
+
+	// Get buffer from pool
+	bufPtr := mon.cgroupBufPool.Get().(*[]byte)
+	defer mon.cgroupBufPool.Put(bufPtr)
+	
 	cgPath := filepath.Join(cfg.GlobalCfg.ProcFsMount, strconv.FormatUint(uint64(hostPid), 10), "cgroup")
-	data, err := os.ReadFile(cgPath)
-	if err != nil || len(data) == 0 {
+	
+	file, err := os.Open(cgPath)
+	if err != nil {
 		return ""
 	}
+	defer file.Close()
+	
+	n, err := file.Read(*bufPtr)
+	if err != nil || n == 0 {
+		return ""
+	}
+	
+	data := (*bufPtr)[:n]
+	containerID := mon.parseCgroupData(data)
+	
+	// Cache the result
+	if containerID != "" {
+		mon.cgroupCacheLock.Lock()
+		mon.cgroupCache[hostPid] = cgroupCacheEntry{
+			containerID: containerID,
+			timestamp:   time.Now(),
+		}
+		mon.cgroupCacheLock.Unlock()
+	}
+	
+	return containerID
+}
 
-	lines := strings.Split(string(data), "\n")
+
+// parseCgroupData extracts container ID from cgroup file content
+func (mon *SystemMonitor) parseCgroupData(data []byte) string {
 	var token string
-	for _, line := range lines {
-		if line == "" {
-			continue
-		}
-		parts := strings.SplitN(line, ":", 3)
-		if len(parts) != 3 {
-			continue
-		}
-		p := parts[2]
-		// containerd (systemd cgroups): .../cri-containerd-<id>.scope
-		if idx := strings.Index(p, "cri-containerd-"); idx != -1 {
-			s := p[idx+len("cri-containerd-"):]
-			if j := strings.Index(s, ".scope"); j != -1 {
-				token = s[:j]
-				break
+	start := 0
+	
+	// Parse line by line
+	for i := 0; i < len(data); i++ {
+		if data[i] == '\n' {
+			line := data[start:i]
+			start = i + 1
+			
+			if len(line) == 0 {
+				continue
 			}
-		}
-		// CRI-O (systemd cgroups): .../crio-<id>.scope
-		if idx := strings.Index(p, "crio-"); idx != -1 {
-			s := p[idx+len("crio-"):]
-			if j := strings.Index(s, ".scope"); j != -1 {
-				token = s[:j]
-				break
+			
+			// Find second ':' to get the cgroup path
+			colonCount := 0
+			pathStart := -1
+			for j := 0; j < len(line); j++ {
+				if line[j] == ':' {
+					colonCount++
+					if colonCount == 2 {
+						pathStart = j + 1
+						break
+					}
+				}
 			}
-		}
-		// Docker cgroups: .../docker/<id>(/...) or containerd legacy: .../containers/<id>(/...)
-		if idx := strings.Index(p, "/docker/"); idx != -1 {
-			s := p[idx+len("/docker/"):]
-			if k := strings.IndexByte(s, '/'); k != -1 {
-				token = s[:k]
-			} else {
-				token = s
+			
+			if pathStart == -1 {
+				continue
 			}
-			if token != "" {
-				break
-			}
-		}
-		if idx := strings.Index(p, "/containers/"); idx != -1 {
-			s := p[idx+len("/containers/"):]
-			if k := strings.IndexByte(s, '/'); k != -1 {
-				token = s[:k]
-			} else {
-				token = s
-			}
+			
+			path := line[pathStart:]
+			token = mon.extractContainerIDFromPath(path)
 			if token != "" {
 				break
 			}
 		}
 	}
+	
 	if token == "" {
 		return ""
 	}
-
-	// Find a matching container in the current container map using several heuristics
+	
+	// Match against container map
 	Containers := *(mon.Containers)
 	ContainersLock := *(mon.ContainersLock)
 	ContainersLock.RLock()
 	defer ContainersLock.RUnlock()
+	
 	for cid, c := range Containers {
-		if cid == token || strings.HasSuffix(cid, token) || strings.Contains(cid, token) ||
-			c.ContainerID == token || strings.HasSuffix(c.ContainerID, token) || strings.Contains(c.ContainerID, token) {
+		if cid == token || strings.HasSuffix(cid, token) || strings.Contains(cid, token) {
+			return cid
+		}
+		if c.ContainerID == token || strings.HasSuffix(c.ContainerID, token) || strings.Contains(c.ContainerID, token) {
 			return cid
 		}
 	}
+	
 	return ""
 }
+
+// extractContainerIDFromPath extracts container ID from cgroup path using byte operations
+func (mon *SystemMonitor) extractContainerIDFromPath(path []byte) string {
+	// containerd: cri-containerd-<id>.scope
+	if idx := bytes.Index(path, []byte("cri-containerd-")); idx != -1 {
+		s := path[idx+15:]
+		if j := bytes.Index(s, []byte(".scope")); j != -1 {
+			return string(s[:j])
+		}
+	}
+	
+	// CRI-O: crio-<id>.scope
+	if idx := bytes.Index(path, []byte("crio-")); idx != -1 {
+		s := path[idx+5:]
+		if j := bytes.Index(s, []byte(".scope")); j != -1 {
+			return string(s[:j])
+		}
+	}
+	
+	// Docker: /docker/<id>
+	if idx := bytes.Index(path, []byte("/docker/")); idx != -1 {
+		s := path[idx+8:]
+		if k := bytes.IndexByte(s, '/'); k != -1 {
+			return string(s[:k])
+		}
+		return string(s)
+	}
+	
+	// containerd legacy: /containers/<id>
+	if idx := bytes.Index(path, []byte("/containers/")); idx != -1 {
+		s := path[idx+12:]
+		if k := bytes.IndexByte(s, '/'); k != -1 {
+			return string(s[:k])
+		}
+		return string(s)
+	}
+	
+	return ""
+}
+
 
 // NsVisibility Structure
 type NsVisibility struct {
@@ -201,6 +269,11 @@ func init() {
 	StopChan = make(chan struct{})
 }
 
+type cgroupCacheEntry struct {
+    containerID string
+    timestamp   time.Time
+}
+
 // SystemMonitor Structure
 type SystemMonitor struct {
 	// node
@@ -246,6 +319,10 @@ type SystemMonitor struct {
 	SyscallChannel chan []byte
 	SyscallPerfMap *perf.Reader
 
+	cgroupCache     map[uint32]cgroupCacheEntry
+    cgroupCacheLock *sync.RWMutex
+    cgroupBufPool   *sync.Pool
+
 	// lists to skip
 	UntrackedNamespaces []string
 
@@ -284,6 +361,15 @@ func NewSystemMonitor(node *tp.Node, nodeLock **sync.RWMutex, logger *fd.Feeder,
 	mon.Status = true
 	mon.UptimeTimeStamp = kl.GetUptimeTimestamp()
 	mon.HostByteOrder = binary.LittleEndian
+
+	mon.cgroupCache = make(map[uint32]cgroupCacheEntry)
+    mon.cgroupCacheLock = new(sync.RWMutex)
+    mon.cgroupBufPool = &sync.Pool{
+        New: func() interface{} {
+            buf := make([]byte, 4096)
+            return &buf
+        },
+    }
 
 	mon.execLogMap = map[uint32]tp.Log{}
 	mon.execLogMapLock = new(sync.RWMutex)
