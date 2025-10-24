@@ -31,7 +31,9 @@ func (mon *SystemMonitor) UpdateContainerInfoByContainerID(log tp.Log) tp.Log {
 		log.NamespaceName = val.NamespaceName
 		log.Owner = &val.Owner
 		log.PodName = val.EndPointName
-		log.Labels = val.Labels
+		mon.PodLabelsMapLock.RLock()
+		log.Labels = mon.PodLabelsMap[val.EndPointName]
+		mon.PodLabelsMapLock.RUnlock()
 
 		// update container info
 		log.ContainerName = val.ContainerName
@@ -64,13 +66,15 @@ func (mon *SystemMonitor) BuildLogBase(eventID int32, msg ContextCombined, readl
 		log = mon.UpdateContainerInfoByContainerID(log)
 	} else {
 		// update host policy flag
+		nodeLock := *mon.NodeLock
+		nodeLock.RLock()
 		log.PolicyEnabled = mon.Node.PolicyEnabled
-
 		// update host visibility flags
 		log.ProcessVisibilityEnabled = mon.Node.ProcessVisibilityEnabled
 		log.FileVisibilityEnabled = mon.Node.FileVisibilityEnabled
 		log.NetworkVisibilityEnabled = mon.Node.NetworkVisibilityEnabled
 		log.CapabilitiesVisibilityEnabled = mon.Node.CapabilitiesVisibilityEnabled
+		nodeLock.RUnlock()
 	}
 
 	if eventID != int32(DropAlert) {

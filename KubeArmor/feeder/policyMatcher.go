@@ -273,7 +273,7 @@ func (fd *Feeder) newMatchPolicy(policyEnabled int, policyName, src string, mp i
 		match.Severity = strconv.Itoa(cct.Severity)
 		match.Tags = cct.Tags
 		match.Message = cct.Message
-		if fd.Enforcer == "BPFLSM" {
+		if fd.GetEnforcer() == "BPFLSM" {
 			match.Operation = "Capabilities"
 			match.Resource = strings.ToUpper(cct.Capability)
 		} else {
@@ -1287,7 +1287,7 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 							if log.PolicyEnabled == tp.KubeArmorPolicyAudited {
 								log.Enforcer = "eBPF Monitor"
 							} else {
-								log.Enforcer = fd.Enforcer
+								log.Enforcer = fd.GetEnforcer()
 							}
 
 							log.Action = "Allow"
@@ -1343,7 +1343,7 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 							if log.PolicyEnabled == tp.KubeArmorPolicyAudited {
 								log.Enforcer = "eBPF Monitor"
 							} else {
-								log.Enforcer = fd.Enforcer
+								log.Enforcer = fd.GetEnforcer()
 							}
 
 							log.Action = secPolicy.Action
@@ -1472,7 +1472,7 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 							if log.PolicyEnabled == tp.KubeArmorPolicyAudited {
 								log.Enforcer = "eBPF Monitor"
 							} else {
-								log.Enforcer = fd.Enforcer
+								log.Enforcer = fd.GetEnforcer()
 							}
 
 							log.Action = "Allow"
@@ -1527,7 +1527,7 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 							if log.PolicyEnabled == tp.KubeArmorPolicyAudited {
 								log.Enforcer = "eBPF Monitor"
 							} else {
-								log.Enforcer = fd.Enforcer
+								log.Enforcer = fd.GetEnforcer()
 							}
 
 							log.Action = secPolicy.Action
@@ -1682,7 +1682,7 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 								if log.PolicyEnabled == tp.KubeArmorPolicyAudited {
 									log.Enforcer = "eBPF Monitor"
 								} else {
-									log.Enforcer = fd.Enforcer
+									log.Enforcer = fd.GetEnforcer()
 								}
 
 								log.Action = "Allow"
@@ -1737,7 +1737,7 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 								if log.PolicyEnabled == tp.KubeArmorPolicyAudited {
 									log.Enforcer = "eBPF Monitor"
 								} else {
-									log.Enforcer = fd.Enforcer
+									log.Enforcer = fd.GetEnforcer()
 								}
 
 								log.Action = secPolicy.Action

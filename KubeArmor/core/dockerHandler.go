@@ -251,7 +251,10 @@ func (dh *DockerHandler) GetEventChannel(ctx context.Context, StopChan <-chan st
 func (dm *KubeArmorDaemon) SetContainerVisibility(containerID string) {
 
 	// get container information from docker client
-	container, err := Docker.GetContainerInfo(containerID, dm.Node.NodeID, dm.OwnerInfo)
+	dm.OwnerInfoLock.RLock()
+	owner := dm.OwnerInfo
+	dm.OwnerInfoLock.RUnlock()
+	container, err := Docker.GetContainerInfo(containerID, dm.Node.NodeID, owner)
 	if err != nil {
 		return
 	}
@@ -290,7 +293,10 @@ func (dm *KubeArmorDaemon) GetAlreadyDeployedDockerContainers() {
 	if containerList, err := Docker.DockerClient.ContainerList(context.Background(), container.ListOptions{}); err == nil {
 		for _, dcontainer := range containerList {
 			// get container information from docker client
-			container, err := Docker.GetContainerInfo(dcontainer.ID, dm.Node.NodeID, dm.OwnerInfo)
+			dm.OwnerInfoLock.RLock()
+			owner := dm.OwnerInfo
+			dm.OwnerInfoLock.RUnlock()
+			container, err := Docker.GetContainerInfo(dcontainer.ID, dm.Node.NodeID, owner)
 			if err != nil {
 				continue
 			}
@@ -496,7 +502,10 @@ func (dm *KubeArmorDaemon) UpdateDockerContainer(containerID, action string) {
 		var err error
 
 		// get container information from docker client
-		container, err = Docker.GetContainerInfo(containerID, dm.Node.NodeID, dm.OwnerInfo)
+		dm.OwnerInfoLock.RLock()
+		owner := dm.OwnerInfo
+		dm.OwnerInfoLock.RUnlock()
+		container, err = Docker.GetContainerInfo(containerID, dm.Node.NodeID, owner)
 		if err != nil {
 			return
 		}

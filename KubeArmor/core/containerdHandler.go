@@ -308,7 +308,11 @@ func (dm *KubeArmorDaemon) UpdateContainerdContainer(ctx context.Context, contai
 
 	if action == "start" {
 		// get container information from containerd client
-		container, err := Containerd.GetContainerInfo(ctx, containerID, dm.Node.NodeID, containerPid, dm.OwnerInfo)
+
+		dm.OwnerInfoLock.RLock()
+		owner := dm.OwnerInfo
+		dm.OwnerInfoLock.RUnlock()
+		container, err := Containerd.GetContainerInfo(ctx, containerID, dm.Node.NodeID, containerPid, owner)
 		if err != nil {
 			if strings.Contains(string(err.Error()), "pause container") || strings.Contains(string(err.Error()), "moby") {
 				kg.Debug(err.Error())
