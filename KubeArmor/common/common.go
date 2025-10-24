@@ -675,8 +675,14 @@ func NormalizeIP(ipStr string) string {
 	if ip == nil {
 		return ""
 	}
-	if ip.To16() != nil {
+	// Detect IPV4 and IPv6-mapped IPv4, and IPV6 Ips
+	// Example: 
+	// "192.168.1.1",        // IPv4
+	// "2001:0db8::1",       // IPv6
+	// "::ffff:192.168.1.1", // IPv6-mapped IPv4
+	if ip.To4() != nil && !strings.Contains(ipStr, ":") {
+		return ipStr
+	} else {
 		return "[" + ipStr + "]" // IPv6
 	}
-	return ipStr
 }
