@@ -1,6 +1,6 @@
 module github.com/kubearmor/KubeArmor/protobuf
 
-go 1.24.5
+go 1.24.6
 
 replace (
 	github.com/go-jose/go-jose/v4 => github.com/go-jose/go-jose/v4 v4.0.5
@@ -12,6 +12,7 @@ replace (
 )
 
 require (
+	github.com/golang/protobuf v1.5.4
 	google.golang.org/grpc v1.73.0
 	google.golang.org/protobuf v1.36.6
 )

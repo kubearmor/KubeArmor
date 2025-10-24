@@ -26,6 +26,7 @@ import (
 	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
 	fd "github.com/kubearmor/KubeArmor/KubeArmor/feeder"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
+	probe "github.com/kubearmor/KubeArmor/KubeArmor/utils/bpflsmprobe"
 )
 
 // SystemMonitor Constant Values
@@ -40,7 +41,7 @@ const (
 	DefaultVisibilityKey = uint32(0xc0ffee)
 )
 
-// ======================= //
+// ======================= /=/
 // == Namespace Context == //
 // ======================= //
 
@@ -137,6 +138,7 @@ type NsVisibility struct {
 	Capability bool
 	Network    bool
 	DNS        bool
+	IMA        bool
 }
 
 // ===================== //
@@ -168,12 +170,22 @@ type SyscallContext struct {
 
 	// exec events
 	ExecID uint64
+	Hash   uint8
+}
+
+// HashContext Structure
+type HashContext struct {
+	ProcessHash  string
+	ParentHash   string
+	ResourceHash string
+	HashAlgo     uint32
 }
 
 // ContextCombined Structure
 type ContextCombined struct {
 	ContainerID string
 	ContextSys  SyscallContext
+	HashData    HashContext
 	ContextArgs []interface{}
 }
 
@@ -201,7 +213,7 @@ type SystemMonitor struct {
 	// container id -> container
 	Containers     *map[string]tp.Container
 	ContainersLock **sync.RWMutex
- 
+
 	// container id -> host pid
 	ActiveHostPidMap *map[string]tp.PidMap
 	ActivePidMapLock **sync.RWMutex
@@ -209,6 +221,9 @@ type SystemMonitor struct {
 	// PidID + MntID -> container id
 	NsMap     map[NsKey]string
 	NsMapLock *sync.RWMutex
+
+	// Ima Hash
+	ImaHash *ImaHash
 
 	// system monitor
 	BpfModule            *cle.Collection
@@ -280,7 +295,7 @@ func NewSystemMonitor(node *tp.Node, nodeLock **sync.RWMutex, logger *fd.Feeder,
 		Type:       cle.Hash,
 		KeySize:    4,
 		ValueSize:  4,
-		MaxEntries: 5,
+		MaxEntries: 6,
 	}
 
 	// assign the value of untracked ns from GlobalCfg
@@ -410,6 +425,10 @@ func (mon *SystemMonitor) UpdateNsKeyMap(action string, nsKey NsKey, visibility 
 		Key:   uint32(4),
 		Value: visibilityOff,
 	}
+	ima := cle.MapKV{
+		Key:   uint32(5),
+		Value: visibilityOff,
+	}
 	if visibility.File {
 		file.Value = visibilityOn
 	}
@@ -425,6 +444,9 @@ func (mon *SystemMonitor) UpdateNsKeyMap(action string, nsKey NsKey, visibility 
 	if visibility.DNS {
 		dns.Value = visibilityOn
 	}
+	if visibility.IMA {
+		ima.Value = visibilityOn
+	}
 
 	if action == "ADDED" {
 		spec := mon.BpfVisibilityMapSpec
@@ -433,6 +455,7 @@ func (mon *SystemMonitor) UpdateNsKeyMap(action string, nsKey NsKey, visibility 
 		spec.Contents = append(spec.Contents, network)
 		spec.Contents = append(spec.Contents, capability)
 		spec.Contents = append(spec.Contents, dns)
+		spec.Contents = append(spec.Contents, ima)
 		visibilityMap, err := cle.NewMap(&spec)
 		if err != nil {
 			mon.Logger.Warnf("Cannot create bpf map %s", err)
@@ -470,6 +493,10 @@ func (mon *SystemMonitor) UpdateNsKeyMap(action string, nsKey NsKey, visibility 
 		err = visibilityMap.Put(dns.Key, dns.Value)
 		if err != nil {
 			mon.Logger.Warnf("Cannot update visibility map. nskey=%+v, value=%+v, scope=dns", nsKey, dns.Value)
+		}
+		err = visibilityMap.Put(ima.Key, ima.Value)
+		if err != nil {
+			mon.Logger.Warnf("Cannot update visibility map. nskey=%+v, value=%+v, scope=ima", nsKey, ima.Value)
 		}
 
 		// Need to lock NsMap to print the following log message
@@ -512,6 +539,9 @@ func (mon *SystemMonitor) UpdateVisibility() {
 		if strings.Contains(visibilityParams, "dns") {
 			hostVisibility.DNS = true
 		}
+		if strings.Contains(visibilityParams, "ima") {
+			hostVisibility.IMA = true
+		}
 	}
 
 	nsKey := NsKey{
@@ -536,6 +566,9 @@ func (mon *SystemMonitor) UpdateVisibility() {
 		}
 		if strings.Contains(visibilityParams, "dns") {
 			visibility.DNS = true
+		}
+		if strings.Contains(visibilityParams, "ima") {
+			visibility.IMA = true
 		}
 	}
 
@@ -594,6 +627,10 @@ func (mon *SystemMonitor) InitBPF() error {
 		},
 	)
 	if err != nil {
+		var verr *cle.VerifierError
+		if errors.As(err, &verr) {
+			fmt.Printf("Full log: %+v\n", verr)
+		}
 		return fmt.Errorf("bpf module is nil %v", err)
 	}
 
@@ -671,8 +708,67 @@ func (mon *SystemMonitor) InitBPF() error {
 		if err != nil {
 			mon.Logger.Warnf("error initializing events perf map: %v", err)
 		}
+
+		if cfg.GlobalCfg.EnableIMA {
+			if err := mon.InitImaHash(); err != nil {
+				mon.Logger.Warnf("error initializing IMA hash module: %s", err)
+			}
+		}
 	}
 
+	return nil
+}
+
+// InitImaHash func initializes IMA hash bpf module
+func (mon *SystemMonitor) InitImaHash() error {
+	if mon.ImaHash != nil {
+		return nil
+	}
+
+	var err error
+
+	err = mon.CheckBPFLSMSupport()
+	if err != nil {
+		return err
+	}
+
+	if mon.ImaHash, err = NewImaHash(mon.Logger, mon.PinPath); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// CheckBPFLSMSupport func checks if BPF-LSM is supported
+func (mon *SystemMonitor) CheckBPFLSMSupport() error {
+	lsms := []string{}
+	lsmFile := []byte{}
+	lsmPath := "/sys/kernel/security/lsm"
+
+	if !kl.IsK8sLocal() {
+		// mount securityfs
+		if err := kl.RunCommandAndWaitWithErr("mount", []string{"-t", "securityfs", "securityfs", "/sys/kernel/security"}); err != nil {
+			if _, err := os.Stat(filepath.Clean("/sys/kernel/security")); err != nil {
+				mon.Logger.Warnf("Failed to read /sys/kernel/security (%s)", err.Error())
+				goto probeBPFLSM
+			}
+		}
+	}
+
+	if _, err := os.Stat(filepath.Clean(lsmPath)); err == nil {
+		lsmFile, err = os.ReadFile(lsmPath)
+		if err != nil {
+			mon.Logger.Warnf("Failed to read /sys/kernel/security/lsm (%s)", err.Error())
+			goto probeBPFLSM
+		}
+	}
+
+	lsms = strings.Split(string(lsmFile), ",")
+
+probeBPFLSM:
+	if !kl.ContainsElement(lsms, "bpf") {
+		return probe.CheckBPFLSMSupport()
+	}
 	return nil
 }
 
@@ -704,6 +800,12 @@ func (mon *SystemMonitor) DestroySystemMonitor() error {
 		}
 	}
 
+	if mon.ImaHash != nil {
+		if err := mon.ImaHash.DestroyImaHash(); err != nil {
+			mon.Logger.Warnf("failed to destroy IMA hash: %s", err)
+		}
+	}
+
 	mon.DestroyBPFMaps()
 	return nil
 }
@@ -726,6 +828,7 @@ func (mon *SystemMonitor) TraceSyscall() {
 						return
 					}
 					mon.Logger.Warnf("Perf Event Error : %s", err.Error())
+					continue
 				}
 
 				if record.LostSamples != 0 {
@@ -818,6 +921,15 @@ func (mon *SystemMonitor) TraceSyscall() {
 				mon.Logger.Debugf("could not fetch args so dropping %s", err.Error())
 				continue
 			}
+
+			var hashes HashContext
+			if ctx.Hash == uint8(1) {
+				hashes, err = GetHashes(dataBuff)
+				if err != nil {
+					mon.Logger.Debugf("could not fetch ima hashes: %s", err)
+				}
+			}
+
 			containerID := ""
 			
 			if ctx.PidID != 0 && ctx.MntID != 0 {
@@ -913,7 +1025,7 @@ func (mon *SystemMonitor) TraceSyscall() {
 					}
 
 					// generate a log with the base information
-					log := mon.BuildLogBase(ctx.EventID, ContextCombined{ContainerID: containerID, ContextSys: ctx}, false)
+					log := mon.BuildLogBase(ctx.EventID, ContextCombined{ContainerID: containerID, ContextSys: ctx, HashData: hashes}, false)
 
 					// fallback logic: in case we get relative path as execPath then we join cwd + execPath to get pull path
 					if !strings.HasPrefix(strings.Split(execPath, " ")[0], "/") && log.Cwd != "/" {
@@ -948,6 +1060,9 @@ func (mon *SystemMonitor) TraceSyscall() {
 					delete(mon.execLogMap, ctx.HostPID)
 					mon.execLogMapLock.Unlock()
 
+					// update hash
+					updateHashData(&log, hashes)
+
 					// update the log again
 					log = mon.UpdateLogBase(ctx, log)
 
@@ -980,7 +1095,7 @@ func (mon *SystemMonitor) TraceSyscall() {
 					var execPath string
 
 					// generate a log with the base information
-					log := mon.BuildLogBase(ctx.EventID, ContextCombined{ContainerID: containerID, ContextSys: ctx}, false)
+					log := mon.BuildLogBase(ctx.EventID, ContextCombined{ContainerID: containerID, ContextSys: ctx, HashData: hashes}, false)
 
 					if val, ok := args[1].(string); ok {
 						execPath = val // procExecPath
@@ -1042,6 +1157,9 @@ func (mon *SystemMonitor) TraceSyscall() {
 					delete(mon.execLogMap, ctx.HostPID)
 					mon.execLogMapLock.Unlock()
 
+					// update hashes
+					updateHashData(&log, hashes)
+
 					// update the log again
 					log = mon.UpdateLogBase(ctx, log)
 
@@ -1100,8 +1218,9 @@ func (mon *SystemMonitor) TraceSyscall() {
 			}
 			MonitorLock.Lock()
 			// push the context to the channel for logging
-			mon.ContextChan <- ContextCombined{ContainerID: containerID, ContextSys: ctx, ContextArgs: args}
+			mon.ContextChan <- ContextCombined{ContainerID: containerID, ContextSys: ctx, ContextArgs: args, HashData: hashes}
 			MonitorLock.Unlock()
 		}
+
 	}
 }

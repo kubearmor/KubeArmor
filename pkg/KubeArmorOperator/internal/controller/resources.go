@@ -580,7 +580,7 @@ func (clusterWatcher *ClusterWatcher) deployControllerDeployment(deployment *app
 			common.SecurityFsLabel: "yes",
 		}
 	} else {
-		deployment.Spec.Template.Spec.NodeSelector = nil
+		deployment.Spec.Template.Spec.NodeSelector = make(map[string]string)
 	}
 
 	// update envs from kubearmorconfig
