@@ -18,7 +18,9 @@ on:
   
   # Run on push to default branch
   push:
-    branches: [ $default-branch ]
+        branches:
+      - "main"
+      - "v*"
     paths:
       - '.github/workflows/styleguide.yml'
       - '.github/actions/styleguide-action/**'
