@@ -170,6 +170,10 @@ type SystemMonitor struct {
 	// lists to skip
 	UntrackedNamespaces []string
 
+	// podLabelsMap
+	PodLabelsMap     map[string]string
+	PodLabelsMapLock *sync.RWMutex
+
 	execLogMap     map[uint32]tp.Log
 	execLogMapLock *sync.RWMutex
 	// monitor lock
@@ -222,6 +226,9 @@ func NewSystemMonitor(node *tp.Node, nodeLock **sync.RWMutex, logger *fd.Feeder,
 	// assign the value of untracked ns from GlobalCfg
 	mon.UntrackedNamespaces = make([]string, len(cfg.GlobalCfg.ConfigUntrackedNs))
 	copy(mon.UntrackedNamespaces, cfg.GlobalCfg.ConfigUntrackedNs)
+
+	mon.PodLabelsMap = make(map[string]string)
+	mon.PodLabelsMapLock = new(sync.RWMutex)
 
 	kl.CheckOrMountBPFFs(cfg.GlobalCfg.BPFFsPath)
 	mon.PinPath = kl.GetMapRoot()

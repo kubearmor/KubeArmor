@@ -263,10 +263,11 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 		}
 
 		containersAppArmorProfiles := map[string]string{}
+		dm.ContainersLock.Lock()
 
 		// update containers and apparmors
-		dm.ContainersLock.Lock()
 		for _, containerID := range newPoint.Containers {
+
 			container := dm.Containers[containerID]
 
 			container.NamespaceName = newPoint.NamespaceName
@@ -447,11 +448,10 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 
 			containersAppArmorProfiles := map[string]string{}
 
-			// update containers and apparmors
 			dm.ContainersLock.Lock()
+			// update containers and apparmors
 			for _, containerID := range newEndPoint.Containers {
 				container := dm.Containers[containerID]
-
 				container.NamespaceName = newEndPoint.NamespaceName
 				container.EndPointName = newEndPoint.EndPointName
 				if (container.Owner == tp.PodOwner{}) && (len(dm.OwnerInfo) > 0) {
@@ -459,7 +459,6 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 						container.Owner = podOwnerInfo
 					}
 				}
-
 				labels := []string{}
 				for k, v := range newEndPoint.Labels {
 					labels = append(labels, k+"="+v)
@@ -485,14 +484,13 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 				if _, ok := pod.PrivilegedContainers[container.ContainerName]; ok {
 					container.Privileged = true
 				}
-
 				dm.Containers[containerID] = container
+
 				// in case if container runtime detect the container and emit that event before pod event then
 				// the container id will be added to NsMap with "Unknown" namespace
 				// therefore update the NsMap to have this container id with associated namespace
 				// and delete the container id from  NamespacePidsMap within "Unknown" namespace
 				dm.HandleUnknownNamespaceNsMap(&container)
-
 			}
 			dm.ContainersLock.Unlock()
 
@@ -614,9 +612,9 @@ func (dm *KubeArmorDaemon) handlePodEvent(event string, obj *corev1.Pod) {
 	pod.Metadata = map[string]string{}
 	pod.Metadata["namespaceName"] = obj.ObjectMeta.Namespace
 	pod.Metadata["podName"] = obj.ObjectMeta.Name
-
 	var controllerName, controller, namespace string
 	var err error
+	dm.OwnerInfoLock.Lock()
 
 	if event == addEvent {
 		controllerName, controller, namespace, err = getTopLevelOwner(obj.ObjectMeta, obj.Namespace, obj.Kind)
@@ -632,6 +630,7 @@ func (dm *KubeArmorDaemon) handlePodEvent(event string, obj *corev1.Pod) {
 
 		dm.OwnerInfo[pod.Metadata["podName"]] = owner
 		podOwnerName = controllerName
+
 	}
 
 	// for event = UpdateEvent we first check pod's existence to update current dm.OwnerInfo of the pod, because when pod is in terminating state then we cannot get the owner info from it.
@@ -652,6 +651,7 @@ func (dm *KubeArmorDaemon) handlePodEvent(event string, obj *corev1.Pod) {
 		dm.OwnerInfo[pod.Metadata["podName"]] = owner
 		podOwnerName = controllerName
 	}
+	dm.OwnerInfoLock.Unlock()
 
 	//get the owner , then check if that owner has owner if...do it recusivelt until you get the no owner
 
@@ -675,6 +675,15 @@ func (dm *KubeArmorDaemon) handlePodEvent(event string, obj *corev1.Pod) {
 		}
 		pod.Labels[k] = v
 	}
+
+	// add pod labels in podlabels map
+	labels := []string{}
+	for k, v := range pod.Labels {
+		labels = append(labels, k+"="+v)
+	}
+	dm.SystemMonitor.PodLabelsMapLock.Lock()
+	dm.SystemMonitor.PodLabelsMap[pod.Metadata["podName"]] = strings.Join(labels, ",")
+	dm.SystemMonitor.PodLabelsMapLock.Unlock()
 
 	pod.Containers = map[string]string{}
 	pod.ContainerImages = map[string]string{}
@@ -762,7 +771,7 @@ func (dm *KubeArmorDaemon) handlePodEvent(event string, obj *corev1.Pod) {
 	if dm.RuntimeEnforcer != nil && dm.RuntimeEnforcer.EnforcerType == "AppArmor" {
 		appArmorAnnotations := map[string]string{}
 		updateAppArmor := false
-
+		dm.OwnerInfoLock.RLock()
 		if dm.OwnerInfo[pod.Metadata["podName"]].Name != "" {
 			if dm.OwnerInfo[pod.Metadata["podName"]].Ref == "StatefulSet" {
 				statefulset, err := K8s.K8sClient.AppsV1().StatefulSets(pod.Metadata["namespaceName"]).Get(context.Background(), podOwnerName, metav1.GetOptions{})
@@ -820,6 +829,7 @@ func (dm *KubeArmorDaemon) handlePodEvent(event string, obj *corev1.Pod) {
 			}
 
 		}
+		dm.OwnerInfoLock.RUnlock()
 
 		for k, v := range pod.Annotations {
 			if strings.HasPrefix(k, "container.apparmor.security.beta.kubernetes.io") {
@@ -858,7 +868,7 @@ func (dm *KubeArmorDaemon) handlePodEvent(event string, obj *corev1.Pod) {
 		if event == addEvent {
 			// update apparmor profiles
 			dm.RuntimeEnforcer.UpdateAppArmorProfiles(pod.Metadata["podName"], addEvent, appArmorAnnotations, pod.PrivilegedAppArmorProfiles)
-
+			dm.OwnerInfoLock.RLock()
 			if updateAppArmor && pod.Annotations["kubearmor-policy"] == "enabled" && dm.OwnerInfo[pod.Metadata["podName"]].Ref != "Pod" {
 
 				// patch deployments only when kubearmor-controller is not present
@@ -873,7 +883,10 @@ func (dm *KubeArmorDaemon) handlePodEvent(event string, obj *corev1.Pod) {
 					pod.Annotations["kubearmor-policy"] = "patched"
 				}
 			}
+			dm.OwnerInfoLock.RUnlock()
+
 		} else if event == updateEvent {
+			dm.OwnerInfoLock.RLock()
 			for _, k8spod := range dm.K8sPods {
 				if k8spod.Metadata["namespaceName"] == pod.Metadata["namespaceName"] && k8spod.Metadata["podName"] == pod.Metadata["podName"] {
 					prevPolicyEnabled := "disabled"
@@ -900,6 +913,7 @@ func (dm *KubeArmorDaemon) handlePodEvent(event string, obj *corev1.Pod) {
 					break
 				}
 			}
+			dm.OwnerInfoLock.RUnlock()
 		} else if event == deleteEvent {
 			// update apparmor profiles
 			dm.RuntimeEnforcer.UpdateAppArmorProfiles(pod.Metadata["podName"], deleteEvent, appArmorAnnotations, pod.PrivilegedAppArmorProfiles)
@@ -939,6 +953,7 @@ func (dm *KubeArmorDaemon) handlePodEvent(event string, obj *corev1.Pod) {
 			if k8spod.Metadata["namespaceName"] == pod.Metadata["namespaceName"] && k8spod.Metadata["podName"] == pod.Metadata["podName"] {
 				dm.K8sPods = append(dm.K8sPods[:idx], dm.K8sPods[idx+1:]...)
 				delete(dm.OwnerInfo, pod.Metadata["podName"])
+				delete(dm.SystemMonitor.PodLabelsMap, pod.Metadata["podName"])
 				break
 			}
 		}
@@ -948,7 +963,6 @@ func (dm *KubeArmorDaemon) handlePodEvent(event string, obj *corev1.Pod) {
 
 	if pod.Annotations["kubearmor-policy"] == "patched" {
 		dm.Logger.Printf("Detected a Pod (patched/%s/%s)", pod.Metadata["namespaceName"], pod.Metadata["podName"])
-		return
 	} else {
 		dm.Logger.Printf("Detected a Pod (%s/%s/%s)", strings.ToLower(event), pod.Metadata["namespaceName"], pod.Metadata["podName"])
 	}

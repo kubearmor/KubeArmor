@@ -154,7 +154,9 @@ func (dm *KubeArmorDaemon) handleContainerCreate(container types.Container) {
 	}
 
 	if len(dm.OwnerInfo) > 0 {
+		dm.OwnerInfoLock.RLock()
 		container.Owner = dm.OwnerInfo[container.EndPointName]
+		dm.OwnerInfoLock.RUnlock()
 	}
 
 	if dm.SystemMonitor != nil && cfg.GlobalCfg.Policy {

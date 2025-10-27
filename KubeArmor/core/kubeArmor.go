@@ -70,7 +70,8 @@ type KubeArmorDaemon struct {
 	EndPointsLock *sync.RWMutex
 
 	// Owner Info
-	OwnerInfo map[string]tp.PodOwner
+	OwnerInfo     map[string]tp.PodOwner
+	OwnerInfoLock *sync.RWMutex
 
 	// Security policies
 	SecurityPolicies     []tp.SecurityPolicy
@@ -155,6 +156,7 @@ func NewKubeArmorDaemon() *KubeArmorDaemon {
 	dm.MonitorLock = new(sync.RWMutex)
 
 	dm.OwnerInfo = map[string]tp.PodOwner{}
+	dm.OwnerInfoLock = new(sync.RWMutex)
 
 	return dm
 }
@@ -656,7 +658,7 @@ func KubeArmor() {
 				// monitor crio events
 				go dm.MonitorCrioEvents()
 			} else if cfg.GlobalCfg.UseOCIHooks {
-			   go dm.ListenToNonK8sHook()
+				go dm.ListenToNonK8sHook()
 			} else {
 				enableContainerPolicy = false
 				dm.Logger.Warnf("Failed to monitor containers: %s is not a supported CRI socket.", cfg.GlobalCfg.CRISocket)
@@ -672,14 +674,14 @@ func KubeArmor() {
 
 	if dm.K8sEnabled && cfg.GlobalCfg.Policy {
 
-			if cfg.GlobalCfg.UseOCIHooks && 
-			    (strings.Contains(dm.Node.ContainerRuntimeVersion, "cri-o") || 
+		if cfg.GlobalCfg.UseOCIHooks &&
+			(strings.Contains(dm.Node.ContainerRuntimeVersion, "cri-o") ||
 				(strings.Contains(dm.Node.ContainerRuntimeVersion, "containerd") && dm.checkNRIAvailability())) {
-					go dm.ListenToK8sHook()
-	 		} else if dm.checkNRIAvailability() {
-				// monitor NRI events
-				go dm.MonitorNRIEvents()
-			} else if cfg.GlobalCfg.CRISocket != "" { // check if the CRI socket set while executing kubearmor exists
+			go dm.ListenToK8sHook()
+		} else if dm.checkNRIAvailability() {
+			// monitor NRI events
+			go dm.MonitorNRIEvents()
+		} else if cfg.GlobalCfg.CRISocket != "" { // check if the CRI socket set while executing kubearmor exists
 			trimmedSocket := strings.TrimPrefix(cfg.GlobalCfg.CRISocket, "unix://")
 			if _, err := os.Stat(trimmedSocket); err != nil {
 				dm.Logger.Warnf("Error while looking for CRI socket file: %s", err.Error())
