@@ -4,6 +4,7 @@
 package csp
 
 import (
+	"strings"
 	"time"
 
 	"github.com/kubearmor/KubeArmor/protobuf"
@@ -187,6 +188,136 @@ var _ = Describe("csp", func() {
 			expectedLog := protobuf.Log{
 				Result: "Passed",
 				Source: "/usr/bin/cat /etc/host.conf",
+			}
+
+			res, err = KarmorGetTargetLogs(5*time.Second, &expectedLog)
+			Expect(err).To(BeNil())
+			Expect(res.Found).To(BeTrue())
+		})
+
+		It("can block SYS_ADMIN capability, In operator", func() {
+			if strings.Contains(K8sRuntimeEnforcer(), "apparmor") {
+				Skip("Skipping due to policy not supported by apparmmor enforcer")
+			}
+
+			err := K8sApplyFile("res/csp-in-operator-block-capabilities.yaml")
+			Expect(err).To(BeNil())
+
+			// should block SYS_ADMIN in nginx1 ns
+			err = KarmorLogStart("policy", "nginx1", "Capabilities", n1)
+			Expect(err).To(BeNil())
+
+			time.Sleep(5 * time.Second)
+
+			AssertCommand(n1, "nginx1", []string{"bash", "-c", "mount -t tmpfs none /mnt"},
+				MatchRegexp("mnt.*permission denied"), true,
+			)
+
+			expect := protobuf.Alert{
+				PolicyName: "csp-in-operator-block-capabilities",
+				Severity:   "8",
+				Action:     "Block",
+				Result:     "Permission denied",
+			}
+
+			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
+			Expect(err).To(BeNil())
+			Expect(res.Found).To(BeTrue())
+
+			// should not block SYS_ADMIN in nginx2 ns
+			err = KarmorLogStart("policy", "nginx2", "Capabilities", n2)
+			Expect(err).To(BeNil())
+
+			AssertCommand(n2, "nginx2", []string{"bash", "-c", "mount -t tmpfs none /mnt"},
+				MatchRegexp(".*"), true,
+			)
+
+			expectedLog := protobuf.Log{
+				Result:   "Passed",
+				Resource: "/bin/mount",
+			}
+
+			res, err = KarmorGetTargetLogs(5*time.Second, &expectedLog)
+			Expect(err).To(BeNil())
+			Expect(res.Found).To(BeTrue())
+		})
+
+		It("can update an existing policy to block a different process", func() {
+			// Apply the policy blocking apt
+			err := K8sApplyFile("res/csp-in-operator-block-process.yaml")
+			Expect(err).To(BeNil())
+
+			err = KarmorLogStart("policy", "nginx1", "Process", n1)
+			Expect(err).To(BeNil())
+
+			time.Sleep(5 * time.Second)
+
+			AssertCommand(n1, "nginx1", []string{"bash", "-c", "apt"},
+				MatchRegexp("apt.*Permission denied"), true,
+			)
+
+			// Update the policy to block curl instead
+			err = K8sApply([]string{"res/csp-in-operator-block-process-updated.yaml"})
+			Expect(err).To(BeNil())
+
+			time.Sleep(5 * time.Second)
+
+			AssertCommand(n1, "nginx1", []string{"bash", "-c", "apt"},
+				MatchRegexp(".*"), true,
+			)
+
+			AssertCommand(n1, "nginx1", []string{"bash", "-c", "curl --help"},
+				MatchRegexp("curl.*Permission denied"), true,
+			)
+
+			expect := protobuf.Alert{
+				PolicyName: "csp-in-operator-block-process",
+				Severity:   "8",
+				Action:     "Block",
+				Result:     "Permission denied",
+			}
+			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
+			Expect(err).To(BeNil())
+			Expect(res.Found).To(BeTrue())
+		})
+
+		It("can block access to sensitive files using matchPatterns", func() {
+			err := K8sApplyFile("res/csp-matchpatterns-block-sensitive.yaml")
+			Expect(err).To(BeNil())
+
+			err = KarmorLogStart("policy", "nginx1", "File", n1)
+			Expect(err).To(BeNil())
+
+			time.Sleep(5 * time.Second)
+
+			AssertCommand(n1, "nginx1",
+				[]string{"bash", "-c", "cat /etc/shadow"},
+				MatchRegexp("shadow.*Permission denied"), true,
+			)
+
+			expect := protobuf.Alert{
+				PolicyName: "csp-matchpatterns-block-sensitive",
+				Severity:   "8",
+				Action:     "Block",
+				Result:     "Permission denied",
+			}
+
+			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
+			Expect(err).To(BeNil())
+			Expect(res.Found).To(BeTrue())
+
+			// should allow same file access in ns nginx2
+			err = KarmorLogStart("system", "nginx2", "File", n2)
+			Expect(err).To(BeNil())
+
+			AssertCommand(n2, "nginx2",
+				[]string{"bash", "-c", "cat /etc/shadow"},
+				Not(MatchRegexp("Permission denied")), false,
+			)
+
+			expectedLog := protobuf.Log{
+				Result: "Passed",
+				Source: "/usr/bin/cat /etc/shadow",
 			}
 
 			res, err = KarmorGetTargetLogs(5*time.Second, &expectedLog)

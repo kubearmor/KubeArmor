@@ -215,6 +215,53 @@ var _ = Describe("Ksp", func() {
 
 		})
 
+		It("can update a policy from blocking curl to blocking apt", func() {
+			// Apply initial policy that blocks curl
+			err := K8sApplyFile("multiubuntu/ksp-ubuntu-1-block-curl.yaml")
+			Expect(err).To(BeNil())
+
+			err = KarmorLogStart("policy", "multiubuntu", "Process", ub1)
+			Expect(err).To(BeNil())
+
+			AssertCommand(ub1, "multiubuntu", []string{"bash", "-c", "curl --version"},
+				MatchRegexp("curl.*Permission denied"), true,
+			)
+
+			expect := protobuf.Alert{
+				PolicyName: "ksp-ubuntu-1-block-process",
+				Action:     "Block",
+				Result:     "Permission denied",
+			}
+
+			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
+			Expect(err).To(BeNil())
+			Expect(res.Found).To(BeTrue())
+
+			// Update policy to block apt instead
+			err = K8sApply([]string{"multiubuntu/ksp-ubuntu-1-block-apt.yaml"})
+			Expect(err).To(BeNil())
+
+			time.Sleep(2 * time.Second)
+
+			AssertCommand(ub1, "multiubuntu", []string{"bash", "-c", "curl --version"},
+				MatchRegexp(".*"), false,
+			)
+
+			AssertCommand(ub1, "multiubuntu", []string{"bash", "-c", "apt"},
+				MatchRegexp("apt.*Permission denied"), true,
+			)
+
+			expect = protobuf.Alert{
+				PolicyName: "ksp-ubuntu-1-block-process",
+				Action:     "Block",
+				Result:     "Permission denied",
+			}
+
+			res, err = KarmorGetTargetAlert(5*time.Second, &expect)
+			Expect(err).To(BeNil())
+			Expect(res.Found).To(BeTrue())
+		})
+
 		It("it can audit a process from path for all pods in a group", func() {
 			// multiubuntu_test_02
 
