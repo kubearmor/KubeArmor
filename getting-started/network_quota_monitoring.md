@@ -1,15 +1,45 @@
-## Monitor network quota using kubearmor 
+## Monitoring Network Quotas with KubeArmor
 
-KubeArmor comes with network montoring which helps you monitor network usage ove a period of time. This feature currently only support audit policies on host level. 
+KubeArmor's network monitoring feature allows you to track network bandwidth usage against predefined quotas over a specific time period. You can create policies to audit (generate alerts) when a host exceeds a certain amount of data transfer (e.g., 2MB) within a set duration (e.g., 120 seconds).
+
+This feature is useful for:
+
+* Identifying anomalous network activity, such as unexpected large data transfers.
+
+* Auditing bandwidth-heavy workloads on specific nodes.
+
+* Observing network usage patterns for capacity planning.
+
+### Limitations and Prerequisites
+
+#### Please be aware of the following limitations before enabling this feature:
+
+* Policy Type: This feature currently only supports Audit actions.
+
+* Policy Level: This feature is only available for KubeArmorHostPolicy (node-level policies).
+
+>Note This feature is currently available only for Linux kernels version 5.x and above. This is due to eBPF verifier limitations and is planned to be addressed in future releases. 
 
 ### Enabling Network monitoring
 
-This feature can be enabled using --enableNetworkLimit flag in kubearmor config 
+This feature can be enabled using `--enableNetworkLimit` flag in kubearmorconfig 
 
 ### Disabling Network limit 
-This feature can be disabled by setting enableNetworkLimit flag to false or removing from the config
+To disable the feature, you can either set the flag to false or remove it entirely from your kubeArmorconfig.
 
-### Sample Policy 
+### Example
+
+#### Policy Parameters
+The `network` block in a **KubeArmorHostPolicy** supports the following parameters for quota monitoring:
+
+| Parameter   | Description                                           | Supported Values |
+|--------------|-------------------------------------------------------|------------------|
+| `direction`  | The direction of traffic to monitor | `ingress`, `egress` |
+| `limitSize`  | The data quota threshold. | Suffixes: `M` (Megabytes), `G` (Gigabytes)<br>Example: `"100M"`, `"2G"` |
+| `duration`   | The rolling time window for the quota. | Suffixes: `s` (seconds), `m` (minutes), `h` (hours)<br>Example: `"30s"`, `"5m"`, `"1h"` |
+| `limitCount`   | The rolling packets count window for the quota. | Number of packets <br>Example: `"1000000"`|
+
+Here is a sample policy that audits any ingress traffic that exceeds 2 Megabytes over a 2-minute window.
 
 ```yaml 
 apiVersion: security.kubearmor.com/v1
@@ -28,8 +58,13 @@ spec:
   action:
     Audit
 ```
-This policy will generate alert like 
 
+#### Policy Explanation:
+* This KubeArmorHostPolicy applies to the node named aryan.
+It monitors ingress (incoming) network traffic.
+If the total data received by this node exceeds 2 Megabytes within any 120-second (2-minute) rolling window, KubeArmor will generate an audit alert.
+
+When the policy's conditions are met, KubeArmor will generate an alert log similar to the one below.
 ```json
   "Timestamp":1760554504,
   "UpdatedTime":"2025-10-15T18:55:04.287898Z",
@@ -45,6 +80,8 @@ This policy will generate alert like
   "Action":"Audit",
   "Result":"Passed"
 ```
+
+
 
 
 
