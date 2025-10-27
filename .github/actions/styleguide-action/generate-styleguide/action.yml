@@ -28,7 +28,7 @@ runs:
       env:
         GITHUB_WORKSPACE: ${{ github.workspace }}
         INPUT_OUTPUT_PATH: ${{ inputs.output-path }}
-        OPENAI_API_KEY: ${{ inputs.openai-api-key }}
+        OPENAI_API_KEY:  ${{ secrets.OPENAI_API_KEY }}
 
 branding:
   icon: 'file-text'
