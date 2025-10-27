@@ -126,6 +126,9 @@ kubearmor:
   # kubearmor daemonset arguments. See `kubearmor --help`
   args: []
 
+  # Enable/Disable kubearmor system monitoring
+  disableSystemMonitor: false
+
   tls:
     tlsCertPath: /var/lib/kubearmor/tls
     tlsCertProvider: self

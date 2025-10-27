@@ -172,12 +172,12 @@ func (dm *KubeArmorDaemon) DestroyKubeArmorDaemon() {
 		}
 	}
 
-	if dm.SystemMonitor != nil {
-		// close system monitor
-		if dm.CloseSystemMonitor() {
-			dm.Logger.Print("Stopped KubeArmor Monitor")
-		}
-	}
+	if dm.SystemMonitor != nil && !cfg.GlobalCfg.DisableSystemMonitor {
+        // close system monitor
+        if dm.CloseSystemMonitor() {
+            dm.Logger.Print("Stopped KubeArmor Monitor")
+        }
+    }
 
 	if dm.KVMAgent != nil {
 		// close kvm agent
@@ -272,6 +272,11 @@ func (dm *KubeArmorDaemon) InitSystemMonitor() bool {
 
 // MonitorSystemEvents Function
 func (dm *KubeArmorDaemon) MonitorSystemEvents() {
+	if cfg.GlobalCfg.DisableSystemMonitor {
+		dm.Logger.Print("System monitoring disabled, skipping event monitoring")
+		return
+	}
+
 	dm.WgDaemon.Add(1)
 	defer dm.WgDaemon.Done()
 
@@ -572,24 +577,31 @@ func KubeArmor() {
 
 	// Containerized workloads with Host
 	if cfg.GlobalCfg.Policy || cfg.GlobalCfg.HostPolicy {
-		// initialize system monitor
-		if !dm.InitSystemMonitor() {
-			dm.Logger.Err("Failed to initialize KubeArmor Monitor")
+		// Check if system monitor is disabled
+		if !cfg.GlobalCfg.DisableSystemMonitor {
+			// initialize system monitor
+			if !dm.InitSystemMonitor() {
+				dm.Logger.Err("Failed to initialize KubeArmor Monitor")
 
-			// destroy the daemon
-			dm.DestroyKubeArmorDaemon()
+				// destroy the daemon
+				dm.DestroyKubeArmorDaemon()
 
-			return
+				return
+			}
+			dm.Logger.Print("Initialized KubeArmor Monitor")
+
+			// monitor system events
+			go dm.MonitorSystemEvents()
+			dm.Logger.Print("Started to monitor system events")
+		} else {
+			dm.Logger.Print("System Monitor disabled via configuration")
 		}
-		dm.Logger.Print("Initialized KubeArmor Monitor")
-
-		// monitor system events
-		go dm.MonitorSystemEvents()
-		dm.Logger.Print("Started to monitor system events")
 
 		// initialize runtime enforcer
-		if !dm.InitRuntimeEnforcer(dm.SystemMonitor.PinPath) {
+		if !cfg.GlobalCfg.DisableSystemMonitor && !dm.InitRuntimeEnforcer(dm.SystemMonitor.PinPath) {
 			dm.Logger.Print("Disabled KubeArmor Enforcer since No LSM is enabled")
+		} else if cfg.GlobalCfg.DisableSystemMonitor {
+			dm.Logger.Print("Runtime Enforcer disabled - System Monitor is disabled")
 		} else {
 			dm.Logger.Print("Initialized KubeArmor Enforcer")
 
