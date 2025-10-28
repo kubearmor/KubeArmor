@@ -292,7 +292,10 @@ func (fd *Feeder) newMatchPolicy(policyEnabled int, policyName, src string, mp i
 			res = fmt.Sprintf("LIMIT_SIZE=%s", npt.LimitSize)
 		}
 		if len(npt.LimitCount) > 0 {
-			res = res + fmt.Sprintf("LIMIT_COUNT=%s", npt.LimitCount)
+			if len(res) > 0 {
+				res += " "
+			}
+			res += fmt.Sprintf("LIMIT_COUNT=%s", npt.LimitCount)
 		}
 		match.Resource = res
 		match.ResourceType = "NetworkLimit"
@@ -1701,6 +1704,9 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 					log.Enforcer = "eBPF Monitor"
 					log.Action = "Audit"
 					log.Data = getNetworkLimitData(log.Data, secPolicy.Resource)
+					log.Message = secPolicy.Message
+					log.Tags = strings.Join(secPolicy.Tags[:], ",")
+					log.Severity = secPolicy.Severity
 				}
 
 			case "Device":

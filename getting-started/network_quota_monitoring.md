@@ -18,6 +18,8 @@ This feature is useful for:
 
 * Policy Level: This feature is only available for KubeArmorHostPolicy (node-level policies).
 
+* At any given time, only one network limit policy can be active per node. Applying a new policy will overwrite the previous one.
+
 >Note This feature is currently available only for Linux kernels version 5.x and above. This is due to eBPF verifier limitations and is planned to be addressed in future releases. 
 
 ### Enabling Network monitoring
@@ -39,8 +41,7 @@ The `network` block in a **KubeArmorHostPolicy** supports the following paramete
 | `duration`   | The rolling time window for the quota. | Suffixes: `s` (seconds), `m` (minutes), `h` (hours)<br>Example: `"30s"`, `"5m"`, `"1h"` |
 | `limitCount`   | The rolling packets count window for the quota. | Number of packets <br>Example: `"1000000"`|
 
-Here is a sample policy that audits any ingress traffic that exceeds 2 Megabytes over a 2-minute window.
-
+#### Sample policy 1
 ```yaml 
 apiVersion: security.kubearmor.com/v1
 kind: KubeArmorHostPolicy
@@ -80,7 +81,45 @@ When the policy's conditions are met, KubeArmor will generate an alert log simil
   "Action":"Audit",
   "Result":"Passed"
 ```
+#### Sample policy 2
+```yaml 
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorHostPolicy
+metadata:
+  name: networklimit
+spec:
+  nodeSelector:
+    matchLabels:
+      kubernetes.io/hostname: aryan
+  severity: 5
+  network:
+    ingress:
+      limitSize: "2M"
+      limitCount: "10000"
+      duration: "120s"
+  action:
+    Audit
+```
+#### Policy Explanation:
+* This KubeArmorHostPolicy applies to the node named aryan.
+It monitors ingress (incoming) network traffic.
+If, within any 120-second (2-minute) rolling window, the total ingress data received by the node exceeds 2 MB or the packet count surpasses 10,000, KubeArmor will trigger an audit alert.
 
+When the policy's conditions are met, KubeArmor will generate an alert log similar to the one below.
+```json
+  "Timestamp":1760554704,
+  "UpdatedTime":"2025-10-15T18:55:04.287898Z",
+  "ClusterName":"default",
+  "HostName":"aryan",
+  "PPID":0,
+  "UID":0,
+  "PolicyName":"networklimit",
+  "Type":"MatchedHostPolicy",
+  "Operation":"Network",
+  "Data":"DIRECTION=INGRESS LIMIT_SIZE=2M LIMIT_COUNT=10000",
+  "Enforcer":"eBPF Monitor",
+  "Action":"Audit",
+  "Result":"Passed"
 
 
 

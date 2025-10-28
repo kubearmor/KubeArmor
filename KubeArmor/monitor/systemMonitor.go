@@ -1224,7 +1224,7 @@ func (mon *SystemMonitor) SetupNetworkLimitObservability() {
 	mon.Logger.Print("Initialized the eBPF network limit observability")
 }
 func (mon *SystemMonitor) DestroyNetworkLimitObservability() {
-
+	mon.Logger.Printf("Disabling Network Limit observability")
 	// close TC hooks
 	for _, link := range mon.TC {
 		if err := link.Close(); err != nil {
@@ -1243,4 +1243,6 @@ func (mon *SystemMonitor) DestroyNetworkLimitObservability() {
 			mon.Logger.Errf("error closing bpf map kubearmor_config %v", err)
 		}
 	}
+	mon.Logger.Printf("Disabled Network Limit observability")
+
 }

@@ -2721,8 +2721,9 @@ static __always_inline int handle_pkt(struct __sk_buff *skb, __u32 direction)
     if (rval)
     {
         __sync_fetch_and_add(&info->no_of_pkt, 1);
+        __sync_fetch_and_add(&info->total_bytes, skb->len);
 
-        if (info->first_packet_ts == -1)
+        if (info->first_packet_ts == 0)
         {
             info->first_packet_ts = bpf_ktime_get_ns();
         }
@@ -2735,10 +2736,6 @@ static __always_inline int handle_pkt(struct __sk_buff *skb, __u32 direction)
                 info->total_bytes = 0;
                 info->log_flag = 0;
                 info->no_of_pkt = 0;
-            }
-            else
-            {
-                __sync_fetch_and_add(&info->total_bytes, skb->len);
             }
             if ((rval->pkt_len_bytes > 0 && info->total_bytes > rval->pkt_len_bytes) || (rval->pkt_count > 0 && info->no_of_pkt > rval->pkt_count))
             {
@@ -2764,14 +2761,10 @@ static __always_inline int handle_pkt(struct __sk_buff *skb, __u32 direction)
     else
     {
         // if there are no rules or the rules have been deleted
-        info->first_packet_ts = -1;
-        info->total_bytes = 0;
-        info->log_flag = 0;
-        info->no_of_pkt = 0;
+        __builtin_memset(info, 0, sizeof(*info));
     }
-
-    return TC_ACT_OK;
 #endif
+    return TC_ACT_OK;
 }
 
 SEC("tc")
