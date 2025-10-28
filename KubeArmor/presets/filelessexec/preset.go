@@ -213,8 +213,10 @@ func (p *Preset) TraceEvents() {
 
 		if event.Retval >= 0 {
 			log.Result = "Passed"
+			log.Action = "Audit"
 		} else {
 			log.Result = "Permission denied"
+			log.Action = "Block"
 		}
 
 		log.Enforcer = base.PRESET_ENFORCER + NAME
