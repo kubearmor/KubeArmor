@@ -9,12 +9,20 @@ spec:
   selector:
     matchLabels:
       kubearmor-app: kubearmor
+    {{- if eq .Values.environment.name "autopilot" }}
+      "cloud.google.com/matching-allowlist": {{ printf "%s-%s" "accuknox-kubearmor" .Chart.Version }}
+    {{- end }}
   template:
     metadata:
+      {{- if ne .Values.environment.name "autopilot" }}
       annotations:
         container.apparmor.security.beta.kubernetes.io/kubearmor: unconfined
+      {{- end }}
       labels:
         kubearmor-app: kubearmor
+      {{- if eq .Values.environment.name "autopilot" }}
+        "cloud.google.com/matching-allowlist": {{ printf "%s-%s" "accuknox-kubearmor" .Chart.Version }}
+      {{- end }}
     spec:
       {{- if .Values.kubearmor.image.imagePullSecrets }}
       imagePullSecrets:
@@ -27,10 +35,19 @@ spec:
       containers:
       - args:
         - -gRPC=32767
+        {{- if eq .Values.environment.name "autopilot" }}
+        - -procfsMount=/host/procfs
+        - -tlsEnabled=false
+        {{- else }}
         {{printf "- -tlsEnabled=%t" .Values.tls.enabled}}
         {{printf "- -tlsCertPath=%s" .Values.kubearmor.tls.tlsCertPath}}
         {{printf "- -tlsCertProvider=%s" .Values.kubearmor.tls.tlsCertProvider}}
+        {{- end }}
+        {{- if eq .Values.environment.name "autopilot" }}
+        image: {{printf "%s:%s" .Values.kubearmor.image.repository .Chart.Version }}
+        {{- else }}
         image: {{printf "%s:%s" .Values.kubearmor.image.repository .Values.kubearmor.image.tag}}
+        {{- end }}
         imagePullPolicy: {{ .Values.kubearmor.imagePullPolicy }}
         env:
         - name: KUBEARMOR_NODENAME
@@ -55,7 +72,11 @@ spec:
         securityContext:
           capabilities:
             {{- toYaml .Values.kubearmor.capabilities | trim | nindent 12 }}
+        {{- if eq .Values.environment.name "autopilot" }}
+          privileged: true
+        {{- else }}
           privileged: false
+        {{- end }}
         terminationMessagePath: /dev/termination-log
         terminationMessagePolicy: File
         volumeMounts:
@@ -81,16 +102,20 @@ spec:
           {{- toYaml .Values.kubearmor.volumeMountsBottleRocket | trim | nindent 10 }}
         {{- else if eq .Values.environment.name "EKS" }}
           {{- toYaml .Values.kubearmor.volumeMountsEKS | trim | nindent 10 }}
+        {{- else if eq .Values.environment.name "autopilot" }}
+          {{- toYaml .Values.kubearmor.autoPilot.volumeMounts | trim | nindent 10 }}
         {{- else }} # generic
           {{- toYaml .Values.kubearmor.volumeMountsGeneric | trim | nindent 10 }}
         {{- end }}
-
       dnsPolicy: ClusterFirstWithHostNet
       hostNetwork: true
-      hostPID: true
       initContainers:
-      - image: {{printf "%s:%s" .Values.kubearmorInit.image.repository .Values.kubearmorInit.image.tag}}
-        imagePullPolicy: {{ .Values.kubearmorInit.imagePullPolicy }}
+      - imagePullPolicy: {{ .Values.kubearmorInit.imagePullPolicy }}
+      {{- if eq .Values.environment.name "autopilot" }}
+        image: {{printf "%s:%s" .Values.kubearmorInit.image.repository .Chart.Version }}
+      {{- else }}
+        image: {{printf "%s:%s" .Values.kubearmorInit.image.repository .Values.kubearmorInit.image.tag}}
+      {{- end }}
         name: init
         securityContext:
           capabilities:
@@ -109,7 +134,11 @@ spec:
             - ALL
           privileged: false
         volumeMounts:
-        {{- toYaml .Values.kubearmor.initMounts | trim | nindent 10 }}
+        {{- if eq .Values.environment.name "autopilot" }}
+          {{- toYaml .Values.kubearmor.autoPilot.initMounts | trim | nindent 10 }}
+        {{- else }}  
+          {{- toYaml .Values.kubearmor.initMounts | trim | nindent 10 }}
+        {{- end }}
       nodeSelector:
         kubernetes.io/os: linux
       restartPolicy: Always
@@ -140,6 +169,8 @@ spec:
         {{- toYaml .Values.kubearmor.volumesBottleRocket | trim | nindent 8 }}
       {{- else if eq .Values.environment.name "EKS" }}
         {{- toYaml .Values.kubearmor.volumesEKS | trim | nindent 8 }}
+      {{- else if eq .Values.environment.name "autopilot" }}
+        {{- toYaml .Values.kubearmor.autoPilot.volumes | trim | nindent 8 }}
       {{- else }} # generic
         {{- toYaml .Values.kubearmor.volumesGeneric | trim | nindent 8 }}
       {{- end }}
