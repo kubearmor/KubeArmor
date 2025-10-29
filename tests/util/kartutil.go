@@ -230,7 +230,7 @@ func K8sDeploymentCheck(depname string, ns string, timeout time.Duration) error 
 }
 
 func AnnotationsMatch(pod corev1.Pod, ants []string) bool {
-	if ants == nil || len(ants) <= 0 {
+	if len(ants) <= 0 {
 		return true
 	}
 	for _, ant := range ants {
@@ -320,7 +320,8 @@ func K8sExecInPod(pod string, ns string, cmd []string) (string, string, error) {
 	}
 	buf := &bytes.Buffer{}
 	errBuf := &bytes.Buffer{}
-	exec.Stream(remotecommand.StreamOptions{
+	ctx := context.Background()
+	exec.StreamWithContext(ctx, remotecommand.StreamOptions{
 		Stdout: buf,
 		Stderr: errBuf,
 	})
@@ -347,7 +348,8 @@ func K8sExecInPodWithContainer(pod string, ns string, container string, cmd []st
 	}
 	buf := &bytes.Buffer{}
 	errBuf := &bytes.Buffer{}
-	exec.Stream(remotecommand.StreamOptions{
+	ctx := context.Background()
+	exec.StreamWithContext(ctx, remotecommand.StreamOptions{
 		Stdout: buf,
 		Stderr: errBuf,
 	})
@@ -397,8 +399,7 @@ func KspDeleteAll() {
 	if err != nil {
 		return
 	}
-	lines := strings.Split(sout, "\n")
-	for _, line := range lines {
+	for line := range strings.SplitSeq(sout, "\n") {
 		if line == "" {
 			continue
 		}
@@ -493,9 +494,8 @@ func K8sApplyFile(fileName string) error {
 
 	// multiple yaml files seperate by ---
 	fileAsString := string(f[:])
-	sepYamlfiles := strings.Split(fileAsString, "---")
 
-	for _, f := range sepYamlfiles {
+	for f := range strings.SplitSeq(fileAsString, "---") {
 		if f == "\n" || f == "" {
 			// ignore empty cases
 			continue

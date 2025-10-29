@@ -107,7 +107,7 @@ type ContextCombined struct {
 	ContainerID string
 	ContextSys  SyscallContext
 	HashData    HashContext
-	ContextArgs []interface{}
+	ContextArgs []any
 }
 
 // ======================= //
@@ -606,6 +606,7 @@ func (mon *SystemMonitor) InitBPF() error {
 			mon.Probes[sysTracepoint[1]], err = link.Tracepoint(sysTracepoint[0], sysTracepoint[1], mon.BpfModule.Programs[sysTracepoint[1]], nil)
 			if err != nil {
 				mon.Logger.Warnf("error:%s: %v", sysTracepoint, err)
+				delete(mon.Probes, sysTracepoint[1])
 			}
 		}
 
@@ -797,7 +798,7 @@ func (mon *SystemMonitor) TraceSyscall() {
 
 			// Best effort replay
 			go func() {
-				for i := 0; i < 10; i++ {
+				for range 10 {
 					containerID := ""
 
 					if ctx.PidID != 0 && ctx.MntID != 0 {

@@ -416,7 +416,7 @@ func (fd *Feeder) Print(message string) {
 }
 
 // Printf Function
-func (fd *Feeder) Printf(message string, args ...interface{}) {
+func (fd *Feeder) Printf(message string, args ...any) {
 	str := fmt.Sprintf(message, args...)
 	fd.PushMessage("INFO", str)
 	kg.Print(str)
@@ -429,7 +429,7 @@ func (fd *Feeder) Debug(message string) {
 }
 
 // Debugf Function
-func (fd *Feeder) Debugf(message string, args ...interface{}) {
+func (fd *Feeder) Debugf(message string, args ...any) {
 	str := fmt.Sprintf(message, args...)
 	fd.PushMessage("DEBUG", str)
 	kg.Debug(str)
@@ -442,7 +442,7 @@ func (fd *Feeder) Err(message string) {
 }
 
 // Errf Function
-func (fd *Feeder) Errf(message string, args ...interface{}) {
+func (fd *Feeder) Errf(message string, args ...any) {
 	str := fmt.Sprintf(message, args...)
 	fd.PushMessage("ERROR", str)
 	kg.Err(str)
@@ -455,7 +455,7 @@ func (fd *Feeder) Warn(message string) {
 }
 
 // Warnf Function
-func (fd *Feeder) Warnf(message string, args ...interface{}) {
+func (fd *Feeder) Warnf(message string, args ...any) {
 	str := fmt.Sprintf(message, args...)
 	fd.PushMessage("WARN", str)
 	kg.Warnf(str)

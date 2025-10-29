@@ -15,7 +15,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -48,7 +48,7 @@ const (
 )
 
 // Clone Function
-func Clone(src, dst interface{}) error {
+func Clone(src, dst any) error {
 	arr, _ := json.Marshal(src)
 	return json.Unmarshal(arr, dst)
 }
@@ -59,7 +59,7 @@ func RemoveStringElement(slice []string, size int) []string {
 }
 
 // ContainsElement Function
-func ContainsElement(slice interface{}, element interface{}) bool {
+func ContainsElement(slice any, element any) bool {
 	switch reflect.TypeOf(slice).Kind() {
 	case reflect.Slice:
 		s := reflect.ValueOf(slice)
@@ -93,7 +93,7 @@ func MatchesRegex(key, element string, array []string) bool {
 }
 
 // ObjCommaCanBeExpanded Function
-func ObjCommaCanBeExpanded(objptr interface{}) bool {
+func ObjCommaCanBeExpanded(objptr any) bool {
 	ovptr := reflect.ValueOf(objptr)
 	if ovptr.Kind() != reflect.Ptr {
 		return false
@@ -128,7 +128,7 @@ func ObjCommaExpand(v reflect.Value) []string {
 }
 
 // ObjCommaExpandFirstDupOthers Function
-func ObjCommaExpandFirstDupOthers(objptr interface{}) {
+func ObjCommaExpandFirstDupOthers(objptr any) {
 	if ObjCommaCanBeExpanded(objptr) {
 		old := reflect.ValueOf(objptr).Elem()
 		new := reflect.New(reflect.TypeOf(objptr).Elem()).Elem()
@@ -566,7 +566,7 @@ func MatchExpIdentities(selector tp.SelectorType, superIdentities []string) bool
 }
 
 // WriteToFile writes given string to file as JSON
-func WriteToFile(val interface{}, destFile string) error {
+func WriteToFile(val any, destFile string) error {
 	j, err := json.Marshal(val)
 	if err != nil {
 		return err
@@ -649,9 +649,7 @@ func GetLabelsFromString(labelString string) (map[string]string, []string) {
 		labelsMap[key] = value
 	}
 
-	sort.Slice(labelsSlice, func(i, j int) bool {
-		return labelsSlice[i] < labelsSlice[j]
-	})
+	slices.Sort(labelsSlice)
 
 	return labelsMap, labelsSlice
 }
