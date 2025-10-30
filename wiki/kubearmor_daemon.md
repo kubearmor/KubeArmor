@@ -139,7 +139,7 @@ func KubeArmor() {
 	// ... Node info setup (whether in K8s or standalone) ...
 
 	// initialize log feeder component
-	if !dm.InitLogger() {
+	if err := dm.InitLogger(); err != nil {
 		// handle error and destroy daemon
 		return
 	}
@@ -152,7 +152,7 @@ func KubeArmor() {
 
 	// initialize system monitor component
 	if cfg.GlobalCfg.Policy || cfg.GlobalCfg.HostPolicy { // Only if policy/hostpolicy is enabled
-		if !dm.InitSystemMonitor() {
+		if err := dm.InitSystemMonitor(); err != nil {
 			// handle error and destroy daemon
 			return
 		}
@@ -164,8 +164,8 @@ func KubeArmor() {
 		// initialize runtime enforcer component
 		// It receives the SystemMonitor instance because the BPF enforcer
 		// might need info from the monitor (like pin paths)
-		if !dm.InitRuntimeEnforcer(dm.SystemMonitor.PinPath) {
-			dm.Logger.Print("Disabled KubeArmor Enforcer since No LSM is enabled")
+		if err := dm.InitRuntimeEnforcer(dm.SystemMonitor.PinPath); err != nil {
+			dm.Logger.Printf("Disabled KubeArmor Enforcer: %s", err.Error())
 		} else {
 			dm.Logger.Print("Initialized KubeArmor Enforcer")
 		}
@@ -211,7 +211,7 @@ func NewKubeArmorDaemon() *KubeArmorDaemon {
 }
 
 // InitSystemMonitor Function (Called by Daemon)
-func (dm *KubeArmorDaemon) InitSystemMonitor() bool {
+func (dm *KubeArmorDaemon) InitSystemMonitor() error {
     // Create a new SystemMonitor instance, passing it data it needs
 	dm.SystemMonitor = mon.NewSystemMonitor(
         &dm.Node, &dm.NodeLock, // Node info
@@ -221,18 +221,18 @@ func (dm *KubeArmorDaemon) InitSystemMonitor() bool {
         &dm.MonitorLock, // Monitor's own lock
     )
 	if dm.SystemMonitor == nil {
-		return false
+		return fmt.Errorf("failed to create new system monitor")
 	}
 
     // Initialize BPF inside the monitor
 	if err := dm.SystemMonitor.InitBPF(); err != nil {
-		return false
+		return fmt.Errorf("failed to initialize BPF: %w", err)
 	}
-	return true
+	return nil
 }
 
 // InitRuntimeEnforcer Function (Called by Daemon)
-func (dm *KubeArmorDaemon) InitRuntimeEnforcer(pinpath string) bool {
+func (dm *KubeArmorDaemon) InitRuntimeEnforcer(pinpath string) error {
     // Create a new RuntimeEnforcer instance, passing it data/references
 	dm.RuntimeEnforcer = efc.NewRuntimeEnforcer(
         dm.Node, // Node info
@@ -240,8 +240,12 @@ func (dm *KubeArmorDaemon) InitRuntimeEnforcer(pinpath string) bool {
         dm.Logger, // Reference to the logger
         dm.SystemMonitor, // Reference to the monitor (for BPF integration needs)
     )
-	return dm.RuntimeEnforcer != nil
+	if dm.RuntimeEnforcer == nil {
+		return fmt.Errorf("failed to create runtime enforcer")
+	}
+	return nil
 }
+
 ```
 
 **Explanation:**
