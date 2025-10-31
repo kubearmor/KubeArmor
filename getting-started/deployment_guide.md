@@ -13,6 +13,16 @@ kubectl apply -f https://raw.githubusercontent.com/kubearmor/KubeArmor/main/pkg/
 ```
 
 You can find more details about helm related values and configurations [here](https://github.com/kubearmor/KubeArmor/tree/main/deployments/helm/KubeArmorOperator).
+>
+> [!NOTE]
+> CRI-O v1.34 and later requires fully qualified image names (FQINs). KubeArmor Helm charts and defaults use docker.io/... by default. If you override image repositories, include the docker.io/ prefix (or your own registry domain).
+>
+> Example override:
+> ```bash
+> helm upgrade --install kubearmor-operator kubearmor/kubearmor-operator \
+>   -n kubearmor --create-namespace \
+>   --set kubearmorOperator.image.repository=docker.io/kubearmor/kubearmor-operator
+> ```
 
 ## Install kArmor CLI (Optional)
 

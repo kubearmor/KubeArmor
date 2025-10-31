@@ -31,8 +31,12 @@ Install KubeArmorOperator using the official `kubearmor` Helm chart repo with OC
 ```bash
 helm repo add kubearmor https://kubearmor.github.io/charts
 helm repo update kubearmor
-helm upgrade --install kubearmor-operator kubearmor/kubearmor-operator -n kubearmor --create-namespace --set enableOCIHooks=true
+helm upgrade --install kubearmor-operator kubearmor/kubearmor-operator \
+  -n kubearmor --create-namespace \
+  --set enableOCIHooks=true \
+  --set kubearmorOperator.image.repository=docker.io/kubearmor/kubearmor-operator
 ```
+
 
 ## Containerd via NRI Setup
 
