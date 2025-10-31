@@ -29,11 +29,14 @@ OCI hooks allow KubeArmor to monitor and act on container events by executing a 
 Install KubeArmorOperator using the official `kubearmor` Helm chart repo with OCI Hooks enabled.
 
 ```bash
-# CRI-O users: use fully qualified image names (FQINs)
+helm repo add kubearmor https://kubearmor.github.io/charts
+helm repo update kubearmor
 helm upgrade --install kubearmor-operator kubearmor/kubearmor-operator \
   -n kubearmor --create-namespace \
+  --set enableOCIHooks=true \
   --set kubearmorOperator.image.repository=docker.io/kubearmor/kubearmor-operator
 ```
+
 
 ## Containerd via NRI Setup
 
