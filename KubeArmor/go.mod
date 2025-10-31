@@ -38,7 +38,7 @@ require (
 	github.com/opencontainers/runtime-spec v1.2.1
 	github.com/spf13/viper v1.21.0
 	go.uber.org/zap v1.27.0
-	golang.org/x/exp v0.0.0-20250911091902-df9299821621
+	golang.org/x/exp a4bb9ffd2546
 	golang.org/x/sys v0.37.0
 	google.golang.org/grpc v1.75.1
 	google.golang.org/protobuf v1.36.9
