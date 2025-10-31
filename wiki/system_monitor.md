@@ -238,8 +238,19 @@ The System Monitor acts as a fundamental data source:
 
 Essentially, the Monitor is the "observer" part of KubeArmor's runtime security. It sees everything, correlates it to your workloads, and reports it, enabling both enforcement (via the Enforcer's rules acting on these observed events) and visibility.
 
-## Conclusion
 
-In this chapter, you learned that the KubeArmor System Monitor is the component responsible for observing system events happening within the kernel. Using eBPF technology, it detects file access, process execution, network activity, and other critical operations. It enriches this raw data with Container/Node Identity context and prepares it for logging and analysis, providing essential visibility into your system's runtime behavior, regardless of whether an action was allowed, audited, or blocked by policy.
+## Pod label enrichment in logs
 
-Understanding the System Monitor and its reliance on eBPF is key to appreciating KubeArmor's low-overhead, high-fidelity approach to runtime security. In the next chapter, we'll take a deeper dive into the technology that powers this monitoring (and the BPF-LSM enforcer)
+KubeArmor includes pod labels in each log entry to help you filter and correlate activity. Previously, labels could be missing for very recent pods because the container update event sometimes arrived before the pod update was processed. The System Monitor now maintains an internal cache of pod labels so logs can include labels consistently from the start of a pod's lifecycle.
+
+How it works:
+
+- On pod add/update events, the KubeArmor daemon collects the pod's labels and stores them in a System Monitor map keyed by pod name.
+- When the System Monitor enriches a log for a container, it reads the labels from this map using the pod (endpoint) name and sets the Labels field in the log.
+- On pod delete, the corresponding entry is removed from the map.
+
+Operational notes:
+
+- This behavior is automatic; no configuration is required.
+- Labels are stored in-memory and protected by read/write locks for thread-safety.
+- If a pod has no labels, the Labels field in the log is empty.
