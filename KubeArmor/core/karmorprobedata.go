@@ -48,6 +48,7 @@ func (dm *KubeArmorDaemon) SetKarmorData() {
 		FileAction:         cfg.GlobalCfg.HostDefaultFilePosture,
 		NetworkAction:      cfg.GlobalCfg.HostDefaultNetworkPosture,
 		CapabilitiesAction: cfg.GlobalCfg.HostDefaultCapabilitiesPosture,
+		DeviceAction:       cfg.GlobalCfg.HostDefaultDevicePosture,
 	}
 
 	kd.OSImage = dm.Node.OSImage

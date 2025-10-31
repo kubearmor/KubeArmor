@@ -560,6 +560,15 @@ func (fd *Feeder) PushLog(log tp.Log) {
 		}
 	}
 
+	// change enforcer and format log Resource
+	if log.Operation == "Device" {
+		log.Enforcer = "USBDeviceHandler"
+
+		parts := strings.SplitN(log.Resource, " ", 2) // ["USB", "MASS-STORAGE_6_80"]
+		classPart := strings.SplitN(parts[1], "_", 2)[0]
+		log.Resource = parts[0] + " " + classPart
+	}
+
 	if log.Source == "" {
 		// even if a log doesn't have a source, it must have a type
 		if log.Type == "" {

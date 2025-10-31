@@ -580,15 +580,6 @@ func (mon *SystemMonitor) InitBPF() error {
 			mon.Logger.Warnf("error loading kprobe udp_sendmsg %v", err)
 		}
 
-		mon.Probes["kprobe__usb_set_configuration"], err = link.Kprobe("usb_set_configuration", mon.BpfModule.Programs["kprobe__usb_set_configuration"], nil)
-		if err != nil {
-			mon.Logger.Warnf("error loading kprobe usb_set_configuration %v", err)
-		}
-		mon.Probes["kretprobe__usb_set_configuration"], err = link.Kretprobe("usb_set_configuration", mon.BpfModule.Programs["kretprobe__usb_set_configuration"], nil)
-		if err != nil {
-			mon.Logger.Warnf("error loading kretprobe usb_set_configuration %v", err)
-		}
-
 		for _, syscallName := range systemCalls {
 			mon.Probes["kprobe__"+syscallName], err = link.Kprobe("sys_"+syscallName, mon.BpfModule.Programs["kprobe__"+syscallName], nil)
 			if err != nil {
@@ -1126,10 +1117,6 @@ func (mon *SystemMonitor) TraceSyscall() {
 				}
 			} else if ctx.EventID == UDPSendMsg {
 				if len(args) != 3 {
-					continue
-				}
-			} else if ctx.EventID == USBDevice {
-				if len(args) != 9 {
 					continue
 				}
 			}

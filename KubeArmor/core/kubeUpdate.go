@@ -1977,6 +1977,13 @@ func (dm *KubeArmorDaemon) UpdateHostSecurityPolicies() {
 				dm.RuntimeEnforcer.UpdateHostSecurityPolicies(secPolicies)
 			}
 		}
+
+		if dm.USBDeviceHandler != nil {
+			if dm.Node.PolicyEnabled == tp.KubeArmorPolicyEnabled {
+				// enforce USB device security policies
+				dm.USBDeviceHandler.UpdateHostSecurityPolicies(secPolicies)
+			}
+		}
 	}
 }
 
@@ -2795,11 +2802,13 @@ func (dm *KubeArmorDaemon) UpdateGlobalPosture(posture tp.DefaultPosture) {
 	cfg.GlobalCfg.DefaultFilePosture = validateGlobalDefaultPosture(posture.FileAction)
 	cfg.GlobalCfg.DefaultNetworkPosture = validateGlobalDefaultPosture(posture.NetworkAction)
 	cfg.GlobalCfg.DefaultCapabilitiesPosture = validateGlobalDefaultPosture(posture.CapabilitiesAction)
+	cfg.GlobalCfg.HostDefaultDevicePosture = validateGlobalDefaultPosture(posture.DeviceAction)
 
-	dm.Logger.Printf("[Update] Global DefaultPosture {File:%v, Capabilities:%v, Network:%v}",
+	dm.Logger.Printf("[Update] Global DefaultPosture {File:%v, Capabilities:%v, Network:%v, Device:%v}",
 		cfg.GlobalCfg.DefaultFilePosture,
 		cfg.GlobalCfg.DefaultCapabilitiesPosture,
-		cfg.GlobalCfg.DefaultNetworkPosture)
+		cfg.GlobalCfg.DefaultNetworkPosture,
+		cfg.GlobalCfg.HostDefaultDevicePosture)
 
 }
 
@@ -2929,11 +2938,13 @@ func (dm *KubeArmorDaemon) WatchConfigMap() cache.InformerSynced {
 					FileAction:         cm.Data[cfg.ConfigDefaultFilePosture],
 					NetworkAction:      cm.Data[cfg.ConfigDefaultNetworkPosture],
 					CapabilitiesAction: cm.Data[cfg.ConfigDefaultCapabilitiesPosture],
+					DeviceAction:       cm.Data[cfg.ConfigHostDefaultDevicePosture],
 				}
 				currentGlobalPosture := tp.DefaultPosture{
 					FileAction:         cfg.GlobalCfg.DefaultFilePosture,
 					NetworkAction:      cfg.GlobalCfg.DefaultNetworkPosture,
 					CapabilitiesAction: cfg.GlobalCfg.DefaultCapabilitiesPosture,
+					DeviceAction:       cfg.GlobalCfg.HostDefaultDevicePosture,
 				}
 				if _, ok := cm.Data[cfg.ConfigAlertThrottling]; ok {
 					cfg.GlobalCfg.AlertThrottling = (cm.Data[cfg.ConfigAlertThrottling] == "true")
@@ -2961,6 +2972,7 @@ func (dm *KubeArmorDaemon) WatchConfigMap() cache.InformerSynced {
 					}
 				}
 				dm.UpdateIMA(cfg.GlobalCfg.EnableIMA)
+				dm.UpdateUSBDeviceHandler(cfg.GlobalCfg.USBDeviceHandler)
 				dm.SystemMonitor.UpdateThrottlingConfig()
 
 				dm.Logger.Printf("Current Global Posture is %v", currentGlobalPosture)
@@ -3025,6 +3037,7 @@ func (dm *KubeArmorDaemon) WatchConfigMap() cache.InformerSynced {
 					}
 				}
 				dm.UpdateIMA(cfg.GlobalCfg.EnableIMA)
+				dm.UpdateUSBDeviceHandler(cfg.GlobalCfg.USBDeviceHandler)
 			}
 		},
 		DeleteFunc: func(obj any) {
@@ -3057,6 +3070,25 @@ func (dm *KubeArmorDaemon) UpdateIMA(enabled bool) {
 		}
 		dm.SystemMonitor.ImaHash = nil
 		dm.Logger.Print("Successfully uninitialized IMA module")
+		return
+	}
+}
+
+// UpdateUSBDeviceHandler updates the status of USB Device Handler
+func (dm *KubeArmorDaemon) UpdateUSBDeviceHandler(enabled bool) {
+	if enabled && dm.USBDeviceHandler == nil {
+		if !dm.InitUSBDeviceHandler() {
+			dm.Logger.Warn("Failed to initialize KubeArmor USB Device Handler")
+			return
+		}
+		dm.Logger.Print("Initialized KubeArmor USB Device Handler")
+		return
+	}
+	if !enabled && dm.USBDeviceHandler != nil {
+		if !dm.CloseUSBDeviceHandler() {
+			return
+		}
+		dm.Logger.Print("Closed KubeArmor USB Device Handler")
 		return
 	}
 }
