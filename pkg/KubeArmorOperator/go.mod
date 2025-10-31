@@ -10,7 +10,7 @@ replace (
 )
 
 require (
-	github.com/kubearmor/KubeArmor/KubeArmor v0.0.0-20250701060635-600e11526ec1
+	github.com/kubearmor/KubeArmor/KubeArmor d9af2f872e45
 	github.com/kubearmor/KubeArmor/deployments v0.0.0-20250701060635-600e11526ec1
 	github.com/kubearmor/KubeArmor/pkg/KubeArmorController v0.0.0-20250701060635-600e11526ec1
 	github.com/opencontainers/runtime-spec v1.2.1
