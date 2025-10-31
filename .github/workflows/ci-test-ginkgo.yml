@@ -63,7 +63,6 @@ jobs:
 
       - name: Setup a Kubernetes environment
         run: ./.github/workflows/install-k3s.sh
-
       - name: Generate KubeArmor artifacts
         run: |
           #set the $IS_COVERAGE env var to 'true' to build the kubearmor-test image for coverage calculation
@@ -201,6 +200,8 @@ jobs:
           POD_NAME=$(kubectl get pods -n kubearmor -l "$LABEL_SELECTOR" -o jsonpath='{.items[*].metadata.name}')
           echo "Pod: $POD_NAME"
           echo "POD_NAME=$POD_NAME" >> $GITHUB_ENV
+          
+          kubectl logs -n kubearmor -c init $POD_NAME
 
       - name: Test KubeArmor using Ginkgo
         run: |

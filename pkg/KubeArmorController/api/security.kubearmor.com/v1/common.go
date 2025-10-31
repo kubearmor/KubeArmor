@@ -224,9 +224,20 @@ type NetworkType struct {
 	// +kubebuilder:validation:optional
 	Action ActionType `json:"action,omitempty"`
 }
+type TrafficType struct {
+	LimitSize  string   `json:"limitSize,omitempty"`
+	LimitCount string   `json:"limitCount,omitempty"`
+	Duration   string   `json:"duration,omitempty"`
+	Severity   int      `json:"severity,omitempty"`
+	Tags       []string `json:"tags,omitempty"`
+	Message    string   `json:"message,omitempty"`
+	Action     string   `json:"action,omitempty"`
+}
 
 type HostNetworkType struct {
 	MatchProtocols []MatchHostNetworkProtocolType `json:"matchProtocols,omitempty"`
+	Egress         TrafficType                    `json:"egress,omitempty"`
+	Ingress        TrafficType                    `json:"ingress,omitempty"`
 
 	// +kubebuilder:validation:optional
 	Severity SeverityType `json:"severity,omitempty"`

@@ -4,6 +4,7 @@
 package feeder
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -86,7 +87,17 @@ func fetchProtocol(resource string) string {
 	}
 	return resource
 }
+func getNetworkLimitData(logData, res string) string {
+	if strings.Contains(logData, "Egress") {
+		return fmt.Sprintf("DIRECTION=EGRESS %s", res)
+	}
+	if strings.Contains(logData, "Ingress") {
+		return fmt.Sprintf("DIRECTION=INGRESS %s", res)
 
+	}
+	return ""
+
+}
 func getFileProcessUID(path string) string {
 	info, err := os.Stat(path)
 	if err == nil {
@@ -269,6 +280,27 @@ func (fd *Feeder) newMatchPolicy(policyEnabled int, policyName, src string, mp i
 		} else {
 			match.Action = npt.Action
 		}
+	} else if npt, ok := mp.(tp.TrafficType); ok {
+		match.Severity = strconv.Itoa(npt.Severity)
+		match.Tags = npt.Tags
+		match.Message = npt.Message
+
+		match.Operation = "Network"
+
+		res := ""
+		if len(npt.LimitSize) > 0 {
+			res = fmt.Sprintf("LIMIT_SIZE=%s", npt.LimitSize)
+		}
+		if len(npt.LimitCount) > 0 {
+			if len(res) > 0 {
+				res += " "
+			}
+			res += fmt.Sprintf("LIMIT_COUNT=%s", npt.LimitCount)
+		}
+		match.Resource = res
+		match.ResourceType = "NetworkLimit"
+		match.Action = "Audit"
+
 	} else if cct, ok := mp.(tp.CapabilitiesCapabilityType); ok {
 		match.Severity = strconv.Itoa(cct.Severity)
 		match.Tags = cct.Tags
@@ -831,6 +863,49 @@ func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.Hos
 				matches.Policies = append(matches.Policies, match)
 			}
 		}
+		if len(secPolicy.Spec.Network.Egress.Duration) > 0 {
+			fromSource := ""
+			match := fd.newMatchPolicy(fd.Node.PolicyEnabled, policyName, fromSource, secPolicy.Spec.Network.Egress)
+			matches.Policies = append(matches.Policies, match)
+
+		}
+		if len(secPolicy.Spec.Network.Ingress.Duration) > 0 {
+			fromSource := ""
+			match := fd.newMatchPolicy(fd.Node.PolicyEnabled, policyName, fromSource, secPolicy.Spec.Network.Ingress)
+			matches.Policies = append(matches.Policies, match)
+
+		}
+		for _, proto := range secPolicy.Spec.Network.MatchProtocols {
+			if len(proto.Protocol) == 0 {
+				continue
+			}
+
+			fromSource := ""
+
+			if len(proto.FromSource) == 0 {
+				match := fd.newMatchPolicy(fd.Node.PolicyEnabled, policyName, fromSource, proto)
+				if len(match.Resource) == 0 {
+					continue
+				}
+				matches.Policies = append(matches.Policies, match)
+				continue
+			}
+
+			for _, src := range proto.FromSource {
+				if len(src.Path) > 0 {
+					fromSource = src.Path
+				} else {
+					continue
+				}
+
+				match := fd.newMatchPolicy(fd.Node.PolicyEnabled, policyName, fromSource, proto)
+				if len(match.Resource) == 0 {
+					continue
+				}
+				match.IsFromSource = len(fromSource) > 0
+				matches.Policies = append(matches.Policies, match)
+			}
+		}
 
 		for _, device := range secPolicy.Spec.Device.MatchDevice {
 			if len(device.Class) == 0 {
@@ -1174,6 +1249,10 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 		if log.Type == "SystemEvent" {
 			return log
 		}
+		if log.Operation == "NetworkLimit" {
+			// treating NetworkLimit event as a network operation for matching with network policies
+			log.Operation = "Network"
+		}
 		fd.SecurityPoliciesLock.RLock()
 
 		key := cfg.GlobalCfg.Host
@@ -1436,7 +1515,6 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 				if secPolicy.Operation != log.Operation {
 					continue
 				}
-
 				// when one of the below rule is already matched for the log event, we will skip for further matches
 				if skip {
 					break // break, so that once source is matched for a log it doesn't look for other cases
@@ -1617,6 +1695,18 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 
 					log.Enforcer = "eBPF Monitor"
 					log.Action = "Audit"
+				}
+				// handling for network limit policies
+				if strings.Contains(log.Data, "Direction") {
+					// NetworkLimit event
+					log.Type = "MatchedPolicy"
+					log.PolicyName = secPolicy.PolicyName
+					log.Enforcer = "eBPF Monitor"
+					log.Action = "Audit"
+					log.Data = getNetworkLimitData(log.Data, secPolicy.Resource)
+					log.Message = secPolicy.Message
+					log.Tags = strings.Join(secPolicy.Tags[:], ",")
+					log.Severity = secPolicy.Severity
 				}
 
 			case "Device":

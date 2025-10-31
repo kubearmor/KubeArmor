@@ -361,6 +361,45 @@ spec:
                       - protocol
                       type: object
                     type: array
+                  egress:
+                    type: object
+                    properties:
+                      limitSize:
+                        type: string
+                        pattern: "^[0-9]+[ ]?(G|M)$"
+                      limitCount:
+                        type: string
+                        pattern: "^[0-9]+$"
+                      duration: 
+                        type: string
+                        pattern: "^[0-9]+[ ]?(s|m|h)$"
+                      message:
+                        type: string
+                    required:
+                      - duration
+                    anyOf:
+                      - required: ["limitSize"]
+                      - required: ["limitCount"]
+                  ingress:
+                    type: object
+                    properties:
+                      limitSize:
+                        type: string
+                        pattern: "^[0-9]+[ ]?(G|M)$"
+                      limitCount:
+                        type: string
+                        pattern: "^[0-9]+$"
+                      duration: 
+                        type: string
+                        pattern: "^[0-9]+[ ]?(s|m|h)$"
+                      message:
+                        type: string
+                    required:
+                      - duration
+                    anyOf:
+                      - required: ["limitSize"]
+                      - required: ["limitCount"]
+ 
                   message:
                     type: string
                   severity:

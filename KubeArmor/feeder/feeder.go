@@ -553,10 +553,12 @@ func (fd *Feeder) PushLog(log tp.Log) {
 				}
 			}
 		} else {
+
 			log = fd.UpdateMatchedPolicy(log)
 			if isBPFLSM {
 				log.Enforcer = "BPFLSM"
 			}
+
 		}
 	}
 
@@ -606,6 +608,7 @@ func (fd *Feeder) PushLog(log tp.Log) {
 				log.DroppingAlertsInterval = cfg.GlobalCfg.ThrottleSec
 			}
 		}
+
 		pbAlert := pb.Alert{}
 
 		node := fd.GetNodeInfo()

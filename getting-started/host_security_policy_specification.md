@@ -60,6 +60,14 @@ spec:
     - protocol: [TCP|tcp|UDP|udp|ICMP|icmp]
       fromSource:
       - path: [absolute exectuable path]
+    egress 
+      duration: [duration [s|m|h]]
+      limitSize: [size [M|G]] #--> optional 
+      limitCount: [packet count] # --> optional
+    ingress 
+      duration: [duration [s|m|h]] 
+      limitSize: [size [M|G]] #--> optional 
+      limitCount: [packet count] # --> optional
 
   device:
     matchDevice:
