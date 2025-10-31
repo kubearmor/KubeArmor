@@ -596,14 +596,23 @@ func (fd *Feeder) PushLog(log tp.Log) {
 	// set hostname
 	log.HostName = cfg.GlobalCfg.Host
 
-	// populate StructuredData once for all outputs
+	// populate EventData by merging structured data from Data and Resource
+	var mergedEventData map[string]string
 	if len(log.Data) > 0 {
-		log.StructuredData = parseDataString(log.Data)
+		mergedEventData = parseDataString(log.Data)
 	}
-
-	// populate StructuredResource for Network
+	// populate Resource data only for Network operations
 	if len(log.Resource) > 0 && log.Operation == "Network" {
-		log.StructuredResource = parseDataString(log.Resource)
+		if mergedEventData == nil {
+			mergedEventData = parseDataString(log.Resource)
+		} else {
+			for k, v := range parseDataString(log.Resource) {
+				mergedEventData[k] = v
+			}
+		}
+	}
+	if mergedEventData != nil {
+		log.EventData = mergedEventData
 	}
 
 	// remove flags
@@ -719,11 +728,8 @@ func (fd *Feeder) PushLog(log tp.Log) {
 		if len(log.Data) > 0 {
 			pbAlert.Data = log.Data
 		}
-		if log.StructuredData != nil {
-			pbAlert.StructuredData = log.StructuredData
-		}
-		if log.StructuredResource != nil {
-			pbAlert.StructuredResource = log.StructuredResource
+		if log.EventData != nil {
+			pbAlert.EventData = log.EventData
 		}
 		pbAlert.ProcessHash = log.ProcessHash[:]
 		pbAlert.ParentHash = log.ParentHash[:]
@@ -816,11 +822,8 @@ func (fd *Feeder) PushLog(log tp.Log) {
 		if len(log.Data) > 0 {
 			pbLog.Data = log.Data
 		}
-		if log.StructuredData != nil {
-			pbLog.StructuredData = log.StructuredData
-		}
-		if log.StructuredResource != nil {
-			pbLog.StructuredResource = log.StructuredResource
+		if log.EventData != nil {
+			pbLog.EventData = log.EventData
 		}
 		pbLog.ProcessHash = log.ProcessHash[:]
 		pbLog.ParentHash = log.ParentHash[:]
