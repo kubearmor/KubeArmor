@@ -205,9 +205,12 @@
      ~/KubeArmor/contribution/self-managed-k8s$ ./setup.sh
      ```
 
-     [setup.sh](self-managed-k8s/setup.sh) will automatically install [BCC](https://github.com/iovisor/bcc/blob/master/INSTALL.md), [Go](https://go.dev/doc/install), [Protobuf](https://grpc.io/docs/protoc-installation/), and some other dependencies.
+      [setup.sh](self-managed-k8s/setup.sh) will automatically install [BCC](https://github.com/iovisor/bcc/blob/master/INSTALL.md), [Go](https://go.dev/doc/install), [Protobuf](https://grpc.io/docs/protoc-installation/), and some other dependencies.
 
-     Now, you are ready to develop any code for KubeArmor. Enjoy your journey with KubeArmor.
+      > **Note** Go 1.24.9 or newer is required to build KubeArmor and its modules. Check your version with `go version` and upgrade if needed.
+
+      Now, you are ready to develop any code for KubeArmor. Enjoy your journey with KubeArmor.
+
 
 ### 3.  Environment Check
    * Compilation
