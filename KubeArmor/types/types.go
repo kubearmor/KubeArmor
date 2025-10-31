@@ -282,7 +282,8 @@ type Log struct {
 	Cwd                    string `json:"cwd"`
 	TTY                    string `json:"tty,omitempty"`
 	OID                    int32  `json:"oid"`
-	Data                   string `json:"data,omitempty"`
+	Data                   string            `json:"data,omitempty"`
+	EventData              map[string]string `json:"eventData,omitempty"`
 	ProcessHash            string `json:"processHash,omitempty"`
 	ParentHash             string `json:"parentHash,omitempty"`
 	ResourceHash           string `json:"resourceHash,omitempty"`
