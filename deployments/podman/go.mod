@@ -1,6 +1,6 @@
 module github.com/kubearmor/KubeArmor/deployments/podman
 
-go 1.24.6
+go 1.24.9
 
 require (
 	github.com/containers/podman/v5 v5.6.0

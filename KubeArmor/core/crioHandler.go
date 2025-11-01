@@ -207,20 +207,23 @@ func (ch *CrioHandler) GetDeletedCrioContainers(containers map[string]struct{}) 
 }
 
 // UpdateCrioContainer Function
-func (dm *KubeArmorDaemon) UpdateCrioContainer(ctx context.Context, containerID, action string) bool {
+func (dm *KubeArmorDaemon) UpdateCrioContainer(ctx context.Context, containerID, action string) error {
 	if Crio == nil {
-		return false
+		return fmt.Errorf("CRIO client not initialized")
 	}
 
 	if action == "start" {
 		// get container info from client
-		container, err := Crio.GetContainerInfo(ctx, containerID, dm.Node.NodeID, dm.OwnerInfo)
+		dm.OwnerInfoLock.RLock()
+		owner := dm.OwnerInfo
+		dm.OwnerInfoLock.RUnlock()
+		container, err := Crio.GetContainerInfo(ctx, containerID, dm.Node.NodeID, owner)
 		if err != nil {
-			return false
+			return fmt.Errorf("failed to get container info: %w", err)
 		}
 
 		if container.ContainerID == "" {
-			return false
+			return fmt.Errorf("container ID is empty")
 		}
 
 		endpoint := tp.EndPoint{}
@@ -268,7 +271,7 @@ func (dm *KubeArmorDaemon) UpdateCrioContainer(ctx context.Context, containerID,
 			dm.EndPointsLock.Unlock()
 		} else {
 			dm.ContainersLock.Unlock()
-			return false
+			return fmt.Errorf("container namespace information already exists")
 		}
 
 		if dm.SystemMonitor != nil && cfg.GlobalCfg.Policy {
@@ -312,7 +315,7 @@ func (dm *KubeArmorDaemon) UpdateCrioContainer(ctx context.Context, containerID,
 		container, ok := dm.Containers[containerID]
 		if !ok {
 			dm.ContainersLock.Unlock()
-			return false
+			return fmt.Errorf("container not found for removal: %s", containerID)
 		}
 		if !dm.K8sEnabled {
 			dm.EndPointsLock.Lock()
@@ -351,7 +354,7 @@ func (dm *KubeArmorDaemon) UpdateCrioContainer(ctx context.Context, containerID,
 		dm.Logger.Printf("Detected a container (removed/%.12s)", containerID)
 	}
 
-	return true
+	return nil
 }
 
 // MonitorCrioEvents Function
@@ -386,7 +389,8 @@ func (dm *KubeArmorDaemon) MonitorCrioEvents() {
 
 			if len(newContainers) > 0 {
 				for containerID := range newContainers {
-					if !dm.UpdateCrioContainer(context.Background(), containerID, "start") {
+					if err := dm.UpdateCrioContainer(context.Background(), containerID, "start"); err != nil {
+					kg.Warnf("Failed to update CRIO container %s: %s", containerID, err.Error())
 						invalidContainers = append(invalidContainers, containerID)
 					}
 				}
@@ -398,7 +402,9 @@ func (dm *KubeArmorDaemon) MonitorCrioEvents() {
 
 			if len(deletedContainers) > 0 {
 				for containerID := range deletedContainers {
-					dm.UpdateCrioContainer(context.Background(), containerID, "destroy")
+					if err := dm.UpdateCrioContainer(context.Background(), containerID, "destroy"); err != nil {
+						kg.Warnf("Failed to destroy CRIO container %s: %s", containerID, err.Error())
+					}
 				}
 			}
 		}

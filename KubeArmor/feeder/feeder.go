@@ -173,7 +173,8 @@ type BaseFeeder struct {
 	LogFile *os.File
 
 	// Activated Enforcer
-	Enforcer string
+	Enforcer     string
+	EnforcerLock *sync.RWMutex
 
 	// Msg, log and alert connection stores
 	EventStructs *EventStructs
@@ -252,6 +253,7 @@ func NewFeeder(node *tp.Node, nodeLock **sync.RWMutex) *Feeder {
 
 	// default enforcer
 	fd.Enforcer = "eBPF Monitor"
+	fd.EnforcerLock = new(sync.RWMutex)
 
 	// initialize msg structs
 	fd.EventStructs = &EventStructs{
@@ -465,7 +467,9 @@ func (fd *Feeder) Warnf(message string, args ...interface{}) {
 
 // UpdateEnforcer Function
 func (fd *Feeder) UpdateEnforcer(enforcer string) {
+	fd.EnforcerLock.Lock()
 	fd.Enforcer = enforcer
+	fd.EnforcerLock.Unlock()
 }
 
 // =============== //
@@ -534,22 +538,35 @@ func (fd *Feeder) PushLog(log tp.Log) {
 	   in case of enforcer = AppArmor only Default Posture logs will be converted to
 	   container/host log depending upon the defaultPostureLogs flag
 	*/
+	isBPFLSM := fd.GetEnforcer() == "BPFLSM"
 	if !common.IsPresetEnforcer(log.Enforcer) {
-		if (cfg.GlobalCfg.EnforcerAlerts && fd.Enforcer == "BPFLSM" && log.Enforcer == "") || (fd.Enforcer != "BPFLSM" && !cfg.GlobalCfg.DefaultPostureLogs) {
+		if (cfg.GlobalCfg.EnforcerAlerts && isBPFLSM && log.Enforcer == "") || (!isBPFLSM && !cfg.GlobalCfg.DefaultPostureLogs) {
 			log = fd.UpdateMatchedPolicy(log)
-			if (log.Type == "MatchedPolicy" || log.Type == "MatchedHostPolicy") && ((fd.Enforcer == "BPFLSM" && (strings.Contains(log.PolicyName, "DefaultPosture") || !strings.Contains(log.Action, "Audit"))) || (fd.Enforcer != "BPFLSM" && strings.Contains(log.PolicyName, "DefaultPosture"))) {
-				if log.Type == "MatchedPolicy" {
+			isDefaultPostureLog := strings.Contains(log.PolicyName, "DefaultPosture")
+			isAudit := strings.Contains(log.Action, "Audit")
+			if (log.Type == "MatchedPolicy" || log.Type == "MatchedHostPolicy") && ((isBPFLSM && (isDefaultPostureLog || !isAudit)) || (!isBPFLSM && isDefaultPostureLog)) {
+				switch log.Type {
+				case "MatchedPolicy":
 					log.Type = "ContainerLog"
-				} else if log.Type == "MatchedHostPolicy" {
+				case "MatchedHostPolicy":
 					log.Type = "HostLog"
 				}
 			}
 		} else {
 			log = fd.UpdateMatchedPolicy(log)
-			if fd.Enforcer == "BPFLSM" {
+			if isBPFLSM {
 				log.Enforcer = "BPFLSM"
 			}
 		}
+	}
+
+	// change enforcer and format log Resource
+	if log.Operation == "Device" {
+		log.Enforcer = "USBDeviceHandler"
+
+		parts := strings.SplitN(log.Resource, " ", 2) // ["USB", "MASS-STORAGE_6_80"]
+		classPart := strings.SplitN(parts[1], "_", 2)[0]
+		log.Resource = parts[0] + " " + classPart
 	}
 
 	if log.Source == "" {
@@ -600,14 +617,16 @@ func (fd *Feeder) PushLog(log tp.Log) {
 		}
 		pbAlert := pb.Alert{}
 
+		node := fd.GetNodeInfo()
+
 		pbAlert.KubeArmorVersion = log.KubeArmorVersion
 
 		pbAlert.Timestamp = log.Timestamp
 		pbAlert.UpdatedTime = log.UpdatedTime
 
 		pbAlert.ClusterName = cfg.GlobalCfg.Cluster
-		pbAlert.HostName = fd.Node.NodeName
-		pbAlert.NodeID = fd.Node.NodeID
+		pbAlert.HostName = node.NodeName
+		pbAlert.NodeID = node.NodeID
 
 		pbAlert.NamespaceName = log.NamespaceName
 
@@ -711,13 +730,15 @@ func (fd *Feeder) PushLog(log tp.Log) {
 		}
 	} else { // ContainerLog || HostLog
 		pbLog := pb.Log{}
+		node := fd.GetNodeInfo()
 
 		pbLog.Timestamp = log.Timestamp
 		pbLog.UpdatedTime = log.UpdatedTime
 
 		pbLog.ClusterName = cfg.GlobalCfg.Cluster
-		pbLog.HostName = fd.Node.NodeName
-		pbLog.NodeID = fd.Node.NodeID
+
+		pbLog.HostName = node.NodeName
+		pbLog.NodeID = node.NodeID
 
 		pbLog.NamespaceName = log.NamespaceName
 
@@ -865,4 +886,18 @@ func (fd *Feeder) ShouldDropAlertsPerContainer(pidNs, mntNs uint32) (bool, bool)
 
 func (fd *Feeder) DeleteAlertMapKey(outkey kl.OuterKey) {
 	delete(fd.AlertMap, OuterKey{PidNs: outkey.PidNs, MntNs: outkey.MntNs})
+}
+func (fd *Feeder) GetEnforcer() string {
+	fd.EnforcerLock.RLock()
+	val := fd.Enforcer
+	fd.EnforcerLock.RUnlock()
+	return val
+}
+func (fd *Feeder) GetNodeInfo() tp.Node {
+	lock := *fd.NodeLock
+	lock.RLock()
+	defer lock.RUnlock()
+
+	node := *fd.Node
+	return node
 }

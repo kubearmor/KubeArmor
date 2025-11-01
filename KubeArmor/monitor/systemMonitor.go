@@ -326,6 +326,10 @@ type SystemMonitor struct {
 	// lists to skip
 	UntrackedNamespaces []string
 
+	// podLabelsMap
+	PodLabelsMap     map[string]string
+	PodLabelsMapLock *sync.RWMutex
+
 	execLogMap     map[uint32]tp.Log
 	execLogMapLock *sync.RWMutex
 	// monitor lock
@@ -387,6 +391,9 @@ func NewSystemMonitor(node *tp.Node, nodeLock **sync.RWMutex, logger *fd.Feeder,
 	// assign the value of untracked ns from GlobalCfg
 	mon.UntrackedNamespaces = make([]string, len(cfg.GlobalCfg.ConfigUntrackedNs))
 	copy(mon.UntrackedNamespaces, cfg.GlobalCfg.ConfigUntrackedNs)
+
+	mon.PodLabelsMap = make(map[string]string)
+	mon.PodLabelsMapLock = new(sync.RWMutex)
 
 	kl.CheckOrMountBPFFs(cfg.GlobalCfg.BPFFsPath)
 	mon.PinPath = kl.GetMapRoot()
@@ -736,15 +743,6 @@ func (mon *SystemMonitor) InitBPF() error {
 		mon.Probes["kprobe__udp_sendmsg"], err = link.Kprobe("udp_sendmsg", mon.BpfModule.Programs["kprobe__udp_sendmsg"], nil)
 		if err != nil {
 			mon.Logger.Warnf("error loading kprobe udp_sendmsg %v", err)
-		}
-
-		mon.Probes["kprobe__usb_set_configuration"], err = link.Kprobe("usb_set_configuration", mon.BpfModule.Programs["kprobe__usb_set_configuration"], nil)
-		if err != nil {
-			mon.Logger.Warnf("error loading kprobe usb_set_configuration %v", err)
-		}
-		mon.Probes["kretprobe__usb_set_configuration"], err = link.Kretprobe("usb_set_configuration", mon.BpfModule.Programs["kretprobe__usb_set_configuration"], nil)
-		if err != nil {
-			mon.Logger.Warnf("error loading kretprobe usb_set_configuration %v", err)
 		}
 
 		for _, syscallName := range systemCalls {
@@ -1295,10 +1293,6 @@ func (mon *SystemMonitor) TraceSyscall() {
 				}
 			} else if ctx.EventID == UDPSendMsg {
 				if len(args) != 3 {
-					continue
-				}
-			} else if ctx.EventID == USBDevice {
-				if len(args) != 9 {
 					continue
 				}
 			}
