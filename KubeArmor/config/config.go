@@ -77,6 +77,8 @@ type KubearmorConfig struct {
 	USBDeviceHandler bool // enable USB device observability and enforcement
 
 	MatchArgs bool // enable argument rules for policy
+
+	EnableMetrics bool // Enable/Disable Prometheus metrics endpoint on port 8080
 }
 
 // GlobalCfg Global configuration for Kubearmor
@@ -206,6 +208,8 @@ func readCmdLineParams() {
 
 	matchArgs := flag.Bool(ConfigArgMatching, true, "enabling Argument matching")
 
+	enableMetrics := flag.Bool("enable-metrics", false, "Enable Prometheus metrics endpoint on port 8080")
+
 	flags := []string{}
 	flag.VisitAll(func(f *flag.Flag) {
 		kv := fmt.Sprintf("%s:%v", f.Name, f.Value)
@@ -285,6 +289,8 @@ func readCmdLineParams() {
 	viper.SetDefault(ConfigDropResourceFromProcessLogs, *dropResourceFromProcessLogs)
 
 	viper.SetDefault(ConfigArgMatching, *matchArgs)
+
+	viper.SetDefault("enable-metrics", *enableMetrics)
 }
 
 // LoadConfig Load configuration
@@ -378,6 +384,8 @@ func LoadConfig() error {
 	GlobalCfg.MatchArgs = viper.GetBool(ConfigArgMatching)
 
 	GlobalCfg.SELinuxProfileDir = viper.GetString(ConfigSELinuxProfileDir)
+
+	GlobalCfg.EnableMetrics = viper.GetBool("enable-metrics")
 
 	LoadDynamicConfig()
 
