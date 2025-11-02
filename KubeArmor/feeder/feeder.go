@@ -399,8 +399,13 @@ func NewFeeder(node *tp.Node, nodeLock **sync.RWMutex) *Feeder {
 	fd.PolicyMetadata = make(map[string]PolicyMetricInfo)
 	fd.PolicyMetadataLock = new(sync.RWMutex)
 
-	// Start metrics server
-	fd.StartMetricsServer()
+	// Start metrics server only if enabled
+	if cfg.GlobalCfg.EnableMetrics {
+		fd.StartMetricsServer()
+		kg.Printf("Metrics enabled - server starting on :8080")
+	} else {
+		kg.Printf("Metrics disabled")
+	}
 
 	return fd
 }
@@ -435,6 +440,11 @@ func (fd *Feeder) StartMetricsServer() {
 
 // updatePolicyMetric adds or updates a policy metric
 func (fd *Feeder) updatePolicyMetric(info PolicyMetricInfo) {
+	// Skip if metrics disabled
+	if !cfg.GlobalCfg.EnableMetrics {
+		return
+	}
+
 	fd.PolicyMetadataLock.Lock()
 	defer fd.PolicyMetadataLock.Unlock()
 
@@ -455,6 +465,11 @@ func (fd *Feeder) updatePolicyMetric(info PolicyMetricInfo) {
 
 // removePolicyMetric removes a policy from metrics
 func (fd *Feeder) removePolicyMetric(policyName string) {
+	// Skip if metrics disabled
+	if !cfg.GlobalCfg.EnableMetrics {
+		return
+	}
+
 	fd.PolicyMetadataLock.Lock()
 	defer fd.PolicyMetadataLock.Unlock()
 
@@ -477,6 +492,11 @@ func (fd *Feeder) removePolicyMetric(policyName string) {
 
 // updatePolicyCount recalculates and updates policy counts by type
 func (fd *Feeder) updatePolicyCount() {
+	// Skip if metrics disabled
+	if !cfg.GlobalCfg.EnableMetrics {
+		return
+	}
+
 	typeCounts := map[string]int{
 		"KubeArmorPolicy":        0,
 		"KubeArmorHostPolicy":    0,
@@ -888,9 +908,11 @@ func (fd *Feeder) PushLog(log tp.Log) {
 			}
 		}
 
-		// Increment alert metric
-		nodeName := cfg.GlobalCfg.Host
-		AlertsTotal.WithLabelValues(nodeName).Inc()
+		// Increment alert metric if enabled
+		if cfg.GlobalCfg.EnableMetrics {
+			nodeName := cfg.GlobalCfg.Host
+			AlertsTotal.WithLabelValues(nodeName).Inc()
+		}
 	} else { // ContainerLog || HostLog
 		pbLog := pb.Log{}
 		node := fd.GetNodeInfo()
