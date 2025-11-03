@@ -363,3 +363,97 @@ Note that KubeArmor also alerts events blocked due to other system policy enforc
 }
 ```
 </details>
+
+## Preset Alerts
+
+Preset alerts include the Action field. Presets set Action to Audit when the event passes and to Block when enforcement denies the operation. The Enforcer field indicates the preset enforcer.
+
+<details><summary><h4>Preset: ProtectEnv (blocked)</h4></summary>
+
+```json
+{
+  "Timestamp": 1761807866,
+  "UpdatedTime": "2025-10-30T07:04:26.322831Z",
+  "ClusterName": "default",
+  "HostName": "kubearmor-dev-next",
+  "NamespaceName": "default",
+  "Owner": {
+    "Ref": "Deployment",
+    "Name": "nginx",
+    "Namespace": "default"
+  },
+  "PodName": "nginx-6fdb9f946-j6psz",
+  "Labels": "app=nginx",
+  "ContainerID": "14508a9259223d2ad5f782966abecefb21408250469bcd3937c3f78c22fd4bbd",
+  "ContainerName": "nginx",
+  "ContainerImage": "docker.io/library/nginx:latest@sha256:f547e3d0d5d02f7009737b284abc87d808e4252b42dceea361811e9fc606287f",
+  "HostPPID": 12659,
+  "HostPID": 14374,
+  "PPID": 12659,
+  "PID": 61,
+  "UID": 0,
+  "ParentProcessName": "/usr/bin/bash",
+  "ProcessName": "/usr/bin/cat",
+  "PolicyName": "preset-proc-env",
+  "Type": "MatchedPolicy",
+  "Source": "/usr/bin/cat",
+  "Operation": "File",
+  "Resource": "/usr/bin/cat",
+  "Enforcer": "PRESET-ProtectEnvPreset",
+  "Action": "Block",
+  "Result": "Permission denied",
+  "Cwd": "/",
+  "TTY": "pts0",
+  "ExecEvent": {
+    "ExecID": "0",
+    "ExecutableName": "cat"
+  },
+  "KubeArmorVersion": "v1.5.7-199-g292bdb94-dirty"
+}
+```
+</details>
+
+<details><summary><h4>Preset: ProtectEnv (audited)</h4></summary>
+
+```json
+{
+  "Timestamp": 1761807426,
+  "UpdatedTime": "2025-10-30T06:57:06.827732Z",
+  "ClusterName": "default",
+  "HostName": "kubearmor-dev-next",
+  "NamespaceName": "default",
+  "Owner": {
+    "Ref": "Deployment",
+    "Name": "nginx",
+    "Namespace": "default"
+  },
+  "PodName": "nginx-6fdb9f946-j6psz",
+  "Labels": "app=nginx",
+  "ContainerID": "14508a9259223d2ad5f782966abecefb21408250469bcd3937c3f78c22fd4bbd",
+  "ContainerName": "nginx",
+  "ContainerImage": "docker.io/library/nginx:latest@sha256:f547e3d0d5d02f7009737b284abc87d808e4252b42dceea361811e9fc606287f",
+  "HostPPID": 12659,
+  "HostPID": 12729,
+  "PPID": 12659,
+  "PID": 60,
+  "UID": 0,
+  "ParentProcessName": "/usr/bin/bash",
+  "ProcessName": "/usr/bin/cat",
+  "PolicyName": "preset-proc-env",
+  "Type": "MatchedPolicy",
+  "Source": "/usr/bin/cat",
+  "Operation": "File",
+  "Resource": "/usr/bin/cat",
+  "Enforcer": "PRESET-ProtectEnvPreset",
+  "Action": "Audit",
+  "Result": "Passed",
+  "Cwd": "/",
+  "TTY": "pts0",
+  "ExecEvent": {
+    "ExecID": "54671679010686",
+    "ExecutableName": "cat"
+  },
+  "KubeArmorVersion": "v1.6.3-dirty"
+}
+```
+</details>
