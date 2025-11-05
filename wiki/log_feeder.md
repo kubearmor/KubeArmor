@@ -100,6 +100,8 @@ message Alert {
   string Operation = 19; // e.g., Process, File, Network
   string Resource = 20; // e.g., /etc/passwd, tcp://1.2.3.4:80
   string Data = 21; // Additional data if any
+  map<string, string> EventData = 43; // Structured key-value data
+
   string Enforcer = 28; // e.g., BPFLSM, AppArmor, eBPF Monitor
   string Action = 22; // e.g., Allow, Audit, Block
   string Result = 23; // e.g., Failed, Passed, Error
@@ -127,6 +129,7 @@ message Log {
   string Operation = 15;
   string Resource = 16;
   string Data = 17;
+  map<string, string> EventData = 33; // Structured key-value data
   string Result = 18; // e.g., Success, Failed
 
   string Cwd = 25;
@@ -145,6 +148,44 @@ message Podowner {
 message ExecEvent {
   string ExecID = 1;
   string ExecutableName = 2;
+}
+```
+
+### Structured event data (EventData)
+
+- EventData provides structured key-value pairs for clients. It complements the Data string and is available in both Alert and Log over gRPC (field EventData) and in JSON outputs as eventData.
+- The feeder parses the space-separated key=value tokens in Data into EventData. For Network operations, it also parses Resource and merges any key=value pairs into EventData.
+- Keys are normalized by capitalizing the first character (for example, src becomes Src). Tokens without an equals sign are ignored.
+- EventData is omitted when empty. The original Data string remains for backward compatibility.
+
+Example JSON (logs and alerts use the same shape):
+
+```json
+{
+  "type": "MatchedPolicy",
+  "operation": "Process",
+  "resource": "/bin/sh",
+  "data": "exec=/bin/sh parent=/usr/sbin/nginx",
+  "eventData": {
+    "Exec": "/bin/sh",
+    "Parent": "/usr/sbin/nginx"
+  }
+}
+```
+
+Network example (Resource merged):
+
+```json
+{
+  "type": "ContainerLog",
+  "operation": "Network",
+  "resource": "proto=tcp src=10.0.0.5 dport=443",
+  "data": "",
+  "eventData": {
+    "Proto": "tcp",
+    "Src": "10.0.0.5",
+    "Dport": "443"
+  }
 }
 ```
 
