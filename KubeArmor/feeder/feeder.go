@@ -30,6 +30,31 @@ import (
 	"google.golang.org/grpc/keepalive"
 )
 
+// parseDataString parses a space-separated key=value string into a map
+func parseDataString(data string) map[string]string {
+	if data == "" {
+		return nil
+	}
+	
+	result := make(map[string]string)
+	pairs := strings.Fields(data) // Split by whitespace
+	
+	for _, pair := range pairs {
+		if strings.Contains(pair, "=") {
+			parts := strings.SplitN(pair, "=", 2) // Split only on first "="
+			if len(parts) == 2 {
+				key := parts[0]
+				if len(key) > 0 {
+					key = strings.ToUpper(key[:1]) + key[1:]
+				}
+				result[key] = parts[1]
+			}
+		}
+	}
+	
+	return result
+}
+
 // ============ //
 // == Global == //
 // ============ //
@@ -532,6 +557,7 @@ func (fd *Feeder) PushMessage(level, message string) {
 }
 
 // PushLog Function
+// PushLog Function
 func (fd *Feeder) PushLog(log tp.Log) {
 	/* if enforcer == BPFLSM and log.Enforcer == ebpfmonitor ( block and default Posture Alerts from System
 	   monitor are converted to host/container logs)
@@ -582,6 +608,25 @@ func (fd *Feeder) PushLog(log tp.Log) {
 
 	// set hostname
 	log.HostName = cfg.GlobalCfg.Host
+
+	// populate EventData by merging structured data from Data and Resource
+	var mergedEventData map[string]string
+	if len(log.Data) > 0 {
+		mergedEventData = parseDataString(log.Data)
+	}
+	// populate Resource data only for Network operations
+	if len(log.Resource) > 0 && log.Operation == "Network" {
+		if mergedEventData == nil {
+			mergedEventData = parseDataString(log.Resource)
+		} else {
+			for k, v := range parseDataString(log.Resource) {
+				mergedEventData[k] = v
+			}
+		}
+	}
+	if mergedEventData != nil {
+		log.EventData = mergedEventData
+	}
 
 	// remove flags
 	log.PolicyEnabled = 0
@@ -696,6 +741,9 @@ func (fd *Feeder) PushLog(log tp.Log) {
 		if len(log.Data) > 0 {
 			pbAlert.Data = log.Data
 		}
+		if log.EventData != nil {
+			pbAlert.EventData = log.EventData
+		}
 		pbAlert.ProcessHash = log.ProcessHash[:]
 		pbAlert.ParentHash = log.ParentHash[:]
 		pbAlert.ResourceHash = log.ResourceHash[:]
@@ -786,6 +834,9 @@ func (fd *Feeder) PushLog(log tp.Log) {
 
 		if len(log.Data) > 0 {
 			pbLog.Data = log.Data
+		}
+		if log.EventData != nil {
+			pbLog.EventData = log.EventData
 		}
 		pbLog.ProcessHash = log.ProcessHash[:]
 		pbLog.ParentHash = log.ParentHash[:]
