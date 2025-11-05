@@ -2,10 +2,9 @@
 
 KubeArmor supports integration with container runtimes via OCI hooks. This document describes how to enable and use OCI hooks with KubeArmor without mounting the container runtime socket into KubeArmor daemonset pods.
 
-Note :- 
-1. Currently only CRI-O and Containerd are supported when using OCI hooks with KubeArmor.
+Note :-
+1. CRI-O, containerd, and Podman (rootful and rootless) are supported when using OCI hooks with KubeArmor. Podman support covers unorchestrated containers via the non-K8s hook handler.
 2. This feature is currently in experimental stage.
-
 ## Table of Contents
 
 #### Overview
