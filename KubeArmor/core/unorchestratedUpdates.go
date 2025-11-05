@@ -61,6 +61,7 @@ func (dm *KubeArmorDaemon) WatchConfigChanges() {
 			FileAction:         validateGlobalDefaultPosture(cfg.GlobalCfg.DefaultFilePosture),
 			NetworkAction:      validateGlobalDefaultPosture(cfg.GlobalCfg.DefaultNetworkPosture),
 			CapabilitiesAction: validateGlobalDefaultPosture(cfg.GlobalCfg.DefaultCapabilitiesPosture),
+			DeviceAction:       validateGlobalDefaultPosture(cfg.GlobalCfg.HostDefaultDevicePosture),
 		}
 		// Update the visibility
 		visibility := tp.Visibility{
@@ -84,6 +85,9 @@ func (dm *KubeArmorDaemon) WatchConfigChanges() {
 
 		// Update throttling configs
 		dm.SystemMonitor.UpdateThrottlingConfig()
+
+		// Update USB Device Handler
+		dm.UpdateUSBDeviceHandler(cfg.GlobalCfg.USBDeviceHandler)
 
 		// Update the default posture and visibility for the unorchestrated containers
 		dm.SystemMonitor.UpdateVisibility()

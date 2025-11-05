@@ -134,32 +134,6 @@ spec:
                           - Block
                           type: string
                         class:
-                          enum:
-                          - AUDIO
-                          - COMMUNICATION-CDC
-                          - HID
-                          - PHYSICAL
-                          - IMAGE
-                          - PRINTER
-                          - MASS-STORAGE
-                          - HUB
-                          - CDC-DATA
-                          - SMART-CARD
-                          - CONTENT-SECURITY
-                          - VIDEO
-                          - PERSONAL-HEALTHCARE
-                          - AUDIO/VIDEO
-                          - BILLBOARD
-                          - TYPE-C-BRIDGE
-                          - BULK-DISPLAY
-                          - MCTP
-                          - I3C
-                          - DIAGNOSTIC
-                          - WIRELESS-CONTROLLER
-                          - MISCELLANEOUS
-                          - APPLICATION-SPECIFIC
-                          - VENDOR-SPECIFIC
-                          - ALL
                           type: string
                         level:
                           format: int32
@@ -167,16 +141,22 @@ spec:
                           type: integer
                         message:
                           type: string
+                        protocol:
+                          format: int32
+                          type: integer
                         severity:
                           maximum: 10
                           minimum: 1
                           type: integer
                         subClass:
-                          type: string
+                          format: int32
+                          type: integer
                         tags:
                           items:
                             type: string
                           type: array
+                      required:
+                      - class
                       type: object
                     type: array
                   message:
