@@ -58,6 +58,16 @@ If there is at least one Allow rule, the handler operates in Allowlist Mode. Dev
 You can configure this using the `hostDefaultDevicePosture` flag.
 
 
+## Observability
+
+KubeArmor observes USB attach and detach events and evaluates them against active host device rules. Use it to gain visibility without enforcing.
+
+- Watch events: karmor logs --json
+- Expect entries when a USB device is added or removed. The most specific matching rule determines the reported action (Allow, Audit, or Block).
+- To observe only, set action: Audit in your device rules. To enforce, set action: Block.
+
+Observability is available even when no device rules match. In that case, behavior follows the host default device posture.
+
 ## Supported USB Classes
 
 | Decimal | Hex  | Class Name              | Description |
