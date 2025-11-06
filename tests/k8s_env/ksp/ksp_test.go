@@ -516,6 +516,30 @@ var _ = Describe("Ksp", func() {
 
 		})
 
+		It("it can block apt commands using matchPatterns", func() {
+			// Apply policy to block /usr/bin/apt*
+			err := K8sApplyFile("multiubuntu/ksp-ubuntu-1-block-apt-pattern.yaml")
+			Expect(err).To(BeNil())
+
+			err = KarmorLogStart("policy", "multiubuntu", "Process", ub1)
+			Expect(err).To(BeNil())
+
+			AssertCommand(ub1, "multiubuntu", []string{"bash", "-c", "apt-get --help"},
+				MatchRegexp("apt.*Permission denied"), true,
+			)
+
+			expect := protobuf.Alert{
+				PolicyName: "ksp-ubuntu-1-block-apt-pattern",
+				Severity:   "5",
+				Action:     "Block",
+				Result:     "Permission denied",
+			}
+
+			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
+			Expect(err).To(BeNil())
+			Expect(res.Found).To(BeTrue())
+		})
+
 		It("it can block process execution with just binary name", func() {
 			// multiubuntu_test_15
 

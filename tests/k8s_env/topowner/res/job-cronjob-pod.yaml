@@ -1,0 +1,70 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ksp-test
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: sample-pod
+  namespace: ksp-test
+  labels:
+    app: samplepod
+spec:
+  containers:
+  - name: busybox
+    image: busybox
+    command: ["sleep", "3600"]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sample-job
+  namespace: ksp-test
+  labels:
+    app: samplejob
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: samplejob
+  template:
+    metadata:
+      labels:
+        app: samplejob
+        kubearmor-policy: enabled
+    spec:
+      containers:
+      - name: busybox
+        image: busybox
+        command:
+          - sh
+          - -c
+          - "while true; do sleep 30; done"
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: sample-cronjob
+  namespace: ksp-test
+  labels:
+    app: samplecronjob
+spec:
+  schedule: "* * * * *"
+  jobTemplate:
+    metadata:
+      labels:
+        app: samplecronjob
+        kubearmor-policy: enabled
+    spec:
+      template:
+        metadata:
+          labels:
+            app: samplecronjob
+            kubearmor-policy: enabled
+        spec:
+          containers:
+          - name: busybox
+            image: busybox
+            command: ["sleep", "60"]
+          restartPolicy: OnFailure

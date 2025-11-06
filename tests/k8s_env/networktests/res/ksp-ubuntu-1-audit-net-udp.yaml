@@ -1,0 +1,13 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: ksp-ubuntu-1-audit-net-udp
+  namespace: multiubuntu
+spec:
+  selector:
+    matchLabels:
+      container: ubuntu-1
+  network:
+    matchProtocols:
+    - protocol: udp
+  action: Audit

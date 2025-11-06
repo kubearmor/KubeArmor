@@ -1,0 +1,15 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: ksp-pod-block
+  namespace: ksp-test
+spec:
+  severity: 5
+  selector:
+    matchLabels:
+      app: samplepod
+  file:
+    matchPaths:
+      - path: /etc/hosts
+  action:
+    Block
