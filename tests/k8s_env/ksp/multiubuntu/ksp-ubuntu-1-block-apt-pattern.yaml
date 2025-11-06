@@ -1,0 +1,16 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: ksp-ubuntu-1-block-apt-pattern
+  namespace: multiubuntu
+spec:
+  severity: 5
+  message: "block apt-related binaries using matchPatterns"
+  selector:
+    matchLabels:
+      container: ubuntu-1
+  process:
+    matchPatterns:
+      - pattern: /usr/bin/apt*
+  action:
+    Block
