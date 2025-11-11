@@ -364,3 +364,9 @@ It is possible to deploy k3s on WSL2 to have a local cluster on your Windows mac
 Thus with k3s on WSL2, you would still be able to run kubearmor but the block-based policies won't work. Using `karmor probe` would show `Active LSM` as blank which signals that the block-based policies won't work.
 
 </details>
+
+<details><summary><h4>Do I need to set any compile-time flags for RHEL-based kernels?</h4></summary>
+
+No. The build system detects RHEL-based kernels and configures the eBPF system monitor accordingly when kernel structures differ from upstream. For example, a kernel like `5.14.0-570.58.1.el9_6.x86_64` is handled automatically. You do not need to pass extra flags to compile on RHEL or RHEL-derived distributions.
+
+</details>
