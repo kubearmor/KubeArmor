@@ -32,7 +32,7 @@ signs:
       - '--output-certificate=${certificate}' 
       - '--output-signature=${signature}'
       - '${artifact}'
-      - '--bundle=false'
+      - '--bundle=true'
       - --yes
     artifacts: all
     output: true
