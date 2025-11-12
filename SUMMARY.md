@@ -46,6 +46,7 @@
 * [Contribution Guide](contribution/contribution_guide.md)
 * [Development Guide](contribution/development_guide.md)
 * [Testing Guide](contribution/testing_guide.md)
+* [Release Guide](contribution/release-guide.md)
 
 ## Release Notes
 
