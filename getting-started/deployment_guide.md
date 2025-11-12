@@ -14,6 +14,27 @@ kubectl apply -f https://raw.githubusercontent.com/kubearmor/KubeArmor/main/pkg/
 
 You can find more details about helm related values and configurations [here](https://github.com/kubearmor/KubeArmor/tree/main/deployments/helm/KubeArmorOperator).
 
+### Operator scheduling and environment configuration (Helm)
+
+Customize the operator's node scheduling and environment variables via Helm values.
+
+1. Create a values file (for example, my-values.yaml):
+   ```yaml
+   kubearmorOperator:
+     nodeSelector:
+       kubernetes.io/arch: amd64
+     env:
+       - name: KUBEARMOR_LOG_LEVEL
+         value: debug
+   ```
+2. Install or upgrade the operator with your values:
+   ```bash
+   helm upgrade --install kubearmor-operator kubearmor/kubearmor-operator \
+     -n kubearmor --create-namespace -f my-values.yaml
+   ```
+
+Refer to the chart values for all available options: deployments/helm/KubeArmorOperator/values.yaml
+
 ## Install kArmor CLI (Optional)
 
 ```
