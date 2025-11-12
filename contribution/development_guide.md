@@ -303,3 +303,24 @@ Here, we briefly give you an overview of KubeArmor's directories.
   examples/     - Example microservices for testing
   tests/        - Automated test framework for KubeArmor
   ```
+
+## Release signing (maintainers)
+
+Overview
+We sign release artifacts with cosign v3 via Goreleaser. The signing step produces a signature bundle file next to each artifact named <artifact>.sigstore.json.
+
+Prerequisites
+- Install cosign v3.
+- Ensure you can authenticate with your OIDC provider if you use keyless signing.
+
+Sign a local artifact (for dry runs or ad‑hoc builds)
+1. Build the artifact you want to sign.
+2. Run cosign to generate the bundle file:
+   ```bash
+   cosign sign-blob --bundle my-artifact.sigstore.json my-artifact
+   ```
+3. Publish both files together: my-artifact and my-artifact.sigstore.json.
+
+Notes
+- The bundle contains the signature and certificate chain; you do not need to emit separate --output-signature or --output-certificate files with cosign v3.
+- CI uses the Goreleaser configuration under KubeArmor/.goreleaser.yaml to perform the same bundled signing automatically.
