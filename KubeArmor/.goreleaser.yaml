@@ -26,7 +26,6 @@ checksum:
 
 signs:
   - cmd: cosign
-    certificate: '${artifact}.cert'
     signature: "${artifact}.sigstore.json"
     args:
       - sign-blob
