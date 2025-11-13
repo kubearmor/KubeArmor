@@ -300,3 +300,23 @@ Any binary other than `bash` and `nginx` would be permission denied.
 If you don't see Permission denied please refer [here](FAQ.md#debug-kubearmor-installation) to debug this issue
 
 </details>
+
+## Verify release artifacts (optional)
+
+Prerequisites
+- Install cosign v3. See the sigstore install instructions for your platform.
+
+Steps
+1. Download the release artifact and its signature bundle file, named <artifact>.sigstore.json.
+   - Example: KubeArmor_Linux_x86_64.tar.gz and KubeArmor_Linux_x86_64.tar.gz.sigstore.json
+2. Verify the artifact with cosign using the bundle:
+   ```bash
+   cosign verify-blob --bundle KubeArmor_Linux_x86_64.tar.gz.sigstore.json KubeArmor_Linux_x86_64.tar.gz
+   ```
+3. (Optional) Verify checksums if a checksums file is provided for the release:
+   ```bash
+   sha256sum -c checksums.txt
+   ```
+
+> [!NOTE]
+> Our releases publish a signature bundle file (<artifact>.sigstore.json). The bundle contains the signature and the certificate chain, so you do not need to pass a separate certificate or signature file when using --bundle.
