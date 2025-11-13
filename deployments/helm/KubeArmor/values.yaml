@@ -171,6 +171,53 @@ kubearmor:
   - emptyDir: {}
     name: bpf
 
+  autoPilot:
+    volumeMounts:
+    - mountPath: /run/containerd/containerd.sock
+      name: containerd-socket
+      readOnly: true
+    - mountPath: /sys/kernel/debug
+      name: sys-kernel-debug-path
+    - mountPath: /host/procfs
+      name: proc-fs-mount
+      readOnly: true
+    - mountPath: /opt/kubearmor/karmor.yaml
+      name: kubearmor-config
+      subPath: karmor.yaml
+    initMounts:
+      - mountPath: /sys/kernel/debug
+        name: sys-kernel-debug-path
+      - mountPath: /host/procfs
+        name: proc-fs-mount
+        readOnly: true
+      - mountPath: /opt/kubearmor/karmor.yaml
+        name: kubearmor-config
+        subPath: karmor.yaml
+      - mountPath: /opt/kubearmor/BPF
+        name: bpf
+    volumes:
+      - hostPath:
+          path: /run/containerd/containerd.sock
+          type: Socket
+        name: containerd-socket
+      - hostPath:
+          path: /sys/kernel/debug
+          type: Directory
+        name: sys-kernel-debug-path
+      - hostPath:
+          path: /proc
+          type: Directory
+        name: proc-fs-mount
+      - configMap:
+          defaultMode: 420
+          items:
+          - key: karmor.yaml
+            path: karmor.yaml
+          name: kubearmor-config
+        name: kubearmor-config
+      - emptyDir: {}
+        name: bpf
+
   initMounts:
   - mountPath: /opt/kubearmor/BPF
     name: bpf
