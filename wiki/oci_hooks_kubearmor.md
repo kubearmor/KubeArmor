@@ -3,7 +3,7 @@
 KubeArmor supports integration with container runtimes via OCI hooks. This document describes how to enable and use OCI hooks with KubeArmor without mounting the container runtime socket into KubeArmor daemonset pods.
 
 Note :- 
-1. Currently only CRI-O and Containerd are supported when using OCI hooks with KubeArmor.
+1. CRI-O, Containerd (via NRI), and Podman (rootful) are supported when using OCI hooks with KubeArmor.
 2. This feature is currently in experimental stage.
 
 ## Table of Contents
@@ -13,6 +13,8 @@ Note :-
 #### CRI-O Setup
 
 #### Containerd (via NRI) Setup
+
+#### Podman Setup (rootful, non‑Kubernetes)
 
 #### FAQs
 
@@ -82,6 +84,24 @@ helm repo update kubearmor
 helm upgrade --install kubearmor-operator kubearmor/kubearmor-operator -n kubearmor --create-namespace --set enableOCIHooks=true
 ```
 
+## Podman Setup (rootful, non‑Kubernetes)
+
+KubeArmor provides an OCI hook for non‑Kubernetes Podman environments. The hook installer and binaries are available under `deployments/podman/`.
+
+### 🛠️ Steps
+
+1. Clone the repository and navigate to the Podman hook directory.
+2. Build and deploy the hook using the provided Makefile.
+
+```bash
+cd deployments/podman
+make deploy
+```
+
+This installs the hook under `/usr/share/kubearmor/hook`, enabling Podman containers to be discovered and monitored by KubeArmor.
+
+For details, see `deployments/podman/README.md`.
+
 ## FAQs
 
 ❓ Why not mount the CRI socket?
@@ -90,7 +110,7 @@ Mounting /run/containerd/containerd.sock or /var/run/crio/crio.sock into contain
 
 ❓ Can I use OCI hooks with Docker?
 
-No. Docker does not support the OCI hook standard out of the box. We currently support only CRI-O and containerd (with NRI).
+No. Docker does not support the OCI hook standard out of the box. We currently support CRI-O, containerd (with NRI), and Podman (rootful) via OCI hooks.
 
 ❓ Do I need to restart nodes after setting up hooks?
 
