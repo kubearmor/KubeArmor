@@ -75,18 +75,15 @@ var _ = Describe("Posture", func() {
 			err = KarmorLogStart("policy", "wordpress-mysql", "File", wp)
 			Expect(err).To(BeNil())
 
-			//curl needs UDP for DNS resolution
 			AssertCommand(
 				wp, "wordpress-mysql", []string{"bash", "-c", "cat wp-config.php"},
 				MatchRegexp("cat.*Permission denied"), true,
 			)
 
-			//test that tcp is whitelisted
 			AssertCommand(
 				wp, "wordpress-mysql", []string{"bash", "-c", "cat readme.html"},
 				MatchRegexp("<!DOCTYPE html>((?:.*\r?\n?)*)</html>"), true,
 			)
-			// check policy violation alert
 			_, alerts, err := KarmorGetLogs(5*time.Second, 1)
 			Expect(err).To(BeNil())
 			Expect(len(alerts)).To(BeNumerically(">=", 1))

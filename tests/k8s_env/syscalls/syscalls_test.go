@@ -48,6 +48,28 @@ var _ = Describe("Syscalls", func() {
 	})
 
 	Describe("Match syscalls", func() {
+		It("can detect sysptrace syscall", func() {
+			err := K8sApply([]string{"manifests/matchsyscalls/audit-sysptrace.yaml"})
+			Expect(err).To(BeNil())
+
+			err = KarmorLogStart("policy", "syscalls", "Syscall", ubuntu)
+			Expect(err).To(BeNil())
+
+			AssertCommand(ubuntu, "syscalls",
+				[]string{"bash", "-c", "python3 -c 'import ctypes; libc=ctypes.CDLL(None); libc.syscall(101, 0, 0, 0)'"},
+				MatchRegexp(".*"), true)
+
+			expect := protobuf.Alert{
+				PolicyName: "audit-sysptrace",
+				Action:     "Audit",
+				Result:     "Passed",
+			}
+
+			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
+			Expect(err).To(BeNil())
+			Expect(res.Found).To(BeTrue())
+		})
+
 		It("can detect unlink syscall", func() {
 			// Apply policy
 			err := K8sApply([]string{"manifests/matchsyscalls/unlink.yaml"})

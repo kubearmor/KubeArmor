@@ -1,0 +1,17 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorClusterPolicy
+metadata:
+  name: csp-in-operator-block-capabilities
+spec:
+  severity: 8
+  selector:
+    matchExpressions:
+      - key: namespace
+        operator: In
+        values:
+          - nginx1
+  capabilities:
+    matchCapabilities:
+      - capability: sys_admin
+  action:
+    Block
