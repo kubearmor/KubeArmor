@@ -250,9 +250,16 @@ type Feeder struct {
 }
 
 // NewFeeder Function
-func NewFeeder(node *tp.Node, nodeLock **sync.RWMutex) *Feeder {
+func NewFeeder(node *tp.Node, nodeLock **sync.RWMutex) (feeder *Feeder) {
 	fd := &Feeder{}
 
+	defer func() {
+		if feeder == nil {
+			if err := fd.DestroyFeeder(); err != nil {
+				kg.Errf("Failed to destroy feeder: %v", err)
+			}
+		}
+	}()
 	// base feeder //
 
 	// node
