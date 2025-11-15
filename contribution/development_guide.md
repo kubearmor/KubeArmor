@@ -221,6 +221,8 @@
 
         If you see any error messages, please let us know the issue with the full error messages through #kubearmor-development channel on CNCF slack.
 
+        > Note: On RHEL-based kernels, the eBPF system monitor build auto-detects the kernel build and applies the required compile-time options for backported kernel structures. You do not need to set any extra flags when compiling on RHEL or RHEL-derived distributions.
+
    * Execution
 
         In order to directly run KubeArmor in a host (not as a container), you need to run a local proxy in advance.
