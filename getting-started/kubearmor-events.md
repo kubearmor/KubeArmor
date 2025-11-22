@@ -34,6 +34,32 @@
 | Source                 | lists the source from where the operation request came                    | /knoxAutoPolicy                                                                                               |
 | Type                   | specifies it as container log                                             | ContainerLog                                                                                                  |
 
+#### EventData (structured data)
+
+EventData is a structured map of key–value pairs parsed from Data and, for Network operations, also from Resource. It appears in both telemetry logs and alerts when parsable.
+
+- Keys are derived from space-separated key=value pairs. The first letter of each key is uppercased (for example, syscall=SYS_CONNECT fd=10 becomes {"Syscall":"SYS_CONNECT","Fd":"10"}).
+- For Network events, parameters in Resource such as sa_family, sin_port, and sin_addr are merged into EventData.
+
+Example (Network log with EventData):
+
+```json
+{
+  "Type": "ContainerLog",
+  "Operation": "Network",
+  "Resource": "sa_family=AF_INET sin_port=53 sin_addr=10.0.0.10",
+  "Data": "syscall=SYS_CONNECT fd=10",
+  "EventData": {
+    "Syscall": "SYS_CONNECT",
+    "Fd": "10",
+    "Sa_family": "AF_INET",
+    "Sin_port": "53",
+    "Sin_addr": "10.0.0.10"
+  },
+  "Result": "Passed"
+}
+```
+
 <details><summary><h4>Process Log</h4></summary>
 
 ```json
