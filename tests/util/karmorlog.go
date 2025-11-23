@@ -7,6 +7,7 @@ package util
 import (
 	"errors"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -234,6 +235,38 @@ func KarmorLogStart(logFilter string, ns string, op string, pod string) error {
 	return nil
 }
 
+func KarmorHostLogStart(logFilter string, op string) error {
+	drainEventChan()
+
+	if eventChan == nil {
+		eventChan = make(chan klog.EventInfo, maxEvents)
+	}
+
+	nullFile, err := os.OpenFile("/dev/null", os.O_WRONLY, 0)
+	if err != nil {
+		return err
+	}
+
+	go func() {
+		err := klog.StartObserver(k8sClient, klog.Options{
+			LogFilter:        logFilter,
+			ReadCAFromSecret: false,
+			LogPath:          nullFile.Name(),
+			Operation:        op,
+			MsgPath:          "none",
+			EventChan:        eventChan,
+			GRPC:             ":32767",
+			Secure:           false,
+		})
+		if err != nil {
+			log.Errorf("failed to start observer. Error=%s", err.Error())
+		}
+	}()
+
+	time.Sleep(3 * time.Second)
+	return nil
+}
+
 // KarmorGetLogs waits for logs from kubearmor. KarmorQueueLog() has to be called
 // before this so that the channel is established.
 func KarmorGetLogs(timeout time.Duration, maxEvents int) ([]*pb.Log, []*pb.Alert, error) {
@@ -248,15 +281,16 @@ func KarmorGetLogs(timeout time.Duration, maxEvents int) ([]*pb.Log, []*pb.Alert
 	for eventChan != nil {
 		select {
 		case evtin := <-eventChan:
-			if evtin.Type == "Alert" {
+			switch evtin.Type {
+			case "Alert":
 				alert := pb.Alert{}
 				protojson.Unmarshal(evtin.Data, &alert)
 				alerts = append(alerts, &alert)
-			} else if evtin.Type == "Log" {
+			case "Log":
 				log := pb.Log{}
 				protojson.Unmarshal(evtin.Data, &log)
 				logs = append(logs, &log)
-			} else {
+			default:
 				log.Errorf("UNKNOWN EVT type %s", evtin.Type)
 			}
 			evtCnt++
