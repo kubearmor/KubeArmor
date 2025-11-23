@@ -1,0 +1,16 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: ksp-audit-protocol-tcp
+spec:
+  severity: 7
+  selector:
+    matchLabels:
+      kubearmor.io/container.name: wordpress-mysql
+  network:
+    matchProtocols:
+    - protocol: tcp
+      fromSource:
+      - path: /usr/bin/curl
+  action:
+    Audit
