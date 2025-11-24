@@ -36,7 +36,6 @@ Key recommendations from analysis
 - Add a minimal front-matter template to support unknown publishing systems and CI validation (title, description, slug, sidebar_position, hide_table_of_contents optional)
 - Use consistent internal linking (relative paths from documentation root) and prefer linking to directory README files where appropriate
 
-
 ## Context
 
 **Project:** getting-started
@@ -71,6 +70,7 @@ When explicitly writing for non-technical users:
 - Link to additional learning resources
 
 ### Publishing System Requirements
+
 Observed metadata: none (no front matter fields were present in repository files).
 
 Because the publishing system is unknown, adopt a minimal, compatible front-matter schema that works with common static site generators (e.g., Docusaurus, Hugo, MkDocs) and enables future automation. The repository does not currently require front matter, but adding it consistently helps with navigation, search, and automated checks.
@@ -138,8 +138,8 @@ Publishing checklist (before merging docs):
 - Confirm examples are syntax-highlighted and include expected output where helpful
 - Add tags/authors/last_reviewed to enable discoverability and maintainability
 
-
 ### Content Structure Rules
+
 General organization guidelines by page type
 
 Technical Documentation / Reference pages (policy specs, API-like docs)
@@ -184,8 +184,8 @@ Formatting conventions
 - Inline code uses backticks for commands, resource names, and field names
 - Use consistent terminology (ex: "policy", "security policy", "host policy") — add a glossary if needed
 
-
 #### Heading Rules
+
 ```markdown
 H1 (Single per file)
 - Use exactly one H1 per document as the primary title. Use Title Case and keep it short and human-friendly.
@@ -198,6 +198,66 @@ H1 (Single per file)
 - No trailing punctuation or special characters.
 
 H2 (Major sections)
+- Use H2 for the main sections under the page title.
+- Examples:
+  ## Overview
+  ## Prerequisites
+  ## Usage
+  ## Examples
+  ## Troubleshooting
+
+H3 (Subsections)
+- Use H3 for subsections under an H2.
+- Avoid going deeper than H3 unless the page is very long.
+
+Code and Command Examples
+
+- Prefer **YAML** snippets for policy specs.
+- Use **bash** snippets for CLI commands.
+- Label all code fences with a language for syntax highlighting.
+
+Examples:
+
+```yaml
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorHostPolicy
+metadata:
+  name: deny-usb-storage
+spec:
+  severity: 5
+  tags: ["usb","storage"]
+  message: "Block USB storage devices on critical nodes"
+  device:
+    matchDevice:
+      - class: MASS-STORAGE
+        level: 1
+  action: Block
+```
+
+```bash
+# Apply a host security policy
+kubectl apply -f host_security_policy_examples/deny-usb-storage.yaml
+
+# Check for policy violations in logs
+kubectl logs -n kubearmor -l app=kubearmor --tail=100
+```
+
+### File and Directory Conventions
+
+- Keep topic-specific files (e.g., `host_security_policy_specification.md`, `usb_device_class.md`).
+- Place release-related content under `getting-started/release-notes/`.
+- Place scenario- or feature-focused guides under `getting-started/use-cases/` or topic files.
+
+### Usage With doc.holiday
+
+- doc.holiday reads this `getting-started/styleguide.md` file to generate documentation summaries for:
+  - Pull requests that modify files under `getting-started/`.
+  - Release notes under `getting-started/release-notes/`.
+- Keep this file focused on:
+  - Page structure and formatting rules.
+  - Where different content types live (specs, examples, use-cases, release-notes).
+- Do **not** add per-PR narrative here. Individual PR and release-note content lives in their respective Markdown files.
+
 - Use for top-level sections such as Overview, Prerequisites, Specification, Examples, Usage, Troubleshooting, References, See also.
 - Examples:
   ## Overview
