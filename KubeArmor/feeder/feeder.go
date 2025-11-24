@@ -408,6 +408,7 @@ func NewFeeder(node *tp.Node, nodeLock **sync.RWMutex) (feeder *Feeder) {
 
 	// Start metrics server only if enabled
 	if cfg.GlobalCfg.EnableMetrics {
+		InitializeMetrics()
 		fd.StartMetricsServer()
 		kg.Printf("Metrics enabled - server starting on :8080")
 	} else {
@@ -919,6 +920,42 @@ func (fd *Feeder) PushLog(log tp.Log) {
 		if cfg.GlobalCfg.EnableMetrics {
 			nodeName := cfg.GlobalCfg.Host
 			AlertsTotal.WithLabelValues(nodeName).Inc()
+
+			// Increment rule violation metric ONLY for actual policy enforcement actions
+			// A rule violation occurs when:
+			// 1. It's a policy match (MatchedPolicy or MatchedHostPolicy), not a SystemEvent
+			// 2. There is a policy that triggered the action (PolicyName exists)
+			// 3. The action was enforcement-related (Block, Audit, or Audit (Block))
+			//
+			// We do NOT count:
+			// - SystemEvent alerts (threshold warnings, etc.)
+			// - Allow actions (no violation occurred)
+			// - Events without a PolicyName (system-level, not policy-driven)
+
+			isPolicyMatch := (log.Type == "MatchedPolicy" || log.Type == "MatchedHostPolicy")
+			hasPolicyName := len(pbAlert.PolicyName) > 0
+			isEnforcementAction := (pbAlert.Action == "Block" ||
+			                        pbAlert.Action == "Audit" ||
+			                        pbAlert.Action == "Audit (Block)")
+
+			if isPolicyMatch && hasPolicyName && isEnforcementAction {
+				// Safely extract labels
+				policyName := pbAlert.PolicyName
+				ruleType := pbAlert.Operation // File/Process/Network/Capabilities
+				action := pbAlert.Action
+
+				// Normalize action for cleaner metrics
+				// "Audit (Block)" -> "Audit" for metric purposes
+				if action == "Audit (Block)" {
+					action = "Audit"
+				}
+
+				RuleViolations.WithLabelValues(
+					policyName,  // Which policy detected the violation
+					ruleType,    // What type of rule (File/Process/Network/Capabilities)
+					action,      // How it was handled (Block/Audit)
+				).Inc()
+			}
 		}
 	} else { // ContainerLog || HostLog
 		pbLog := pb.Log{}

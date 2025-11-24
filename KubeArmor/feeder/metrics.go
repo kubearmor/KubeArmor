@@ -35,4 +35,25 @@ var (
 		},
 		[]string{"name", "namespace", "type", "status"},
 	)
+
+	// RuleViolations tracks total number of policy rule violations by policy, type, and action
+	RuleViolations = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "kubearmor_rule_violations_total",
+			Help: "Total number of policy rule violations by policy, type, and action",
+		},
+		[]string{"policy_name", "rule_type", "action"},
+	)
 )
+
+// InitializeMetrics sets initial zero values for all metrics to ensure they appear in /metrics endpoint
+// This must be called after metrics are defined but before the server starts serving requests
+func InitializeMetrics() {
+	// Initialize policy count metrics with zero for all policy types
+	PoliciesTotal.WithLabelValues("KubeArmorPolicy").Set(0)
+	PoliciesTotal.WithLabelValues("KubeArmorHostPolicy").Set(0)
+	PoliciesTotal.WithLabelValues("KubeArmorClusterPolicy").Set(0)
+
+	// Note: PolicyInfo is a gauge with 4 labels that populates dynamically
+	// Note: AlertsTotal and RuleViolations are counters that appear on first use
+}
