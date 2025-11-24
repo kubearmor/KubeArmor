@@ -27,7 +27,7 @@ require (
 	github.com/cilium/cilium v1.18.1
 	github.com/cilium/ebpf v0.19.1-0.20251013125301-c27ff922fc6a
 	github.com/containerd/containerd/api v1.9.0
-	github.com/containerd/containerd/v2 v2.1.4
+	github.com/containerd/containerd/v2 v2.1.5
 	github.com/containerd/nri v0.10.0
 	github.com/containerd/typeurl/v2 v2.2.3
 	github.com/docker/docker v28.4.0+incompatible
