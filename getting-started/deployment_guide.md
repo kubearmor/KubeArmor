@@ -14,6 +14,18 @@ kubectl apply -f https://raw.githubusercontent.com/kubearmor/KubeArmor/main/pkg/
 
 You can find more details about helm related values and configurations [here](https://github.com/kubearmor/KubeArmor/tree/main/deployments/helm/KubeArmorOperator).
 
+### Configure operator env and nodeSelector via Helm values
+
+You can pass environment variables and schedule the operator using node selectors:
+
+```bash
+helm upgrade --install kubearmor-operator kubearmor/kubearmor-operator \
+  -n kubearmor --create-namespace \
+  --set kubearmorOperator.env[0].name=FOO \
+  --set kubearmorOperator.env[0].value=bar \
+  --set kubearmorOperator.nodeSelector."kubernetes.io/hostname"=worker-1
+```
+
 ## Install kArmor CLI (Optional)
 
 ```
