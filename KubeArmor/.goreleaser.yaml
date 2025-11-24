@@ -26,16 +26,14 @@ checksum:
 
 signs:
   - cmd: cosign
-    certificate: '${artifact}.cert'
+    signature: "${artifact}.sigstore.json"
     args:
       - sign-blob
-      - '--output-certificate=${certificate}' 
-      - '--output-signature=${signature}'
+      - "--bundle=${signature}"
       - '${artifact}'
       - --yes
     artifacts: all
     output: true
-
 archives:
   - id: "kubearmor"
     builds:

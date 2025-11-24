@@ -37,8 +37,6 @@
 #include <linux/un.h>
 #include <net/inet_sock.h>
 
-#include <linux/usb.h>
-
 #include <linux/bpf.h>
 #include <linux/version.h>
 #include <linux/sched/signal.h>
@@ -92,8 +90,6 @@
 #define UMOUNT_FLAG_T 25UL
 #define UDP_MSG 26UL
 #define QTYPE 27UL
-#define U8_T 28UL
-#define U16_T 29UL
 
 // types for ima hash
 #define PHASH 30
@@ -202,10 +198,7 @@ enum
     _TCP_ACCEPT_v6 = 403,
 
     // UDP_MSG
-    _UDP_SENDMSG = 10000,
-
-    // USB
-    _USB_DEVICE = 20000
+    _UDP_SENDMSG = 10000
 };
 
 // forward declartaion for CWD
@@ -287,8 +280,6 @@ BPF_PERCPU_ARRAY(bufs, bufs_t, 5);
 BPF_PERCPU_ARRAY(bufs_offset, u32, 5);
 
 BPF_PERF_OUTPUT(sys_events);
-
-BPF_HASH(udevs, __u64, void *);
 
 #ifdef BTF_SUPPORTED
 #define GET_FIELD_ADDR(field) __builtin_preserve_access_index(&field)
@@ -2435,7 +2426,7 @@ int kprobe__udp_sendmsg(struct pt_regs *ctx)
     dport = ntohs(dport);
     if (dport != 53)
         return 0;
-    #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 3, 13)
+    #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 3, 13) || RHEL_BUILD_GTE_400
         bpf_probe_read(&iov, sizeof(iov), &msg->msg_iter.__iov);
     #else
         bpf_probe_read(&iov, sizeof(iov), &msg->msg_iter.iov);
@@ -2485,110 +2476,6 @@ int kprobe__udp_sendmsg(struct pt_regs *ctx)
     save_dns_data_to_dns_buffer(bufs_p, data, UDP_MSG);
     // dns_events_perf_submit(ctx, DATA_BUF_TYPE);
     events_perf_submit(ctx, DNS_BUF_TYPE);
-    return 0;
-}
-
-// == Device Detection (USB) == //
-
-SEC("kprobe/usb_set_configuration")
-int kprobe__usb_set_configuration(struct pt_regs *ctx) {
-
-    if (skip_syscall())
-        return 0;
-
-    struct usb_device *udev = (struct usb_device *)PT_REGS_PARM1(ctx);
-
-    __u64 key = bpf_get_current_pid_tgid();
-    if (udev)
-        bpf_map_update_elem(&udevs, &key, &udev, BPF_ANY); // save pointer to udev to access in kretprobe
-    return 0;
-}
-
-SEC("kretprobe/usb_set_configuration")
-int kretprobe__usb_set_configuration(struct pt_regs *ctx) {
-
-    if (skip_syscall())
-        return 0;
-
-    __u64 key = bpf_get_current_pid_tgid();
-    struct usb_device **udev_ptr = bpf_map_lookup_elem(&udevs, &key);
-    if (!udev_ptr) return 0;
-
-    bpf_map_delete_elem(&udevs, &key);
-
-    struct usb_device_descriptor desc;
-    bpf_probe_read(&desc, sizeof(desc), &(*udev_ptr)->descriptor);
-
-    int speed = 0;
-    bpf_probe_read(&speed, sizeof(speed), &(*udev_ptr)->speed);
-
-    __u8 portnum = 0;
-    bpf_probe_read(&portnum, sizeof(portnum), &(*udev_ptr)->portnum);
-
-    __u8 level = 0;
-    bpf_probe_read(&level, sizeof(level), &(*udev_ptr)->level);
-
-    struct usb_host_config *cfg = NULL;
-    bpf_probe_read(&cfg, sizeof(cfg), &(*udev_ptr)->actconfig);
-    if (!cfg) return 0;
-
-    // Check a few interfaces
-    __u8 ifClass = 0;
-    __u8 ifSubClass = 0;
-    __u8 ifProtocol = 0;
-    #pragma unroll
-    for (int i = 0; i < 4; i++) {
-        struct usb_interface *intf = NULL;
-        bpf_probe_read(&intf, sizeof(intf), &cfg->interface[i]);
-        if (!intf) continue;
-
-        struct usb_host_interface *alts = NULL;
-        bpf_probe_read(&alts, sizeof(alts), &intf->cur_altsetting);
-        if (!alts) continue;
-
-        bpf_probe_read(&ifClass, sizeof(ifClass), &alts->desc.bInterfaceClass);
-        bpf_probe_read(&ifSubClass, sizeof(ifSubClass), &alts->desc.bInterfaceSubClass);
-        bpf_probe_read(&ifProtocol, sizeof(ifProtocol), &alts->desc.bInterfaceProtocol);
-    }
-
-    __u8 class = desc.bDeviceClass;
-    __u8 subClass = desc.bDeviceSubClass;
-    __u8 protocol = desc.bDeviceProtocol;
-    if(!desc.bDeviceClass) { // device class is 0, class is defined at interface level
-        class = ifClass;
-        subClass = ifSubClass;
-        protocol = ifProtocol;
-    }
-
-    sys_context_t context = {};
-    init_context(&context);
-    context.event_id = _USB_DEVICE;
-    context.argnum = 9;
-    context.retval = 0;
-
-    set_buffer_offset(DATA_BUF_TYPE, sizeof(sys_context_t));
-
-    bufs_t *bufs_p = get_buffer(DATA_BUF_TYPE);
-    if (bufs_p == NULL)
-        return 0;
-
-    save_context_to_buffer(bufs_p, (void *)&context);
-
-    // save arguments
-    save_to_buffer(bufs_p, DATA_BUF_TYPE, &speed, sizeof(speed), INT_T);
-    save_to_buffer(bufs_p, DATA_BUF_TYPE, &portnum, sizeof(portnum), U8_T);
-    save_to_buffer(bufs_p, DATA_BUF_TYPE, &level, sizeof(level), U8_T);
-
-    save_to_buffer(bufs_p, DATA_BUF_TYPE, &class, sizeof(class), U8_T);
-    save_to_buffer(bufs_p, DATA_BUF_TYPE, &subClass, sizeof(subClass), U8_T);
-    save_to_buffer(bufs_p, DATA_BUF_TYPE, &protocol, sizeof(protocol), U8_T);
-
-    save_to_buffer(bufs_p, DATA_BUF_TYPE, &desc.idVendor, sizeof(desc.idVendor), U16_T);
-    save_to_buffer(bufs_p, DATA_BUF_TYPE, &desc.idProduct, sizeof(desc.idProduct), U16_T);
-    save_to_buffer(bufs_p, DATA_BUF_TYPE, &desc.bcdUSB, sizeof(desc.bcdUSB), U16_T);
-
-    events_perf_submit(ctx, DATA_BUF_TYPE);
-
     return 0;
 }
 
