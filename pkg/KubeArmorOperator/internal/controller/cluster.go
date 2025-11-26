@@ -49,6 +49,7 @@ var deployment_name string = "kubearmor-operator"
 var PathPrefix string
 var initDeploy, annotateResource, annotateExisting bool
 var ProviderHostname, ProviderEndpoint string
+var ImagePullSecrets []corev1.LocalObjectReference
 
 type ClusterWatcher struct {
 	Nodes          []Node
@@ -74,7 +75,7 @@ type Node struct {
 	OCIHooks         string
 }
 
-func NewClusterWatcher(client *kubernetes.Clientset, log *zap.SugaredLogger, extClient *apiextensionsclientset.Clientset, opv1Client *opv1client.Clientset, secv1Client *secv1client.Clientset, pathPrefix, deploy_name, providerHostname, providerEndpoint string, initdeploy, annotateresource, annotateexisting bool) *ClusterWatcher {
+func NewClusterWatcher(client *kubernetes.Clientset, log *zap.SugaredLogger, extClient *apiextensionsclientset.Clientset, opv1Client *opv1client.Clientset, secv1Client *secv1client.Clientset, pathPrefix, deploy_name, providerHostname, providerEndpoint string, initdeploy, annotateresource, annotateexisting bool, imagePullSecrets []string) *ClusterWatcher {
 	if informer == nil {
 		informer = informers.NewSharedInformerFactory(client, 0)
 	}
@@ -95,6 +96,9 @@ func NewClusterWatcher(client *kubernetes.Clientset, log *zap.SugaredLogger, ext
 	annotateExisting = annotateexisting
 	ProviderHostname = providerHostname
 	ProviderEndpoint = providerEndpoint
+
+	// add image pull secrets
+	ImagePullSecrets = common.SanitizePullSecrets(imagePullSecrets)
 
 	return &ClusterWatcher{
 		Nodes:          []Node{},
