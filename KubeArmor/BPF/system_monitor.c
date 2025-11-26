@@ -461,11 +461,7 @@ static __always_inline int save_str_to_buffer(bufs_t *bufs_p, void *ptr) {
     }
 
     u32 type_pos = *off;
-    if (type_pos >= MAX_BUFFER_SIZE || type_pos + 1 > MAX_BUFFER_SIZE) {
-        return 0;
-    }
-
-    if (MAX_BUFFER_SIZE - type_pos < (1 + sizeof(int) + 1)) {
+    if (type_pos >= MAX_BUFFER_SIZE || type_pos + sizeof(u8) >= MAX_BUFFER_SIZE) {
         return 0;
     }
 
