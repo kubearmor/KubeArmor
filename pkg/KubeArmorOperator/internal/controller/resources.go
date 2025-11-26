@@ -158,6 +158,9 @@ func generateDaemonset(name, enforcer, runtime, socket, nriSocket, btfPresent, a
 		daemonset.Spec.Template.Spec.InitContainers[0].ImagePullPolicy = corev1.PullPolicy(common.KubeArmorInitImagePullPolicy)
 		UpdateArgsIfDefinedAndUpdated(&daemonset.Spec.Template.Spec.InitContainers[0].Args, common.KubeArmorInitArgs)
 		UpdateImagePullSecretsIfDefinedAndUpdated(&daemonset.Spec.Template.Spec.ImagePullSecrets, common.KubeArmorInitImagePullSecrets)
+		if len(daemonset.Spec.Template.Spec.ImagePullSecrets) == 0 && len(ImagePullSecrets) > 0 {
+			UpdateImagePullSecretsIfDefinedAndUpdated(&daemonset.Spec.Template.Spec.ImagePullSecrets, ImagePullSecrets)
+		}
 		UpdateTolerationsIfDefinedAndUpdated(&daemonset.Spec.Template.Spec.Tolerations, common.KubeArmorInitTolerations)
 	}
 	// update images
@@ -182,6 +185,9 @@ func generateDaemonset(name, enforcer, runtime, socket, nriSocket, btfPresent, a
 	UpdateTolerationsIfDefinedAndUpdated(&daemonset.Spec.Template.Spec.Tolerations, common.KubeArmorInitTolerations)
 	if len(daemonset.Spec.Template.Spec.ImagePullSecrets) < 1 {
 		updateImagePullSecretFromGlobal(common.GlobalImagePullSecrets, &daemonset.Spec.Template.Spec.ImagePullSecrets)
+	}
+	if len(daemonset.Spec.Template.Spec.ImagePullSecrets) < 1 && len(ImagePullSecrets) > 0 {
+		UpdateImagePullSecretsIfDefinedAndUpdated(&daemonset.Spec.Template.Spec.ImagePullSecrets, ImagePullSecrets)
 	}
 	if len(daemonset.Spec.Template.Spec.Tolerations) < 1 {
 		updateTolerationFromGlobal(common.GlobalTolerations, &daemonset.Spec.Template.Spec.Tolerations)
@@ -397,9 +403,9 @@ func deploySnitch(nodename string, runtime string) *batchv1.Job {
 				},
 				// For Unknown Reasons hostPID will be true if snitch gets deployed on OpenShift
 				// for some reasons github.com/kubearmor/KubeArmor/KubeArmor/utils/bpflsmprobe will
-				// not work if hostPID is set false.
-
+				// not work if hostPID is set false
 				// change for snitch host path
+				ImagePullSecrets:   ImagePullSecrets,
 				HostPID:            common.HostPID,
 				NodeName:           nodename,
 				RestartPolicy:      corev1.RestartPolicyOnFailure,
@@ -875,11 +881,18 @@ func (clusterWatcher *ClusterWatcher) WatchRequiredResources() {
 	if len(controller.Spec.Template.Spec.ImagePullSecrets) < 1 {
 		updateImagePullSecretFromGlobal(common.GlobalImagePullSecrets, &controller.Spec.Template.Spec.ImagePullSecrets)
 	}
+	if len(controller.Spec.Template.Spec.ImagePullSecrets) == 0 && len(ImagePullSecrets) > 0 {
+		UpdateImagePullSecretsIfDefinedAndUpdated(&controller.Spec.Template.Spec.ImagePullSecrets, ImagePullSecrets)
+	}
 	if len(controller.Spec.Template.Spec.Tolerations) < 1 {
 		updateTolerationFromGlobal(common.GlobalTolerations, &controller.Spec.Template.Spec.Tolerations)
 	}
 	UpdateArgsIfDefinedAndUpdated(&relayServer.Spec.Template.Spec.Containers[0].Args, common.KubeArmorRelayArgs)
 	UpdateImagePullSecretsIfDefinedAndUpdated(&relayServer.Spec.Template.Spec.ImagePullSecrets, common.KubeArmorControllerImagePullSecrets)
+	if len(relayServer.Spec.Template.Spec.ImagePullSecrets) == 0 && len(ImagePullSecrets) > 0 {
+		UpdateImagePullSecretsIfDefinedAndUpdated(&relayServer.Spec.Template.Spec.ImagePullSecrets, ImagePullSecrets)
+	}
+
 	UpdateTolerationsIfDefinedAndUpdated(&relayServer.Spec.Template.Spec.Tolerations, common.KubeArmorControllerTolerations)
 	if len(relayServer.Spec.Template.Spec.ImagePullSecrets) < 1 {
 		updateImagePullSecretFromGlobal(common.GlobalImagePullSecrets, &relayServer.Spec.Template.Spec.ImagePullSecrets)
