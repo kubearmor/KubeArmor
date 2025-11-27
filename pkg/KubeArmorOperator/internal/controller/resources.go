@@ -19,6 +19,7 @@ import (
 	crds "github.com/kubearmor/KubeArmor/pkg/KubeArmorController/crd"
 	certGen "github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/cert"
 	"github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/common"
+	"github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/utils"
 	v1 "k8s.io/api/admissionregistration/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
@@ -184,13 +185,13 @@ func generateDaemonset(name, enforcer, runtime, socket, nriSocket, btfPresent, a
 	UpdateImagePullSecretsIfDefinedAndUpdated(&daemonset.Spec.Template.Spec.ImagePullSecrets, common.KubeArmorImagePullSecrets)
 	UpdateTolerationsIfDefinedAndUpdated(&daemonset.Spec.Template.Spec.Tolerations, common.KubeArmorInitTolerations)
 	if len(daemonset.Spec.Template.Spec.ImagePullSecrets) < 1 {
-		updateImagePullSecretFromGlobal(common.GlobalImagePullSecrets, &daemonset.Spec.Template.Spec.ImagePullSecrets)
+		utils.UpdateImagePullSecretFromGlobal(common.GlobalImagePullSecrets, &daemonset.Spec.Template.Spec.ImagePullSecrets)
 	}
 	if len(daemonset.Spec.Template.Spec.ImagePullSecrets) < 1 && len(ImagePullSecrets) > 0 {
 		UpdateImagePullSecretsIfDefinedAndUpdated(&daemonset.Spec.Template.Spec.ImagePullSecrets, ImagePullSecrets)
 	}
 	if len(daemonset.Spec.Template.Spec.Tolerations) < 1 {
-		updateTolerationFromGlobal(common.GlobalTolerations, &daemonset.Spec.Template.Spec.Tolerations)
+		utils.UpdateTolerationFromGlobal(common.GlobalTolerations, &daemonset.Spec.Template.Spec.Tolerations)
 	}
 	daemonset.Spec.Template.Spec.Containers[0].Args = append(daemonset.Spec.Template.Spec.Containers[0].Args, ociArgs...)
 	daemonset.Spec.Template.Spec.InitContainers[0].Image = common.GetApplicationImage(common.KubeArmorInitName)
@@ -481,14 +482,6 @@ func deploySnitch(nodename string, runtime string) *batchv1.Job {
 	return &job
 }
 
-func isNotfound(err error) bool {
-	return err != nil && strings.Contains(err.Error(), "not found")
-}
-
-func isAlreadyExists(err error) bool {
-	return err != nil && strings.Contains(err.Error(), "already exist")
-}
-
 func addOwnership(obj interface{}) interface{} {
 	if deployment_uuid == "" {
 		return obj
@@ -598,7 +591,7 @@ func (clusterWatcher *ClusterWatcher) deployControllerDeployment(deployment *app
 	AddOrUpdateNodeSelector(deployment.Spec.Template.Spec.NodeSelector, common.KubeArmorControllerNodeSelector)
 
 	controller, err := clusterWatcher.Client.AppsV1().Deployments(common.Namespace).Get(context.Background(), deployment.Name, metav1.GetOptions{})
-	if isNotfound(err) {
+	if utils.IsNotfound(err) {
 		clusterWatcher.Log.Infof("Creating deployment %s", deployment.Name)
 		_, err = clusterWatcher.Client.AppsV1().Deployments(common.Namespace).Create(context.Background(), deployment, metav1.CreateOptions{})
 		if err != nil {
@@ -843,7 +836,7 @@ func (clusterWatcher *ClusterWatcher) WatchRequiredResources() {
 	ksp := crds.GetKspCRD()
 	ksp = addOwnership(ksp).(extv1.CustomResourceDefinition)
 	if _, err := clusterWatcher.ExtClient.ApiextensionsV1().CustomResourceDefinitions().Create(context.Background(), &ksp, metav1.CreateOptions{}); err != nil && !metav1errors.IsAlreadyExists(err) {
-		if !isAlreadyExists(err) {
+		if !utils.IsAlreadyExists(err) {
 			installErr = err
 			clusterWatcher.Log.Warnf("Cannot install Ksp CRD, error=%s", err.Error())
 		}
@@ -851,7 +844,7 @@ func (clusterWatcher *ClusterWatcher) WatchRequiredResources() {
 	hsp := crds.GetHspCRD()
 	hsp = addOwnership(hsp).(extv1.CustomResourceDefinition)
 	if _, err := clusterWatcher.ExtClient.ApiextensionsV1().CustomResourceDefinitions().Create(context.Background(), &hsp, metav1.CreateOptions{}); err != nil && !metav1errors.IsAlreadyExists(err) {
-		if !isAlreadyExists(err) {
+		if !utils.IsAlreadyExists(err) {
 			installErr = err
 			clusterWatcher.Log.Warnf("Cannot install Hsp CRD, error=%s", err.Error())
 		}
@@ -859,7 +852,7 @@ func (clusterWatcher *ClusterWatcher) WatchRequiredResources() {
 	csp := crds.GetCspCRD()
 	csp = addOwnership(csp).(extv1.CustomResourceDefinition)
 	if _, err := clusterWatcher.ExtClient.ApiextensionsV1().CustomResourceDefinitions().Create(context.Background(), &csp, metav1.CreateOptions{}); err != nil && !metav1errors.IsAlreadyExists(err) {
-		if !isAlreadyExists(err) {
+		if !utils.IsAlreadyExists(err) {
 			installErr = err
 			clusterWatcher.Log.Warnf("Cannot install Csp CRD, error=%s", err.Error())
 		}
@@ -879,13 +872,13 @@ func (clusterWatcher *ClusterWatcher) WatchRequiredResources() {
 	UpdateImagePullSecretsIfDefinedAndUpdated(&controller.Spec.Template.Spec.ImagePullSecrets, common.KubeArmorControllerImagePullSecrets)
 	UpdateTolerationsIfDefinedAndUpdated(&controller.Spec.Template.Spec.Tolerations, common.KubeArmorControllerTolerations)
 	if len(controller.Spec.Template.Spec.ImagePullSecrets) < 1 {
-		updateImagePullSecretFromGlobal(common.GlobalImagePullSecrets, &controller.Spec.Template.Spec.ImagePullSecrets)
+		utils.UpdateImagePullSecretFromGlobal(common.GlobalImagePullSecrets, &controller.Spec.Template.Spec.ImagePullSecrets)
 	}
 	if len(controller.Spec.Template.Spec.ImagePullSecrets) == 0 && len(ImagePullSecrets) > 0 {
 		UpdateImagePullSecretsIfDefinedAndUpdated(&controller.Spec.Template.Spec.ImagePullSecrets, ImagePullSecrets)
 	}
 	if len(controller.Spec.Template.Spec.Tolerations) < 1 {
-		updateTolerationFromGlobal(common.GlobalTolerations, &controller.Spec.Template.Spec.Tolerations)
+		utils.UpdateTolerationFromGlobal(common.GlobalTolerations, &controller.Spec.Template.Spec.Tolerations)
 	}
 	UpdateArgsIfDefinedAndUpdated(&relayServer.Spec.Template.Spec.Containers[0].Args, common.KubeArmorRelayArgs)
 	UpdateImagePullSecretsIfDefinedAndUpdated(&relayServer.Spec.Template.Spec.ImagePullSecrets, common.KubeArmorControllerImagePullSecrets)
@@ -895,10 +888,10 @@ func (clusterWatcher *ClusterWatcher) WatchRequiredResources() {
 
 	UpdateTolerationsIfDefinedAndUpdated(&relayServer.Spec.Template.Spec.Tolerations, common.KubeArmorControllerTolerations)
 	if len(relayServer.Spec.Template.Spec.ImagePullSecrets) < 1 {
-		updateImagePullSecretFromGlobal(common.GlobalImagePullSecrets, &relayServer.Spec.Template.Spec.ImagePullSecrets)
+		utils.UpdateImagePullSecretFromGlobal(common.GlobalImagePullSecrets, &relayServer.Spec.Template.Spec.ImagePullSecrets)
 	}
 	if len(relayServer.Spec.Template.Spec.Tolerations) < 1 {
-		updateTolerationFromGlobal(common.GlobalTolerations, &relayServer.Spec.Template.Spec.Tolerations)
+		utils.UpdateTolerationFromGlobal(common.GlobalTolerations, &relayServer.Spec.Template.Spec.Tolerations)
 	}
 	// update relay env vars
 	relayServer.Spec.Template.Spec.Containers[0].Env = []corev1.EnvVar{
@@ -1052,7 +1045,7 @@ func (clusterWatcher *ClusterWatcher) WatchRequiredResources() {
 	for {
 		for _, srvAcc := range srvAccs {
 			_, err = clusterWatcher.Client.CoreV1().ServiceAccounts(common.Namespace).Get(context.Background(), srvAcc.Name, metav1.GetOptions{})
-			if isNotfound(err) {
+			if utils.IsNotfound(err) {
 				clusterWatcher.Log.Infof("Creating service account %s", srvAcc.Name)
 				_, err := clusterWatcher.Client.CoreV1().ServiceAccounts(common.Namespace).Create(context.Background(), srvAcc, metav1.CreateOptions{})
 				if err != nil {
@@ -1066,7 +1059,7 @@ func (clusterWatcher *ClusterWatcher) WatchRequiredResources() {
 		//rbac
 		for _, role := range roles {
 			_, err = clusterWatcher.Client.RbacV1().Roles(common.Namespace).Get(context.Background(), role.Name, metav1.GetOptions{})
-			if isNotfound(err) {
+			if utils.IsNotfound(err) {
 				clusterWatcher.Log.Infof("Creating role %s", role.Name)
 				_, err := clusterWatcher.Client.RbacV1().Roles(common.Namespace).Create(context.Background(), role, metav1.CreateOptions{})
 				if err != nil {
@@ -1078,7 +1071,7 @@ func (clusterWatcher *ClusterWatcher) WatchRequiredResources() {
 
 		for _, binding := range roleBindings {
 			_, err = clusterWatcher.Client.RbacV1().RoleBindings(common.Namespace).Get(context.Background(), binding.Name, metav1.GetOptions{})
-			if isNotfound(err) {
+			if utils.IsNotfound(err) {
 				clusterWatcher.Log.Infof("Creating role binding %s", binding.Name)
 				_, err := clusterWatcher.Client.RbacV1().RoleBindings(common.Namespace).Create(context.Background(), binding, metav1.CreateOptions{})
 				if err != nil {
@@ -1090,7 +1083,7 @@ func (clusterWatcher *ClusterWatcher) WatchRequiredResources() {
 
 		for _, clusterRole := range clusterRoles {
 			role, err := clusterWatcher.Client.RbacV1().ClusterRoles().Get(context.Background(), clusterRole.Name, metav1.GetOptions{})
-			if isNotfound(err) {
+			if utils.IsNotfound(err) {
 				clusterWatcher.Log.Infof("Creating cluster role %s", clusterRole.Name)
 				_, err := clusterWatcher.Client.RbacV1().ClusterRoles().Create(context.Background(), clusterRole, metav1.CreateOptions{})
 				if err != nil {
@@ -1110,7 +1103,7 @@ func (clusterWatcher *ClusterWatcher) WatchRequiredResources() {
 
 		for _, binding := range clusterRoleBindings {
 			_, err = clusterWatcher.Client.RbacV1().ClusterRoleBindings().Get(context.Background(), binding.Name, metav1.GetOptions{})
-			if isNotfound(err) {
+			if utils.IsNotfound(err) {
 				clusterWatcher.Log.Infof("Creating cluster role binding %s", binding.Name)
 				_, err := clusterWatcher.Client.RbacV1().ClusterRoleBindings().Create(context.Background(), binding, metav1.CreateOptions{})
 				if err != nil {
@@ -1122,7 +1115,7 @@ func (clusterWatcher *ClusterWatcher) WatchRequiredResources() {
 
 		//configmap
 		_, err := clusterWatcher.Client.CoreV1().ConfigMaps(common.Namespace).Get(context.Background(), configmap.Name, metav1.GetOptions{})
-		if isNotfound(err) {
+		if utils.IsNotfound(err) {
 			clusterWatcher.Log.Infof("Creating ConfigMap %s", configmap.Name)
 			_, err := clusterWatcher.Client.CoreV1().ConfigMaps(common.Namespace).Create(context.Background(), configmap, metav1.CreateOptions{})
 			if err != nil {
@@ -1134,7 +1127,7 @@ func (clusterWatcher *ClusterWatcher) WatchRequiredResources() {
 		// svcs
 		for _, svc := range svcs {
 			_, err = clusterWatcher.Client.CoreV1().Services(common.Namespace).Get(context.Background(), svc.Name, metav1.GetOptions{})
-			if isNotfound(err) {
+			if utils.IsNotfound(err) {
 				clusterWatcher.Log.Infof("Creating service %s", svc.Name)
 				_, err := clusterWatcher.Client.CoreV1().Services(common.Namespace).Create(context.Background(), svc, metav1.CreateOptions{})
 				if err != nil {
@@ -1149,7 +1142,7 @@ func (clusterWatcher *ClusterWatcher) WatchRequiredResources() {
 
 		//secret
 		s, err := clusterWatcher.Client.CoreV1().Secrets(common.Namespace).Get(context.Background(), secret.Name, metav1.GetOptions{})
-		if isNotfound(err) {
+		if utils.IsNotfound(err) {
 			clusterWatcher.Log.Infof("Creating secret %s", secret.Name)
 			_, err := clusterWatcher.Client.CoreV1().Secrets(common.Namespace).Create(context.Background(), secret, metav1.CreateOptions{})
 			if err != nil {
@@ -1165,7 +1158,7 @@ func (clusterWatcher *ClusterWatcher) WatchRequiredResources() {
 		// deploy
 		for _, deploy := range deploys {
 			_, err := clusterWatcher.Client.AppsV1().Deployments(common.Namespace).Get(context.Background(), deploy.Name, metav1.GetOptions{})
-			if isNotfound(err) {
+			if utils.IsNotfound(err) {
 				clusterWatcher.Log.Infof("Creating deployment %s", deploy.Name)
 				_, err = clusterWatcher.Client.AppsV1().Deployments(common.Namespace).Create(context.Background(), deploy, metav1.CreateOptions{})
 				if err != nil {
@@ -1184,7 +1177,7 @@ func (clusterWatcher *ClusterWatcher) WatchRequiredResources() {
 
 		//mutation webhook
 		hook, err := clusterWatcher.Client.AdmissionregistrationV1().MutatingWebhookConfigurations().Get(context.Background(), mutationhook.Name, metav1.GetOptions{})
-		if isNotfound(err) {
+		if utils.IsNotfound(err) {
 			clusterWatcher.Log.Infof("Creating mutation webhook %s", mutationhook.Name)
 			_, err = clusterWatcher.Client.AdmissionregistrationV1().MutatingWebhookConfigurations().Create(context.Background(), mutationhook, metav1.CreateOptions{})
 			if err != nil {
