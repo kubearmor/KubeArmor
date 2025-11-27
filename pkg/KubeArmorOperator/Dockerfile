@@ -37,6 +37,8 @@ COPY $OPERATOR_DIR/runtime runtime
 COPY $OPERATOR_DIR/seccomp seccomp
 COPY $OPERATOR_DIR/recommend recommend
 COPY $OPERATOR_DIR/hook hook
+COPY $OPERATOR_DIR/utils utils
+
 
 # Build
 RUN CGO_ENABLED=0 GOOS=${GOOS} GOARCH=${GOARCH} GO111MODULE=on go build -a -o operator cmd/operator/main.go
