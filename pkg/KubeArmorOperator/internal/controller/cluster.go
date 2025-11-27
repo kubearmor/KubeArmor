@@ -27,6 +27,7 @@ import (
 	opv1Informer "github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/client/informers/externalversions"
 	"github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/common"
 	"github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/recommend"
+	"github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/utils"
 	"go.uber.org/zap"
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsclientset "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
@@ -98,7 +99,7 @@ func NewClusterWatcher(client *kubernetes.Clientset, log *zap.SugaredLogger, ext
 	ProviderEndpoint = providerEndpoint
 
 	// add image pull secrets
-	ImagePullSecrets = common.SanitizePullSecrets(imagePullSecrets)
+	ImagePullSecrets = utils.SanitizePullSecrets(imagePullSecrets)
 
 	return &ClusterWatcher{
 		Nodes:          []Node{},
@@ -111,18 +112,6 @@ func NewClusterWatcher(client *kubernetes.Clientset, log *zap.SugaredLogger, ext
 		Opv1Client:     opv1Client,
 		Secv1Client:    secv1Client,
 	}
-}
-
-func extractVolumeFromMessage(message string) (string, bool) {
-	// find volume name between quotes after "volume"
-	// Message: MountVolume.SetUp failed for volume \"notexists-path\"
-	re := regexp.MustCompile(`volume\s*\"([^\"]+)\"`)
-	matches := re.FindStringSubmatch(message)
-
-	if len(matches) > 1 {
-		return matches[1], true
-	}
-	return "", false
 }
 
 func extractPathFromMessage(message string) (string, bool) {
@@ -186,14 +175,14 @@ func (clusterWatcher *ClusterWatcher) checkJobStatus(job, runtime, nodename stri
 						event.Reason == "VolumeMountsFailed") {
 						clusterWatcher.Log.Infof("Got Failed Event for job pod: %v", event.Message)
 						mountFailure = true
-						failedMount, _ = extractVolumeFromMessage(event.Message)
+						failedMount, _ = utils.ExtractVolumeFromMessage(event.Message)
 						clusterWatcher.Log.Infof("FailedMount: %s", failedMount)
 						break
 					}
 
 					if event.Type == "Warning" && event.Reason == "Failed" && strings.Contains(event.Message, "mkdir") {
 						clusterWatcher.Log.Infof("Got Failed Event for job pod: %v", event.Message)
-						if path, readOnly := extractPathFromMessage(event.Message); readOnly {
+						if path, readOnly := utils.ExtractPathFromMessage(event.Message); readOnly {
 							failedMount = path
 							mountFailure = true
 							clusterWatcher.Log.Infof("ReadOnly FS: %s", failedMount)
@@ -278,7 +267,7 @@ func (clusterWatcher *ClusterWatcher) WatchNodes() {
 				if old, ok := oldObj.(*corev1.Node); ok {
 					oldRand = old.Labels[common.RandLabel]
 
-					nodeRestart := checkNodeRestart(node, old)
+					nodeRestart := utils.CheckNodeRestart(node, old)
 					if nodeRestart {
 						runtime := node.Status.NodeInfo.ContainerRuntimeVersion
 						runtime = strings.Split(runtime, ":")[0]
@@ -472,7 +461,7 @@ func (clusterWatcher *ClusterWatcher) WatchConfigCrd() {
 						UpdatedKubearmorRelayEnv(&cfg.Spec)
 						UpdatedSeccomp(&cfg.Spec)
 						UpdateRecommendedPolicyConfig(&cfg.Spec)
-						UpdateControllerPort(&cfg.Spec)
+						utils.UpdateControllerPort(&cfg.Spec)
 						// update status to (Installation) Created
 						go clusterWatcher.UpdateCrdStatus(cfg.Name, common.CREATED, common.CREATED_MSG)
 						go clusterWatcher.WatchRequiredResources()
@@ -493,7 +482,7 @@ func (clusterWatcher *ClusterWatcher) WatchConfigCrd() {
 					if common.OperatorConfigCrd != nil && cfg.Name == common.OperatorConfigCrd.Name {
 						configChanged := UpdateConfigMapData(&cfg.Spec)
 						imageUpdated := UpdateImages(&cfg.Spec)
-						controllerPortUpdated := UpdateControllerPort(&cfg.Spec)
+						controllerPortUpdated := utils.UpdateControllerPort(&cfg.Spec)
 						relayEnvUpdated := UpdatedKubearmorRelayEnv(&cfg.Spec)
 						seccompEnabledUpdated := UpdatedSeccomp(&cfg.Spec)
 						tlsUpdated := UpdateTlsData(&cfg.Spec)
@@ -548,22 +537,6 @@ func (clusterWatcher *ClusterWatcher) WatchConfigCrd() {
 	}
 }
 
-func updateImagePullSecretFromGlobal(global []corev1.LocalObjectReference, dst *[]corev1.LocalObjectReference) {
-	for _, sec := range global {
-		if !slices.Contains(*dst, sec) {
-			*dst = append(*dst, sec)
-		}
-	}
-}
-
-func updateTolerationFromGlobal(global []corev1.Toleration, dst *[]corev1.Toleration) {
-	for _, tol := range global {
-		if !slices.Contains(*dst, tol) {
-			*dst = append(*dst, tol)
-		}
-	}
-}
-
 func (clusterWatcher *ClusterWatcher) UpdateKubeArmorImages(images []string) error {
 	var res error
 	for _, img := range images {
@@ -582,11 +555,14 @@ func (clusterWatcher *ClusterWatcher) UpdateKubeArmorImages(images []string) err
 					ds.Spec.Template.Spec.Containers[0].Args = common.KubeArmorArgs
 					ds.Spec.Template.Spec.ImagePullSecrets = common.KubeArmorImagePullSecrets
 					if len(ds.Spec.Template.Spec.ImagePullSecrets) < 1 {
-						updateImagePullSecretFromGlobal(common.GlobalImagePullSecrets, &ds.Spec.Template.Spec.ImagePullSecrets)
+						utils.UpdateImagePullSecretFromGlobal(common.GlobalImagePullSecrets, &ds.Spec.Template.Spec.ImagePullSecrets)
+					}
+					if len(ds.Spec.Template.Spec.ImagePullSecrets) == 0 && len(ImagePullSecrets) > 0 {
+						UpdateImagePullSecretsIfDefinedAndUpdated(&ds.Spec.Template.Spec.ImagePullSecrets, ImagePullSecrets)
 					}
 					ds.Spec.Template.Spec.Tolerations = common.KubeArmorTolerations
 					if len(ds.Spec.Template.Spec.Tolerations) < 1 {
-						updateTolerationFromGlobal(common.GlobalTolerations, &ds.Spec.Template.Spec.Tolerations)
+						utils.UpdateTolerationFromGlobal(common.GlobalTolerations, &ds.Spec.Template.Spec.Tolerations)
 					}
 
 					// update with globalNodeSelector
@@ -652,11 +628,14 @@ func (clusterWatcher *ClusterWatcher) UpdateKubeArmorImages(images []string) err
 				relay.Spec.Template.Spec.Containers[0].Args = common.KubeArmorRelayArgs
 				relay.Spec.Template.Spec.ImagePullSecrets = common.KubeArmorRelayImagePullSecrets
 				if len(relay.Spec.Template.Spec.ImagePullSecrets) < 1 {
-					updateImagePullSecretFromGlobal(common.GlobalImagePullSecrets, &relay.Spec.Template.Spec.ImagePullSecrets)
+					utils.UpdateImagePullSecretFromGlobal(common.GlobalImagePullSecrets, &relay.Spec.Template.Spec.ImagePullSecrets)
+				}
+				if len(relay.Spec.Template.Spec.ImagePullSecrets) == 0 && len(ImagePullSecrets) > 0 {
+					UpdateImagePullSecretsIfDefinedAndUpdated(&relay.Spec.Template.Spec.ImagePullSecrets, ImagePullSecrets)
 				}
 				relay.Spec.Template.Spec.Tolerations = common.KubeArmorRelayTolerations
 				if len(relay.Spec.Template.Spec.Tolerations) < 1 {
-					updateTolerationFromGlobal(common.GlobalTolerations, &relay.Spec.Template.Spec.Tolerations)
+					utils.UpdateTolerationFromGlobal(common.GlobalTolerations, &relay.Spec.Template.Spec.Tolerations)
 				}
 
 				// update with globalNodeSelector
@@ -692,12 +671,18 @@ func (clusterWatcher *ClusterWatcher) UpdateKubeArmorImages(images []string) err
 			} else {
 				controller := dep.DeepCopy()
 				controller.Spec.Template.Spec.ImagePullSecrets = common.KubeArmorControllerImagePullSecrets
+				if len(controller.Spec.Template.Spec.ImagePullSecrets) == 0 && len(ImagePullSecrets) > 0 {
+					UpdateImagePullSecretsIfDefinedAndUpdated(&controller.Spec.Template.Spec.ImagePullSecrets, ImagePullSecrets)
+				}
 				if len(controller.Spec.Template.Spec.ImagePullSecrets) < 1 {
-					updateImagePullSecretFromGlobal(common.GlobalImagePullSecrets, &controller.Spec.Template.Spec.ImagePullSecrets)
+					utils.UpdateImagePullSecretFromGlobal(common.GlobalImagePullSecrets, &controller.Spec.Template.Spec.ImagePullSecrets)
+				}
+				if len(controller.Spec.Template.Spec.ImagePullSecrets) == 0 && len(ImagePullSecrets) > 0 {
+					UpdateImagePullSecretsIfDefinedAndUpdated(&controller.Spec.Template.Spec.ImagePullSecrets, ImagePullSecrets)
 				}
 				controller.Spec.Template.Spec.Tolerations = common.KubeArmorControllerTolerations
 				if len(controller.Spec.Template.Spec.Tolerations) < 1 {
-					updateTolerationFromGlobal(common.GlobalTolerations, &controller.Spec.Template.Spec.Tolerations)
+					utils.UpdateTolerationFromGlobal(common.GlobalTolerations, &controller.Spec.Template.Spec.Tolerations)
 				}
 				containers := &controller.Spec.Template.Spec.Containers
 				for i, container := range *containers {
@@ -1203,7 +1188,7 @@ func (clusterWatcher *ClusterWatcher) UpdateKubeArmorConfigMap(cfg *opv1.KubeArm
 	err := wait.ExponentialBackoff(wait.Backoff{Steps: 5, Duration: 500 * time.Millisecond}, func() (bool, error) {
 		cm, err := clusterWatcher.Client.CoreV1().ConfigMaps(common.Namespace).Get(context.Background(), deployments.KubeArmorConfigMapName, metav1.GetOptions{})
 		if err != nil {
-			if isNotfound(err) {
+			if utils.IsNotfound(err) {
 				return true, nil
 			}
 			// retry the update
@@ -1666,46 +1651,4 @@ func UpdateTlsData(config *opv1.KubeArmorConfigSpec) bool {
 	}
 
 	return updated
-}
-func UpdateControllerPort(config *opv1.KubeArmorConfigSpec) bool {
-	updated := false
-	if config.ControllerPort != 0 && config.ControllerPort != common.KubeArmorControllerPort {
-
-		common.ControllerPortLock.Lock()
-		common.KubeArmorControllerPort = config.ControllerPort
-		common.ControllerPortLock.Unlock()
-		updated = true
-	}
-
-	return updated
-}
-func checkNodeRestart(new, old *corev1.Node) bool {
-
-	oldTaints := false
-	newTaints := false
-
-	for _, val := range old.Spec.Taints {
-		if val.Key == common.NotreadyTaint || val.Key == common.UnreachableTaint || val.Key == common.UnschedulableTaint {
-			oldTaints = true
-			break
-		}
-
-	}
-	for _, val := range new.Spec.Taints {
-		if val.Key == common.NotreadyTaint || val.Key == common.UnreachableTaint || val.Key == common.UnschedulableTaint {
-			newTaints = true
-			break
-		}
-	}
-	/* Based on observation that when a node is restarted an update event
-	   is generated with old node having following node taints
-	   "node.kubernetes.io/not-ready" , "node.kubernetes.io/unreachable", "node.kubernetes.io/unschedulable"
-	   and new node having none of these taints
-	*/
-	if oldTaints && !newTaints {
-		// node might have been restarted
-		return true
-	}
-
-	return false
 }
