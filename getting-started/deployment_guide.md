@@ -14,6 +14,15 @@ kubectl apply -f https://raw.githubusercontent.com/kubearmor/KubeArmor/main/pkg/
 
 You can find more details about helm related values and configurations [here](https://github.com/kubearmor/KubeArmor/tree/main/deployments/helm/KubeArmorOperator).
 
+### Using images from a private registry
+
+If your KubeArmor images are hosted in a private registry, configure image pull secrets through the Helm chart values.
+
+1. Create an image pull secret in the target namespace.
+2. Set `kubearmorOperator.image.imagePullSecrets` in the Helm values file or with `--set` so the operator pod can pull its image.
+3. Use `imagePullSecrets` fields in `KubeArmorConfig` for KubeArmor, init, relay, and controller images. The operator propagates these fields to the corresponding DaemonSets and Deployments.
+4. Optionally configure `GloabalImagePullSecrets` in `KubeArmorConfig` to apply a common set of image pull secrets across KubeArmor, init, relay, and controller.
+
 ## Install kArmor CLI (Optional)
 
 ```
