@@ -15,6 +15,42 @@ cd deployments/helm/KubeArmorOperator
 helm upgrade --install kubearmor-operator . -n kubearmor --create-namespace
 ```
 
+## Using private registries
+
+To pull images from a private registry, configure `imagePullSecrets` for the operator. The operator passes these secrets to all KubeArmor components it deploys (KubeArmor DaemonSets, relay, controller, and snitch jobs) when they do not already define image pull secrets.
+
+1. Create one or more image pull secrets in the `kubearmor` namespace, for example:
+
+   ```bash
+   kubectl create secret docker-registry my-regcred \
+     --docker-server=<REGISTRY_URL> \
+     --docker-username=<USERNAME> \
+     --docker-password=<PASSWORD> \
+     -n kubearmor
+   ```
+
+2. Pass the secrets to the operator using the `imagePullSecrets` field under `kubearmorOperator.image` in `values.yaml`, for example:
+
+   ```yaml
+   kubearmorOperator:
+     image:
+       imagePullSecrets:
+         - name: my-regcred
+         - name: another-regcred
+   ```
+
+   This sets:
+
+   - `spec.template.spec.imagePullSecrets` in the operator Deployment.
+   - The `--image-pull-secrets` argument for the operator container, which the operator uses to configure image pull secrets on managed workloads.
+
+3. Install or upgrade the chart with your customized values file:
+
+   ```bash
+   helm upgrade --install kubearmor-operator kubearmor/kubearmor-operator \
+     -n kubearmor --create-namespace -f values-private-registry.yaml
+   ```
+
 ## Values
 
 | Key | Type | Default | Description |
