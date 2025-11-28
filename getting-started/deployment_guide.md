@@ -14,6 +14,19 @@ kubectl apply -f https://raw.githubusercontent.com/kubearmor/KubeArmor/main/pkg/
 
 You can find more details about helm related values and configurations [here](https://github.com/kubearmor/KubeArmor/tree/main/deployments/helm/KubeArmorOperator).
 
+### Using image pull secrets with the operator
+
+When you set `.Values.kubearmorOperator.image.imagePullSecrets` in the Helm chart, the chart passes the same value to the operator container as the `--image-pull-secrets` flag.
+
+The operator reads this flag and uses it as image pull secrets for:
+
+- KubeArmor daemonsets
+- KubeArmor relay deployment
+- KubeArmor controller deployment
+- The snitch job used for node discovery
+
+This lets you use the same image pull secrets for all KubeArmor components that the operator manages.
+
 ## Install kArmor CLI (Optional)
 
 ```
