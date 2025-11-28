@@ -14,6 +14,31 @@ kubectl apply -f https://raw.githubusercontent.com/kubearmor/KubeArmor/main/pkg/
 
 You can find more details about helm related values and configurations [here](https://github.com/kubearmor/KubeArmor/tree/main/deployments/helm/KubeArmorOperator).
 
+### Use private registries with image pull secrets
+
+If your KubeArmor images are stored in private registries, configure image pull secrets on the operator deployment. The operator passes these secrets to all managed KubeArmor workloads.
+
+1. Create one or more image pull secrets in the target namespace (for example, `kubearmor`).
+2. Set `kubearmorOperator.image.imagePullSecrets` in the Helm values to reference these secrets.
+3. Install or upgrade the operator with your customized values file.
+
+Example:
+
+```
+helm upgrade --install kubearmor-operator kubearmor/kubearmor-operator \
+  -n kubearmor --create-namespace \
+  -f values-private-registry.yaml
+```
+
+In `values-private-registry.yaml`:
+
+```
+kubearmorOperator:
+  image:
+    imagePullSecrets:
+      - name: my-private-registry-secret
+```
+
 ## Install kArmor CLI (Optional)
 
 ```
