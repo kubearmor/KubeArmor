@@ -829,6 +829,7 @@ func GetKubearmorConfigMap(namespace, name string) *corev1.ConfigMap {
 	data[cfg.ConfigAlertThrottling] = "true"
 	data[cfg.ConfigMaxAlertPerSec] = "10"
 	data[cfg.ConfigThrottleSec] = "30"
+	data[cfg.ConfigArgMatching] = "true"
 
 	return &corev1.ConfigMap{
 		TypeMeta: metav1.TypeMeta{
