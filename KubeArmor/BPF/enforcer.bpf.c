@@ -4,12 +4,17 @@
 
 #include "shared.h"
 #include "syscalls.h"
-
+#include "arg_matching_helpers.h"
 SEC("lsm/bprm_check_security")
-int BPF_PROG(enforce_proc, struct linux_binprm *bprm, int ret) {
+int BPF_PROG(enforce_proc, struct linux_binprm *bprm, int ret)
+{
   struct task_struct *t = (struct task_struct *)bpf_get_current_task();
   event *task_info;
   int retval = ret;
+
+  // no of arguments
+  unsigned int num_of_args = BPF_CORE_READ(bprm, argc);
+  bool argmatch = false;
 
   bool match = false;
 
@@ -18,7 +23,8 @@ int BPF_PROG(enforce_proc, struct linux_binprm *bprm, int ret) {
 
   u32 *inner = bpf_map_lookup_elem(&kubearmor_containers, &okey);
 
-  if (!inner) {
+  if (!inner)
+  {
     return 0;
   }
 
@@ -58,7 +64,7 @@ int BPF_PROG(enforce_proc, struct linux_binprm *bprm, int ret) {
   struct data_t *dirval;
   bool recursivebuthint = false;
   bool fromSourceCheck = true;
-  bool goToDecision = false ;
+  bool goToDecision = false;
 
   // Extract full path of the source binary from the parent task structure
   struct task_struct *parent_task = BPF_CORE_READ(t, parent);
@@ -77,27 +83,32 @@ int BPF_PROG(enforce_proc, struct linux_binprm *bprm, int ret) {
     fromSourceCheck = false;
 
   void *src_ptr;
-  if (src_buf->buf[*src_offset]) {
+  if (src_buf->buf[*src_offset])
+  {
     src_ptr = &src_buf->buf[*src_offset];
   }
   if (src_ptr == NULL)
     fromSourceCheck = false;
 
-  if (fromSourceCheck) {
+  if (fromSourceCheck)
+  {
     bpf_probe_read_str(store->source, MAX_STRING_SIZE, src_ptr);
 
     val = bpf_map_lookup_elem(inner, store);
-    if (val && (val->processmask & RULE_EXEC)) {
+    if (val && (val->processmask & RULE_EXEC))
+    {
       match = true;
       goto decision;
     }
 
 #pragma unroll
-    for (int i = 0; i < 64; i++) {
+    for (int i = 0; i < 64; i++)
+    {
       if (store->path[i] == '\0')
         break;
 
-      if (store->path[i] == '/') {
+      if (store->path[i] == '/')
+      {
         bpf_map_update_elem(&bufk, &two, z, BPF_ANY);
 
         match = false;
@@ -106,42 +117,54 @@ int BPF_PROG(enforce_proc, struct linux_binprm *bprm, int ret) {
         // Check Subdir with From Source
         bpf_probe_read_str(pk->source, MAX_STRING_SIZE, store->source);
         dirval = bpf_map_lookup_elem(inner, pk);
-        if (dirval) {
+        if (dirval)
+        {
           if ((dirval->processmask & RULE_DIR) &&
-              (dirval->processmask & RULE_EXEC)) {
+              (dirval->processmask & RULE_EXEC))
+          {
             match = true;
             if ((dirval->processmask & RULE_RECURSIVE) &&
                 (~dirval->processmask &
-                 RULE_HINT)) { // true directory match and not a hint suggests
-                               // there are no possibility of child dir
+                 RULE_HINT))
+            { // true directory match and not a hint suggests
+              // there are no possibility of child dir
               val = dirval;
               goToDecision = true; // to please the holy verifier
               break;
-            } else if (dirval->processmask &
-                       RULE_RECURSIVE) { // It's a directory match but also a
-                                         // hint, it's possible that a
-                                         // subdirectory exists that can also
+            }
+            else if (dirval->processmask &
+                     RULE_RECURSIVE)
+            { // It's a directory match but also a
+              // hint, it's possible that a
+              // subdirectory exists that can also
               // match so we continue the loop to look
               // for a true match in subdirectories
               recursivebuthint = true;
               val = dirval;
-            } else {
+            }
+            else
+            {
               continue; // We continue the loop to see if we have more nested
                         // directories and set match to false
             }
           }
-        } else {
+        }
+        else
+        {
           break;
         }
       }
     }
 
-    if (recursivebuthint || goToDecision) {
+    if (recursivebuthint || goToDecision)
+    {
       match = true;
       goto decision;
     }
-    if (match) {
-      if (dirval) { // to please the holy verifier
+    if (match)
+    {
+      if (dirval)
+      { // to please the holy verifier
         val = dirval;
         goto decision;
       }
@@ -152,7 +175,8 @@ int BPF_PROG(enforce_proc, struct linux_binprm *bprm, int ret) {
 
   val = bpf_map_lookup_elem(inner, pk);
 
-  if (val && (val->processmask & RULE_EXEC)) {
+  if (val && (val->processmask & RULE_EXEC))
+  {
     match = true;
     goto decision;
   }
@@ -165,7 +189,8 @@ int BPF_PROG(enforce_proc, struct linux_binprm *bprm, int ret) {
 
   val = bpf_map_lookup_elem(inner, pk);
 
-  if (val && (val->processmask & RULE_EXEC)) {
+  if (val && (val->processmask & RULE_EXEC))
+  {
     match = true;
     goto decision;
   }
@@ -173,49 +198,65 @@ int BPF_PROG(enforce_proc, struct linux_binprm *bprm, int ret) {
   recursivebuthint = false;
 
 #pragma unroll
-  for (int i = 0; i < 64; i++) {
+  for (int i = 0; i < 64; i++)
+  {
     if (store->path[i] == '\0')
       break;
 
-    if (store->path[i] == '/') {
+    if (store->path[i] == '/')
+    {
       bpf_map_update_elem(&bufk, &two, z, BPF_ANY);
 
       match = false;
 
       bpf_probe_read_str(pk->path, i + 2, store->path);
       dirval = bpf_map_lookup_elem(inner, pk);
-      if (dirval) {
+      if (dirval)
+      {
         if ((dirval->processmask & RULE_DIR) &&
-            (dirval->processmask & RULE_EXEC)) {
+            (dirval->processmask & RULE_EXEC))
+        {
           match = true;
           if ((dirval->processmask & RULE_RECURSIVE) &&
               (~dirval->processmask &
-               RULE_HINT)) { // true directory match and not a hint suggests
-                             // there are no possibility of child dir match
+               RULE_HINT))
+          { // true directory match and not a hint suggests
+            // there are no possibility of child dir match
             val = dirval;
             goto decision;
-          } else if (dirval->processmask & RULE_RECURSIVE) {
+          }
+          else if (dirval->processmask & RULE_RECURSIVE)
+          {
             recursivebuthint = true;
             val = dirval;
-          } else {
+          }
+          else
+          {
             continue; // We continue the loop to see if we have more nested
                       // directories and set match to false
           }
         }
-        if (~dirval->processmask & RULE_HINT) {
+        if (~dirval->processmask & RULE_HINT)
+        {
           break;
         }
-      } else {
+      }
+      else
+      {
         break;
       }
     }
   }
 
-  if (recursivebuthint) {
+  if (recursivebuthint)
+  {
     match = true;
     goto decision;
-  } else {
-    if (match && dirval) {
+  }
+  else
+  {
+    if (match && dirval)
+    {
       val = dirval;
       goto decision;
     }
@@ -223,21 +264,48 @@ int BPF_PROG(enforce_proc, struct linux_binprm *bprm, int ret) {
 
 decision:
 
-  if (match) {
-    if (val && (val->processmask & RULE_OWNER)) {
-      if (!is_owner(bprm->file)) {
+  if (match)
+  {
+    if (val && (val->processmask & RULE_ARGSET) && get_kubearmor_config(_MATCH_ARGS))
+    {
+      argmatch = matchArguments(num_of_args, &okey, store, pk);
+      if (argmatch)
+      {
+        // if arguments matches allow the process to be executed
+        return 0;
+      }
+    }
+    if (val && (val->processmask & RULE_OWNER))
+    {
+      if (!is_owner(bprm->file))
+      {
+        // if ((val->processmask & RULE_ARGSET) && argmatch)
+        // {
+        //   return 0;
+        // }
         retval = -EPERM;
-      } else {
+      }
+      else
+      {
         // Owner Only Rule Match, No need to enforce
         return ret;
       }
     }
-    if (val && (val->processmask & RULE_DENY)) {
+    else
+    {
+      if (argmatch)
+      {
+        return 0;
+      }
+    }
+    if (val && (val->processmask & RULE_DENY))
+    {
       retval = -EPERM;
     }
   }
 
-  if (retval == -EPERM) {
+  if (retval == -EPERM)
+  {
     goto ringbuf;
   }
 
@@ -245,9 +313,12 @@ decision:
   pk->path[0] = dproc;
   struct data_t *allow = bpf_map_lookup_elem(inner, pk);
 
-  if (allow) {
-    if (!match) {
-      if (allow->processmask == BLOCK_POSTURE) {
+  if (allow)
+  {
+    if (!match)
+    {
+      if (allow->processmask == BLOCK_POSTURE)
+      {
         retval = -EPERM;
       }
       goto ringbuf;
@@ -257,12 +328,14 @@ decision:
   return ret;
 
 ringbuf:
-  if (get_kubearmor_config(_ALERT_THROTTLING) && should_drop_alerts_per_container(okey)) {
+  if (get_kubearmor_config(_ALERT_THROTTLING) && should_drop_alerts_per_container(okey))
+  {
     return retval;
   }
 
   task_info = bpf_ringbuf_reserve(&kubearmor_events, sizeof(event), 0);
-  if (!task_info) {
+  if (!task_info)
+  {
     // Failed to reserve, doing policy enforcement without alert
     return retval;
   }
@@ -280,7 +353,8 @@ ringbuf:
   return retval;
 }
 
-static inline int match_net_rules(int type, int protocol, u32 eventID) {
+static inline int match_net_rules(int type, int protocol, u32 eventID)
+{
   event *task_info;
   int retval = 0;
 
@@ -293,7 +367,8 @@ static inline int match_net_rules(int type, int protocol, u32 eventID) {
 
   u32 *inner = bpf_map_lookup_elem(&kubearmor_containers, &okey);
 
-  if (!inner) {
+  if (!inner)
+  {
     return 0;
   }
   u32 zero = 0;
@@ -331,59 +406,74 @@ static inline int match_net_rules(int type, int protocol, u32 eventID) {
   if (src_offset == NULL)
     fromSourceCheck = false;
 
-
   // socket type check
-  if (type == SOCK_STREAM || type == SOCK_DGRAM || type == SOCK_RAW || type == SOCK_RDM || type == SOCK_SEQPACKET || type == SOCK_DCCP || type == SOCK_PACKET) {
+  if (type == SOCK_STREAM || type == SOCK_DGRAM || type == SOCK_RAW || type == SOCK_RDM || type == SOCK_SEQPACKET || type == SOCK_DCCP || type == SOCK_PACKET)
+  {
     p0_t = sock_type;
     p1_t = type;
   }
-  
+
   // protocol check
-  if (type == SOCK_STREAM && (protocol == IPPROTO_TCP || protocol == 0)) {
+  if (type == SOCK_STREAM && (protocol == IPPROTO_TCP || protocol == 0))
+  {
     p0_p = sock_proto;
     p1_p = IPPROTO_TCP;
-  } else if (type == SOCK_DGRAM && (protocol == IPPROTO_UDP || protocol == 0)) {
+  }
+  else if (type == SOCK_DGRAM && (protocol == IPPROTO_UDP || protocol == 0))
+  {
     p0_p = sock_proto;
     p1_p = IPPROTO_UDP;
-  } else if (protocol == IPPROTO_ICMP &&
-             (type == SOCK_DGRAM || type == SOCK_RAW)) {
+  }
+  else if (protocol == IPPROTO_ICMP &&
+           (type == SOCK_DGRAM || type == SOCK_RAW))
+  {
     p0_p = sock_proto;
     p1_p = IPPROTO_ICMP;
-  } else if (protocol == IPPROTO_ICMPV6 &&
-             (type == SOCK_DGRAM || type == SOCK_RAW)) {
+  }
+  else if (protocol == IPPROTO_ICMPV6 &&
+           (type == SOCK_DGRAM || type == SOCK_RAW))
+  {
     p0_p = sock_proto;
     p1_p = IPPROTO_ICMPV6;
-  } else if ((type == SOCK_STREAM || type == SOCK_SEQPACKET) && (protocol == IPPROTO_SCTP || protocol == 0)) {
+  }
+  else if ((type == SOCK_STREAM || type == SOCK_SEQPACKET) && (protocol == IPPROTO_SCTP || protocol == 0))
+  {
     p0_p = sock_proto;
     p1_p = IPPROTO_SCTP;
-  } else {
+  }
+  else
+  {
     p0_p = sock_proto;
     p1_p = protocol;
   }
 
   // socket type fromsource check
-  if (fromSourceCheck) {
+  if (fromSourceCheck)
+  {
     void *ptr = &src_buf->buf[*src_offset];
     bpf_probe_read_str(p->source, MAX_STRING_SIZE, ptr);
     p->path[0] = p0_t;
     p->path[1] = p1_t;
     bpf_probe_read_str(store->source, MAX_STRING_SIZE, p->source);
     val = bpf_map_lookup_elem(inner, p);
-    if (val) {
+    if (val)
+    {
       match = true;
       goto decision;
     }
   }
 
   // protocol fromsource check
-  if (fromSourceCheck) {
+  if (fromSourceCheck)
+  {
     void *ptr = &src_buf->buf[*src_offset];
     bpf_probe_read_str(p->source, MAX_STRING_SIZE, ptr);
     p->path[0] = p0_p;
     p->path[1] = p1_p;
     bpf_probe_read_str(store->source, MAX_STRING_SIZE, p->source);
     val = bpf_map_lookup_elem(inner, p);
-    if (val) {
+    if (val)
+    {
       match = true;
       goto decision;
     }
@@ -396,7 +486,8 @@ static inline int match_net_rules(int type, int protocol, u32 eventID) {
 
   val = bpf_map_lookup_elem(inner, p);
 
-  if (val) {
+  if (val)
+  {
     match = true;
     goto decision;
   }
@@ -408,7 +499,8 @@ static inline int match_net_rules(int type, int protocol, u32 eventID) {
 
   val = bpf_map_lookup_elem(inner, p);
 
-  if (val) {
+  if (val)
+  {
     match = true;
     goto decision;
   }
@@ -416,8 +508,10 @@ static inline int match_net_rules(int type, int protocol, u32 eventID) {
 decision:
 
   bpf_probe_read_str(store->path, MAX_STRING_SIZE, p->path);
-  if (match) {
-    if (val && (val->processmask & RULE_DENY)) {
+  if (match)
+  {
+    if (val && (val->processmask & RULE_DENY))
+    {
       retval = -EPERM;
       goto ringbuf;
     }
@@ -428,9 +522,12 @@ decision:
 
   struct data_t *allow = bpf_map_lookup_elem(inner, p);
 
-  if (allow) {
-    if (!match) {
-      if (allow->processmask == BLOCK_POSTURE) {
+  if (allow)
+  {
+    if (!match)
+    {
+      if (allow->processmask == BLOCK_POSTURE)
+      {
         retval = -EPERM;
       }
       goto ringbuf;
@@ -440,15 +537,17 @@ decision:
   return 0;
 
 ringbuf:
-  if (get_kubearmor_config(_ALERT_THROTTLING) && should_drop_alerts_per_container(okey)) {
+  if (get_kubearmor_config(_ALERT_THROTTLING) && should_drop_alerts_per_container(okey))
+  {
     return retval;
   }
 
   task_info = bpf_ringbuf_reserve(&kubearmor_events, sizeof(event), 0);
-  if (!task_info) {
+  if (!task_info)
+  {
     return retval;
   }
-  
+
   // Clearing arrays to avoid garbage values to be parsed
   __builtin_memset(task_info->data.path, 0, sizeof(task_info->data.path));
   __builtin_memset(task_info->data.source, 0, sizeof(task_info->data.source));
@@ -465,17 +564,19 @@ ringbuf:
 }
 
 SEC("lsm/socket_create")
-int BPF_PROG(enforce_net_create, int family, int type, int protocol) {
+int BPF_PROG(enforce_net_create, int family, int type, int protocol)
+{
   return match_net_rules(type, protocol, _SOCKET_CREATE);
 }
 
-#define LSM_NET(name, ID)                                                      \
-  int BPF_PROG(name, struct socket *sock) {                                    \
-    int sock_type = BPF_CORE_READ(sock, type);                                 \
-    struct sock *sk;                                                           \
-    sk = BPF_CORE_READ(sock, sk);                                              \
-    int protocol = BPF_CORE_READ(sk, sk_protocol);                             \
-    return match_net_rules(sock_type, protocol, ID);                           \
+#define LSM_NET(name, ID)                            \
+  int BPF_PROG(name, struct socket *sock)            \
+  {                                                  \
+    int sock_type = BPF_CORE_READ(sock, type);       \
+    struct sock *sk;                                 \
+    sk = BPF_CORE_READ(sock, sk);                    \
+    int protocol = BPF_CORE_READ(sk, sk_protocol);   \
+    return match_net_rules(sock_type, protocol, ID); \
   }
 
 SEC("lsm/socket_connect")
@@ -485,14 +586,17 @@ SEC("lsm/socket_accept")
 LSM_NET(enforce_net_accept, _SOCKET_ACCEPT);
 
 SEC("lsm/file_open")
-int BPF_PROG(enforce_file, struct file *file) { // check if ret code available
+int BPF_PROG(enforce_file, struct file *file)
+{ // check if ret code available
   struct path f_path = BPF_CORE_READ(file, f_path);
   return match_and_enforce_path_hooks(&f_path, dfileread, _FILE_OPEN);
 }
 
 SEC("lsm/file_permission")
-int BPF_PROG(enforce_file_perm, struct file *file, int mask) {
-  if (!(mask & (MASK_WRITE | MASK_APPEND))) {
+int BPF_PROG(enforce_file_perm, struct file *file, int mask)
+{
+  if (!(mask & (MASK_WRITE | MASK_APPEND)))
+  {
     // only relevant when write events triggered, since rest is blocked by
     // file_open
     return 0;
@@ -503,7 +607,8 @@ int BPF_PROG(enforce_file_perm, struct file *file, int mask) {
 }
 SEC("lsm/capable")
 int BPF_PROG(enforce_cap, const struct cred *cred, struct user_namespace *ns,
-             int cap, int ret) {
+             int cap, int ret)
+{
 
   event *task_info;
   int retval = 0;
@@ -517,7 +622,8 @@ int BPF_PROG(enforce_cap, const struct cred *cred, struct user_namespace *ns,
 
   u32 *inner = bpf_map_lookup_elem(&kubearmor_containers, &okey);
 
-  if (!inner) {
+  if (!inner)
+  {
     return 0;
   }
 
@@ -560,14 +666,16 @@ int BPF_PROG(enforce_cap, const struct cred *cred, struct user_namespace *ns,
   p0 = CAPABLE_KEY;
   p1 = cap;
 
-  if (fromSourceCheck) {
+  if (fromSourceCheck)
+  {
     bpf_probe_read_str(p->source, MAX_STRING_SIZE, ptr);
     bpf_probe_read_str(store->source, MAX_STRING_SIZE, p->source);
     p->path[0] = p0;
     p->path[1] = p1;
     val = bpf_map_lookup_elem(inner, p);
 
-    if (val) {
+    if (val)
+    {
       match = true;
       goto decision;
     }
@@ -580,15 +688,18 @@ int BPF_PROG(enforce_cap, const struct cred *cred, struct user_namespace *ns,
 
   val = bpf_map_lookup_elem(inner, p);
 
-  if (val) {
+  if (val)
+  {
     match = true;
     goto decision;
   }
 
 decision:
   bpf_probe_read_str(store->path, MAX_STRING_SIZE, p->path);
-  if (match) {
-    if (val && (val->processmask & RULE_DENY)) {
+  if (match)
+  {
+    if (val && (val->processmask & RULE_DENY))
+    {
       retval = -EPERM;
       goto ringbuf;
     }
@@ -598,9 +709,12 @@ decision:
   p->path[0] = dcap;
   struct data_t *allow = bpf_map_lookup_elem(inner, p);
 
-  if (allow) {
-    if (!match) {
-      if (allow->processmask == BLOCK_POSTURE) {
+  if (allow)
+  {
+    if (!match)
+    {
+      if (allow->processmask == BLOCK_POSTURE)
+      {
         retval = -EPERM;
       }
       goto ringbuf;
@@ -610,12 +724,14 @@ decision:
   return 0;
 
 ringbuf:
-  if (get_kubearmor_config(_ALERT_THROTTLING) && should_drop_alerts_per_container(okey)) {
+  if (get_kubearmor_config(_ALERT_THROTTLING) && should_drop_alerts_per_container(okey))
+  {
     return retval;
   }
 
   task_info = bpf_ringbuf_reserve(&kubearmor_events, sizeof(event), 0);
-  if (!task_info) {
+  if (!task_info)
+  {
     return retval;
   }
 
