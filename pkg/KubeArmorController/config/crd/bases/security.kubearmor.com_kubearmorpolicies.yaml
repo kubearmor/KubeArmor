@@ -87,6 +87,7 @@ spec:
                               path:
                                 pattern: ^\/+.*[^\/]$
                                 type: string
+                                maxLength: 200
                             type: object
                           type: array
                         message:
@@ -134,12 +135,14 @@ spec:
                         dir:
                           pattern: ^\/$|^\/.*\/$
                           type: string
+                          maxLength: 200
                         fromSource:
                           items:
                             properties:
                               path:
                                 pattern: ^\/+.*[^\/]$
                                 type: string
+                                maxLength: 200
                             type: object
                           type: array
                         message:
@@ -177,6 +180,7 @@ spec:
                               path:
                                 pattern: ^\/+.*[^\/]$
                                 type: string
+                                maxLength: 200
                             type: object
                           type: array
                         message:
@@ -186,6 +190,7 @@ spec:
                         path:
                           pattern: ^\/+.*[^\/]$
                           type: string
+                          maxLength: 200
                         readOnly:
                           type: boolean
                         severity:
@@ -265,6 +270,7 @@ spec:
                               path:
                                 pattern: ^\/+.*[^\/]$
                                 type: string
+                                maxLength: 200
                             type: object
                           type: array
                         message:
@@ -328,12 +334,14 @@ spec:
                         dir:
                           pattern: ^\/$|^\/.*\/$
                           type: string
+                          maxLength: 200
                         fromSource:
                           items:
                             properties:
                               path:
                                 pattern: ^\/+.*[^\/]$
                                 type: string
+                                maxLength: 200
                             type: object
                           type: array
                         message:
