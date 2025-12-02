@@ -74,6 +74,8 @@ spec:
                 type: boolean
               controllerPort:
                 type: integer
+              matchArgs:
+                type: boolean
               defaultCapabilitiesPosture:
                 enum:
                 - audit
