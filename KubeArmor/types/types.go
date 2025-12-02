@@ -275,23 +275,23 @@ type Log struct {
 	Message  string   `json:"message,omitempty"`
 
 	// log
-	Type                   string `json:"type"`
-	Source                 string `json:"source"`
-	Operation              string `json:"operation"`
-	Resource               string `json:"resource"`
-	Cwd                    string `json:"cwd"`
-	TTY                    string `json:"tty,omitempty"`
-	OID                    int32  `json:"oid"`
+	Type                   string            `json:"type"`
+	Source                 string            `json:"source"`
+	Operation              string            `json:"operation"`
+	Resource               string            `json:"resource"`
+	Cwd                    string            `json:"cwd"`
+	TTY                    string            `json:"tty,omitempty"`
+	OID                    int32             `json:"oid"`
 	Data                   string            `json:"data,omitempty"`
 	EventData              map[string]string `json:"eventData,omitempty"`
-	ProcessHash            string `json:"processHash,omitempty"`
-	ParentHash             string `json:"parentHash,omitempty"`
-	ResourceHash           string `json:"resourceHash,omitempty"`
-	HashAlgo               string `json:"hashAlgo,omitempty"`
-	Action                 string `json:"action,omitempty"`
-	Result                 string `json:"result"`
-	MaxAlertsPerSec        int32  `json:"MaxAlertsPerSec,omitempty"`
-	DroppingAlertsInterval int32  `json:"DroppingAlertsInterval,omitempty"`
+	ProcessHash            string            `json:"processHash,omitempty"`
+	ParentHash             string            `json:"parentHash,omitempty"`
+	ResourceHash           string            `json:"resourceHash,omitempty"`
+	HashAlgo               string            `json:"hashAlgo,omitempty"`
+	Action                 string            `json:"action,omitempty"`
+	Result                 string            `json:"result"`
+	MaxAlertsPerSec        int32             `json:"MaxAlertsPerSec,omitempty"`
+	DroppingAlertsInterval int32             `json:"DroppingAlertsInterval,omitempty"`
 	// == //
 
 	PolicyEnabled int `json:"policyEnabled,omitempty"`
@@ -375,10 +375,11 @@ type MatchSourceType struct {
 
 // ProcessPathType Structure
 type ProcessPathType struct {
-	Path       string            `json:"path,omitempty"`
-	ExecName   string            `json:"execname,omitempty"`
-	OwnerOnly  bool              `json:"ownerOnly,omitempty"`
-	FromSource []MatchSourceType `json:"fromSource,omitempty"`
+	Path        string            `json:"path,omitempty"`
+	ExecName    string            `json:"execname,omitempty"`
+	OwnerOnly   bool              `json:"ownerOnly,omitempty"`
+	FromSource  []MatchSourceType `json:"fromSource,omitempty"`
+	AllowedArgs []string          `json:"allowedArgs,omitempty"`
 
 	Severity int      `json:"severity,omitempty"`
 	Tags     []string `json:"tags,omitempty"`
