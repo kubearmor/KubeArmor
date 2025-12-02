@@ -180,7 +180,7 @@ uninstall-crd: manifests kustomize ## Uninstall CRDs from the K8s cluster specif
 CONTROLLER_GEN = $(GOBIN)/controller-gen
 .PHONY: controller-gen
 controller-gen: ## Download controller-gen locally if necessary.
-	$(call go-get-tool,$(CONTROLLER_GEN),sigs.k8s.io/controller-tools/cmd/controller-gen@v0.14.0)
+	$(call go-get-tool,$(CONTROLLER_GEN),sigs.k8s.io/controller-tools/cmd/controller-gen@v0.19.0)
 
 KUSTOMIZE = /usr/local/bin/kustomize
 .PHONY: kustomize

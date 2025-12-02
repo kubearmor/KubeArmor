@@ -42,10 +42,10 @@ const (
 
 // Map Key Identifiers for Whitelist/Posture
 var (
-	PROCWHITELIST = InnerKey{Path: [256]byte{101}}
-	FILEWHITELIST = InnerKey{Path: [256]byte{102}}
-	NETWHITELIST  = InnerKey{Path: [256]byte{103}}
-	CAPWHITELIST  = InnerKey{Path: [256]byte{104}}
+	PROCWHITELIST = InnerKey{Path: [200]byte{101}}
+	FILEWHITELIST = InnerKey{Path: [200]byte{102}}
+	NETWHITELIST  = InnerKey{Path: [200]byte{103}}
+	CAPWHITELIST  = InnerKey{Path: [200]byte{104}}
 )
 
 // Protocol Identifiers for Network Rules
@@ -104,6 +104,8 @@ func (r *RuleList) Init() {
 
 	r.CapabilitiesRuleList = make(map[InnerKey][2]uint16)
 	r.CapWhiteListPosture = false
+
+	r.ArgumentsList = make(map[ArgListKey][]string)
 }
 
 // UpdateContainerRules updates individual container map with new rules and resolves conflicting rules
@@ -282,7 +284,7 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 
 		for _, net := range secPolicy.Spec.Network.MatchProtocols {
 			var val [2]uint16
-			var key = InnerKey{Path: [256]byte{}, Source: [256]byte{}}
+			var key = InnerKey{Path: [200]byte{}, Source: [200]byte{}}
 			if val, ok := protocols[strings.ToUpper(net.Protocol)]; ok {
 				key.Path[0] = byte(PROTOCOL)
 				key.Path[1] = byte(val)
@@ -302,7 +304,7 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 				}
 			} else {
 				for _, src := range net.FromSource {
-					var source [256]byte
+					var source [200]byte
 					copy(source[:], []byte(src.Path))
 					key.Source = source
 					if net.Action == "Allow" {
@@ -319,7 +321,7 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 		}
 		for _, capab := range secPolicy.Spec.Capabilities.MatchCapabilities {
 			var val [2]uint16
-			var key = InnerKey{Path: [256]byte{}, Source: [256]byte{}}
+			var key = InnerKey{Path: [200]byte{}, Source: [200]byte{}}
 
 			key.Path[0] = capableKey
 
@@ -341,7 +343,7 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 				}
 			} else {
 				for _, src := range capab.FromSource {
-					var source [256]byte
+					var source [200]byte
 					copy(source[:], []byte(src.Path))
 					key.Source = source
 					if capab.Action == "Allow" {
@@ -575,7 +577,7 @@ func dirtoMap(idx int, p, src string, m map[InnerKey][2]uint16, val [2]uint16) {
 	paths := strings.Split(p, "/")
 
 	// Add the directory itself but kernel space would refer it as a file so...
-	var pth [256]byte
+	var pth [200]byte
 	copy(pth[:], []byte(strings.Join(paths[0:len(paths)-1], "/")))
 	key.Path = pth
 	m[key] = val
