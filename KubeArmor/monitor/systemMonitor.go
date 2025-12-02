@@ -286,7 +286,7 @@ func (mon *SystemMonitor) UpdateMatchArgsConfig() {
 		}
 	}
 
-	mon.Logger.Printf("Argument matching configured {matchArgs:%v}", cfg.GlobalCfg.AlertThrottling)
+	mon.Logger.Printf("Argument matching configured {matchArgs:%v}", cfg.GlobalCfg.MatchArgs)
 }
 
 // DestroyBPFMaps Function
