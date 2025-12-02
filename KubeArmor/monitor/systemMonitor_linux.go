@@ -1,0 +1,942 @@
+//go:build linux
+
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2022 Authors of KubeArmor
+
+package monitor
+
+import (
+	"bytes"
+	"errors"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strconv"
+	"strings"
+	"sync"
+	"time"
+
+	cle "github.com/cilium/ebpf"
+	"github.com/cilium/ebpf/link"
+	"github.com/cilium/ebpf/perf"
+	"github.com/cilium/ebpf/rlimit"
+	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
+	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
+	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
+	probe "github.com/kubearmor/KubeArmor/KubeArmor/utils/bpflsmprobe"
+)
+
+var (
+	_ Monitor = (*MonitorImpl)(nil)
+)
+
+type MonitorImpl struct {
+	*MonitorState
+
+	// Ima Hash
+	ImaHash *ImaHash
+
+	BpfModule            *cle.Collection
+	BpfConfigMap         *cle.Map
+	BpfNsVisibilityMap   *cle.Map
+	BpfVisibilityMapSpec cle.MapSpec
+
+	NsVisibilityMap map[NsKey]*cle.Map
+
+	BpfMapLock *sync.RWMutex
+	PinPath    string
+
+	// Probes Links
+	Probes map[string]link.Link
+
+	// context + args
+	contextChan chan ContextCombined
+
+	// system events
+	SyscallChannel chan []byte
+	SyscallPerfMap *perf.Reader
+}
+
+func (mon *MonitorImpl) GetContextChannel() <-chan ContextCombined {
+	return mon.contextChan
+}
+
+func (mon *SystemMonitor) NewMonitor(ms *MonitorState) Monitor {
+	m := new(MonitorImpl)
+	m.MonitorState = ms
+	m.BpfMapLock = new(sync.RWMutex)
+	m.NsVisibilityMap = make(map[NsKey]*cle.Map)
+	m.BpfVisibilityMapSpec = cle.MapSpec{
+		Type:       cle.Hash,
+		KeySize:    4,
+		ValueSize:  4,
+		MaxEntries: 6,
+	}
+	kl.CheckOrMountBPFFs(cfg.GlobalCfg.BPFFsPath)
+	m.PinPath = kl.GetMapRoot()
+
+	return m
+}
+
+func (mon *MonitorImpl) Init() error {
+	return mon.InitBPF()
+}
+
+func (mon *MonitorImpl) Destroy() error {
+	(*mon.MonitorLock).Lock()
+	defer (*mon.MonitorLock).Unlock()
+
+	mon.Status = false
+
+	if mon.SyscallPerfMap != nil {
+		if err := mon.SyscallPerfMap.Close(); err != nil {
+			return err
+		}
+	}
+
+	if mon.BpfModule != nil {
+		mon.BpfModule.Close()
+	}
+
+	if mon.contextChan != nil {
+		close(mon.contextChan)
+	}
+
+	for _, link := range mon.Probes {
+		if err := link.Close(); err != nil {
+			return err
+		}
+	}
+
+	mon.DestroyBPFMaps()
+	return nil
+}
+
+// InitBPF Function
+func (mon *MonitorImpl) InitBPF() error {
+	homeDir, err := filepath.Abs(filepath.Dir(os.Args[0]))
+	if err != nil {
+		return err
+	}
+
+	bpfPath := homeDir + "/BPF/"
+	if _, err := os.Stat(filepath.Clean(bpfPath)); err != nil {
+		// go test
+
+		bpfPath = os.Getenv("PWD") + "/../BPF/"
+		if _, err := os.Stat(filepath.Clean(bpfPath)); err != nil {
+			// container
+
+			bpfPath = "/opt/kubearmor/BPF/"
+			if _, err := os.Stat(filepath.Clean(bpfPath)); err != nil {
+				return err
+			}
+		}
+	}
+
+	mon.Logger.Print("Initializing eBPF system monitor")
+
+	// Allow the current process to lock memory for eBPF resources.
+	if err := rlimit.RemoveMemlock(); err != nil {
+		return fmt.Errorf("error removing memlock %v", err)
+	}
+
+	bpfPath = bpfPath + "system_monitor.bpf.o"
+
+	err = mon.initBPFMaps()
+	if err != nil {
+		return err
+	}
+	mon.Logger.Printf("eBPF system monitor object file path: %s", bpfPath)
+	bpfModuleSpec, err := cle.LoadCollectionSpec(bpfPath)
+	if err != nil {
+		return fmt.Errorf("cannot load bpf module specs %v", err)
+	}
+	mon.BpfModule, err = cle.NewCollectionWithOptions(
+		bpfModuleSpec,
+		cle.CollectionOptions{
+			Maps: cle.MapOptions{
+				PinPath: PinPath,
+			},
+		},
+	)
+	if err != nil {
+		var verr *cle.VerifierError
+		if errors.As(err, &verr) {
+			fmt.Printf("Full log: %+v\n", verr)
+		}
+		return fmt.Errorf("bpf module is nil %v", err)
+	}
+
+	mon.Logger.Print("Initialized the eBPF system monitor")
+
+	systemCalls := []string{"open", "openat", "execve", "execveat", "socket", "connect", "accept", "bind", "listen", "unlink", "unlinkat", "rmdir", "ptrace", "chown", "setuid", "setgid", "fchownat", "mount", "umount"}
+	// {category, event}
+	sysTracepoints := [][2]string{{"syscalls", "sys_exit_openat"}, {"syscalls", "sys_enter_setns"}, {"syscalls", "sys_exit_setns"}, {"sched", "sched_process_fork"}}
+	sysKprobes := []string{"do_exit", "security_bprm_check", "security_file_open", "security_path_mknod", "security_path_unlink", "security_path_rmdir", "security_ptrace_access_check"}
+	netSyscalls := []string{"tcp_connect"}
+	netRetSyscalls := []string{"inet_csk_accept", "tcp_connect"}
+
+	if mon.BpfModule != nil {
+
+		mon.Probes = make(map[string]link.Link)
+
+		mon.Probes["kprobe__udp_sendmsg"], err = link.Kprobe("udp_sendmsg", mon.BpfModule.Programs["kprobe__udp_sendmsg"], nil)
+		if err != nil {
+			mon.Logger.Warnf("error loading kprobe udp_sendmsg %v", err)
+		}
+
+		for _, syscallName := range systemCalls {
+			mon.Probes["kprobe__"+syscallName], err = link.Kprobe("sys_"+syscallName, mon.BpfModule.Programs["kprobe__"+syscallName], nil)
+			if err != nil {
+				mon.Logger.Warnf("error loading kprobe %s: %v", syscallName, err)
+			}
+
+			mon.Probes["kretprobe__"+syscallName], err = link.Kretprobe("sys_"+syscallName, mon.BpfModule.Programs["kretprobe__"+syscallName], nil)
+			if err != nil {
+				mon.Logger.Warnf("error loading kretprobe %s: %v", syscallName, err)
+			}
+
+		}
+
+		for _, sysTracepoint := range sysTracepoints {
+			mon.Probes[sysTracepoint[1]], err = link.Tracepoint(sysTracepoint[0], sysTracepoint[1], mon.BpfModule.Programs[sysTracepoint[1]], nil)
+			if err != nil {
+				mon.Logger.Warnf("error:%s: %v", sysTracepoint, err)
+			}
+		}
+
+		for _, sysKprobe := range sysKprobes {
+			mon.Probes["kprobe__"+sysKprobe], err = link.Kprobe(sysKprobe, mon.BpfModule.Programs["kprobe__"+sysKprobe], nil)
+			if err != nil {
+				mon.Logger.Warnf("error loading kprobe %s: %v", sysKprobe, err)
+			}
+		}
+
+		for _, netSyscall := range netSyscalls {
+			mon.Probes["kprobe__"+netSyscall], err = link.Kprobe(netSyscall, mon.BpfModule.Programs["kprobe__"+netSyscall], nil)
+			if err != nil {
+				mon.Logger.Warnf("error loading kprobe %s: %v", netSyscall, err)
+			}
+		}
+
+		for _, netRetSyscall := range netRetSyscalls {
+			mon.Probes["kretprobe__"+netRetSyscall], err = link.Kretprobe(netRetSyscall, mon.BpfModule.Programs["kretprobe__"+netRetSyscall], nil)
+			if err != nil {
+				mon.Logger.Warnf("error loading kretprobe %s: %v", netRetSyscall, err)
+			}
+		}
+
+		mon.SyscallChannel = make(chan []byte, SyscallChannelSize)
+
+		mon.SyscallPerfMap, err = perf.NewReader(mon.BpfModule.Maps["sys_events"], os.Getpagesize()*1024)
+		if err != nil {
+			mon.Logger.Warnf("error initializing events perf map: %v", err)
+		}
+	}
+
+	return nil
+}
+
+// InitBPFMaps Function
+func (mon *MonitorImpl) initBPFMaps() error {
+	visibilityMap, errviz := cle.NewMapWithOptions(
+		&cle.MapSpec{
+			Name:       "kubearmor_visibility",
+			Type:       cle.HashOfMaps,
+			KeySize:    8,
+			ValueSize:  4,
+			MaxEntries: 65535,
+			Pinning:    cle.PinByName,
+			InnerMap:   &mon.BpfVisibilityMapSpec,
+		}, cle.MapOptions{
+			PinPath: mon.PinPath,
+		})
+	mon.BpfNsVisibilityMap = visibilityMap
+	mon.UpdateDefaultVisibility()
+
+	bpfConfigMap, errconfig := cle.NewMapWithOptions(
+		&cle.MapSpec{
+			Name:       "kubearmor_config",
+			Type:       cle.Hash,
+			KeySize:    4,
+			ValueSize:  4,
+			MaxEntries: 16,
+			Pinning:    cle.PinByName,
+			InnerMap:   &mon.BpfVisibilityMapSpec,
+		}, cle.MapOptions{
+			PinPath: mon.PinPath,
+		})
+	mon.BpfConfigMap = bpfConfigMap
+	if cfg.GlobalCfg.HostPolicy {
+		if err := mon.BpfConfigMap.Update(uint32(0), uint32(1), cle.UpdateAny); err != nil {
+			mon.Logger.Errf("Error Updating System Monitor Config Map to enable host visbility : %s", err.Error())
+		}
+	}
+	if cfg.GlobalCfg.Policy {
+		if err := mon.BpfConfigMap.Update(uint32(1), uint32(1), cle.UpdateAny); err != nil {
+			mon.Logger.Errf("Error Updating System Monitor Config Map to enable container visbility : %s", err.Error())
+		}
+	}
+
+	mon.UpdateThrottlingConfig()
+
+	return errors.Join(errviz, errconfig)
+}
+
+// CheckBPFLSMSupport func checks if BPF-LSM is supported
+func (mon *MonitorImpl) CheckBPFLSMSupport() error {
+	lsms := []string{}
+	lsmFile := []byte{}
+	lsmPath := "/sys/kernel/security/lsm"
+
+	if !kl.IsK8sLocal() {
+		// mount securityfs
+		if err := kl.RunCommandAndWaitWithErr("mount", []string{"-t", "securityfs", "securityfs", "/sys/kernel/security"}); err != nil {
+			if _, err := os.Stat(filepath.Clean("/sys/kernel/security")); err != nil {
+				mon.Logger.Warnf("Failed to read /sys/kernel/security (%s)", err.Error())
+				goto probeBPFLSM
+			}
+		}
+	}
+
+	if _, err := os.Stat(filepath.Clean(lsmPath)); err == nil {
+		lsmFile, err = os.ReadFile(lsmPath)
+		if err != nil {
+			mon.Logger.Warnf("Failed to read /sys/kernel/security/lsm (%s)", err.Error())
+			goto probeBPFLSM
+		}
+	}
+
+	lsms = strings.Split(string(lsmFile), ",")
+
+probeBPFLSM:
+	if !kl.ContainsElement(lsms, "bpf") {
+		return probe.CheckBPFLSMSupport()
+	}
+	return nil
+}
+
+// DestroyBPFMaps Function
+func (mon *MonitorImpl) DestroyBPFMaps() {
+	if mon.BpfNsVisibilityMap != nil {
+		err := mon.BpfNsVisibilityMap.Unpin()
+		if err != nil {
+			mon.Logger.Warnf("error unpinning bpf map kubearmor_visibility %v", err)
+		}
+		err = mon.BpfNsVisibilityMap.Close()
+		if err != nil {
+			mon.Logger.Warnf("error closing bpf map kubearmor_visibility %v", err)
+		}
+	}
+
+	if mon.BpfConfigMap != nil {
+		err := mon.BpfConfigMap.Unpin()
+		if err != nil {
+			mon.Logger.Warnf("error unpinning bpf map kubearmor_config %v", err)
+		}
+		err = mon.BpfConfigMap.Close()
+		if err != nil {
+			mon.Logger.Warnf("error closing bpf map kubearmor_config %v", err)
+		}
+	}
+}
+
+// UpdateNsKeyMap Function
+func (mon *MonitorImpl) UpdateNsVisibility(action string, nsKey NsKey, visibility tp.Visibility) {
+	var err error
+
+	file := cle.MapKV{
+		Key:   uint32(0),
+		Value: visibilityOff,
+	}
+	process := cle.MapKV{
+		Key:   uint32(1),
+		Value: visibilityOff,
+	}
+	network := cle.MapKV{
+		Key:   uint32(2),
+		Value: visibilityOff,
+	}
+	capability := cle.MapKV{
+		Key:   uint32(3),
+		Value: visibilityOff,
+	}
+	dns := cle.MapKV{
+		Key:   uint32(4),
+		Value: visibilityOff,
+	}
+	ima := cle.MapKV{
+		Key:   uint32(5),
+		Value: visibilityOff,
+	}
+	if visibility.File {
+		file.Value = visibilityOn
+	}
+	if visibility.Process {
+		process.Value = visibilityOn
+	}
+	if visibility.Capabilities {
+		capability.Value = visibilityOn
+	}
+	if visibility.Network {
+		network.Value = visibilityOn
+	}
+	if visibility.DNS {
+		dns.Value = visibilityOn
+	}
+	if visibility.IMA {
+		ima.Value = visibilityOn
+	}
+
+	if action == "ADDED" {
+		spec := mon.BpfVisibilityMapSpec
+		spec.Contents = append(spec.Contents, file)
+		spec.Contents = append(spec.Contents, process)
+		spec.Contents = append(spec.Contents, network)
+		spec.Contents = append(spec.Contents, capability)
+		spec.Contents = append(spec.Contents, dns)
+		spec.Contents = append(spec.Contents, ima)
+		visibilityMap, err := cle.NewMap(&spec)
+		if err != nil {
+			mon.Logger.Warnf("Cannot create bpf map %s", err)
+			return
+		}
+		mon.NsVisibilityMap[nsKey] = visibilityMap
+		err = mon.BpfNsVisibilityMap.Put(nsKey, visibilityMap)
+		if err != nil {
+			mon.Logger.Warnf("Cannot insert insert visibility map into kernel nskey=%+v, error=%s", nsKey, err)
+		}
+		mon.Logger.Printf("Successfully added visibility map with key=%+v to the kernel", nsKey)
+	} else if action == "MODIFIED" {
+		visibilityMap := mon.NsVisibilityMap[nsKey]
+		if visibilityMap == nil {
+			mon.Logger.Warnf("Cannot locate visibility map. nskey=%+v, action=modified", nsKey)
+			return
+		}
+
+		err = visibilityMap.Put(file.Key, file.Value)
+		if err != nil {
+			mon.Logger.Warnf("Cannot update visibility map. nskey=%+v, value=%+v, scope=file", nsKey, file.Value)
+		}
+		err = visibilityMap.Put(process.Key, process.Value)
+		if err != nil {
+			mon.Logger.Warnf("Cannot update visibility map. nskey=%+v, value=%+v, scope=process", nsKey, process.Value)
+		}
+		err = visibilityMap.Put(network.Key, network.Value)
+		if err != nil {
+			mon.Logger.Warnf("Cannot update visibility map. nskey=%+v, value=%+v, scope=network", nsKey, network.Value)
+		}
+		err = visibilityMap.Put(capability.Key, capability.Value)
+		if err != nil {
+			mon.Logger.Warnf("Cannot update visibility map. nskey=%+v, value=%+v, scope=capability", nsKey, capability.Value)
+		}
+		err = visibilityMap.Put(dns.Key, dns.Value)
+		if err != nil {
+			mon.Logger.Warnf("Cannot update visibility map. nskey=%+v, value=%+v, scope=dns", nsKey, dns.Value)
+		}
+		err = visibilityMap.Put(ima.Key, ima.Value)
+		if err != nil {
+			mon.Logger.Warnf("Cannot update visibility map. nskey=%+v, value=%+v, scope=ima", nsKey, ima.Value)
+		}
+
+		// Need to lock NsMap to print the following log message
+		mon.NsMapLock.RLock()
+		mon.Logger.Printf("Updated visibility map with key=%+v for cid %s", nsKey, mon.NsMap[nsKey])
+		mon.NsMapLock.RUnlock()
+	} else if action == "DELETED" {
+		err := mon.BpfNsVisibilityMap.Delete(nsKey)
+		if err != nil {
+			mon.Logger.Warnf("Cannot locate visibility map. nskey=%+v, action=deleted", nsKey)
+			return
+		}
+		delete(mon.NsVisibilityMap, nsKey)
+		mon.Logger.Printf("Successfully deleted visibility map with key=%+v from the kernel", nsKey)
+	}
+}
+
+// UpdateVisibility Function updates host visibility and global default visibility map based on the global config
+func (mon *MonitorImpl) UpdateDefaultVisibility() {
+	hostNSKey := NsKey{
+		PidNS: 0,
+		MntNS: 0,
+	}
+
+	hostVisibility := tp.Visibility{}
+	if cfg.GlobalCfg.HostPolicy {
+		visibilityParams := cfg.GlobalCfg.HostVisibility
+		if strings.Contains(visibilityParams, "file") {
+			hostVisibility.File = true
+		}
+		if strings.Contains(visibilityParams, "process") {
+			hostVisibility.Process = true
+		}
+		if strings.Contains(visibilityParams, "network") {
+			hostVisibility.Network = true
+		}
+		if strings.Contains(visibilityParams, "capabilities") {
+			hostVisibility.Capabilities = true
+		}
+		if strings.Contains(visibilityParams, "dns") {
+			hostVisibility.DNS = true
+		}
+		if strings.Contains(visibilityParams, "ima") {
+			hostVisibility.IMA = true
+		}
+	}
+
+	nsKey := NsKey{
+		PidNS: DefaultVisibilityKey,
+		MntNS: DefaultVisibilityKey,
+	}
+
+	visibility := tp.Visibility{}
+	{
+		visibilityParams := cfg.GlobalCfg.Visibility
+		if strings.Contains(visibilityParams, "file") {
+			visibility.File = true
+		}
+		if strings.Contains(visibilityParams, "process") {
+			visibility.Process = true
+		}
+		if strings.Contains(visibilityParams, "network") {
+			visibility.Network = true
+		}
+		if strings.Contains(visibilityParams, "capabilities") {
+			visibility.Capabilities = true
+		}
+		if strings.Contains(visibilityParams, "dns") {
+			visibility.DNS = true
+		}
+		if strings.Contains(visibilityParams, "ima") {
+			visibility.IMA = true
+		}
+	}
+
+	mon.BpfMapLock.Lock()
+	defer mon.BpfMapLock.Unlock()
+	mon.UpdateNsVisibility("ADDED", hostNSKey, hostVisibility)
+	mon.UpdateNsVisibility("ADDED", nsKey, visibility)
+}
+
+func (mon *MonitorImpl) UpdateConfiguration(key, value uint32) error {
+	err := mon.BpfConfigMap.Update(key, value, cle.UpdateAny)
+	return err
+}
+
+func (mon *MonitorImpl) UpdateThrottlingConfig() {
+	if cfg.GlobalCfg.AlertThrottling {
+		if err := mon.BpfConfigMap.Update(uint32(3), uint32(1), cle.UpdateAny); err != nil {
+			mon.Logger.Errf("Error Updating System Monitor Config Map to enable alert throttling : %s", err.Error())
+		}
+	} else {
+		if err := mon.BpfConfigMap.Update(uint32(3), uint32(0), cle.UpdateAny); err != nil {
+			mon.Logger.Errf("Error Updating System Monitor Config Map to enable alert throttling : %s", err.Error())
+		}
+	}
+	if err := mon.BpfConfigMap.Update(uint32(4), uint32(cfg.GlobalCfg.MaxAlertPerSec), cle.UpdateAny); err != nil {
+		mon.Logger.Errf("Error Updating System Monitor Config Map to set max alerts per sec : %s", err.Error())
+	}
+	if err := mon.BpfConfigMap.Update(uint32(5), uint32(cfg.GlobalCfg.ThrottleSec), cle.UpdateAny); err != nil {
+		mon.Logger.Errf("Error Updating System Monitor Config Map to set time interval for dropping subsequent alerts : %s", err.Error())
+	}
+	mon.Logger.Printf("Alert Throttling configured {alertThrottling:%v, maxAlertPerSec:%v, throttleSec:%v}",
+		cfg.GlobalCfg.AlertThrottling,
+		cfg.GlobalCfg.MaxAlertPerSec,
+		cfg.GlobalCfg.ThrottleSec)
+}
+
+func (mon *MonitorImpl) TraceEvents() {
+	if mon.SyscallPerfMap != nil {
+		go func() {
+			for {
+				record, err := mon.SyscallPerfMap.Read()
+				if err != nil {
+					if errors.Is(err, perf.ErrClosed) {
+						// This should only happen when we call DestroyMonitor while terminating the process.
+						// Adding a Warn just in case it happens at runtime, to help debug
+						mon.Logger.Warnf("Perf Buffer closed, exiting TraceSyscall %s", err.Error())
+						return
+					}
+					mon.Logger.Warnf("Perf Event Error : %s", err.Error())
+					continue
+				}
+
+				if record.LostSamples != 0 {
+					mon.Logger.Warnf("Lost Perf Events Count : %d", record.LostSamples)
+					continue
+				}
+				mon.SyscallChannel <- record.RawSample
+
+			}
+		}()
+	} else {
+		mon.Logger.Err("Perf Buffer nil, exiting TraceSyscall")
+		return
+	}
+
+	Containers := *(mon.Containers)
+	ContainersLock := *(mon.ContainersLock)
+
+	ReplayChannel := make(chan []byte, SyscallChannelSize)
+
+	go func() {
+		for {
+			dataRaw, valid := <-ReplayChannel
+			if !valid {
+				continue
+			}
+			dataBuff := bytes.NewBuffer(dataRaw)
+			ctx, err := readContextFromBuff(dataBuff)
+			if err != nil {
+				continue
+			}
+
+			now := time.Now()
+			if now.After(time.Unix(int64(ctx.Ts), 0).Add(10 * time.Second)) {
+				mon.Logger.Debug("Event dropped due to replay timeout")
+				continue
+			}
+
+			// Best effort replay
+			go func() {
+				for i := 0; i < 10; i++ {
+					containerID := ""
+
+					if ctx.PidID != 0 && ctx.MntID != 0 {
+						containerID = mon.LookupContainerID(ctx.PidID, ctx.MntID)
+
+						if containerID == "" {
+							time.Sleep(1 * time.Second)
+							continue
+						}
+					}
+
+					select {
+					case mon.SyscallChannel <- dataRaw:
+					default:
+						// channel is full, wait for a short time before retrying
+						time.Sleep(1 * time.Second)
+						mon.Logger.Warn("Event droped due to busy event channel")
+					}
+
+				}
+				mon.Logger.Debug("Event dropped due to replay timeout")
+			}()
+		}
+	}()
+	MonitorLock := *(mon.MonitorLock)
+
+	for {
+		select {
+		case <-StopChan:
+			return
+
+		case dataRaw, valid := <-mon.SyscallChannel:
+			if !valid {
+				mon.Logger.Debug("Invalid telemtry")
+				continue
+			}
+
+			dataBuff := bytes.NewBuffer(dataRaw)
+			ctx, err := readContextFromBuff(dataBuff)
+			if err != nil {
+				mon.Logger.Debugf("Error while reading context in telemetry %s", err.Error())
+
+				continue
+			}
+			if ctx.PPID == ctx.HostPPID {
+				ctx.PPID = 0
+			}
+			args, err := GetArgs(dataBuff, ctx.Argnum)
+			if err != nil {
+				mon.Logger.Debugf("could not fetch args so dropping %s", err.Error())
+				continue
+			}
+
+			var hashes HashContext
+			if ctx.Hash == uint8(1) {
+				hashes, err = GetHashes(dataBuff)
+				if err != nil {
+					mon.Logger.Debugf("could not fetch ima hashes: %s", err)
+				}
+			}
+
+			containerID := ""
+
+			if ctx.PidID != 0 && ctx.MntID != 0 {
+				containerID = mon.LookupContainerID(ctx.PidID, ctx.MntID)
+
+				if containerID != "" {
+					ContainersLock.RLock()
+					namespace := Containers[containerID].NamespaceName
+					if kl.ContainsElement(mon.UntrackedNamespaces, namespace) {
+						ContainersLock.RUnlock()
+						continue
+					}
+					ContainersLock.RUnlock()
+				}
+			}
+
+			if ctx.PidID != 0 && ctx.MntID != 0 && containerID == "" {
+				ReplayChannel <- dataRaw
+				continue
+			}
+
+			if ctx.EventID == SysOpen {
+				if len(args) != 2 {
+					continue
+				}
+			} else if ctx.EventID == SysOpenAt {
+				if len(args) != 3 {
+					continue
+				}
+			} else if ctx.EventID == SysUnlink {
+				if len(args) != 2 {
+					continue
+				}
+			} else if ctx.EventID == SysUnlinkAt {
+				if len(args) != 3 {
+					continue
+				}
+			} else if ctx.EventID == SysRmdir {
+				if len(args) != 1 {
+					continue
+				}
+			} else if ctx.EventID == SysPtrace {
+				if len(args) != 3 {
+					continue
+				}
+			} else if ctx.EventID == SysChown {
+				if len(args) != 3 {
+					continue
+				}
+			} else if ctx.EventID == SysFChownAt {
+				if len(args) != 5 {
+					continue
+				}
+			} else if ctx.EventID == SysSetuid {
+				if len(args) != 1 {
+					continue
+				}
+			} else if ctx.EventID == SysSetgid {
+				if len(args) != 1 {
+					continue
+				}
+			} else if ctx.EventID == SysMount {
+				if len(args) != 5 {
+					continue
+				}
+			} else if ctx.EventID == SysUmount {
+				if len(args) != 2 {
+					continue
+				}
+
+			} else if ctx.EventID == SysExecve {
+				if len(args) == 2 { // enter
+					var execPath string
+					var nodeArgs []string
+
+					if val, ok := args[0].(string); ok {
+						execPath = val
+					}
+					if val, ok := args[1].([]string); ok {
+						nodeArgs = val
+					}
+
+					// generate a log with the base information
+					log := mon.BuildLogBase(ctx.EventID, ContextCombined{ContainerID: containerID, ContextSys: ctx, HashData: hashes}, false)
+
+					// fallback logic: in case we get relative path as execPath then we join cwd + execPath to get pull path
+					if !strings.HasPrefix(strings.Split(execPath, " ")[0], "/") && log.Cwd != "/" {
+						execPath = filepath.Join(log.Cwd, execPath)
+					}
+
+					// build a pid node
+					pidNode := mon.BuildPidNode(containerID, ctx, execPath, nodeArgs, false)
+					mon.AddActivePid(containerID, pidNode)
+
+					// add arguments
+					log.Resource = execPath
+					if pidNode.Args != "" {
+						log.Resource = log.Resource + " " + pidNode.Args
+					}
+
+					log.Operation = "Process"
+					log.Data = "syscall=" + GetSyscallName(int32(ctx.EventID))
+
+					// store the log in the map
+					mon.execLogMapLock.Lock()
+					mon.execLogMap[ctx.HostPID] = log
+					mon.execLogMapLock.Unlock()
+
+				} else if len(args) == 0 { // return
+
+					// get the stored log
+					mon.execLogMapLock.Lock()
+					log := mon.execLogMap[ctx.HostPID]
+
+					// remove the log from the map
+					delete(mon.execLogMap, ctx.HostPID)
+					mon.execLogMapLock.Unlock()
+
+					// update hash
+					updateHashData(&log, hashes)
+
+					// update the log again
+					log = mon.UpdateLogBase(ctx, log)
+
+					// get error message
+					if ctx.Retval < 0 {
+						message := getErrorMessage(ctx.Retval)
+						if message != "" {
+							log.Result = message
+						} else {
+							log.Result = fmt.Sprintf("Unknown (%d)", ctx.Retval)
+						}
+					} else {
+						log.Result = "Passed"
+					}
+
+					log.ExecEvent.ExecID = strconv.FormatUint(ctx.ExecID, 10)
+					if comm := strings.TrimRight(string(ctx.Comm[:]), "\x00"); len(comm) > 0 {
+						log.ExecEvent.ExecutableName = comm
+					}
+
+					// push the generated log
+					if mon.Logger != nil {
+						go mon.Logger.PushLog(log)
+					}
+				}
+
+				continue
+			} else if ctx.EventID == SysExecveAt {
+				if len(args) == 4 { // enter
+					var execPath string
+
+					// generate a log with the base information
+					log := mon.BuildLogBase(ctx.EventID, ContextCombined{ContainerID: containerID, ContextSys: ctx, HashData: hashes}, false)
+
+					if val, ok := args[1].(string); ok {
+						execPath = val // procExecPath
+					}
+					// fallback logic: in case we get relative path in execPath then we join cwd + execPath to get pull path
+					if !strings.HasPrefix(strings.Split(execPath, " ")[0], "/") && log.Cwd != "/" {
+						execPath = filepath.Join(log.Cwd, execPath)
+					}
+
+					// build a pid node
+					args_2 := []string{}
+					switch v := args[2].(type) {
+					case []string:
+						args_2 = append(args_2, v...)
+					case string:
+						args_2 = append(args_2, v)
+					default:
+						mon.Logger.Warnf("Unexpected args[2] type")
+					}
+					pidNode := mon.BuildPidNode(containerID, ctx, execPath, args_2, false)
+					mon.AddActivePid(containerID, pidNode)
+
+					fd := ""
+					procExecFlag := ""
+
+					// add arguments
+					if val, ok := args[0].(int32); ok {
+						fd = strconv.Itoa(int(val))
+					}
+					log.Resource = execPath
+					if val, ok := args[2].([]string); ok {
+						for idx, arg := range val { // procArgs
+							if idx == 0 {
+								continue
+							} else {
+								log.Resource = log.Resource + " " + arg
+							}
+						}
+					}
+					if val, ok := args[3].(string); ok {
+						procExecFlag = val
+					}
+
+					log.Operation = "Process"
+					log.Data = "syscall=" + GetSyscallName(int32(ctx.EventID)) + " fd=" + fd + " flag=" + procExecFlag
+
+					// store the log in the map
+					mon.execLogMapLock.Lock()
+					mon.execLogMap[ctx.HostPID] = log
+					mon.execLogMapLock.Unlock()
+
+				} else if len(args) == 0 { // return
+
+					// get the stored log
+					mon.execLogMapLock.Lock()
+					log := mon.execLogMap[ctx.HostPID]
+
+					// remove the log from the map
+					delete(mon.execLogMap, ctx.HostPID)
+					mon.execLogMapLock.Unlock()
+
+					// update hashes
+					updateHashData(&log, hashes)
+
+					// update the log again
+					log = mon.UpdateLogBase(ctx, log)
+
+					// get error message
+					if ctx.Retval < 0 {
+						message := getErrorMessage(ctx.Retval)
+						if message != "" {
+							log.Result = message
+						} else {
+							log.Result = fmt.Sprintf("Unknown (%d)", ctx.Retval)
+						}
+					} else {
+						log.Result = "Passed"
+					}
+
+					log.ExecEvent.ExecID = strconv.FormatUint(ctx.ExecID, 10)
+					if comm := strings.TrimRight(string(ctx.Comm[:]), "\x00"); len(comm) > 0 {
+						log.ExecEvent.ExecutableName = comm
+					}
+
+					// push the generated log
+					if mon.Logger != nil {
+						go mon.Logger.PushLog(log)
+					}
+				}
+
+				continue
+			} else if ctx.EventID == DoExit {
+				mon.DeleteActivePid(containerID, ctx)
+				continue
+			} else if ctx.EventID == SecurityBprmCheck {
+				if val, ok := args[0].(string); ok {
+					mon.UpdateExecPath(containerID, ctx.HostPID, val)
+				}
+				continue
+			} else if ctx.EventID == TCPConnect {
+				if len(args) != 2 {
+					continue
+				}
+			} else if ctx.EventID == TCPAccept {
+				if len(args) != 2 {
+					continue
+				}
+			} else if ctx.EventID == TCPConnectv6 {
+				if len(args) != 2 {
+					continue
+				}
+			} else if ctx.EventID == UDPSendMsg {
+				if len(args) != 3 {
+					continue
+				}
+			}
+			MonitorLock.Lock()
+			// push the context to the channel for logging
+			mon.contextChan <- ContextCombined{ContainerID: containerID, ContextSys: ctx, ContextArgs: args, HashData: hashes}
+			MonitorLock.Unlock()
+		}
+
+	}
+}

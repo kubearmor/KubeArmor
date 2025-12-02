@@ -90,7 +90,7 @@ func (dm *KubeArmorDaemon) WatchConfigChanges() {
 		dm.UpdateUSBDeviceHandler(cfg.GlobalCfg.USBDeviceHandler)
 
 		// Update the default posture and visibility for the unorchestrated containers
-		dm.SystemMonitor.UpdateVisibility()
+		dm.SystemMonitor.UpdateDefaultVisibility()
 		dm.UpdateHostSecurityPolicies()
 	})
 	viper.WatchConfig()
@@ -311,7 +311,7 @@ func (dm *KubeArmorDaemon) ParseAndUpdateContainerSecurityPolicy(event tp.K8sKub
 	if _, ok := secPolicy.Spec.Selector.MatchLabels["kubearmor.io/container.name"]; ok && len(secPolicy.Spec.Selector.MatchLabels) > 1 {
 		dm.Logger.Warnf("Failed to apply policy. Cannot use \"kubearmor.io/container.name\" and other labels together.")
 		return pb.PolicyStatus_Invalid
-	} else if !ok && dm.RuntimeEnforcer != nil && dm.RuntimeEnforcer.EnforcerType == "AppArmor" {
+	} else if !ok && dm.RuntimeEnforcer != nil && dm.RuntimeEnforcer.GetEnforcerType() == "AppArmor" {
 		// this label is necessary in apparmor because profile needs to be created before container
 		dm.Logger.Warnf("Received policy for AppArmor enforcer without \"kubearmor.io/container.name\"")
 		return pb.PolicyStatus_Invalid

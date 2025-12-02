@@ -710,7 +710,7 @@ func (dm *KubeArmorDaemon) handlePodEvent(event string, obj *corev1.Pod) {
 		if pod.Annotations["kubearmor-policy"] == "enabled" {
 			pod.Annotations["kubearmor-policy"] = "audited"
 		}
-	} else if dm.RuntimeEnforcer != nil && dm.RuntimeEnforcer.EnforcerType == "SELinux" {
+	} else if dm.RuntimeEnforcer != nil && dm.RuntimeEnforcer.GetEnforcerType() == "SELinux" {
 		// exception: no SELinux support for containers
 		if pod.Annotations["kubearmor-policy"] == "enabled" {
 			pod.Annotations["kubearmor-policy"] = "audited"
@@ -763,7 +763,7 @@ func (dm *KubeArmorDaemon) handlePodEvent(event string, obj *corev1.Pod) {
 
 	pod.PrivilegedContainers = make(map[string]struct{})
 	pod.PrivilegedAppArmorProfiles = make(map[string]struct{})
-	if dm.RuntimeEnforcer != nil && dm.RuntimeEnforcer.EnforcerType == "AppArmor" {
+	if dm.RuntimeEnforcer != nil && dm.RuntimeEnforcer.GetEnforcerType() == "AppArmor" {
 		appArmorAnnotations := map[string]string{}
 		updateAppArmor := false
 		dm.OwnerInfoLock.RLock()
@@ -2722,8 +2722,6 @@ func (dm *KubeArmorDaemon) validateVisibility(scope string, visibility string) b
 
 // UpdateVisibility Function
 func (dm *KubeArmorDaemon) UpdateVisibility(action string, namespace string, visibility tp.Visibility) {
-	dm.SystemMonitor.BpfMapLock.Lock()
-	defer dm.SystemMonitor.BpfMapLock.Unlock()
 
 	if action == addEvent || action == updateEvent {
 		if val, ok := dm.SystemMonitor.NamespacePidsMap[namespace]; ok {
@@ -2735,7 +2733,7 @@ func (dm *KubeArmorDaemon) UpdateVisibility(action string, namespace string, vis
 			val.IMA = visibility.IMA
 			dm.SystemMonitor.NamespacePidsMap[namespace] = val
 			for _, nskey := range val.NsKeys {
-				dm.SystemMonitor.UpdateNsKeyMap(updateEvent, nskey, visibility)
+				dm.SystemMonitor.UpdateNsVisibility(updateEvent, nskey, visibility)
 			}
 		} else {
 			dm.SystemMonitor.NamespacePidsMap[namespace] = monitor.NsVisibility{
@@ -2752,7 +2750,7 @@ func (dm *KubeArmorDaemon) UpdateVisibility(action string, namespace string, vis
 	} else if action == deleteEvent {
 		if val, ok := dm.SystemMonitor.NamespacePidsMap[namespace]; ok {
 			for _, nskey := range val.NsKeys {
-				dm.SystemMonitor.UpdateNsKeyMap(deleteEvent, nskey, tp.Visibility{})
+				dm.SystemMonitor.UpdateNsVisibility(deleteEvent, nskey, tp.Visibility{})
 			}
 		}
 		delete(dm.SystemMonitor.NamespacePidsMap, namespace)
@@ -2763,7 +2761,7 @@ var visibilityKey string = "kubearmor-visibility"
 
 func (dm *KubeArmorDaemon) updateVisibilityWithCM(cm *corev1.ConfigMap, _ string) {
 
-	dm.SystemMonitor.UpdateVisibility() // update host and global default bpf maps
+	dm.SystemMonitor.UpdateDefaultVisibility() // update host and global default bpf maps
 
 	// get all namespaces
 	nsList, err := K8s.K8sClient.CoreV1().Namespaces().List(context.Background(), metav1.ListOptions{})
@@ -3056,7 +3054,7 @@ func (dm *KubeArmorDaemon) WatchConfigMap() cache.InformerSynced {
 // UpdateIMA func updates the status of IMA module
 func (dm *KubeArmorDaemon) UpdateIMA(enabled bool) {
 	if enabled && dm.SystemMonitor.ImaHash == nil {
-		if err := dm.SystemMonitor.InitImaHash(); err != nil {
+		if err := dm.SystemMonitor.ImaHash.Init(); err != nil {
 			dm.Logger.Warnf("error initializing IMA module: %s", err)
 			return
 		}
@@ -3064,7 +3062,7 @@ func (dm *KubeArmorDaemon) UpdateIMA(enabled bool) {
 		return
 	}
 	if !enabled && dm.SystemMonitor.ImaHash != nil {
-		if err := dm.SystemMonitor.ImaHash.DestroyImaHash(); err != nil {
+		if err := dm.SystemMonitor.ImaHash.Destroy(); err != nil {
 			dm.Logger.Warnf("error uninitializing IMA module: %s", err)
 			return
 		}
