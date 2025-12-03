@@ -844,6 +844,7 @@ spec:
                               path:
                                 pattern: ^\/+.*[^\/]$
                                 type: string
+                                maxLength: 200
                               recursive:
                                 type: boolean
                             type: object
