@@ -1,6 +1,6 @@
 module github.com/kubearmor/KubeArmor/tests
 
-go 1.24.9
+go 1.24.11
 
 replace (
 	github.com/kubearmor/KubeArmor/pkg/KubeArmorController => ../pkg/KubeArmorController
