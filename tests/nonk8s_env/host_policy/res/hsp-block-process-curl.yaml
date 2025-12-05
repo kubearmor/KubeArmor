@@ -1,0 +1,15 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorHostPolicy
+metadata:
+  name: hsp-block-curl-exec
+spec:
+  nodeSelector:
+    matchLabels:
+      kubearmor.io/hostname: "*"
+  process:
+    matchPaths:
+      - path: /usr/bin/curl
+  action: Block
+  severity: 5
+  tags: [http]
+  message: "curl execution blocked"
