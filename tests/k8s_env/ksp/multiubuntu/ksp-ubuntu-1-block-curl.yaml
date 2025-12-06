@@ -1,0 +1,14 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: ksp-ubuntu-1-block-process
+  namespace: multiubuntu
+spec:
+  severity: 1
+  selector:
+    matchLabels:
+      container: ubuntu-1
+  process:
+    matchPaths:
+    - path: /usr/bin/curl
+  action: Block
