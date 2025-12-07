@@ -177,11 +177,16 @@ func (ch *ContainerdHandler) getPrimaryPidAndNS(ctx context.Context, containerID
 	pidNS := 0
 	mntNS := 0
 
-	if data, e := os.Readlink(filepath.Join(cfg.GlobalCfg.ProcFsMount, pidStr, "/ns/pid")); e == nil {
-		fmt.Sscanf(data, "pid:[%d]\n", &pidNS)
+	if data, err := os.Readlink(filepath.Join(cfg.GlobalCfg.ProcFsMount, pidStr, "/ns/pid")); err == nil {
+		if _, err := fmt.Sscanf(data, "pid:[%d]\n", &pidNS); err != nil {
+			return 0, 0, 0, fmt.Errorf("failed to parse pid namespace from %q: %w", data, err)
+		}
 	}
-	if data, e := os.Readlink(filepath.Join(cfg.GlobalCfg.ProcFsMount, pidStr, "/ns/mnt")); e == nil {
-		fmt.Sscanf(data, "mnt:[%d]\n", &mntNS)
+
+	if data, err := os.Readlink(filepath.Join(cfg.GlobalCfg.ProcFsMount, pidStr, "/ns/mnt")); err == nil {
+		if _, err := fmt.Sscanf(data, "mnt:[%d]\n", &mntNS); err != nil {
+			return 0, 0, 0, fmt.Errorf("failed to parse mount namespace from %q: %w", data, err)
+		}
 	}
 
 	return pid, pidNS, mntNS, nil
