@@ -45,18 +45,19 @@ var OperatorConfigCrd *opv1.KubeArmorConfig
 
 var (
 	// node labels
-	EnforcerLabel   string = "kubearmor.io/enforcer"
-	RuntimeLabel    string = "kubearmor.io/runtime"
-	SocketLabel     string = "kubearmor.io/socket"
-	NRISocketLabel  string = "kubearmor.io/nri-socket"
-	RandLabel       string = "kubearmor.io/rand"
-	OsLabel         string = "kubernetes.io/os"
-	ArchLabel       string = "kubernetes.io/arch"
-	BTFLabel        string = "kubearmor.io/btf"
-	ApparmorFsLabel string = "kubearmor.io/apparmorfs"
-	SecurityFsLabel string = "kubearmor.io/securityfs"
-	SeccompLabel    string = "kubearmor.io/seccomp"
-	OCIHooksLabel   string = "kubearmor.io/oci-hooks"
+	EnforcerLabel            string = "kubearmor.io/enforcer"
+	RuntimeLabel             string = "kubearmor.io/runtime"
+	SocketLabel              string = "kubearmor.io/socket"
+	NRISocketLabel           string = "kubearmor.io/nri-socket"
+	RandLabel                string = "kubearmor.io/rand"
+	OsLabel                  string = "kubernetes.io/os"
+	ArchLabel                string = "kubernetes.io/arch"
+	BTFLabel                 string = "kubearmor.io/btf"
+	ApparmorFsLabel          string = "kubearmor.io/apparmorfs"
+	ApparmorSnapProfileLabel string = "kubearmor.io/apparmorsnap"
+	SecurityFsLabel          string = "kubearmor.io/securityfs"
+	SeccompLabel             string = "kubearmor.io/seccomp"
+	OCIHooksLabel            string = "kubearmor.io/oci-hooks"
 
 	// node taints label
 	NotreadyTaint      string = "node.kubernetes.io/not-ready"

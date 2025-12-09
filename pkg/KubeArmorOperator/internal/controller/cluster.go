@@ -72,6 +72,7 @@ type Node struct {
 	Arch             string
 	BTF              string
 	ApparmorFs       string
+	ApparmorSnap     string
 	Seccomp          string
 	OCIHooks         string
 }
@@ -308,6 +309,9 @@ func (clusterWatcher *ClusterWatcher) WatchNodes() {
 					if val, ok := node.Labels[common.ApparmorFsLabel]; ok {
 						newNode.ApparmorFs = val
 					}
+					if val, ok := node.Labels[common.ApparmorSnapProfileLabel]; ok {
+						newNode.ApparmorSnap = val
+					}
 					if val, ok := node.Labels[common.SeccompLabel]; ok {
 						newNode.Seccomp = val
 					}
@@ -341,9 +345,9 @@ func (clusterWatcher *ClusterWatcher) WatchNodes() {
 					}
 					clusterWatcher.NodesLock.Unlock()
 					if nodeModified {
-						clusterWatcher.UpdateDaemonsets(common.DeleteAction, newNode.Enforcer, newNode.Runtime, newNode.RuntimeSocket, newNode.NRIRuntimeSocket, newNode.BTF, newNode.ApparmorFs, newNode.Seccomp, newNode.OCIHooks)
+						clusterWatcher.UpdateDaemonsets(common.DeleteAction, newNode)
 					}
-					clusterWatcher.UpdateDaemonsets(common.AddAction, newNode.Enforcer, newNode.Runtime, newNode.RuntimeSocket, newNode.NRIRuntimeSocket, newNode.BTF, newNode.ApparmorFs, newNode.Seccomp, newNode.OCIHooks)
+					clusterWatcher.UpdateDaemonsets(common.AddAction, newNode)
 				}
 			} else {
 				log.Errorf("Cannot convert object to node struct")
@@ -362,7 +366,7 @@ func (clusterWatcher *ClusterWatcher) WatchNodes() {
 					}
 				}
 				clusterWatcher.NodesLock.Unlock()
-				clusterWatcher.UpdateDaemonsets(common.DeleteAction, deletedNode.Enforcer, deletedNode.Runtime, deletedNode.RuntimeSocket, deletedNode.NRIRuntimeSocket, deletedNode.BTF, deletedNode.ApparmorFs, deletedNode.Seccomp, deletedNode.OCIHooks)
+				clusterWatcher.UpdateDaemonsets(common.DeleteAction, deletedNode)
 			}
 		},
 	})
@@ -370,13 +374,13 @@ func (clusterWatcher *ClusterWatcher) WatchNodes() {
 	nodeInformer.Run(wait.NeverStop)
 }
 
-func (clusterWatcher *ClusterWatcher) UpdateDaemonsets(action, enforcer, runtime, socket, nriSocket, btfPresent, apparmorfs, seccompPresent, ociHooks string) {
+func (clusterWatcher *ClusterWatcher) UpdateDaemonsets(action string, node Node) {
 	clusterWatcher.Log.Info("updating daemonset")
 	daemonsetName := strings.Join([]string{
 		"kubearmor",
-		strings.ReplaceAll(enforcer, ".", "-"),
-		runtime,
-		common.ShortSHA(socket),
+		strings.ReplaceAll(node.Enforcer, ".", "-"),
+		node.Runtime,
+		common.ShortSHA(node.RuntimeSocket),
 	}, "-")
 	newDaemonSet := false
 	deleteDaemonSet := false
@@ -406,7 +410,7 @@ func (clusterWatcher *ClusterWatcher) UpdateDaemonsets(action, enforcer, runtime
 		}
 	}
 	if newDaemonSet {
-		daemonset := generateDaemonset(daemonsetName, enforcer, runtime, socket, nriSocket, btfPresent, apparmorfs, seccompPresent, initDeploy, ociHooks)
+		daemonset := generateDaemonset(daemonsetName, initDeploy, node)
 		_, err := clusterWatcher.Client.AppsV1().DaemonSets(common.Namespace).Create(context.Background(), daemonset, v1.CreateOptions{})
 		if err != nil {
 			clusterWatcher.Log.Warnf("Cannot Create daemonset %s, error=%s", daemonsetName, err.Error())

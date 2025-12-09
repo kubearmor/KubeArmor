@@ -45,12 +45,10 @@ RUN CGO_ENABLED=0 go test -covermode=atomic -coverpkg=./... -c . -o kubearmor-te
 
 ### Make executable image
 
-FROM alpine:3.22 AS kubearmor
-
-RUN echo "@community http://dl-cdn.alpinelinux.org/alpine/edge/community" | tee -a /etc/apk/repositories
+FROM alpine:3.23 AS kubearmor
 
 RUN apk --no-cache update
-RUN apk add apparmor@community apparmor-utils@community bash
+RUN apk add apparmor apparmor-utils bash
 
 COPY --from=builder /usr/src/KubeArmor/KubeArmor/kubearmor /KubeArmor/kubearmor
 COPY --from=builder /usr/src/KubeArmor/BPF/*.o /opt/kubearmor/BPF/
