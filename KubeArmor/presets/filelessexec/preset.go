@@ -39,18 +39,6 @@ const (
 	NAME string = "FilelessExecutionPreset"
 )
 
-// NsKey struct
-type NsKey struct {
-	PidNS uint32
-	MntNS uint32
-}
-
-// ContainerVal struct
-type ContainerVal struct {
-	NsKey  NsKey
-	Policy string
-}
-
 // Preset struct
 type Preset struct {
 	base.Preset
@@ -62,7 +50,7 @@ type Preset struct {
 	EventsChannel chan []byte
 
 	// ContainerID -> NsKey
-	ContainerMap     map[string]ContainerVal
+	ContainerMap     map[string]base.ContainerVal
 	ContainerMapLock *sync.RWMutex
 
 	Link link.Link
@@ -73,7 +61,7 @@ type Preset struct {
 // NewFilelessExecPreset creates an instance of FilelessExec Preset
 func NewFilelessExecPreset() *Preset {
 	p := &Preset{}
-	p.ContainerMap = make(map[string]ContainerVal)
+	p.ContainerMap = make(map[string]base.ContainerVal)
 	p.ContainerMapLock = new(sync.RWMutex)
 	return p
 }
@@ -200,8 +188,7 @@ func (p *Preset) TraceEvents() {
 		}, readLink)
 
 		if ckv, ok := p.ContainerMap[containerID]; ok {
-			log.PolicyName = ckv.Policy
-			log.Type = "MatchedPolicy"
+			base.AddPolicyLogInfo(&log, &ckv)
 		}
 
 		log.Operation = "Process"
@@ -237,12 +224,11 @@ func (p *Preset) TraceEvents() {
 
 // RegisterContainer registers a container to filelessexec preset
 func (p *Preset) RegisterContainer(containerID string, pidns, mntns uint32) {
-	ckv := NsKey{PidNS: pidns, MntNS: mntns}
-
+	ckv := base.NsKey{PidNS: pidns, MntNS: mntns}
 	p.ContainerMapLock.Lock()
 	defer p.ContainerMapLock.Unlock()
 	p.Logger.Debugf("[FilelessExec] Registered container with id: %s\n", containerID)
-	p.ContainerMap[containerID] = ContainerVal{NsKey: ckv}
+	p.ContainerMap[containerID] = base.ContainerVal{NsKey: ckv}
 }
 
 // UnregisterContainer func unregisters a container from filelessexec preset
@@ -261,7 +247,7 @@ func (p *Preset) UnregisterContainer(containerID string) {
 }
 
 // AddContainerIDToMap adds a container id to ebpf map
-func (p *Preset) AddContainerIDToMap(id string, ckv NsKey, action string) error {
+func (p *Preset) AddContainerIDToMap(id string, ckv base.NsKey, action string) error {
 	p.Logger.Debugf("[FilelessExec] adding container with id to fileless_map exec map: %s\n", id)
 	a := base.Block
 	if action == "Audit" {
@@ -275,7 +261,7 @@ func (p *Preset) AddContainerIDToMap(id string, ckv NsKey, action string) error 
 }
 
 // DeleteContainerIDFromMap deletes a container id from ebpf map
-func (p *Preset) DeleteContainerIDFromMap(id string, ckv NsKey) error {
+func (p *Preset) DeleteContainerIDFromMap(id string, ckv base.NsKey) error {
 	p.Logger.Debugf("[FilelessExec] deleting container with id to fileless_map exec map: %s\n", id)
 	if err := p.BPFContainerMap.Delete(ckv); err != nil {
 		if !errors.Is(err, os.ErrNotExist) {
@@ -307,7 +293,7 @@ func (p *Preset) UpdateSecurityPolicies(endPoint tp.EndPoint) {
 
 						return
 					}
-					ckv.Policy = secPolicy.Metadata["policyName"]
+					base.UpdateMatchPolicy(&ckv, &secPolicy)
 					p.ContainerMapLock.Lock()
 					p.ContainerMap[cid] = ckv
 					err := p.AddContainerIDToMap(cid, ckv.NsKey, preset.Action)

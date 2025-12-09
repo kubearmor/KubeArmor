@@ -16,7 +16,6 @@ import (
 	"github.com/cilium/ebpf/link"
 	"github.com/cilium/ebpf/ringbuf"
 	"github.com/cilium/ebpf/rlimit"
-	"github.com/kubearmor/KubeArmor/KubeArmor/buildinfo"
 	"github.com/kubearmor/KubeArmor/KubeArmor/presets/base"
 
 	fd "github.com/kubearmor/KubeArmor/KubeArmor/feeder"
@@ -35,16 +34,6 @@ const (
 	EXISTS uint32 = 1024
 )
 
-type NsKey struct {
-	PidNS uint32
-	MntNS uint32
-}
-
-type ContainerVal struct {
-	NsKey  NsKey
-	Policy string
-}
-
 type Preset struct {
 	base.Preset
 
@@ -55,7 +44,7 @@ type Preset struct {
 	EventsChannel chan []byte
 
 	// ContainerID -> NsKey
-	ContainerMap     map[string]ContainerVal
+	ContainerMap     map[string]base.ContainerVal
 	ContainerMapLock *sync.RWMutex
 
 	Link link.Link
@@ -89,7 +78,7 @@ type MmapEvent struct {
 
 func NewAnonMapExecPreset() *Preset {
 	p := &Preset{}
-	p.ContainerMap = make(map[string]ContainerVal)
+	p.ContainerMap = make(map[string]base.ContainerVal)
 	p.ContainerMapLock = new(sync.RWMutex)
 	return p
 }
@@ -214,8 +203,7 @@ func (p *Preset) TraceEvents() {
 		}, readLink)
 
 		if ckv, ok := p.ContainerMap[containerID]; ok {
-			log.PolicyName = ckv.Policy
-			log.Type = "MatchedPolicy"
+			base.AddPolicyLogInfo(&log, &ckv)
 		}
 
 		var f []string
@@ -234,19 +222,18 @@ func (p *Preset) TraceEvents() {
 			log.Action = "Block"
 		}
 		log.Enforcer = base.PRESET_ENFORCER + NAME
-		log.KubeArmorVersion = buildinfo.GitSummary
 		p.Logger.PushLog(log)
 
 	}
 }
 
 func (p *Preset) RegisterContainer(containerID string, pidns, mntns uint32) {
-	ckv := NsKey{PidNS: pidns, MntNS: mntns}
+	ckv := base.NsKey{PidNS: pidns, MntNS: mntns}
 
 	p.ContainerMapLock.Lock()
 	defer p.ContainerMapLock.Unlock()
 	p.Logger.Debugf("[AnonMapExec] Registered container with id: %s\n", containerID)
-	p.ContainerMap[containerID] = ContainerVal{NsKey: ckv}
+	p.ContainerMap[containerID] = base.ContainerVal{NsKey: ckv}
 }
 
 func (p *Preset) UnregisterContainer(containerID string) {
@@ -263,7 +250,7 @@ func (p *Preset) UnregisterContainer(containerID string) {
 	}
 }
 
-func (p *Preset) AddContainerIDToMap(id string, ckv NsKey, action string) error {
+func (p *Preset) AddContainerIDToMap(id string, ckv base.NsKey, action string) error {
 	p.Logger.Debugf("[AnonMapExec] adding container with id to anon_map exec map: %s\n", id)
 	a := base.Block
 	if action == "Audit" {
@@ -276,7 +263,7 @@ func (p *Preset) AddContainerIDToMap(id string, ckv NsKey, action string) error 
 	return nil
 }
 
-func (p *Preset) DeleteContainerIDFromMap(id string, ckv NsKey) error {
+func (p *Preset) DeleteContainerIDFromMap(id string, ckv base.NsKey) error {
 	p.Logger.Debugf("[AnonMapExec] deleting container with id to anon_map exec map: %s\n", id)
 	if err := p.BPFContainerMap.Delete(ckv); err != nil {
 		if !errors.Is(err, os.ErrNotExist) {
@@ -304,7 +291,7 @@ func (p *Preset) UpdateSecurityPolicies(endPoint tp.EndPoint) {
 						p.ContainerMapLock.RUnlock()
 						return
 					}
-					ckv.Policy = secPolicy.Metadata["policyName"]
+					base.UpdateMatchPolicy(&ckv, &secPolicy)
 					p.ContainerMap[cid] = ckv
 					err := p.AddContainerIDToMap(cid, ckv.NsKey, preset.Action)
 					if err != nil {

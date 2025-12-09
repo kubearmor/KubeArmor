@@ -15,6 +15,18 @@ const (
 	PRESET_ENFORCER string = "PRESET-"
 )
 
+// NSkey struct
+type NsKey struct {
+	PidNS uint32
+	MntNS uint32
+}
+
+// ContainerVal struct
+type ContainerVal struct {
+	NsKey  NsKey
+	Policy tp.MatchPolicy
+}
+
 // PresetType represents type of a preset
 type PresetType uint8
 
