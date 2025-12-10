@@ -697,3 +697,9 @@ kubearmor:
         path: /var/run/containerd/containerd.sock
         type: Socket
       name: containerd-sock-path
+
+  # Set DaemonSet resource limits — KubeArmor’s memory usage tends to grow significantly over time.
+  resources:
+    requests:
+      cpu: 10m
+      memory: 64Mi
