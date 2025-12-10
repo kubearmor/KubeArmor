@@ -84,7 +84,10 @@ spec:
         {{- else }} # generic
           {{- toYaml .Values.kubearmor.volumeMountsGeneric | trim | nindent 10 }}
         {{- end }}
-
+        {{- with .Values.kubearmor.resources }}
+        resources:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
       dnsPolicy: ClusterFirstWithHostNet
       hostNetwork: true
       hostPID: true
