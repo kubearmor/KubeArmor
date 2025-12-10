@@ -40,7 +40,9 @@ func (dm *KubeArmorDaemon) SetContainerNSVisibility() {
 	if strings.Contains(cfg.GlobalCfg.Visibility, "dns") {
 		visibility.DNS = true
 	}
-
+	if strings.Contains(cfg.GlobalCfg.Visibility, "ima") {
+		visibility.IMA = true
+	}
 	dm.UpdateVisibility("ADDED", "container_namespace", visibility)
 }
 
@@ -59,6 +61,7 @@ func (dm *KubeArmorDaemon) WatchConfigChanges() {
 			FileAction:         validateGlobalDefaultPosture(cfg.GlobalCfg.DefaultFilePosture),
 			NetworkAction:      validateGlobalDefaultPosture(cfg.GlobalCfg.DefaultNetworkPosture),
 			CapabilitiesAction: validateGlobalDefaultPosture(cfg.GlobalCfg.DefaultCapabilitiesPosture),
+			DeviceAction:       validateGlobalDefaultPosture(cfg.GlobalCfg.HostDefaultDevicePosture),
 		}
 		// Update the visibility
 		visibility := tp.Visibility{
@@ -67,6 +70,7 @@ func (dm *KubeArmorDaemon) WatchConfigChanges() {
 			Network:      dm.validateVisibility("network", cfg.GlobalCfg.Visibility),
 			Capabilities: dm.validateVisibility("capabilities", cfg.GlobalCfg.Visibility),
 			DNS:          dm.validateVisibility("dns", cfg.GlobalCfg.Visibility),
+			IMA:          dm.validateVisibility("ima", cfg.GlobalCfg.Visibility),
 		}
 
 		// Apply the changes to the daemon
@@ -81,6 +85,9 @@ func (dm *KubeArmorDaemon) WatchConfigChanges() {
 
 		// Update throttling configs
 		dm.SystemMonitor.UpdateThrottlingConfig()
+
+		// Update USB Device Handler
+		dm.UpdateUSBDeviceHandler(cfg.GlobalCfg.USBDeviceHandler)
 
 		// Update the default posture and visibility for the unorchestrated containers
 		dm.SystemMonitor.UpdateVisibility()

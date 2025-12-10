@@ -300,26 +300,28 @@ func (ch *ContainerdHandler) GetContainerdContainers() map[string]context.Contex
 }
 
 // UpdateContainerdContainer Function
-func (dm *KubeArmorDaemon) UpdateContainerdContainer(ctx context.Context, containerID string, containerPid uint32, action string) bool {
+func (dm *KubeArmorDaemon) UpdateContainerdContainer(ctx context.Context, containerID string, containerPid uint32, action string) error {
 	// check if Containerd exists
 	if Containerd == nil {
-		return false
+		return fmt.Errorf("containerd client not initialized")
 	}
 
 	if action == "start" {
 		// get container information from containerd client
-		container, err := Containerd.GetContainerInfo(ctx, containerID, dm.Node.NodeID, containerPid, dm.OwnerInfo)
+
+		dm.OwnerInfoLock.RLock()
+		owner := dm.OwnerInfo
+		dm.OwnerInfoLock.RUnlock()
+		container, err := Containerd.GetContainerInfo(ctx, containerID, dm.Node.NodeID, containerPid, owner)
 		if err != nil {
 			if strings.Contains(string(err.Error()), "pause container") || strings.Contains(string(err.Error()), "moby") {
-				kg.Debug(err.Error())
-				return false
+				return fmt.Errorf("skipping pause/moby container: %w", err)
 			}
-			kg.Err(err.Error())
-			return false
+			return fmt.Errorf("failed to get container info: %w", err)
 		}
 
 		if container.ContainerID == "" {
-			return false
+			return fmt.Errorf("container ID is empty")
 		}
 
 		endPoint := tp.EndPoint{}
@@ -472,7 +474,7 @@ func (dm *KubeArmorDaemon) UpdateContainerdContainer(ctx context.Context, contai
 			dm.EndPointsLock.Unlock()
 		} else {
 			dm.ContainersLock.Unlock()
-			return false
+			return fmt.Errorf("container namespace information already exists")
 		}
 
 		if dm.SystemMonitor != nil && cfg.GlobalCfg.Policy {
@@ -514,7 +516,7 @@ func (dm *KubeArmorDaemon) UpdateContainerdContainer(ctx context.Context, contai
 		container, ok := dm.Containers[containerID]
 		if !ok {
 			dm.ContainersLock.Unlock()
-			return false
+			return fmt.Errorf("container not found for removal: %s", containerID)
 		}
 		if !dm.K8sEnabled {
 			dm.EndPointsLock.Lock()
@@ -577,7 +579,7 @@ func (dm *KubeArmorDaemon) UpdateContainerdContainer(ctx context.Context, contai
 		dm.Logger.Printf("Detected a container (removed/%.12s/pidns=%d/mntns=%d)", containerID, container.PidNS, container.MntNS)
 	}
 
-	return true
+	return nil
 }
 
 // MonitorContainerdEvents Function
@@ -598,7 +600,8 @@ func (dm *KubeArmorDaemon) MonitorContainerdEvents() {
 
 	if len(containers) > 0 {
 		for containerID, context := range containers {
-			if !dm.UpdateContainerdContainer(context, containerID, 0, "start") {
+			if err := dm.UpdateContainerdContainer(context, containerID, 0, "start"); err != nil {
+				kg.Warnf("Failed to update containerd container %s: %s", containerID, err.Error())
 				continue
 			}
 		}
@@ -632,7 +635,9 @@ func (dm *KubeArmorDaemon) handleContainerdEvent(envelope *events.Envelope, cont
 		if err != nil {
 			kg.Errf("failed to unmarshal container's delete event: %v", err)
 		}
-		dm.UpdateContainerdContainer(context, deleteContainer.GetID(), 0, "destroy")
+		if err := dm.UpdateContainerdContainer(context, deleteContainer.GetID(), 0, "destroy"); err != nil {
+			kg.Warnf("Failed to destroy containerd container %s: %s", deleteContainer.GetID(), err.Error())
+		}
 
 	case "/tasks/start":
 		startTask := &apievents.TaskStart{}
@@ -641,7 +646,9 @@ func (dm *KubeArmorDaemon) handleContainerdEvent(envelope *events.Envelope, cont
 		if err != nil {
 			kg.Errf("failed to unmarshal container's start task: %v", err)
 		}
-		dm.UpdateContainerdContainer(context, startTask.GetContainerID(), startTask.GetPid(), "start")
+		if err := dm.UpdateContainerdContainer(context, startTask.GetContainerID(), startTask.GetPid(), "start"); err != nil {
+			kg.Warnf("Failed to start containerd container %s: %s", startTask.GetContainerID(), err.Error())
+		}
 
 	case "/tasks/exit":
 		exitTask := &apievents.TaskStart{}
@@ -656,7 +663,9 @@ func (dm *KubeArmorDaemon) handleContainerdEvent(envelope *events.Envelope, cont
 		dm.ContainersLock.RUnlock()
 
 		if pid == exitTask.GetPid() {
-			dm.UpdateContainerdContainer(context, exitTask.GetContainerID(), pid, "destroy")
+			if err := dm.UpdateContainerdContainer(context, exitTask.GetContainerID(), pid, "destroy"); err != nil {
+				kg.Warnf("Failed to destroy containerd container %s: %s", exitTask.GetContainerID(), err.Error())
+			}
 		}
 
 	}

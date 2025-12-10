@@ -75,7 +75,7 @@ message Alert {
   string Operation = 19;
   string Resource = 20;
   string Data = 21;
-
+  map<string, string> EventData = 43;
   string Enforcer = 28;
   string Action = 22;
   string Result = 23;
@@ -88,6 +88,10 @@ message Alert {
 
   string KubeArmorVersion = 37;
   string NodeID = 38;
+  string ProcessHash = 39;
+  string ParentHash = 40;
+  string ResourceHash = 41;
+  string HashAlgo = 42;
 }
 
 // log struct
@@ -121,7 +125,7 @@ message Log {
   string Operation = 15;
   string Resource = 16;
   string Data = 17;
-
+  map<string, string> EventData = 33;
   string Result = 18;
   string Cwd = 25;
   string TTY = 26;
@@ -129,6 +133,10 @@ message Log {
   ExecEvent ExecEvent = 27;
 
   string NodeID = 28;
+  string ProcessHash = 29;
+  string ParentHash = 30;
+  string ResourceHash = 31;
+  string HashAlgo = 32;
 }
 
 // request message

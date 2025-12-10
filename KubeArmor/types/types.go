@@ -282,7 +282,12 @@ type Log struct {
 	Cwd                    string `json:"cwd"`
 	TTY                    string `json:"tty,omitempty"`
 	OID                    int32  `json:"oid"`
-	Data                   string `json:"data,omitempty"`
+	Data                   string            `json:"data,omitempty"`
+	EventData              map[string]string `json:"eventData,omitempty"`
+	ProcessHash            string `json:"processHash,omitempty"`
+	ParentHash             string `json:"parentHash,omitempty"`
+	ResourceHash           string `json:"resourceHash,omitempty"`
+	HashAlgo               string `json:"hashAlgo,omitempty"`
 	Action                 string `json:"action,omitempty"`
 	Result                 string `json:"result"`
 	MaxAlertsPerSec        int32  `json:"MaxAlertsPerSec,omitempty"`
@@ -552,8 +557,9 @@ type SyscallsType struct {
 // DeviceMatchType Structure
 type DeviceMatchType struct {
 	Class    string `json:"class"`
-	SubClass string `json:"subClass,omitempty"`
-	Level    int32  `json:"level,omitempty"`
+	SubClass *int32 `json:"subClass,omitempty"`
+	Protocol *int32 `json:"protocol,omitempty"`
+	Level    *int32 `json:"level,omitempty"`
 
 	Severity int      `json:"severity,omitempty"`
 	Tags     []string `json:"tags,omitempty"`
@@ -658,6 +664,7 @@ type DefaultPosture struct {
 	FileAction         string `json:"file,omitempty"`
 	NetworkAction      string `json:"network,omitempty"`
 	CapabilitiesAction string `json:"capabilties,omitempty"`
+	DeviceAction       string `json:"device,omitempty"`
 }
 
 // Visibility Structure
@@ -667,6 +674,7 @@ type Visibility struct {
 	Network      bool `json:"network,omitempty"`
 	Capabilities bool `json:"capabilties,omitempty"`
 	DNS          bool `json:"dns,omitempty"`
+	IMA          bool `json:"ima,omitempty"`
 }
 
 // ================== //

@@ -134,7 +134,7 @@ func RemoveApparmorAnnotation(pod *corev1.Pod) {
 }
 
 func CheckKubearmorStatus(nodeName string, c *kubernetes.Clientset) (bool, error) {
-	pods, err := c.CoreV1().Pods("kubearmor").List(context.TODO(), metav1.ListOptions{
+	pods, err := c.CoreV1().Pods("").List(context.TODO(), metav1.ListOptions{
 		LabelSelector: "kubearmor-app=kubearmor",
 	})
 	if err != nil {

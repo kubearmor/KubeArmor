@@ -11,6 +11,7 @@ package monitor
 import (
 	"bytes"
 	"encoding/binary"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"net"
@@ -42,8 +43,6 @@ const (
 	umountFlagT   uint8 = 25
 	udpMsg        uint8 = 26
 	qtype         uint8 = 27
-	u8T           uint8 = 28
-	u16T          uint8 = 29
 )
 
 // ======================= //
@@ -53,13 +52,6 @@ const (
 // readContextFromBuff Function
 func readContextFromBuff(buff io.Reader) (SyscallContext, error) {
 	var res SyscallContext
-	err := binary.Read(buff, binary.LittleEndian, &res)
-	return res, err
-}
-
-// readUInt8FromBuff Function
-func readUInt8FromBuff(buff io.Reader) (uint8, error) {
-	var res uint8
 	err := binary.Read(buff, binary.LittleEndian, &res)
 	return res, err
 }
@@ -74,13 +66,6 @@ func readInt8FromBuff(buff io.Reader) (int8, error) {
 // readInt16FromBuff Function
 func readInt16FromBuff(buff io.Reader) (int16, error) {
 	var res int16
-	err := binary.Read(buff, binary.LittleEndian, &res)
-	return res, err
-}
-
-// readUInt16FromBuff Function
-func readUInt16FromBuff(buff io.Reader) (uint16, error) {
-	var res uint16
 	err := binary.Read(buff, binary.LittleEndian, &res)
 	return res, err
 }
@@ -724,7 +709,7 @@ func GetProtocol(proto int32) string {
 	return res
 }
 
-var usbClass = map[uint8]string{
+var UsbClass = map[uint8]string{
 	1:   "AUDIO",
 	2:   "COMMUNICATION-CDC",
 	3:   "HID",
@@ -751,33 +736,20 @@ var usbClass = map[uint8]string{
 	255: "VENDOR-SPECIFIC",
 }
 
-// Only for HID: subclass -> protocol -> name
-var hidMap = map[uint8]map[uint8]string{
-	1: { // Boot Interface Subclass
-		1: "HID KEYBOARD",
-		2: "HID MOUSE",
-	},
-}
-
-// getUSBClass Function
+// GetUSBResource Function
 func GetUSBResource(class, subClass, protocol, level uint8) string {
 
 	res := "USB"
 
-	// HID special handling
-	if class == 3 && subClass == 1 {
-		if protoMap, ok := hidMap[subClass]; ok {
-			if name, ok := protoMap[protocol]; ok {
-				res += " " + name
-			}
-		}
-	} else if usbClassName, ok := usbClass[class]; ok {
+	if usbClassName, ok := UsbClass[class]; ok {
 		res += " " + usbClassName
 	}
 
-	if level > 0 {
-		res += " " + strconv.Itoa(int(level))
-	}
+	res += "_" + strconv.Itoa(int(subClass))
+
+	res += "_" + strconv.Itoa(int(protocol))
+
+	res += " " + strconv.Itoa(int(level))
 
 	return res
 }
@@ -1064,16 +1036,6 @@ func readArgFromBuff(dataBuff io.Reader) (interface{}, error) {
 	}
 
 	switch at {
-	case u8T:
-		res, err = readUInt8FromBuff(dataBuff)
-		if err != nil {
-			return nil, err
-		}
-	case u16T:
-		res, err = readUInt16FromBuff(dataBuff)
-		if err != nil {
-			return nil, err
-		}
 	case intT:
 		res, err = readInt32FromBuff(dataBuff)
 		if err != nil {
@@ -1183,6 +1145,41 @@ func readArgFromBuff(dataBuff io.Reader) (interface{}, error) {
 		return nil, fmt.Errorf("error unknown argument type %v", at)
 	}
 
+	return res, nil
+}
+
+// GetHashes function
+func GetHashes(dataBuff *bytes.Buffer) (HashContext, error) {
+	res := HashContext{}
+
+	numOfHashes, err := readInt8FromBuff(dataBuff)
+	if err != nil {
+		return res, err
+	}
+
+	for range numOfHashes {
+		hashType, err := readInt32FromBuff(dataBuff)
+		if err != nil {
+			return res, err
+		}
+		hash, err := readByteSliceFromBuff(dataBuff, 32)
+		if err != nil {
+			return res, err
+		}
+		switch hashType {
+		case 30:
+			res.ProcessHash = hex.EncodeToString(hash)
+		case 31:
+			res.ParentHash = hex.EncodeToString(hash)
+		case 32:
+			res.ResourceHash = hex.EncodeToString(hash)
+		default:
+			return res, fmt.Errorf("unknown hash type: %d", hashType)
+		}
+	}
+	if numOfHashes > 0 {
+		res.HashAlgo = 1
+	}
 	return res, nil
 }
 

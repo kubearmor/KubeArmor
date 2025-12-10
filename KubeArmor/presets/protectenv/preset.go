@@ -215,7 +215,9 @@ func (p *Preset) TraceEvents() {
 
 		if event.Retval >= 0 {
 			log.Result = "Passed"
+			log.Action = "Audit"
 		} else {
+			log.Action = "Block"
 			log.Result = "Permission denied"
 		}
 

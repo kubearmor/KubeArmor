@@ -59,6 +59,9 @@ spec:
         args:
         - --annotateExisting={{ .Values.kubearmorOperator.annotateExisting }}
         - --annotateResource={{ .Values.kubearmorOperator.annotateResource }}
+        {{- if .Values.kubearmorOperator.image.imagePullSecrets }}
+        - --image-pull-secrets={{ .Values.kubearmorOperator.image.imagePullSecrets | toJson }}
+        {{- end }}
         {{- if .Values.kubearmorOperator.args -}}
           {{- toYaml .Values.kubearmorOperator.args | trim | nindent 8 }}
         {{- end }}
