@@ -194,6 +194,45 @@ var _ = Describe("csp", func() {
 			Expect(res.Found).To(BeTrue())
 		})
 
+		It("can update an existing policy to block a different process", func() {
+			// Apply the policy blocking apt
+			err := K8sApplyFile("res/csp-in-operator-block-process.yaml")
+			Expect(err).To(BeNil())
+
+			err = KarmorLogStart("policy", "nginx1", "Process", n1)
+			Expect(err).To(BeNil())
+
+			time.Sleep(5 * time.Second)
+
+			AssertCommand(n1, "nginx1", []string{"bash", "-c", "apt"},
+				MatchRegexp("apt.*Permission denied"), true,
+			)
+
+			// Update the policy to block curl instead
+			err = K8sApply([]string{"res/csp-in-operator-block-process-updated.yaml"})
+			Expect(err).To(BeNil())
+
+			time.Sleep(5 * time.Second)
+
+			AssertCommand(n1, "nginx1", []string{"bash", "-c", "apt"},
+				MatchRegexp(".*"), true,
+			)
+
+			AssertCommand(n1, "nginx1", []string{"bash", "-c", "curl --help"},
+				MatchRegexp("curl.*Permission denied"), true,
+			)
+
+			expect := protobuf.Alert{
+				PolicyName: "csp-in-operator-block-process",
+				Severity:   "8",
+				Action:     "Block",
+				Result:     "Permission denied",
+			}
+			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
+			Expect(err).To(BeNil())
+			Expect(res.Found).To(BeTrue())
+		})
+
 		It("can block execution of pkg mgmt tools apt, NotIn operator", func() {
 			// Apply policy
 			err := K8sApplyFile("res/csp-not-in-operator-block-process.yaml")

@@ -23,8 +23,13 @@ var _ = BeforeSuite(func() {
 	_, err = Kubectl("annotate ns wordpress-mysql kubearmor-file-posture=block --overwrite")
 	Expect(err).To(BeNil())
 
-	//give some time for the deployment to be up before applying whitelisting policies
-	time.Sleep(60 * time.Second)
+	Eventually(func() error {
+		_, err := Kubectl("wait --for=condition=ready pod --all -n wordpress-mysql --timeout=200s")
+		return err
+	}, 300*time.Second, 5*time.Second).Should(BeNil())
+
+	time.Sleep(40 * time.Second)
+
 	// delete all KSPs
 	err = DeleteAllKsp()
 	Expect(err).To(BeNil())
@@ -49,7 +54,6 @@ var _ = Describe("Posture", func() {
 
 	BeforeEach(func() {
 		wp = getWpsqlPod("wordpress-", "kubearmor-policy: enabled")
-
 	})
 
 	AfterEach(func() {
@@ -64,29 +68,24 @@ var _ = Describe("Posture", func() {
 		It("can whitelist certain files accessed by a package while blocking all other sensitive content", func() {
 			err := util.AnnotateNS("wordpress-mysql", "kubearmor-file-posture", "block")
 			Expect(err).To(BeNil())
-			// Apply policy
+
 			err = K8sApplyFile("res/ksp-wordpress-allow-file.yaml")
 			Expect(err).To(BeNil())
 
-			// wait for policy creation, added due to flaky behaviour
-			time.Sleep(10 * time.Second)
+			time.Sleep(5 * time.Second)
 
-			// Start Kubearmor Logs
 			err = KarmorLogStart("policy", "wordpress-mysql", "File", wp)
 			Expect(err).To(BeNil())
 
-			//curl needs UDP for DNS resolution
 			AssertCommand(
 				wp, "wordpress-mysql", []string{"bash", "-c", "cat wp-config.php"},
 				MatchRegexp("cat.*Permission denied"), true,
 			)
 
-			//test that tcp is whitelisted
 			AssertCommand(
 				wp, "wordpress-mysql", []string{"bash", "-c", "cat readme.html"},
 				MatchRegexp("<!DOCTYPE html>((?:.*\r?\n?)*)</html>"), true,
 			)
-			// check policy violation alert
 			_, alerts, err := KarmorGetLogs(5*time.Second, 1)
 			Expect(err).To(BeNil())
 			Expect(len(alerts)).To(BeNumerically(">=", 1))
