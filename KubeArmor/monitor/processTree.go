@@ -235,6 +235,23 @@ func (mon *SystemMonitor) GetParentExecPath(containerID string, ctx SyscallConte
 		}
 	}
 
+	// check pidMap of host
+	if hostPidMap, ok := ActiveHostPidMap[""]; ok {
+		if node, ok := hostPidMap[ctx.HostPID]; ok {
+			path = node.ParentExecPath
+			if path != "/" && strings.HasPrefix(path, "/") {
+				return path
+			}
+		}
+		// check if parent pid node exists
+		if node, ok := hostPidMap[ctx.HostPPID]; ok {
+			path = node.ExecPath
+			if path != "/" && strings.HasPrefix(path, "/") {
+				return path
+			}
+		}
+	}
+
 	if readlink {
 		// just in case that it couldn't still get the full path
 		if data, err := os.Readlink(filepath.Join(cfg.GlobalCfg.ProcFsMount, strconv.FormatUint(uint64(ctx.HostPPID), 10), "/exe")); err == nil && data != "" && data != "/" {
