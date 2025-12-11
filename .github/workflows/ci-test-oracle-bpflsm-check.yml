@@ -17,7 +17,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [oracle-vm-16cpu-64gb-x86-64]
+        os: [oracle-16cpu-64gb-x86-64]
         runtime: ["containerd"]
     steps:
       - name: BPF LSM check
