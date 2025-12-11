@@ -4,9 +4,10 @@ package core
 
 import (
 	"context"
+	"testing"
+
 	"github.com/kubearmor/KubeArmor/KubeArmor/policy"
 	pb "github.com/kubearmor/KubeArmor/protobuf"
-	"testing"
 )
 
 func FuzzHostPolicy(f *testing.F) {

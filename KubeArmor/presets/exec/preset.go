@@ -1,3 +1,5 @@
+//go:build linux
+
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2021 Authors of KubeArmor
 
@@ -21,6 +23,7 @@ import (
 	"github.com/cilium/ebpf/ringbuf"
 	"github.com/cilium/ebpf/rlimit"
 	"github.com/kubearmor/KubeArmor/KubeArmor/buildinfo"
+	"github.com/kubearmor/KubeArmor/KubeArmor/common"
 	"github.com/kubearmor/KubeArmor/KubeArmor/presets/base"
 
 	fd "github.com/kubearmor/KubeArmor/KubeArmor/feeder"
@@ -107,12 +110,12 @@ func (p *Preset) RegisterPreset(logger *fd.Feeder, monitor *mon.SystemMonitor) (
 		Pinning:    ebpf.PinByName,
 		Name:       "kubearmor_exec_preset_containers",
 	}, ebpf.MapOptions{
-		PinPath: monitor.PinPath,
+		PinPath: common.GetMapRoot(),
 	})
 
 	if err := loadExecObjects(&p.obj, &ebpf.CollectionOptions{
 		Maps: ebpf.MapOptions{
-			PinPath: monitor.PinPath,
+			PinPath: common.GetMapRoot(),
 		},
 	}); err != nil {
 		p.Logger.Errf("Error loading BPF LSM objects: %v", err)

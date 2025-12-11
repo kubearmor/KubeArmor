@@ -7,7 +7,6 @@ import (
 	"context"
 	"encoding/json"
 
-	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
 	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 	pb "github.com/kubearmor/KubeArmor/protobuf"
@@ -57,7 +56,7 @@ func (dm *KubeArmorDaemon) SetKarmorData() {
 	kd.KubeletVersion = dm.Node.KubeletVersion
 	kd.ContainerRuntime = dm.Node.ContainerRuntimeVersion
 	if dm.RuntimeEnforcer != nil {
-		kd.ActiveLSM = dm.RuntimeEnforcer.EnforcerType
+		kd.ActiveLSM = dm.RuntimeEnforcer.GetEnforcerType()
 
 		if cfg.GlobalCfg.Policy {
 			kd.ContainerSecurity = true
@@ -68,10 +67,10 @@ func (dm *KubeArmorDaemon) SetKarmorData() {
 	}
 	kd.KernelHeaderPresent = true //this is always true since KubeArmor is running
 	kd.HostVisibility = dm.Node.Annotations["kubearmor-visibility"]
-	err := kl.WriteToFile(kd, "/tmp/karmorProbeData.cfg")
-	if err != nil {
-		dm.Logger.Errf("Error writing karmor config data (%s)", err.Error())
-	}
+	// err := kl.WriteToFile(kd, "/tmp/karmorProbeData.cfg")
+	// if err != nil {
+	// 	dm.Logger.Errf("Error writing karmor config data (%s)", err.Error())
+	// }
 
 }
 

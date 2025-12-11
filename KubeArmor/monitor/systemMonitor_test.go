@@ -136,8 +136,8 @@ func TestTraceSyscallWithPod(t *testing.T) {
 	t.Log("[PASS] Created SystemMonitor")
 
 	// Initialize BPF
-	if err := systemMonitor.InitBPF(); err != nil {
-		t.Log("[FAIL] Failed to initialize BPF")
+	if err := systemMonitor.Monitor.Init(); err != nil {
+		t.Log("[FAIL] Failed to initialize SystemMonitor")
 
 		if err := systemMonitor.DestroySystemMonitor(); err != nil {
 			t.Log("[FAIL] Failed to destroy SystemMonitor")
@@ -163,7 +163,7 @@ func TestTraceSyscallWithPod(t *testing.T) {
 	time.Sleep(time.Second * 1)
 
 	// Start to trace syscalls
-	go systemMonitor.TraceSyscall()
+	go systemMonitor.TraceEvents()
 	t.Log("[PASS] Started to trace syscalls")
 
 	// wait for a while
@@ -237,8 +237,8 @@ func TestTraceSyscallWithHost(t *testing.T) {
 	t.Log("[PASS] Created SystemMonitor")
 
 	// Initialize BPF
-	if err := systemMonitor.InitBPF(); err != nil {
-		t.Log("[FAIL] Failed to initialize BPF")
+	if err := systemMonitor.Monitor.Init(); err != nil {
+		t.Log("[FAIL] Failed to initialize system monitor")
 
 		if err := systemMonitor.DestroySystemMonitor(); err != nil {
 			t.Log("[FAIL] Failed to destroy SystemMonitor")
@@ -264,7 +264,7 @@ func TestTraceSyscallWithHost(t *testing.T) {
 	time.Sleep(time.Second * 1)
 
 	// Start to trace syscalls for host
-	go systemMonitor.TraceSyscall()
+	go systemMonitor.TraceEvents()
 	t.Log("[PASS] Started to trace syscalls")
 
 	// wait for a while

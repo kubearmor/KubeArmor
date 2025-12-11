@@ -21,7 +21,7 @@ import (
 // ============================ //
 
 // LookupContainerID Function
-func (mon *SystemMonitor) LookupContainerID(pidns, mntns uint32) string {
+func (mon *MonitorState) LookupContainerID(pidns, mntns uint32) string {
 	key := NsKey{PidNS: pidns, MntNS: mntns}
 
 	mon.NsMapLock.RLock()
@@ -35,14 +35,13 @@ func (mon *SystemMonitor) LookupContainerID(pidns, mntns uint32) string {
 }
 
 // AddContainerIDToNsMap Function
-func (mon *SystemMonitor) AddContainerIDToNsMap(containerID string, namespace string, pidns, mntns uint32) {
+func (mon *MonitorState) AddContainerIDToNsMap(containerID string, namespace string, pidns, mntns uint32) {
 	key := NsKey{PidNS: pidns, MntNS: mntns}
 
 	mon.NsMapLock.Lock()
 	mon.NsMap[key] = containerID
 	mon.NsMapLock.Unlock()
 
-	mon.BpfMapLock.Lock()
 	if val, ok := mon.NamespacePidsMap[namespace]; ok {
 		// check if nskey already exist
 		found := false
@@ -56,14 +55,14 @@ func (mon *SystemMonitor) AddContainerIDToNsMap(containerID string, namespace st
 		if !found {
 			val.NsKeys = append(val.NsKeys, key)
 			mon.NamespacePidsMap[namespace] = val
-			mon.UpdateNsKeyMap("ADDED", key, tp.Visibility{
-				File:         val.File,
-				Process:      val.Process,
-				Capabilities: val.Capability,
-				Network:      val.Network,
-				DNS:          val.DNS,
-				IMA:          val.IMA,
-			})
+			// mon.UpdateNsKeyMap("ADDED", key, tp.Visibility{
+			// 	File:         val.File,
+			// 	Process:      val.Process,
+			// 	Capabilities: val.Capability,
+			// 	Network:      val.Network,
+			// 	DNS:          val.DNS,
+			// 	IMA:          val.IMA,
+			// })
 		}
 	} else {
 		mon.NamespacePidsMap[namespace] = NsVisibility{
@@ -72,7 +71,7 @@ func (mon *SystemMonitor) AddContainerIDToNsMap(containerID string, namespace st
 			},
 		}
 		// Set Visibility to Global Default
-		visibility := tp.Visibility{
+		_ = tp.Visibility{
 			File:         strings.Contains(cfg.GlobalCfg.Visibility, "file"),
 			Process:      strings.Contains(cfg.GlobalCfg.Visibility, "process"),
 			Network:      strings.Contains(cfg.GlobalCfg.Visibility, "network"),
@@ -80,13 +79,13 @@ func (mon *SystemMonitor) AddContainerIDToNsMap(containerID string, namespace st
 			DNS:          strings.Contains(cfg.GlobalCfg.Visibility, "dns"),
 			IMA:          strings.Contains(cfg.GlobalCfg.Visibility, "ima"),
 		}
-		mon.UpdateNsKeyMap("ADDED", key, visibility)
+		// mon.UpdateNsKeyMap("ADDED", key, visibility)
 	}
-	mon.BpfMapLock.Unlock()
+
 }
 
 // DeleteContainerIDFromNsMap Function
-func (mon *SystemMonitor) DeleteContainerIDFromNsMap(containerID string, namespace string, pidns, mntns uint32) {
+func (mon *MonitorState) DeleteContainerIDFromNsMap(containerID string, namespace string, pidns, mntns uint32) {
 	ns := NsKey{
 		PidNS: pidns,
 		MntNS: mntns,
@@ -112,8 +111,8 @@ func (mon *SystemMonitor) DeleteContainerIDFromNsMap(containerID string, namespa
 		return
 	}
 
-	mon.BpfMapLock.Lock()
-	defer mon.BpfMapLock.Unlock()
+	// mon.BpfMapLock.Lock()
+	// defer mon.BpfMapLock.Unlock()
 	if val, ok := mon.NamespacePidsMap[namespace]; ok {
 		for i := range val.NsKeys {
 			if val.NsKeys[i].MntNS == ns.MntNS && val.NsKeys[i].PidNS == ns.PidNS {
@@ -122,7 +121,7 @@ func (mon *SystemMonitor) DeleteContainerIDFromNsMap(containerID string, namespa
 			}
 		}
 		mon.NamespacePidsMap[namespace] = val
-		mon.UpdateNsKeyMap("DELETED", ns, tp.Visibility{})
+		// mon.UpdateNsKeyMap("DELETED", ns, tp.Visibility{})
 	}
 }
 
@@ -131,7 +130,7 @@ func (mon *SystemMonitor) DeleteContainerIDFromNsMap(containerID string, namespa
 // ================== //
 
 // BuildPidNode Function
-func (mon *SystemMonitor) BuildPidNode(containerID string, ctx SyscallContext, execPath string, args []string, lock bool) tp.PidNode {
+func (mon *MonitorState) BuildPidNode(containerID string, ctx SyscallContext, execPath string, args []string, lock bool) tp.PidNode {
 	node := tp.PidNode{}
 
 	node.HostPPID = ctx.HostPPID
@@ -163,7 +162,7 @@ func (mon *SystemMonitor) BuildPidNode(containerID string, ctx SyscallContext, e
 }
 
 // AddActivePid Function
-func (mon *SystemMonitor) AddActivePid(containerID string, node tp.PidNode) {
+func (mon *MonitorState) AddActivePid(containerID string, node tp.PidNode) {
 	ActiveHostPidMap := *(mon.ActiveHostPidMap)
 	ActivePidMapLock := *(mon.ActivePidMapLock)
 
@@ -180,7 +179,7 @@ func (mon *SystemMonitor) AddActivePid(containerID string, node tp.PidNode) {
 }
 
 // UpdateExecPath Function
-func (mon *SystemMonitor) UpdateExecPath(containerID string, hostPid uint32, execPath string) {
+func (mon *MonitorState) UpdateExecPath(containerID string, hostPid uint32, execPath string) {
 	if execPath == "/" || !strings.HasPrefix(execPath, "/") {
 		return
 	}
@@ -209,7 +208,7 @@ func (mon *SystemMonitor) UpdateExecPath(containerID string, hostPid uint32, exe
 }
 
 // GetParentExecPath Function
-func (mon *SystemMonitor) GetParentExecPath(containerID string, ctx SyscallContext, readlink bool, lock bool) string {
+func (mon *MonitorState) GetParentExecPath(containerID string, ctx SyscallContext, readlink bool, lock bool) string {
 	ActiveHostPidMap := *(mon.ActiveHostPidMap)
 	ActivePidMapLock := *(mon.ActivePidMapLock)
 	if !lock {
@@ -279,7 +278,7 @@ func (mon *SystemMonitor) GetParentExecPath(containerID string, ctx SyscallConte
 }
 
 // GetExecPath Function
-func (mon *SystemMonitor) GetExecPath(containerID string, ctx SyscallContext, readlink bool) string {
+func (mon *MonitorState) GetExecPath(containerID string, ctx SyscallContext, readlink bool) string {
 	ActiveHostPidMap := *(mon.ActiveHostPidMap)
 	ActivePidMapLock := *(mon.ActivePidMapLock)
 
@@ -323,7 +322,7 @@ func (mon *SystemMonitor) GetExecPath(containerID string, ctx SyscallContext, re
 }
 
 // GetCommand Function
-func (mon *SystemMonitor) GetCommand(containerID string, ctx SyscallContext, readlink bool) string {
+func (mon *MonitorState) GetCommand(containerID string, ctx SyscallContext, readlink bool) string {
 	ActiveHostPidMap := *(mon.ActiveHostPidMap)
 	ActivePidMapLock := *(mon.ActivePidMapLock)
 
@@ -354,7 +353,7 @@ func (mon *SystemMonitor) GetCommand(containerID string, ctx SyscallContext, rea
 }
 
 // DeleteActivePid Function
-func (mon *SystemMonitor) DeleteActivePid(containerID string, ctx SyscallContext) {
+func (mon *MonitorState) DeleteActivePid(containerID string, ctx SyscallContext) {
 	now := time.Now()
 
 	ActiveHostPidMap := *(mon.ActiveHostPidMap)

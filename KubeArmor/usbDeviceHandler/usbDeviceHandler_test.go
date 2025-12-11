@@ -1,3 +1,5 @@
+//go:build linux
+
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2021 Authors of KubeArmor
 
@@ -181,11 +183,11 @@ func TestUpdateHostSecurityPolicies(t *testing.T) {
 	}
 
 	// compare generated rules list (in order)
-	if len(usbHandler.Rules) != len(expectedRules) {
+	if len(usbHandler.GetRules()) != len(expectedRules) {
 		t.Log("[FAIL] Number of rules don't match")
 	}
 	t.Log("[PASS] Number of rules matched")
-	for i, r := range usbHandler.Rules {
+	for i, r := range usbHandler.GetRules() {
 		if r.Class != expectedRules[i].Class {
 			t.Logf("[FAIL] Expected class %d, got %d", expectedRules[i].Class, r.Class)
 		}

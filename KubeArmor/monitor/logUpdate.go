@@ -19,7 +19,7 @@ import (
 // ========== //
 
 // UpdateContainerInfoByContainerID Function
-func (mon *SystemMonitor) UpdateContainerInfoByContainerID(log tp.Log) tp.Log {
+func (mon *MonitorState) UpdateContainerInfoByContainerID(log tp.Log) tp.Log {
 	Containers := *(mon.Containers)
 	ContainersLock := *(mon.ContainersLock)
 
@@ -53,7 +53,7 @@ func (mon *SystemMonitor) UpdateContainerInfoByContainerID(log tp.Log) tp.Log {
 }
 
 // BuildLogBase Function
-func (mon *SystemMonitor) BuildLogBase(eventID int32, msg ContextCombined, readlink bool) tp.Log {
+func (mon *MonitorState) BuildLogBase(eventID int32, msg ContextCombined, readlink bool) tp.Log {
 	log := tp.Log{}
 
 	timestamp, updatedTime := kl.GetDateTimeNow()
@@ -106,7 +106,7 @@ func (mon *SystemMonitor) BuildLogBase(eventID int32, msg ContextCombined, readl
 }
 
 // UpdateLogBase Function (SYS_EXECVE, SYS_EXECVEAT)
-func (mon *SystemMonitor) UpdateLogBase(ctx SyscallContext, log tp.Log) tp.Log {
+func (mon *MonitorState) UpdateLogBase(ctx SyscallContext, log tp.Log) tp.Log {
 
 	// update the process paths, since we would have received actual exec paths from bprm hook
 	// in case bprm hook has not populated the map with full path, we will fallback to reading from procfs
