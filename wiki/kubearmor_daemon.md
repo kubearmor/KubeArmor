@@ -282,6 +282,12 @@ The Daemon acts as the central switchboard, ensuring that policies are delivered
 
 This table reinforces that the Daemon is the crucial integration layer on each node.
 
+## IPv6-aware Kubernetes API server connectivity
+
+When the KubeArmor Daemon runs inside a Kubernetes cluster, it discovers the Kubernetes API server address using the `KUBERNETES_SERVICE_HOST` and `KUBERNETES_PORT_443_TCP_PORT` environment variables. The daemon normalizes the value of `KUBERNETES_SERVICE_HOST` using an internal helper so that both IPv4 and IPv6 host addresses work when building URLs.
+
+In particular, if the host is an IPv6 address (including IPv6-mapped IPv4 forms), the daemon wraps the address in square brackets before combining it with the scheme (`http` or `https`) and port. This ensures that URLs like `https://[2001:db8::1]:6443` are formed correctly when talking to the Kubernetes API server from within the cluster.
+
 ## Conclusion
 
 In this chapter, you learned that the KubeArmor Daemon is the core process running on each node, serving as the central orchestrator for all other KubeArmor components. It's responsible for initializing, managing, and coordinating the System Monitor (eyes/ears), Runtime Enforcer (security guard), and Log Feeder (reporter). You saw how it interacts with Kubernetes and container runtimes to understand Container/Node Identity and fetch Security Policies, bringing all the pieces together to enforce your security posture and report violations.
