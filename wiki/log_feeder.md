@@ -100,7 +100,8 @@ message Alert {
   string Operation = 19; // e.g., Process, File, Network
   string Resource = 20; // e.g., /etc/passwd, tcp://1.2.3.4:80
   string Data = 21; // Additional data if any
-  string Enforcer = 28; // e.g., BPFLSM, AppArmor, eBPF Monitor
+  map<string, string> EventData = 43; // Additional structured data
+  string Enforcer = 28; // e.g., BPFLSM, AppArmor, eBPF Monitor, PRESET-*
   string Action = 22; // e.g., Allow, Audit, Block
   string Result = 23; // e.g., Failed, Passed, Error
 
@@ -114,7 +115,13 @@ message Alert {
 
   ExecEvent ExecEvent = 36; // Link to ExecEvent struct
 
-  // ... other fields
+  // Versioning and hashing info
+  string KubeArmorVersion = 37;
+  string NodeID = 38;
+  string ProcessHash = 39;
+  string ParentHash = 40;
+  string ResourceHash = 41;
+  string HashAlgo = 42;
 }
 
 // Simplified Protobuf definition for a Log message (similar but fewer policy fields)
@@ -127,12 +134,20 @@ message Log {
   string Operation = 15;
   string Resource = 16;
   string Data = 17;
+  map<string, string> EventData = 33; // Additional structured data
   string Result = 18; // e.g., Success, Failed
 
   string Cwd = 25;
   string TTY = 26;
 
   ExecEvent ExecEvent = 27;
+
+  // Node and hashing info
+  string NodeID = 28;
+  string ProcessHash = 29;
+  string ParentHash = 30;
+  string ResourceHash = 31;
+  string HashAlgo = 32;
 }
 
 // Simplified definitions for nested structs
