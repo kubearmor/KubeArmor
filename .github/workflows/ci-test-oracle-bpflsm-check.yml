@@ -1,0 +1,27 @@
+name: ci-test-oracle-bpflsm-check
+
+on:
+  pull_request:
+    branches:
+      - "main"
+
+# Declare default permissions as read only.
+permissions: read-all
+
+jobs:
+  kubearmor-controller-test:
+    name: Auto-testing Framework / ${{ matrix.os }} / ${{ matrix.runtime }}
+    runs-on: ${{ matrix.os }}
+    env:
+      RUNTIME: ${{ matrix.runtime }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [oracle-vm-16cpu-64gb-x86-64]
+        runtime: ["containerd"]
+    steps:
+      - name: BPF LSM check
+        run: |
+          echo "========== LSMs ==========="
+          cat /sys/kernel/security/lsm || true
+          echo
