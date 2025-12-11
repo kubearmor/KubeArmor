@@ -543,9 +543,9 @@ func (mon *SystemMonitor) UpdateLogs() {
 					}
 				}
 
-				log.Data = "kfunc=UDP_SENDMSG," + "domain=" + domains[:len(domains)-1] + // removed trailing . from domain name
-					",daddr=" + sockAddr["sin_addr"] +
-					",qtype=" + qtype
+				log.Data = "kfunc=UDP_SENDMSG" + " domain=" + domains[:len(domains)-1] + // removed trailing . from domain name
+					" daddr=" + sockAddr["sin_addr"] +
+					" qtype=" + qtype
 				log.Operation = "Network"
 				log.Resource = "sa_family=" + sockAddr["sa_family"] + " sin_port=53"
 
