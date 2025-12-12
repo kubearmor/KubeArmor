@@ -206,7 +206,7 @@ func genEnforcerVolumes(enforcer string) (vol []corev1.Volume, volMnt []corev1.V
 	if enforcer == "none" {
 		return nil, nil
 	}
-	for _, e := range strings.Split(enforcer, ".") {
+	for e := range strings.SplitSeq(enforcer, ".") {
 		vol = append(vol, common.EnforcerVolumes[e]...)
 		volMnt = append(volMnt, common.EnforcerVolumesMounts[e]...)
 	}

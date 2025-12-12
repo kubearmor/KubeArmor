@@ -1026,9 +1026,9 @@ func readArgTypeFromBuff(buff io.Reader) (uint8, error) {
 }
 
 // readArgFromBuff Function
-func readArgFromBuff(dataBuff io.Reader) (interface{}, error) {
+func readArgFromBuff(dataBuff io.Reader) (any, error) {
 	var err error
-	var res interface{}
+	var res any
 
 	at, err := readArgTypeFromBuff(dataBuff)
 	if err != nil {
@@ -1184,8 +1184,8 @@ func GetHashes(dataBuff *bytes.Buffer) (HashContext, error) {
 }
 
 // GetArgs Function
-func GetArgs(dataBuff *bytes.Buffer, Argnum int32) ([]interface{}, error) {
-	args := []interface{}{}
+func GetArgs(dataBuff *bytes.Buffer, Argnum int32) ([]any, error) {
+	args := []any{}
 
 	for i := 0; i < int(Argnum); i++ {
 		arg, err := readArgFromBuff(dataBuff)
