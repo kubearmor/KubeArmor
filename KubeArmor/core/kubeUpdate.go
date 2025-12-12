@@ -2974,6 +2974,10 @@ func (dm *KubeArmorDaemon) WatchConfigMap() cache.InformerSynced {
 				dm.UpdateIMA(cfg.GlobalCfg.EnableIMA)
 				dm.UpdateUSBDeviceHandler(cfg.GlobalCfg.USBDeviceHandler)
 				dm.SystemMonitor.UpdateThrottlingConfig()
+				if _, ok := cm.Data[cfg.ConfigArgMatching]; ok {
+					cfg.GlobalCfg.MatchArgs = (cm.Data[cfg.ConfigArgMatching] == "true")
+				}
+				dm.SystemMonitor.UpdateMatchArgsConfig()
 
 				dm.Logger.Printf("Current Global Posture is %v", currentGlobalPosture)
 				dm.UpdateGlobalPosture(globalPosture)
