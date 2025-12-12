@@ -19,7 +19,7 @@ func GetAvailableLsms() []string {
 }
 
 // CheckBtfSupport checks if BTF is present
-func CheckBtfSupport(PathPrefix string, log zap.SugaredLogger) string {
+func CheckBtfSupport(PathPrefix string) string {
 	btfPath := PathPrefix + "/sys/kernel/btf/vmlinux"
 	if _, err := os.Stat(filepath.Clean(btfPath)); err == nil {
 		return "yes"
@@ -27,8 +27,8 @@ func CheckBtfSupport(PathPrefix string, log zap.SugaredLogger) string {
 	return "no"
 }
 
-// CheckIfApparmorFsPresent checks if BTF is present
-func CheckIfApparmorFsPresent(PathPrefix string, log zap.SugaredLogger) string {
+// CheckIfApparmorFsPresent checks if apparmor FS is present
+func CheckIfApparmorFsPresent(PathPrefix string) string {
 	path := PathPrefix + "/etc/apparmor.d/tunables"
 	if _, err := os.Stat(filepath.Clean(path)); err == nil {
 		return "yes"
@@ -36,8 +36,17 @@ func CheckIfApparmorFsPresent(PathPrefix string, log zap.SugaredLogger) string {
 	return "no"
 }
 
+// CheckIfApparmorSnapProfilesPresent checks if apparmor snap profiles present
+func CheckIfApparmorSnapProfilesPresent(pathPrefix string) string {
+	path := pathPrefix + "/var/lib/snapd/apparmor"
+	if _, err := os.Stat(filepath.Clean(path)); err == nil {
+		return "yes"
+	}
+	return "no"
+}
+
 // CheckIfSecurityFsPresent checks if Security filesystem is present
-func CheckIfSecurityFsPresent(PathPrefix string, log zap.SugaredLogger) string {
+func CheckIfSecurityFsPresent(PathPrefix string) string {
 	path := PathPrefix + "/sys/kernel/security"
 	if _, err := os.Stat(filepath.Clean(path)); err == nil {
 		return "yes"
