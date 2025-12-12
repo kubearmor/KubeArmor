@@ -24,10 +24,12 @@ helm upgrade --install kubearmor . -n kubearmor --create-namespace
 | kubearmor.configMap.defaultNetworkPosture | string | audit | Default network posture for KubeArmor |
 | kubearmor.configMap.defaultCapabilitiesPosture | string | audit | Default capabilities posture for KubeArmor |
 | kubearmor.configMap.visibility | string | audit | Default visibility for KubeArmor |
+| kubearmor.resources | object | { requests: { cpu: 10m, memory: 64Mi } } | kubearmor DaemonSet container resources requests/limits |
 | kubearmorRelay.enable | bool | true | to enable/disable kubearmor-relay |
 | kubearmorRelay.image.repository | string | kubearmor/kubearmor-relay | kubearmor-relay image repo |
 | kubearmorRelay.image.tag | string | latest | kubearmor-relay image tag |
 | kubearmorRelay.imagePullPolicy | string | Always | kubearmor-relay imagePullPolicy |
+| kubearmorRelay.resources | object | { requests: { cpu: 10m, memory: 64Mi } } | kubearmor-relay container resources requests/limits |
 | kubearmorInit.image.repository | string | kubearmor/kubearmor-init | kubearmor-init image repo |
 | kubearmorInit.image.tag | string | stable | kubearmor-init image tag |
 | kubearmorInit.imagePullPolicy | string | Always | kubearmor-init imagePullPolicy |
@@ -39,6 +41,7 @@ helm upgrade --install kubearmor . -n kubearmor --create-namespace
 | kubearmorController.image.tag | string | latest | kubearmor-controller image tag |
 | kubearmorController.mutation.failurePolicy | string | Ignore | kubearmor-controller failure policy |
 | kubearmorController.imagePullPolicy | string | Always | kubearmor-controller imagePullPolicy |
+| kubearmorController.resources | object | { requests: { cpu: 10m, memory: 64Mi } } | kubearmor-controller container resources requests/limits |
 
 ## kubearmor-args
 ```
