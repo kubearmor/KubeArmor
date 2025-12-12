@@ -4,7 +4,7 @@ go 1.24.11
 
 require (
 	github.com/containers/podman/v5 v5.6.0
-	github.com/kubearmor/KubeArmor/KubeArmor v0.0.0-20250820080657-ae5943c9eb3c
+	github.com/kubearmor/KubeArmor/KubeArmor c91f160c85d0
 	github.com/opencontainers/runtime-spec v1.2.1
 )
 
