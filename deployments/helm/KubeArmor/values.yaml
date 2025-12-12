@@ -124,7 +124,8 @@ kubearmor:
   imagePullPolicy: Always
 
   # kubearmor daemonset arguments. See `kubearmor --help`
-  args: []
+  args:
+      - "--untrackedNs=kube-system,kubearmor"
 
   tls:
     tlsCertPath: /var/lib/kubearmor/tls
