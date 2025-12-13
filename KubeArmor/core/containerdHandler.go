@@ -583,7 +583,7 @@ func (dm *KubeArmorDaemon) UpdateContainerdContainer(ctx context.Context, contai
 }
 
 // MonitorContainerdEvents Function
-func (dm *KubeArmorDaemon) MonitorContainerdEvents() {
+func (dm *KubeArmorDaemon) MonitorContainerdEvents(ctx context.Context) {
 	dm.WgDaemon.Add(1)
 	defer dm.WgDaemon.Done()
 
@@ -608,6 +608,10 @@ func (dm *KubeArmorDaemon) MonitorContainerdEvents() {
 	}
 	for {
 		select {
+		case <-ctx.Done():
+			 dm.Logger.Print("Stopping containerd events monitor via context")
+        return
+		
 		case <-StopChan:
 			return
 

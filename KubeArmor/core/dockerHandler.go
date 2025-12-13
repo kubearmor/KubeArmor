@@ -779,7 +779,7 @@ func (dm *KubeArmorDaemon) UpdateDockerContainer(containerID, action string) {
 }
 
 // MonitorDockerEvents Function
-func (dm *KubeArmorDaemon) MonitorDockerEvents() {
+func (dm *KubeArmorDaemon) MonitorDockerEvents(ctx context.Context) {
 	dm.WgDaemon.Add(1)
 	defer dm.WgDaemon.Done()
 
@@ -795,13 +795,14 @@ func (dm *KubeArmorDaemon) MonitorDockerEvents() {
 
 	dm.Logger.Print("Started to monitor Docker events")
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
 	EventChan := Docker.GetEventChannel(ctx, StopChan)
 
 	for {
 		select {
+		case <-ctx.Done():
+			dm.Logger.Print("Stopping Docker event monitor via context")
+            return
+			
 		case <-StopChan:
 			return
 
