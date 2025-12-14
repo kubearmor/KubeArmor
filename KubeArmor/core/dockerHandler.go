@@ -216,7 +216,7 @@ func (dh *DockerHandler) GetContainerInfo(containerID, nodeID string, OwnerInfo 
 // ========================== //
 
 // GetEventChannel Function
-func (dh *DockerHandler) GetEventChannel(ctx context.Context, StopChan <-chan struct{}) <-chan events.Message {
+func (dh *DockerHandler) GetEventChannel(ctx context.Context) <-chan events.Message {
 	if dh.DockerClient != nil {
 		eventBuffer := make(chan events.Message, 256)
 
@@ -229,8 +229,6 @@ func (dh *DockerHandler) GetEventChannel(ctx context.Context, StopChan <-chan st
 				select {
 				case eventBuffer <- event:
 				case <-ctx.Done():
-					return
-				case <-StopChan:
 					return
 				default:
 					kg.Warnf("Docker channel full.")
@@ -795,15 +793,12 @@ func (dm *KubeArmorDaemon) MonitorDockerEvents(ctx context.Context) {
 
 	dm.Logger.Print("Started to monitor Docker events")
 
-	EventChan := Docker.GetEventChannel(ctx, StopChan)
+	EventChan := Docker.GetEventChannel(ctx)
 
 	for {
 		select {
 		case <-ctx.Done():
 			dm.Logger.Print("Stopping Docker event monitor via context")
-            return
-			
-		case <-StopChan:
 			return
 
 		case msg, valid := <-EventChan:
