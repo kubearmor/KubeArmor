@@ -2929,6 +2929,11 @@ func (dm *KubeArmorDaemon) WatchConfigMap() cache.InformerSynced {
 				dm.NodeLock.Lock()
 				dm.Node.ClusterName = cm.Data[cfg.ConfigCluster]
 				dm.NodeLock.Unlock()
+				if v, ok := cm.Data[cfg.ConfigUntrackedNs]; ok {
+					dm.SystemMonitor.UpdateUntrackedNamespaces(v)
+					dm.Logger.Printf("initial untracked namespaces set: %s", v)
+
+				}
 				if _, ok := cm.Data[cfg.ConfigDefaultPostureLogs]; ok {
 					cfg.GlobalCfg.DefaultPostureLogs = (cm.Data[cfg.ConfigDefaultPostureLogs] == "true")
 				}
@@ -2982,10 +2987,11 @@ func (dm *KubeArmorDaemon) WatchConfigMap() cache.InformerSynced {
 				dm.updateVisibilityWithCM(cm, addEvent)
 			}
 		},
-		UpdateFunc: func(_, new any) {
-			if cm, ok := new.(*corev1.ConfigMap); ok && cm.Namespace == cmNS {
+		UpdateFunc: func(oldObj, newObj any) {
+			if cm, ok := newObj.(*corev1.ConfigMap); ok && cm.Namespace == cmNS {
 				cfg.GlobalCfg.HostVisibility = cm.Data[cfg.ConfigHostVisibility]
 				cfg.GlobalCfg.Visibility = cm.Data[cfg.ConfigVisibility]
+
 				cfg.GlobalCfg.Cluster = cm.Data[cfg.ConfigCluster]
 				cfg.GlobalCfg.DropResourceFromProcessLogs = (cm.Data[cfg.ConfigDropResourceFromProcessLogs] == "true")
 				dm.Node.ClusterName = cm.Data[cfg.ConfigCluster]
@@ -3009,6 +3015,23 @@ func (dm *KubeArmorDaemon) WatchConfigMap() cache.InformerSynced {
 				dm.updatEndpointsWithCM(cm, updateEvent)
 				// update visibility for namespaces
 				dm.updateVisibilityWithCM(cm, updateEvent)
+
+				oldCM, okOld := oldObj.(*corev1.ConfigMap)
+				newCM, okNew := newObj.(*corev1.ConfigMap)
+				if !okOld || !okNew {
+					return
+				}
+
+				oldNs := oldCM.Data[cfg.ConfigUntrackedNs]
+				newNs := newCM.Data[cfg.ConfigUntrackedNs]
+
+				if oldNs != newNs {
+					dm.Logger.Printf("untracked namespaces updated: %s -> %s", oldNs, newNs)
+					dm.SystemMonitor.UpdateUntrackedNamespaces(newNs)
+
+					// re-apply visibility using updated untracked namespace list
+					dm.updateVisibilityWithCM(newCM, updateEvent)
+				}
 
 				if _, ok := cm.Data[cfg.ConfigAlertThrottling]; ok {
 					cfg.GlobalCfg.AlertThrottling = (cm.Data[cfg.ConfigAlertThrottling] == "true")

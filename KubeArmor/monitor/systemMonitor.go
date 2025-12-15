@@ -329,6 +329,21 @@ func (mon *SystemMonitor) UpdateThrottlingConfig() {
 		cfg.GlobalCfg.ThrottleSec)
 }
 
+// UpdateUntrackedNamespaces updates the runtime untracked namespace list.
+
+func (sm *SystemMonitor) UpdateUntrackedNamespaces(v string) {
+	namespaces := []string{}
+
+	for _, ns := range strings.Split(v, ",") {
+		ns = strings.TrimSpace(ns)
+		if ns != "" {
+			namespaces = append(namespaces, ns)
+		}
+	}
+
+	sm.UntrackedNamespaces = namespaces
+}
+
 // UpdateNsKeyMap Function
 func (mon *SystemMonitor) UpdateNsKeyMap(action string, nsKey NsKey, visibility tp.Visibility) {
 	var err error
