@@ -389,9 +389,14 @@ spec:
                         ownerOnly:
                           type: boolean
                         path:
-                          pattern: 
+                          pattern: ^\/+.*[^\/]$
                           type: string
                           maxLength: 200
+                        allowedArgs: 
+                          items: 
+                            type: string
+                          type: array
+                          maxItems: 20
                         severity:
                           maximum: 10
                           minimum: 1

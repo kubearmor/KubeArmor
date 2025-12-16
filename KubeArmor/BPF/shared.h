@@ -1067,7 +1067,7 @@ static inline bool matchArguments(unsigned int num_of_args, struct outer_key *ok
     // pk->path[0] will be null for fromSource rules
     bpf_probe_read_str(&a_key->store.source, sizeof(store->source), store->source);
   }
-  // block if number of arguments is greater than 16
+  // block if number of arguments is greater than 20
   if (num_of_args > MAX_STR_ARR_ELEM)
   {
     return false;

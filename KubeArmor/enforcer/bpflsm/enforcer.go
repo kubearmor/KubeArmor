@@ -522,6 +522,17 @@ func (be *BPFEnforcer) DestroyBPFEnforcer() error {
 
 	be.ContainerMapLock.Unlock()
 
+	if be.obj.enforcerMaps.KubearmorArgsStore != nil {
+		if err := be.obj.enforcerMaps.KubearmorArgsStore.Unpin(); err != nil {
+			be.Logger.Err(err.Error())
+			errBPFCleanUp = errors.Join(errBPFCleanUp, err)
+		}
+		if err := be.obj.enforcerMaps.KubearmorArgsStore.Close(); err != nil {
+			be.Logger.Err(err.Error())
+			errBPFCleanUp = errors.Join(errBPFCleanUp, err)
+		}
+	}
+
 	if be.Events != nil {
 		if err := be.obj.KubearmorEvents.Unpin(); err != nil {
 			be.Logger.Err(err.Error())
@@ -532,16 +543,6 @@ func (be *BPFEnforcer) DestroyBPFEnforcer() error {
 			errBPFCleanUp = errors.Join(errBPFCleanUp, err)
 		}
 		if err := be.Events.Close(); err != nil {
-			be.Logger.Err(err.Error())
-			errBPFCleanUp = errors.Join(errBPFCleanUp, err)
-		}
-	}
-	if be.obj.enforcerMaps.KubearmorArgsStore != nil {
-		if err := be.obj.enforcerMaps.KubearmorArgsStore.Unpin(); err != nil {
-			be.Logger.Err(err.Error())
-			errBPFCleanUp = errors.Join(errBPFCleanUp, err)
-		}
-		if err := be.obj.enforcerMaps.KubearmorArgsStore.Close(); err != nil {
 			be.Logger.Err(err.Error())
 			errBPFCleanUp = errors.Join(errBPFCleanUp, err)
 		}

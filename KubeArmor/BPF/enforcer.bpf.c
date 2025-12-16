@@ -279,16 +279,30 @@ decision:
     {
       if (!is_owner(bprm->file))
       {
-        // if ((val->processmask & RULE_ARGSET) && argmatch)
-        // {
-        //   return 0;
-        // }
+        // not owner
         retval = -EPERM;
       }
       else
       {
-        // Owner Only Rule Match, No need to enforce
-        return ret;
+        // argument matching Rule
+        if (val->processmask & RULE_ARGSET)
+        {
+          //(owner only + argumentmatch)
+          if (argmatch)
+          {
+            return 0;
+          }
+          else
+          {
+            // !argumentmatch
+            retval = -EPERM;
+          }
+        }
+        else
+        {
+          // Owner Only Rule Match, No need to enforce
+          return ret;
+        }
       }
     }
     else

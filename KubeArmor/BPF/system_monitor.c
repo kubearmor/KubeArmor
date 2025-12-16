@@ -1238,16 +1238,8 @@ static __always_inline bool should_drop_alerts_per_container(sys_context_t *cont
 
 static __always_inline void save_cmd_args_to_buffer(const char __user *const __user *ptr)
 {
-
     struct cmd_args_key key;
     key.tgid = bpf_get_current_pid_tgid();
-    u32 arg_k = 0;
-    struct argVal *args_buf = bpf_map_lookup_elem(&cmd_args_buf, &arg_k);
-
-    if (args_buf == NULL)
-    {
-        return;
-    }
 
 #pragma unroll
     for (u8 i = 0; i <= MAX_STR_ARR_ELEM; i++)
@@ -1258,10 +1250,9 @@ static __always_inline void save_cmd_args_to_buffer(const char __user *const __u
         bpf_probe_read(&argp, sizeof(argp), curr_ptr);
         if (argp)
         {
-            __builtin_memset(&args_buf->argsArray, 0, sizeof(args_buf->argsArray));
-            bpf_probe_read_str(&args_buf->argsArray, sizeof(args_buf->argsArray), argp);
-
-            bpf_map_update_elem(&kubearmor_args_store, &key, args_buf, BPF_ANY);
+            struct argVal temp;
+            bpf_probe_read_str(&temp.argsArray, sizeof(temp.argsArray), argp);
+            bpf_map_update_elem(&kubearmor_args_store, &key, &temp, BPF_ANY);
         }
         else
         {
