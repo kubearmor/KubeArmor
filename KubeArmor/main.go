@@ -51,8 +51,6 @@ func main() {
 			} else {
 				kg.Warnf("Deleting existing map %s. This indicates previous cleanup failed", path)
 			}
-			kg.Warnf("Deleting existing map %s. This means previous cleanup failed", path)
-
 		}
 	}
 
