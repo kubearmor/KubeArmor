@@ -46,8 +46,8 @@ jobs:
 
       - uses: actions/setup-go@v5
         with:
-          go-version-file: 'KubeArmor/go.mod'
-      
+          go-version-file: "KubeArmor/go.mod"
+
       - name: Check what paths were updated
         uses: dorny/paths-filter@v2
         id: filter
@@ -76,7 +76,7 @@ jobs:
         working-directory: pkg/KubeArmorOperator
         run: |
           make docker-build
-      
+
       - name: Build KubeArmorController
         if: steps.filter.outputs.controller == 'true'
         run: make -C pkg/KubeArmorController/ docker-build TAG=latest
@@ -114,7 +114,7 @@ jobs:
 
               docker save kubearmor/kubearmor-test:latest | sudo podman load
               sudo podman tag docker.io/kubearmor/kubearmor-test:latest kubearmor/kubearmor-test:latest
-      
+
               docker save kubearmor/kubearmor-operator:latest | sudo podman load
               sudo podman tag docker.io/kubearmor/kubearmor-operator:latest kubearmor/kubearmor-operator:latest
 
@@ -137,7 +137,7 @@ jobs:
 
           docker system prune -a -f 
           docker buildx prune -a -f
-          helm upgrade --install kubearmor-operator ./deployments/helm/KubeArmorOperator -n kubearmor --create-namespace --set kubearmorOperator.image.tag=latest  --set kubearmorOperator.annotateExisting=true
+          helm upgrade --install kubearmor-operator ./deployments/helm/KubeArmorOperator -n kubearmor --create-namespace --set global.kubearmorOperator.image.tag=latest  --set kubearmorOperator.annotateExisting=true
           kubectl wait --for=condition=ready --timeout=5m -n kubearmor pod -l kubearmor-app=kubearmor-operator
           kubectl get pods -A
           if [[ ${{ steps.filter.outputs.controller }} == 'true' ]]; then
@@ -149,14 +149,14 @@ jobs:
           fi
 
           kubectl wait -n kubearmor --timeout=5m --for=jsonpath='{.status.phase}'=Running kubearmorconfigs/kubearmorconfig-test
-          
+
           while [ ! "$(kubectl wait --timeout=5s --for=condition=ready pod -l kubearmor-app,kubearmor-app!=kubearmor-snitch -n kubearmor >/dev/null 2>&1; echo $?)" -eq 0 ]; do
             kubectl rollout status --timeout=5m deployment -n kubearmor -l kubearmor-app,kubearmor-app!=kubearmor-controller -n kubearmor
             kubectl rollout status --timeout=5m daemonset -l kubearmor-app=kubearmor -n kubearmor
             kubectl rollout status --timeout=5m deployment -n kubearmor -l kubearmor-app=kubearmor-controller -n kubearmor
             kubectl get pods -A
           done
-     
+
           sleep 10
           DAEMONSET_NAME=$(kubectl get daemonset -n kubearmor -o jsonpath='{.items[0].metadata.name}')
           echo "DaemonSet: $DAEMONSET_NAME"
@@ -202,7 +202,7 @@ jobs:
         run: |
           go install -mod=mod github.com/onsi/ginkgo/v2/ginkgo
           go mod tidy
-          ginkgo --vv --flake-attempts=10 --timeout=15m 
+          ginkgo --vv --flake-attempts=10 --timeout=15m
         working-directory: ./tests/k8s_env/networktests
         timeout-minutes: 30
 
@@ -225,7 +225,7 @@ jobs:
           done
           ls -l
         working-directory: KubeArmor
-        
+
       - name: Get karmor sysdump
         if: ${{ failure() }}
         run: |
