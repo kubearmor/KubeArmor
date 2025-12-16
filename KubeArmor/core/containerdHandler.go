@@ -648,10 +648,16 @@ func (dm *KubeArmorDaemon) MonitorContainerdEvents() {
 	dm.Logger.Print("Started to monitor Containerd events (worker-pool mode)")
 
 	// Tunables — adjust as needed
-	numWorkers := 8
+	numWorkers := cfg.GlobalCfg.ContainerdWorkerPoolSize
 	jobQueueSize := 200
 
 	jobs := make(chan containerdEventJob, jobQueueSize)
+
+	kg.Printf(
+		"Containerd worker pool initialized with %d workers (queue=%d)",
+		numWorkers,
+		jobQueueSize,
+	)
 
 	// start metric reporter
 	go func() {
