@@ -3013,25 +3013,14 @@ func (dm *KubeArmorDaemon) WatchConfigMap() cache.InformerSynced {
 
 				// update default posture for endpoints
 				dm.updatEndpointsWithCM(cm, updateEvent)
-				// update visibility for namespaces
+
+				// forward untracked namespaces to SystemMonitor
+				dm.SystemMonitor.UpdateUntrackedNamespaces(
+					cm.Data[cfg.ConfigUntrackedNs],
+				)
+
+				// visibility updates are already handled here
 				dm.updateVisibilityWithCM(cm, updateEvent)
-
-				oldCM, okOld := oldObj.(*corev1.ConfigMap)
-				newCM, okNew := newObj.(*corev1.ConfigMap)
-				if !okOld || !okNew {
-					return
-				}
-
-				oldNs := oldCM.Data[cfg.ConfigUntrackedNs]
-				newNs := newCM.Data[cfg.ConfigUntrackedNs]
-
-				if oldNs != newNs {
-					dm.Logger.Printf("untracked namespaces updated: %s -> %s", oldNs, newNs)
-					dm.SystemMonitor.UpdateUntrackedNamespaces(newNs)
-
-					// re-apply visibility using updated untracked namespace list
-					dm.updateVisibilityWithCM(newCM, updateEvent)
-				}
 
 				if _, ok := cm.Data[cfg.ConfigAlertThrottling]; ok {
 					cfg.GlobalCfg.AlertThrottling = (cm.Data[cfg.ConfigAlertThrottling] == "true")
