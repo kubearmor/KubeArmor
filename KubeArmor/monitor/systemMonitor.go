@@ -11,6 +11,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -332,13 +334,22 @@ func (mon *SystemMonitor) UpdateThrottlingConfig() {
 // UpdateUntrackedNamespaces updates the runtime untracked namespace list.
 
 func (sm *SystemMonitor) UpdateUntrackedNamespaces(v string) {
-	namespaces := []string{}
+	parts := strings.Split(v, ",")
 
-	for _, ns := range strings.Split(v, ",") {
+	namespaces := make([]string, 0, len(parts))
+	for _, ns := range parts {
 		ns = strings.TrimSpace(ns)
 		if ns != "" {
 			namespaces = append(namespaces, ns)
 		}
+	}
+
+	// Normalize order to avoid false updates
+	sort.Strings(namespaces)
+
+	// No-op if nothing changed
+	if slices.Equal(sm.UntrackedNamespaces, namespaces) {
+		return
 	}
 
 	sm.UntrackedNamespaces = namespaces
