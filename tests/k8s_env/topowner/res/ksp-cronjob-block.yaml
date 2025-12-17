@@ -1,0 +1,15 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: ksp-cronjob-block
+  namespace: ksp-test
+spec:
+  severity: 5
+  selector:
+    matchLabels:
+      app: samplecronjob
+  file:
+    matchPaths:
+      - path: /etc/hosts
+  action:
+    Block

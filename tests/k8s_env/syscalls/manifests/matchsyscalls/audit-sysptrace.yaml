@@ -1,0 +1,17 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: audit-sysptrace
+  namespace: syscalls
+spec:
+  severity: 5
+  message: "Audit sysptrace"
+  selector:
+    matchLabels:
+      container: ubuntu-1
+  syscalls:
+    matchSyscalls:
+    - syscall:
+      - ptrace
+  action:
+    Audit

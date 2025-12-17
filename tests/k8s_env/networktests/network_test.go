@@ -159,6 +159,38 @@ var _ = Describe("Network Tests", func() {
 
 			})
 
+			It("can audit all network traffic on udp protocol", func() {
+				err := K8sApplyFile("res/ksp-ubuntu-1-audit-net-udp.yaml")
+				Expect(err).To(BeNil())
+
+				time.Sleep(5 * time.Second)
+
+				err = KarmorLogStart("policy", "multiubuntu", "Network", ub1)
+				Expect(err).To(BeNil())
+
+				AssertCommand(
+					ub1, "multiubuntu",
+					[]string{
+						"bash",
+						"-c",
+						`python3 -c 'import socket; s=socket.socket(socket.AF_INET, socket.SOCK_DGRAM); s.sendto(b"test", ("1.1.1.1", 53))'`,
+					},
+					MatchRegexp(".*"), true,
+				)
+
+				Expect(err).To(BeNil())
+
+				expect := protobuf.Alert{
+					PolicyName: "ksp-ubuntu-1-audit-net-udp",
+					Action:     "Audit",
+					Result:     "Passed",
+				}
+
+				res, err := KarmorGetTargetAlert(15*time.Second, &expect)
+				Expect(err).To(BeNil())
+				Expect(res.Found).To(BeTrue())
+			})
+
 			It("it can audit all network traffic on net-raw protocol", func() {
 				// github_test_13
 
