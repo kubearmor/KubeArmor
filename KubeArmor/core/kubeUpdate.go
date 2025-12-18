@@ -2769,10 +2769,16 @@ func (dm *KubeArmorDaemon) updateVisibilityWithCM(cm *corev1.ConfigMap, _ string
 		return
 	}
 
-	// for each namespace if needed change the visibility
 	for _, ns := range nsList.Items {
-		// if namespace is annotated with visibility annotation don't update on config map change
-		if _, found := ns.Annotations[visibilityKey]; found || kl.ContainsElement(dm.SystemMonitor.UntrackedNamespaces, ns.Name) {
+
+		// 1. If namespace is untracked → explicitly remove visibility
+		if kl.ContainsElement(dm.SystemMonitor.UntrackedNamespaces, ns.Name) {
+			dm.UpdateVisibility(deleteEvent, ns.Name, tp.Visibility{})
+			continue
+		}
+
+		// 2. If namespace has visibility annotation → skip CM-based updates
+		if _, found := ns.Annotations[visibilityKey]; found {
 			continue
 		}
 
