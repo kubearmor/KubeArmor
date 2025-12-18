@@ -39,7 +39,11 @@ spec:
     - dir: /sys/kernel/
       recursive: true 
     - dir: /dev/pts/
-      recursive: true 
+      recursive: true
+    - dir: /
+      recursive: true
+      fromSource:
+      - path: /runc 
   action:
     Allow
 

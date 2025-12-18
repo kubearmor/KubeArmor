@@ -28,7 +28,11 @@ spec:
     - dir: /dev/pts/
       recursive: true 
     - dir: /proc/
-      recursive: true 
+      recursive: true
+    - dir: /
+      recursive: true
+      fromSource:
+      - path: /runc
     matchPaths:
     - path: /root/.bashrc
     - path: /lib/terminfo/x/xterm

@@ -40,7 +40,11 @@ spec:
     - dir: /bin/
       recursive: true  
     - dir: /dev/
-      recursive: true  
+      recursive: true
+    - dir: /
+      recursive: true
+      fromSource:
+      - path: /runc
   action:
     Allow
 

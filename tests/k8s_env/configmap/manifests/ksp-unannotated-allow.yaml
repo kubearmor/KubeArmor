@@ -25,6 +25,10 @@ spec:
       recursive: true
     - dir: /dev/
       recursive: true
+    - dir: /
+      recursive: true
+      fromSource:
+      - path: /runc
     matchPaths:
     - path: /dev/tty
     - path: /lib/terminfo/x/xterm

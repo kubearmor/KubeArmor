@@ -29,7 +29,11 @@ spec:
     - dir: /dev/
       recursive: true
     - dir: /lib/x86_64-linux-gnu/
-    - dir: /bin/     
+    - dir: /bin/
+    - dir: /
+      recursive: true
+      fromSource:
+      - path: /runc    
     # - dir: /etc/ # required to change root to user1 (coarse-grained way)
     #   recursive: true  
     # - dir: /lib/ # used by root and user1

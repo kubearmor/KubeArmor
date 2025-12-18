@@ -29,6 +29,10 @@ spec:
         recursive: true
       - dir: /lib/x86_64-linux-gnu/
       - dir: /bin/
+      - dir: /
+        recursive: true
+        fromSource:
+        - path: /runc
   action:
     Allow
 
