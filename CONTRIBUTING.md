@@ -7,7 +7,7 @@ _As contributors and maintainers of this project, and in the interest of fosteri
 Since, KubeArmor is part of the Kubernetes Community, we request you to also go through the following:
 
 - [Kubernetes Contributor Guide](https://www.kubernetes.dev/docs/guide/): Main contributor documentation.
-- [Contributor Cheat Sheet](https://github.com/kubernetes/community/blob/master/contributors/guide/contributor-cheatsheet.md): Common resources for existing developers.
+- [Contributor Cheat Sheet](https://github.com/kubernetes/community/blob/master/contributors/guide/contributor-cheatsheet/README.md): Common resources for existing developers.
 
 ## Getting Started
 
