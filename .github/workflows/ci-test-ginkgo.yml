@@ -21,6 +21,7 @@ on:
       - "examples/multiubuntu/build/**"
       - "pkg/KubeArmorOperator/**"
       - "deployments/helm/**"
+      - "Dockerfile*"
 
 # Declare default permissions as read only.
 permissions: read-all

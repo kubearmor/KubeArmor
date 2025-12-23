@@ -3,7 +3,7 @@
 
 ### Builder
 
-FROM golang:1.24-alpine3.21 AS builder
+FROM golang:1.24-alpine3.22 AS builder
 
 RUN apk --no-cache update
 RUN apk add --no-cache git clang llvm make gcc protobuf protobuf-dev curl elfutils-dev
@@ -45,7 +45,7 @@ RUN CGO_ENABLED=0 go test -covermode=atomic -coverpkg=./... -c . -o kubearmor-te
 
 ### Make executable image
 
-FROM alpine:3.20 AS kubearmor
+FROM dhi.io/alpine-base:3.22 AS kubearmor
 
 RUN echo "@community http://dl-cdn.alpinelinux.org/alpine/edge/community" | tee -a /etc/apk/repositories
 
