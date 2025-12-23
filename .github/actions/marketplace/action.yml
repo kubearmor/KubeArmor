@@ -35,15 +35,15 @@ runs:
     - name: Generate Helm Chart
       shell: bash
       run: |
-        yq -i '.oci_meta.repo = "${{inputs.registry}}" |
-              .oci_meta.images.kubearmor.tag = "${{ inputs.version }}" |
-              .oci_meta.images.kubearmorInit.tag = "${{ inputs.version }}" |
-              .oci_meta.images.kubearmorController.tag = "${{ inputs.version }}" |
-              .oci_meta.images.kubearmorSnitch.tag = "${{ inputs.version }}" |
-              .oci_meta.images.kubearmorOperator.tag = "${{ inputs.version }}" |
-              .oci_meta.images.kubearmorRelay.tag = "${{ inputs.relay_version }}" |
-              .autoDeploy = true |
-              .imagePinning = true' ${{ inputs.helm_chart_path }}/values.yaml
+        yq -i '.global.kubearmor.repo = "${{inputs.registry}}" |
+              .global.kubearmor.images.kubearmor.tag = "${{ inputs.version }}" |
+              .global.kubearmor.images.kubearmorInit.tag = "${{ inputs.version }}" |
+              .global.kubearmor.images.kubearmorController.tag = "${{ inputs.version }}" |
+              .global.kubearmor.images.kubearmorSnitch.tag = "${{ inputs.version }}" |
+              .gloabal.kubearmor.images.kubearmorOperator.tag = "${{ inputs.version }}" |
+              .global.kubearmor.images.kubearmorRelay.tag = "${{ inputs.relay_version }}" |
+              .global.autoDeploy = true |
+              .global.imagePinning = true' ${{ inputs.helm_chart_path }}/values.yaml
         yq -i '.name = "${{ inputs.helm_chart_name }}" |
               .version = "${{ inputs.version }}"' ${{ inputs.helm_chart_path }}/Chart.yaml
 

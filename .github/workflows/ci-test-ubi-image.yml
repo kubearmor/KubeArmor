@@ -34,9 +34,8 @@ jobs:
       fail-fast: false
       matrix:
         os: ["bpflsm"]
-        
+
         runtime: ["crio"]
-  
 
     steps:
       - uses: actions/checkout@v3
@@ -45,8 +44,8 @@ jobs:
 
       - uses: actions/setup-go@v5
         with:
-          go-version-file: 'KubeArmor/go.mod'
-      
+          go-version-file: "KubeArmor/go.mod"
+
       - name: Check what paths were updated
         uses: dorny/paths-filter@v2
         id: filter
@@ -56,7 +55,7 @@ jobs:
               - 'pkg/KubeArmorController/**'
             multiubuntu:
               - 'examples/multiubuntu/build/**'
- 
+
       - name: Install the latest LLVM toolchain
         run: ./.github/workflows/install-llvm.sh
 
@@ -108,10 +107,10 @@ jobs:
             docker save kubearmor/ubuntu-w-utils:latest | sudo podman load
             sudo podman tag docker.io/kubearmor/ubuntu-w-utils:latest kubearmor/ubuntu-w-utils:latest
           fi
-          
+
           docker system prune -a -f 
           docker buildx prune -a -f
-          helm upgrade --install kubearmor-operator ./deployments/helm/KubeArmorOperator -n kubearmor --create-namespace --set kubearmorOperator.image.tag=latest --set kubearmorOperator.annotateExisting=true
+          helm upgrade --install kubearmor-operator ./deployments/helm/KubeArmorOperator -n kubearmor --create-namespace --set global.kubearmorOperator.image.tag=latest --set kubearmorOperator.annotateExisting=true
           kubectl wait --for=condition=ready --timeout=5m -n kubearmor pod -l kubearmor-app=kubearmor-operator
           kubectl get pods -A
           if [[ ${{ steps.filter.outputs.controller }} == 'true' ]]; then
@@ -123,7 +122,7 @@ jobs:
           fi
 
           kubectl wait -n kubearmor --timeout=5m --for=jsonpath='{.status.phase}'=Running kubearmorconfigs/kubearmorconfig-test
-          
+
           while [ ! "$(kubectl wait --timeout=5s --for=condition=ready pod -l kubearmor-app,kubearmor-app!=kubearmor-snitch -n kubearmor >/dev/null 2>&1; echo $?)" -eq 0 ]; do
             kubectl rollout status --timeout=5m deployment -n kubearmor -l kubearmor-app,kubearmor-app!=kubearmor-controller -n kubearmor
             kubectl rollout status --timeout=5m daemonset -l kubearmor-app=kubearmor -n kubearmor
@@ -163,7 +162,7 @@ jobs:
           ]'
 
           sleep 15
-          
+
       - name: make changes in multiubuntu-deployment
         working-directory: ./tests/k8s_env
         if: steps.filter.outputs.multiubuntu == 'true'
