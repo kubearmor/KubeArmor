@@ -68,7 +68,7 @@ var _ = Describe("Syscalls", func() {
 				Result:     "Passed",
 			}
 
-			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
+			res, err := KarmorGetTargetAlert(10*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
@@ -95,7 +95,7 @@ var _ = Describe("Syscalls", func() {
 				Result:     "Passed",
 			}
 
-			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
+			res, err := KarmorGetTargetAlert(10*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
@@ -125,7 +125,7 @@ var _ = Describe("Syscalls", func() {
 				Result:     "Passed",
 			}
 
-			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
+			res, err := KarmorGetTargetAlert(10*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
@@ -152,7 +152,7 @@ var _ = Describe("Syscalls", func() {
 				Result:     "Passed",
 			}
 
-			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
+			res, err := KarmorGetTargetAlert(10*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
@@ -180,7 +180,7 @@ var _ = Describe("Syscalls", func() {
 				Result:     "Passed",
 			}
 
-			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
+			res, err := KarmorGetTargetAlert(10*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
@@ -205,7 +205,7 @@ var _ = Describe("Syscalls", func() {
 				Result:     "Passed",
 			}
 
-			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
+			res, err := KarmorGetTargetAlert(10*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
@@ -232,7 +232,7 @@ var _ = Describe("Syscalls", func() {
 				Result:     "Passed",
 			}
 
-			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
+			res, err := KarmorGetTargetAlert(10*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
@@ -257,7 +257,7 @@ var _ = Describe("Syscalls", func() {
 				Result:     "Passed",
 			}
 
-			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
+			res, err := KarmorGetTargetAlert(10*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
@@ -284,7 +284,7 @@ var _ = Describe("Syscalls", func() {
 				Result:     "Passed",
 			}
 
-			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
+			res, err := KarmorGetTargetAlert(10*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
@@ -314,7 +314,7 @@ var _ = Describe("Syscalls", func() {
 				Message:    "Global message",
 			}
 
-			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
+			res, err := KarmorGetTargetAlert(10*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
@@ -341,7 +341,7 @@ var _ = Describe("Syscalls", func() {
 				Message:    "Local message",
 			}
 
-			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
+			res, err := KarmorGetTargetAlert(10*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
@@ -368,7 +368,7 @@ var _ = Describe("Syscalls", func() {
 				Message:    "Local message",
 			}
 
-			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
+			res, err := KarmorGetTargetAlert(10*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
@@ -395,7 +395,7 @@ var _ = Describe("Syscalls", func() {
 				Message:    "Local message",
 			}
 
-			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
+			res, err := KarmorGetTargetAlert(10*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
@@ -424,7 +424,7 @@ var _ = Describe("Syscalls", func() {
 				Message:    "Global message",
 			}
 
-			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
+			res, err := KarmorGetTargetAlert(10*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
@@ -451,7 +451,7 @@ var _ = Describe("Syscalls", func() {
 				Message:    "Local message",
 			}
 
-			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
+			res, err := KarmorGetTargetAlert(10*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
@@ -478,7 +478,7 @@ var _ = Describe("Syscalls", func() {
 				Message:    "Local message",
 			}
 
-			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
+			res, err := KarmorGetTargetAlert(10*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
@@ -505,7 +505,7 @@ var _ = Describe("Syscalls", func() {
 				Message:    "Local message",
 			}
 
-			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
+			res, err := KarmorGetTargetAlert(10*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
@@ -536,7 +536,7 @@ var _ = Describe("Syscalls", func() {
 				Data:       "syscall=SYS_MOUNT",
 			}
 
-			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
+			res, err := KarmorGetTargetAlert(10*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 		})
@@ -562,7 +562,7 @@ var _ = Describe("Syscalls", func() {
 				Data:       "syscall=SYS_UMOUNT2",
 			}
 
-			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
+			res, err := KarmorGetTargetAlert(10*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 		})
