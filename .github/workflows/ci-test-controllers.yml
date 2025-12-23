@@ -29,7 +29,7 @@ jobs:
 
       - uses: actions/setup-go@v5
         with:
-          go-version-file: 'KubeArmor/go.mod'
+          go-version-file: "KubeArmor/go.mod"
 
       - name: Check what paths were updated
         uses: dorny/paths-filter@v2
@@ -72,8 +72,8 @@ jobs:
           docker save kubearmor/kubearmor-controller:latest | sudo k3s ctr images import -
           docker save kubearmor/kubearmor-operator:latest | sudo k3s ctr images import -
           docker save kubearmor/kubearmor-snitch:latest | sudo k3s ctr images import -
-          
-          helm upgrade --install kubearmor-operator ./deployments/helm/KubeArmorOperator -n kubearmor --create-namespace --set kubearmorOperator.image.tag=latest
+
+          helm upgrade --install kubearmor-operator ./deployments/helm/KubeArmorOperator -n kubearmor --create-namespace --set global.kubearmorOperator.image.tag=latest
           kubectl wait --for=condition=ready --timeout=5m -n kubearmor pod -l kubearmor-app=kubearmor-operator
           kubectl get pods -A
 
@@ -93,7 +93,7 @@ jobs:
           fi
 
           kubectl wait -n kubearmor --timeout=5m --for=jsonpath='{.status.phase}'=Running kubearmorconfigs/kubearmorconfig-test
-          
+
           while [ ! "$(kubectl wait --timeout=5s --for=condition=ready pod -l kubearmor-app,kubearmor-app!=kubearmor-snitch -n kubearmor >/dev/null 2>&1; echo $?)" -eq 0 ]; do
             kubectl rollout status --timeout=5m deployment -n kubearmor -l kubearmor-app,kubearmor-app!=kubearmor-controller -n kubearmor
             kubectl rollout status --timeout=5m daemonset -l kubearmor-app=kubearmor -n kubearmor
