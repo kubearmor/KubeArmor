@@ -27,7 +27,7 @@ You can skip this if kubearmor images (core and init) are already built!
 
 4. Create Operator from local images
 ```text
-~/KubeArmor$ helm upgrade --install kubearmor-operator ./deployments/helm/KubeArmorOperator -n kubearmor --create-namespace --set kubearmorOperator.image.tag=latest,kubearmorOperator.imagePullPolicy=Never
+~/KubeArmor$ helm upgrade --install kubearmor-operator ./deployments/helm/KubeArmorOperator -n kubearmor --create-namespace --set global.kubearmorOperator.image.tag=latest,global.kubearmorOperator.imagePullPolicy=Never
 ```
 
 5. Create Controller, Relay Service and other services from local images

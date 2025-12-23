@@ -1,30 +1,35 @@
-autoDeploy: false
+global:  
+  autoDeploy: false
+  # operator will deploy pinned images for each application
+  imagePinning: false
+  
+  # To use existing secret updated {registry.secretName} with your secret name.
+  registry: 
+    secretName: ""
 
-# operator will deploy pinned images for each application
-imagePinning: false
 
-# pinned images
-oci_meta:
-  repo: kubearmor
-  images:
-    kubearmor:
-      image: kubearmor
-      tag: stable
-    kubearmorInit:
-      image: kubearmor-init
-      tag: stable
-    kubearmorRelay:
-      image: kubearmor-relay-server
-      tag: latest
-    kubearmorController:
-      image: kubearmor-controller
-      tag: latest
-    kubearmorSnitch:
-      image: kubearmor-snitch
-      tag: latest
-    kubearmorOperator:
-      image: kubearmor-operator
-      tag: latest
+  # pinned images
+  kubearmor:
+    repo: kubearmor
+    images:
+      kubearmor:
+        image: kubearmor
+        tag: stable
+      kubearmorInit:
+        image: kubearmor-init
+        tag: stable
+      kubearmorRelay:
+        image: kubearmor-relay-server
+        tag: latest
+      kubearmorController:
+        image: kubearmor-controller
+        tag: latest
+      kubearmorSnitch:
+        image: kubearmor-snitch
+        tag: latest
+      kubearmorOperator:
+        image: kubearmor-operator
+        tag: latest
 
 # in case if image pinning is disabled
 kubearmorOperator:
@@ -41,7 +46,7 @@ kubearmorOperator:
   args: []
   # https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/
   tolerations: []
-  resources: {}
+  resources: {} 
   podLabels: {}
   podAnnotations: {}
   podSecurityContext: {}
