@@ -635,6 +635,12 @@ func KubeArmor() {
 		}
 		dm.Logger.Print("Initialized KubeArmor Monitor")
 
+		if dm.SystemMonitor != nil && dm.SystemMonitor.Logger != nil {
+			dm.SystemMonitor.Logger.ContainerNsKey = make(map[string]common.OuterKey)
+		} else {
+			dm.Logger.Warn("SystemMonitor or its Logger is nil, skipping ContainerNsKey initialization")
+		}
+
 		// monitor system events
 		go dm.MonitorSystemEvents()
 		dm.Logger.Print("Started to monitor system events")
@@ -663,8 +669,7 @@ func KubeArmor() {
 	}
 
 	enableContainerPolicy := true
-
-	dm.SystemMonitor.Logger.ContainerNsKey = make(map[string]common.OuterKey)
+	// NOTE: ContainerNsKey is initialized as part of SystemMonitor / Logger setup.
 
 	// Un-orchestrated workloads
 	if !dm.K8sEnabled && cfg.GlobalCfg.Policy {
