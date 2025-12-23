@@ -119,6 +119,21 @@
 ```
 </details>
 
+### DNS visibility Network logs
+
+When DNS visibility is enabled (see [DNS visibility](./dns_visibility.md)), KubeArmor generates additional `Network` telemetry logs from the `UDP_SENDMSG` kernel function that include DNS query information.
+
+In these logs:
+
+- `Operation` is `Network`.
+- `Resource` contains the socket address family and port (for example, `sa_family=AF_INET sin_port=53`).
+- `Data` starts with `kfunc=UDP_SENDMSG` and includes:
+  - `domain`: the queried domain name
+  - `daddr`: the destination IP address of the DNS server
+  - `qtype`: the DNS record type, where `A` is IPv4 and `AAAA` is IPv6
+
+For a complete example, see the JSON logs in [DNS visibility](./dns_visibility.md).
+
 ## Container Alerts
 
 Container alerts are generated when there is a policy violation or audit event that is raised due to a policy action. For example, a policy might block execution of a process. When the execution is blocked by KubeArmor enforcer, KubeArmor generates an alert event implying policy action. In the case of an Audit action, the KubeArmor will only generate an alert without actually blocking the action.
