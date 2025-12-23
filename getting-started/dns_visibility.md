@@ -1,36 +1,36 @@
 # DNS Visibility
 
-kubearmor supports dns visibility for egress traffic at both pod level and host level.
+KubeArmor supports DNS visibility for egress traffic at both pod level and host level.
 
 To gain the visibility, it uses `kprobe/udp_sendmsg` to access the payload of a DNS packet sent over a UDP connection. It provides these three information retrieved from the DNS query payload:
 
-1. domain name
-2. destination address (dns server)
-3. qtype (DNS record type) [A: ipv4 address, AAAA: ipv6 address]
+1. Domain name
+2. Destination address (DNS server)
+3. Qtype (DNS record type) [A: IPv4 address, AAAA: IPv6 address]
 
-To enable the dns visiblity kubearmor supports `dns` as a visiblity flag, user can enable it at pod, namespace or global level, see [here](./kubearmor_visibility.md) for more details.
+To enable DNS visibility, KubeArmor supports `dns` as a visibility flag. You can enable it at pod, namespace, or global level. See [KubeArmor visibility](./kubearmor_visibility.md) for more details.
 
-## Example:
+## Example
 
-1. #### annotate namespace to enable dns visiblity
+1. #### Annotate namespace to enable DNS visibility
 
 ```shell
 kubectl annotate ns default kubearmor-visibility=process,network,dns
-
 ```
-2. #### create a deployment in default namespace
+
+2. #### Create a deployment in default namespace
 
 ```shell
 kubectl create deployment nginx --image nginx
 ```
 
-3. #### watch logs in another terminal
+3. #### Watch logs in another terminal
 
 ```shell
 karmor logs --logFilter all --operation Network --namespace default
 ```
 
-4. #### generate a dns query event
+4. #### Generate a DNS query event
 
 ```shell
 root@nginx-779797d5bd-wlrsn:/# curl google.com
@@ -40,10 +40,10 @@ root@nginx-779797d5bd-wlrsn:/# curl google.com
 The document has moved
 <A HREF="http://www.google.com/">here</A>.
 </BODY></HTML>
-
 ```
 
-5. #### observe telemetry logs with `kfunc=UDP_SENDMSG` in `Data` field
+5. #### Observe telemetry logs with `kfunc=UDP_SENDMSG` in `Data` field
+
 ```json
 [
   {
