@@ -1,14 +1,14 @@
 # DNS Visibility
 
-kubearmor supports dns visibility for egress traffic at both pod level and host level.
+KubeArmor supports DNS visibility for egress traffic at both pod level and host level.
 
 To gain the visibility, it uses `kprobe/udp_sendmsg` to access the payload of a DNS packet sent over a UDP connection. It provides these three information retrieved from the DNS query payload:
 
-1. domain name
-2. destination address (dns server)
-3. qtype (DNS record type) [A: ipv4 address, AAAA: ipv6 address]
+1. Domain name
+2. Destination address (DNS server)
+3. Qtype (DNS record type) [A: IPv4 address, AAAA: IPv6 address]
 
-To enable the dns visiblity kubearmor supports `dns` as a visiblity flag, user can enable it at pod, namespace or global level, see [here](./kubearmor_visibility.md) for more details.
+To enable DNS visibility, KubeArmor supports `dns` as a visibility flag. You can enable it at pod, namespace, or global level. See [KubeArmor visibility](./kubearmor_visibility.md) for more details.
 
 ## Example:
 
