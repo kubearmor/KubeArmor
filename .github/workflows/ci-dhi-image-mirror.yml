@@ -1,9 +1,10 @@
 name: Mirror and Validate DHI Image
 
 on:
+  # allows manual triggering of the workflow
   workflow_dispatch:
   schedule:
-    - cron: '0 0 * * 1'
+    - cron: '0 0 * * 1' # Weekly on Mondays at 00:00 UTC Can be adjusted as needed
   push:
     paths:
       - 'Dockerfile'
@@ -13,42 +14,56 @@ jobs:
   mirror-dhi-image:
     name: Mirror DHI Image to Docker Hub
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           submodules: recursive
 
+        #installe regctl to copy images between registries
       - name: Install regctl
         run: |
-          curl -L https://github.com/regclient/regclient/releases/latest/download/regctl-linux-amd64 >regctl
-          chmod 755 regctl
-          sudo mv regctl /usr/local/bin
+          set -euo pipefail
+          REGCTL_VERSION=v0.6.1 
+          curl -L https://github.com/regclient/regclient/releases/download/${REGCTL_VERSION}/regctl-linux-amd64 -o regctl
+          chmod +x regctl
+          sudo mv regctl /usr/local/bin/regctl
 
-      - name: Login to DHI.io
-        uses: docker/login-action@v2
+      - name: Login to DHI registry
+        uses: docker/login-action@v3
         with:
           registry: dhi.io
           username: ${{ secrets.DHI_USERNAME }}
           password: ${{ secrets.DHI_AUTHTOK }}
 
       - name: Login to Docker Hub
-        uses: docker/login-action@v2
+        uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_AUTHTOK }}
 
-      - name: Mirror DHI image to Docker Hub
+      - name: Mirror multi-arch DHI image to Docker Hub
         run: |
-          regctl image copy dhi.io/alpine-base:3.22 adishjain1107/alpine-base:3.22-dhi --digest-tags
+          set -euo pipefail
+          regctl image copy \
+            dhi.io/alpine-base:3.22 \
+            docker.io/adishjain1107/alpine-base:3.22-dhi \
+            --digest-tags
+
+        #step to verify the mirrored image platforms
+      - name: Verify mirrored image platforms
+        run: |
+          regctl image inspect docker.io/adishjain1107/alpine-base:3.22-dhi --platform all
 
   validate-dockerfile:
     name: Validate Dockerfile Build
     needs: mirror-dhi-image
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           submodules: recursive
 
@@ -56,12 +71,8 @@ jobs:
         run: git submodule update --init --recursive
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@v3
 
-      - name: Build Docker image from Dockerfile
+      - name: Build Dockerfile for validation
         run: |
-          docker build -t test-kubearmor .
-
-
-
-          
+          docker build --pull -t test-kubearmor .
