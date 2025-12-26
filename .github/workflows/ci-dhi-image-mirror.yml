@@ -58,3 +58,6 @@ jobs:
       - name: Run container to validate
         run: |
           docker run --rm test-kubearmor --version || docker run --rm test-kubearmor --help
+
+
+          
