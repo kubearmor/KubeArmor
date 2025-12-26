@@ -31,7 +31,7 @@ jobs:
 
       - name: Mirror DHI image to Docker Hub
         run: |
-          regctl image copy dhi.io/alpine-base:3.22-dhi adishjain1107/alpine-base:3.22-dhi --digest-tags
+          regctl image copy dhi.io/alpine-base:3.22 adishjain1107/alpine-base:3.22-dhi --digest-tags
 
   validate-dockerfile:
     name: Validate Dockerfile Build and Run
