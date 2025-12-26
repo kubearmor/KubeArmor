@@ -1,0 +1,53 @@
+name: Mirror and Validate DHI Image
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 0 * * 1'
+  push:
+    paths:
+      - 'Dockerfile'
+      - '.github/workflows/ci-dhi-image-mirror.yml'
+
+jobs:
+  mirror-dhi-image:
+    name: Mirror DHI Image to Docker Hub
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Install regctl
+        run: |
+          curl -L https://github.com/regclient/regclient/releases/latest/download/regctl-linux-amd64 >regctl
+          chmod 755 regctl
+          sudo mv regctl /usr/local/bin
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_AUTHTOK }}
+
+      - name: Mirror DHI image to Docker Hub
+        run: |
+          regctl image copy dhi.io/alpine-base:3.22-dhi adishjain1107/alpine-base:3.22-dhi --digest-tags
+
+  validate-dockerfile:
+    name: Validate Dockerfile Build and Run
+    needs: mirror-dhi-image
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Build Docker image from Dockerfile
+        run: |
+          docker build -t test-kubearmor .
+
+      - name: Run container to validate
+        run: |
+          docker run --rm test-kubearmor --version || docker run --rm test-kubearmor --help
