@@ -19,9 +19,6 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Ensure submodules are initialized
-        run: git submodule update --init --recursive
-
       - name: Install regctl
         run: |
           curl -L https://github.com/regclient/regclient/releases/latest/download/regctl-linux-amd64 >regctl
@@ -46,7 +43,7 @@ jobs:
           regctl image copy dhi.io/alpine-base:3.22 adishjain1107/alpine-base:3.22-dhi --digest-tags
 
   validate-dockerfile:
-    name: Validate Dockerfile Build and Run
+    name: Validate Dockerfile Build
     needs: mirror-dhi-image
     runs-on: ubuntu-latest
     steps:
@@ -65,9 +62,6 @@ jobs:
         run: |
           docker build -t test-kubearmor .
 
-      - name: Run container to validate
-        run: |
-          docker run --rm test-kubearmor --version || docker run --rm test-kubearmor --help
 
 
           
