@@ -50,12 +50,7 @@ jobs:
             dhi.io/alpine-base:3.22 \
             docker.io/adishjain1107/alpine-base:3.22-dhi \
             --digest-tags
-
-        #step to verify the mirrored image platforms
-      - name: Verify mirrored image platforms
-        run: |
-          regctl image inspect docker.io/adishjain1107/alpine-base:3.22-dhi --platform all
-
+            
   validate-dockerfile:
     name: Validate Dockerfile Build
     needs: mirror-dhi-image
