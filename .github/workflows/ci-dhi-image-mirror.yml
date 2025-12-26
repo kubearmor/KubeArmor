@@ -23,6 +23,13 @@ jobs:
           chmod 755 regctl
           sudo mv regctl /usr/local/bin
 
+      - name: Login to DHI.io
+        uses: docker/login-action@v2
+        with:
+          registry: dhi.io
+          username: ${{ secrets.DHI_USERNAME }}
+          password: ${{ secrets.DHI_AUTHTOK }}
+
       - name: Login to Docker Hub
         uses: docker/login-action@v2
         with:
