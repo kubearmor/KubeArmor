@@ -19,6 +19,9 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Ensure submodules are initialized
+        run: git submodule update --init --recursive
+
       - name: Install regctl
         run: |
           curl -L https://github.com/regclient/regclient/releases/latest/download/regctl-linux-amd64 >regctl
