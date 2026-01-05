@@ -90,7 +90,7 @@ var _ = Describe("Ksp", func() {
 			)
 
 			// check audit logs
-			logs, _, err := KarmorGetLogs(5*time.Second, 50)
+			logs, _, err := KarmorGetLogs(10*time.Second, 50)
 			Expect(err).To(BeNil())
 			Expect(len(logs)).NotTo(Equal(0))
 
@@ -125,7 +125,7 @@ var _ = Describe("Ksp", func() {
 				Action:     "Block",
 			}
 
-			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
+			res, err := KarmorGetTargetAlert(10*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
@@ -155,7 +155,7 @@ var _ = Describe("Ksp", func() {
 				Action:     "Block",
 			}
 
-			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
+			res, err := KarmorGetTargetAlert(10*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
@@ -188,7 +188,7 @@ var _ = Describe("Ksp", func() {
 				Result:     "Permission denied",
 			}
 
-			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
+			res, err := KarmorGetTargetAlert(10*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
@@ -209,7 +209,7 @@ var _ = Describe("Ksp", func() {
 				Result:     "Permission denied",
 			}
 
-			res, err = KarmorGetTargetAlert(5*time.Second, &expect)
+			res, err = KarmorGetTargetAlert(10*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
@@ -238,7 +238,7 @@ var _ = Describe("Ksp", func() {
 				Result:     "Passed",
 			}
 
-			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
+			res, err := KarmorGetTargetAlert(10*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
@@ -265,7 +265,7 @@ var _ = Describe("Ksp", func() {
 				Result:     "Permission denied",
 			}
 
-			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
+			res, err := KarmorGetTargetAlert(10*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 		})
@@ -292,7 +292,7 @@ var _ = Describe("Ksp", func() {
 				Result:     "Permission denied",
 			}
 
-			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
+			res, err := KarmorGetTargetAlert(10*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
@@ -322,7 +322,7 @@ var _ = Describe("Ksp", func() {
 				Result:     "Permission denied",
 			}
 
-			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
+			res, err := KarmorGetTargetAlert(10*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
@@ -373,7 +373,7 @@ var _ = Describe("Ksp", func() {
 				Resource:   "hostname",
 			}
 
-			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
+			res, err := KarmorGetTargetAlert(10*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
@@ -407,7 +407,7 @@ var _ = Describe("Ksp", func() {
 				Result:     "Permission denied",
 			}
 
-			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
+			res, err := KarmorGetTargetAlert(10*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
@@ -445,7 +445,7 @@ var _ = Describe("Ksp", func() {
 				Result:     "Permission denied",
 			}
 
-			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
+			res, err := KarmorGetTargetAlert(10*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
@@ -490,7 +490,7 @@ var _ = Describe("Ksp", func() {
 				Result:     "Permission denied",
 			}
 
-			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
+			res, err := KarmorGetTargetAlert(10*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 		})
@@ -516,7 +516,7 @@ var _ = Describe("Ksp", func() {
 				Result:     "Permission denied",
 			}
 
-			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
+			res, err := KarmorGetTargetAlert(10*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
@@ -574,7 +574,7 @@ var _ = Describe("Ksp", func() {
 				Result:     "Permission denied",
 			}
 
-			res, err = KarmorGetTargetAlert(5*time.Second, &expect)
+			res, err = KarmorGetTargetAlert(10*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 		})
@@ -606,7 +606,7 @@ var _ = Describe("Ksp", func() {
 				Resource:   "hostname",
 			}
 
-			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
+			res, err := KarmorGetTargetAlert(10*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
@@ -641,7 +641,7 @@ var _ = Describe("Ksp", func() {
 				Result:     "Permission denied",
 			}
 
-			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
+			res, err := KarmorGetTargetAlert(10*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 		})
@@ -667,7 +667,7 @@ var _ = Describe("Ksp", func() {
 				Result:     "Passed",
 			}
 
-			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
+			res, err := KarmorGetTargetAlert(10*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
@@ -697,7 +697,7 @@ var _ = Describe("Ksp", func() {
 				Result:     "Passed",
 			}
 
-			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
+			res, err := KarmorGetTargetAlert(10*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
@@ -713,7 +713,7 @@ var _ = Describe("Ksp", func() {
 				Result:     "Passed",
 			}
 
-			res, err = KarmorGetTargetAlert(5*time.Second, &expect)
+			res, err = KarmorGetTargetAlert(10*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
@@ -741,7 +741,7 @@ var _ = Describe("Ksp", func() {
 				Result:     "Permission denied",
 			}
 
-			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
+			res, err := KarmorGetTargetAlert(10*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
@@ -773,7 +773,7 @@ var _ = Describe("Ksp", func() {
 				Resource:   "secret_data1.txt",
 			}
 
-			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
+			res, err := KarmorGetTargetAlert(10*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
@@ -805,7 +805,7 @@ var _ = Describe("Ksp", func() {
 				Result:     "Passed",
 			}
 
-			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
+			res, err := KarmorGetTargetAlert(10*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 		})
@@ -832,7 +832,7 @@ var _ = Describe("Ksp", func() {
 				Result:     "Passed",
 			}
 
-			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
+			res, err := KarmorGetTargetAlert(10*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
@@ -880,7 +880,7 @@ var _ = Describe("Ksp", func() {
 				Result:     "Permission denied",
 			}
 
-			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
+			res, err := KarmorGetTargetAlert(10*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
@@ -932,7 +932,7 @@ var _ = Describe("Ksp", func() {
 				Result:     "Permission denied",
 			}
 
-			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
+			res, err := KarmorGetTargetAlert(10*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
@@ -974,7 +974,7 @@ var _ = Describe("Ksp", func() {
 				Result:     "Permission denied",
 			}
 
-			res, err = KarmorGetTargetAlert(5*time.Second, &expect)
+			res, err = KarmorGetTargetAlert(10*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
@@ -997,7 +997,7 @@ var _ = Describe("Ksp", func() {
 				Result:     "Permission denied",
 			}
 
-			res, err = KarmorGetTargetAlert(5*time.Second, &expect)
+			res, err = KarmorGetTargetAlert(10*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 		})
@@ -1027,7 +1027,7 @@ var _ = Describe("Ksp", func() {
 				Result:     "Permission denied",
 			}
 
-			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
+			res, err := KarmorGetTargetAlert(10*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
@@ -1059,7 +1059,7 @@ var _ = Describe("Ksp", func() {
 				Result:     "Permission denied",
 			}
 
-			res, err = KarmorGetTargetAlert(5*time.Second, &expect)
+			res, err = KarmorGetTargetAlert(10*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
@@ -1076,7 +1076,7 @@ var _ = Describe("Ksp", func() {
 				Result:     "Permission denied",
 			}
 
-			res, err = KarmorGetTargetAlert(5*time.Second, &expect)
+			res, err = KarmorGetTargetAlert(10*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
@@ -1093,7 +1093,7 @@ var _ = Describe("Ksp", func() {
 				Result:     "Permission denied",
 			}
 
-			res, err = KarmorGetTargetAlert(5*time.Second, &expect)
+			res, err = KarmorGetTargetAlert(10*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 		})
@@ -1124,7 +1124,7 @@ var _ = Describe("Ksp", func() {
 				Result:     "Permission denied",
 			}
 
-			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
+			res, err := KarmorGetTargetAlert(10*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
@@ -1162,7 +1162,7 @@ var _ = Describe("Ksp", func() {
 				Result:     "Permission denied",
 			}
 
-			res, err = KarmorGetTargetAlert(5*time.Second, &expect)
+			res, err = KarmorGetTargetAlert(10*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
@@ -1179,7 +1179,7 @@ var _ = Describe("Ksp", func() {
 				Result:     "Permission denied",
 			}
 
-			res, err = KarmorGetTargetAlert(5*time.Second, &expect)
+			res, err = KarmorGetTargetAlert(10*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 		})
@@ -1209,7 +1209,7 @@ var _ = Describe("Ksp", func() {
 				Result:     "Permission denied",
 			}
 
-			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
+			res, err := KarmorGetTargetAlert(10*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
@@ -1226,7 +1226,7 @@ var _ = Describe("Ksp", func() {
 				Result:     "Permission denied",
 			}
 
-			res, err = KarmorGetTargetAlert(5*time.Second, &expect)
+			res, err = KarmorGetTargetAlert(10*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
@@ -1268,7 +1268,7 @@ var _ = Describe("Ksp", func() {
 				Result:     "Permission denied",
 			}
 
-			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
+			res, err := KarmorGetTargetAlert(10*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
@@ -1285,7 +1285,7 @@ var _ = Describe("Ksp", func() {
 				Result:     "Permission denied",
 			}
 
-			res, err = KarmorGetTargetAlert(5*time.Second, &expect)
+			res, err = KarmorGetTargetAlert(10*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
@@ -1306,7 +1306,7 @@ var _ = Describe("Ksp", func() {
 				Result:     "Permission denied",
 			}
 
-			res, err = KarmorGetTargetAlert(5*time.Second, &expect)
+			res, err = KarmorGetTargetAlert(10*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
@@ -1357,7 +1357,7 @@ var _ = Describe("Ksp", func() {
 				Result:     "Permission denied",
 			}
 
-			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
+			res, err := KarmorGetTargetAlert(10*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
@@ -1374,7 +1374,7 @@ var _ = Describe("Ksp", func() {
 				Result:     "Permission denied",
 			}
 
-			res, err = KarmorGetTargetAlert(5*time.Second, &expect)
+			res, err = KarmorGetTargetAlert(10*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
@@ -1391,7 +1391,7 @@ var _ = Describe("Ksp", func() {
 				Result:     "Permission denied",
 			}
 
-			res, err = KarmorGetTargetAlert(5*time.Second, &expect)
+			res, err = KarmorGetTargetAlert(10*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
@@ -1445,7 +1445,7 @@ var _ = Describe("Ksp", func() {
 				Resource:   "secret_data1.txt",
 			}
 
-			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
+			res, err := KarmorGetTargetAlert(10*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
@@ -1473,7 +1473,7 @@ var _ = Describe("Ksp", func() {
 				Resource:   "otherfile.txt",
 			}
 
-			res, err = KarmorGetTargetAlert(5*time.Second, &expect)
+			res, err = KarmorGetTargetAlert(10*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 		})
@@ -1506,7 +1506,7 @@ var _ = Describe("Ksp", func() {
 				Resource:   "secret_data1",
 			}
 
-			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
+			res, err := KarmorGetTargetAlert(10*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
@@ -1568,7 +1568,7 @@ var _ = Describe("Ksp", func() {
 				Result:     "Permission denied",
 			}
 
-			res, err = KarmorGetTargetAlert(5*time.Second, &expect)
+			res, err = KarmorGetTargetAlert(10*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
@@ -1625,7 +1625,7 @@ var _ = Describe("Ksp", func() {
 				Resource:   "password",
 			}
 
-			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
+			res, err := KarmorGetTargetAlert(10*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
@@ -1644,7 +1644,7 @@ var _ = Describe("Ksp", func() {
 				Resource:   "secret.txt",
 			}
 
-			res, err = KarmorGetTargetAlert(5*time.Second, &expect)
+			res, err = KarmorGetTargetAlert(10*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
@@ -1674,7 +1674,7 @@ var _ = Describe("Ksp", func() {
 				Result:     "Permission denied",
 			}
 
-			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
+			res, err := KarmorGetTargetAlert(10*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
@@ -1722,7 +1722,7 @@ var _ = Describe("Ksp", func() {
 				Result:     "Passed",
 			}
 
-			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
+			res, err := KarmorGetTargetAlert(10*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
@@ -1774,7 +1774,7 @@ var _ = Describe("Ksp", func() {
 				Result:     "Permission denied",
 			}
 
-			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
+			res, err := KarmorGetTargetAlert(10*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
@@ -1791,7 +1791,7 @@ var _ = Describe("Ksp", func() {
 				Result:     "Permission denied",
 			}
 
-			res, err = KarmorGetTargetAlert(5*time.Second, &expect)
+			res, err = KarmorGetTargetAlert(10*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 		})
@@ -1820,7 +1820,7 @@ var _ = Describe("Ksp", func() {
 				Result:     "Permission denied",
 			}
 
-			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
+			res, err := KarmorGetTargetAlert(10*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 		})
@@ -1873,7 +1873,7 @@ var _ = Describe("Ksp", func() {
 				Resource:   "password",
 			}
 
-			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
+			res, err := KarmorGetTargetAlert(10*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 

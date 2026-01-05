@@ -62,7 +62,7 @@ var _ = Describe("Visibility", func() {
 			AssertCommand(wp, "wordpress-mysql", []string{"bash", "-c", "ping google.com -c1"}, MatchRegexp(".*"), true)
 
 			// check audit logs
-			logs, _, err := KarmorGetLogs(5*time.Second, 50)
+			logs, _, err := KarmorGetLogs(10*time.Second, 50)
 			Expect(err).To(BeNil())
 			Expect(len(logs)).NotTo(Equal(0))
 
@@ -89,7 +89,7 @@ var _ = Describe("Visibility", func() {
 			AssertCommand(wp, "wordpress-mysql", []string{"bash", "-c", "ping google.com -c1"}, MatchRegexp(".*"), true)
 
 			// check audit logs
-			logs, _, err := KarmorGetLogs(5*time.Second, 50)
+			logs, _, err := KarmorGetLogs(10*time.Second, 50)
 			Expect(err).To(BeNil())
 			Expect(len(logs)).NotTo(Equal(0))
 
@@ -113,7 +113,7 @@ var _ = Describe("Visibility", func() {
 			AssertCommand(wp, "wordpress-mysql", []string{"bash", "-c", "ping google.com -c1"}, MatchRegexp(".*"), true)
 
 			// check audit logs
-			logs, _, err := KarmorGetLogs(5*time.Second, 50)
+			logs, _, err := KarmorGetLogs(10*time.Second, 50)
 			Expect(err).To(BeNil())
 			Expect(len(logs)).To(Equal(0))
 

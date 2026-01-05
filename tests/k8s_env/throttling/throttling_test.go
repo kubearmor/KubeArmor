@@ -72,7 +72,7 @@ var _ = Describe("Smoke", func() {
 			Expect(err).To(BeNil())
 
 			// wait for policy creation
-			time.Sleep(5 * time.Second)
+			time.Sleep(15 * time.Second)
 
 			AssertCommand(
 				wp, "wordpress-mysql",

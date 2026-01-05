@@ -1,0 +1,46 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: ksp-nginx-allow-index
+  namespace: nginx-posture
+spec:
+  severity: 10
+  message: "Allowed access to nginx index.html file"
+  selector:
+    matchLabels:
+      app: nginx-posture
+  file:
+    matchDirectories:
+    - dir: /etc/
+      recursive: true
+    - dir: /proc/
+      recursive: true
+    - dir: /lib/x86_64-linux-gnu/
+    - dir: /lib/aarch64-linux-gnu/
+    - dir: /bin/
+    - dir: /pts/
+      recursive: true
+    - dir: /dev/
+      recursive: true
+    - dir: /
+      recursive: true
+      fromSource:
+      - path: /runc
+    matchPaths:
+    - path: /root/.bashrc
+    - path: /root/.bash_history
+    - path: /dev/tty
+    - path: /lib/ld-musl-aarch64.so.1
+    - path: /lib/ld-musl-x86_64.so.1
+    - path: /lib/terminfo/x/xterm
+    - fromSource:
+      path: /usr/share/nginx/html/index.html
+  process:
+    matchDirectories:
+    - dir: /bin/
+      recursive: true
+
+      # cat /usr/share/nginx/html/index.html
+ 
+  action:
+    Allow
