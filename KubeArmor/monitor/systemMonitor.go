@@ -167,9 +167,6 @@ type SystemMonitor struct {
 	SyscallChannel chan []byte
 	SyscallPerfMap *perf.Reader
 
-	// lists to skip
-	UntrackedNamespaces []string
-
 	// podLabelsMap
 	PodLabelsMap     map[string]string
 	PodLabelsMapLock *sync.RWMutex
@@ -222,10 +219,6 @@ func NewSystemMonitor(node *tp.Node, nodeLock **sync.RWMutex, logger *fd.Feeder,
 		ValueSize:  4,
 		MaxEntries: 6,
 	}
-
-	// assign the value of untracked ns from GlobalCfg
-	mon.UntrackedNamespaces = make([]string, len(cfg.GlobalCfg.ConfigUntrackedNs))
-	copy(mon.UntrackedNamespaces, cfg.GlobalCfg.ConfigUntrackedNs)
 
 	mon.PodLabelsMap = make(map[string]string)
 	mon.PodLabelsMapLock = new(sync.RWMutex)
@@ -327,21 +320,6 @@ func (mon *SystemMonitor) UpdateThrottlingConfig() {
 		cfg.GlobalCfg.AlertThrottling,
 		cfg.GlobalCfg.MaxAlertPerSec,
 		cfg.GlobalCfg.ThrottleSec)
-}
-
-// UpdateUntrackedNamespaces updates the runtime untracked namespace list.
-
-func (sm *SystemMonitor) UpdateUntrackedNamespaces(v string) {
-	parts := strings.Split(v, ",")
-
-	namespaces := make([]string, 0, len(parts))
-	for _, ns := range parts {
-		if ns = strings.TrimSpace(ns); ns != "" {
-			namespaces = append(namespaces, ns)
-		}
-	}
-
-	sm.UntrackedNamespaces = namespaces
 }
 
 // UpdateNsKeyMap Function
@@ -880,7 +858,7 @@ func (mon *SystemMonitor) TraceSyscall() {
 				if containerID != "" {
 					ContainersLock.RLock()
 					namespace := Containers[containerID].NamespaceName
-					if kl.ContainsElement(mon.UntrackedNamespaces, namespace) {
+					if kl.ContainsElement(cfg.GlobalCfg.ConfigUntrackedNs.Load().([]string), namespace) {
 						ContainersLock.RUnlock()
 						continue
 					}

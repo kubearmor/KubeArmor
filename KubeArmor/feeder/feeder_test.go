@@ -22,9 +22,8 @@ var baseCfg cfg.KubearmorConfig
 func cloneConfig() cfg.KubearmorConfig {
 	c := baseCfg
 
-	if baseCfg.ConfigUntrackedNs != nil {
-		c.ConfigUntrackedNs = make([]string, len(baseCfg.ConfigUntrackedNs))
-		copy(c.ConfigUntrackedNs, baseCfg.ConfigUntrackedNs)
+	if v := cfg.GlobalCfg.ConfigUntrackedNs.Load(); v != nil {
+		c.ConfigUntrackedNs.Store(v)
 	}
 
 	if baseCfg.LsmOrder != nil {
