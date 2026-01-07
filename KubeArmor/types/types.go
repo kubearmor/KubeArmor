@@ -591,8 +591,8 @@ const (
 	AnonMapExec PresetName = "anonymousMapExec"
 	// FilelessExec Preset
 	FilelessExec PresetName = "filelessExec"
-	// ProtectEnv Preset
-	ProtectEnv PresetName = "protectEnv"
+	// Protectenv Preset
+	Protectenv PresetName = "protectenv"
 	// Exec Preset
 	Exec PresetName = "exec"
 	// ProtectProc Preset
@@ -622,6 +622,21 @@ type SecuritySpec struct {
 type SecurityPolicy struct {
 	Metadata map[string]string `json:"metadata"`
 	Spec     SecuritySpec      `json:"spec"`
+}
+
+// PolicySpecProvider interface for unified policy handling
+//go:generate mockgen -destination=../mocks/mock_policy.go -package=mocks github.com/kubearmor/KubeArmor/KubeArmor/types PolicySpecProvider
+
+type PolicySpecProvider interface {
+	GetSpec() interface{}
+}
+
+func (p SecurityPolicy) GetSpec() interface{} {
+	return p.Spec
+}
+
+func (p HostSecurityPolicy) GetSpec() interface{} {
+	return p.Spec
 }
 
 // ========================== //
