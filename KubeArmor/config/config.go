@@ -73,6 +73,8 @@ type KubearmorConfig struct {
 	MachineIDPath string // path to machine-id
 
 	USBDeviceHandler bool // enable USB device observability and enforcement
+
+	EnableMetrics bool // Enable/Disable Prometheus metrics endpoint on port 8080
 }
 
 // GlobalCfg Global configuration for Kubearmor
@@ -196,6 +198,8 @@ func readCmdLineParams() {
 	enableIMA := flag.Bool(ConfigEnableIma, false, "to enable/disable file integrity IMA hash using bpf_file_ima_hash")
 	usbDeviceHandler := flag.Bool(ConfigUSBDeviceHandler, false, "Enable USB device observability and enforcement")
 
+	enableMetrics := flag.Bool("enable-metrics", false, "Enable Prometheus metrics endpoint on port 8080")
+
 	flags := []string{}
 	flag.VisitAll(func(f *flag.Flag) {
 		kv := fmt.Sprintf("%s:%v", f.Name, f.Value)
@@ -271,6 +275,8 @@ func readCmdLineParams() {
 	viper.SetDefault(ConfigEnableIma, *enableIMA)
 
 	viper.SetDefault(ConfigUSBDeviceHandler, *usbDeviceHandler)
+
+	viper.SetDefault("enable-metrics", *enableMetrics)
 }
 
 // LoadConfig Load configuration
@@ -358,6 +364,8 @@ func LoadConfig() error {
 	GlobalCfg.MachineIDPath = viper.GetString(ConfigMachineIDPath)
 
 	GlobalCfg.USBDeviceHandler = viper.GetBool(ConfigUSBDeviceHandler)
+
+	GlobalCfg.EnableMetrics = viper.GetBool("enable-metrics")
 
 	LoadDynamicConfig()
 
