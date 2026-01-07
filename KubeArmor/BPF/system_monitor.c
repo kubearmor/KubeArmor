@@ -2422,7 +2422,7 @@ int kprobe__udp_sendmsg(struct pt_regs *ctx)
     dport = ntohs(dport);
     if (dport != 53)
         return 0;
-    #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 3, 13) || RHEL_BUILD_GTE_400
+    #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 3, 13) || RHEL9_BUILD_GTE_400
         bpf_probe_read(&iov, sizeof(iov), &msg->msg_iter.__iov);
     #else
         bpf_probe_read(&iov, sizeof(iov), &msg->msg_iter.iov);
