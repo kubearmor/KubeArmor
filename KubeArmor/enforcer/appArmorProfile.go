@@ -547,6 +547,7 @@ func (ae *AppArmorEnforcer) GenerateAppArmorProfile(appArmorProfile string, secu
 			if err != nil {
 				ae.Logger.Warnf("Unable to create tmp file, err=%s", err.Error())
 			} else {
+				defer file.Close() 
 				defer os.Remove(file.Name())
 				writer := bufio.NewWriter(file)
 				for _, prof := range profileToDelete {
