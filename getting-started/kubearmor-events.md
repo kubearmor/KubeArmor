@@ -18,6 +18,7 @@
 | ContainerImage         | shows the image that was used to spin up the container                    | docker.io/accuknox/knoxautopolicy:v0.9@sha256:bb83b5c6d41e0d0aa3b5d6621188c284ea                              |
 | ContainerName          | specifies the Container name where the log got generated                  | discovery-engine                                                                                              |
 | Data                   | shows the system call that was invoked for this operation                 | syscall=SYS_OPENAT fd=-100 flags=O_RDWR\|O_CREAT\|O_NOFOLLOW\|O_CLOEXEC                                       |
+| EventData              | contains key/value pairs parsed from `Data`; for `Network` operations, key/value pairs parsed from `Resource` are also included | {"Syscall":"SYS_CONNECT","Fd":"10","Sa_family":"AF_INET","Sin_port":"53","Sin_addr":"10.0.0.10"} |
 | HostName               | shows the node name where the log got generated                           | aks-agentpool-16128849-vmss000001                                                                             |
 | HostPID                | gives the host Process ID                                                 | 967872                                                                                                        |
 | HostPPID               | list the details of host Parent Process ID                                | 967496                                                                                                        |
