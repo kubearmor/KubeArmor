@@ -237,11 +237,11 @@ func (ae *AppArmorEnforcer) RegisterAppArmorProfile(podName, profileName string,
 	// generate a profile with basic allows if a privileged container
 	var newProfile string
 	if privileged {
-		newProfile = strings.Replace(ae.ApparmorDefaultPrivileged, "apparmor-default", profileName, -1)
+		newProfile = strings.ReplaceAll(ae.ApparmorDefaultPrivileged, "apparmor-default", profileName)
 		ae.AppArmorPrivilegedProfiles[profileName] = struct{}{}
 		ae.Logger.Printf("Added an AppArmor profile for a privileged container (%s, %s)", podName, profileName)
 	} else {
-		newProfile = strings.Replace(ae.ApparmorDefault, "apparmor-default", profileName, -1)
+		newProfile = strings.ReplaceAll(ae.ApparmorDefault, "apparmor-default", profileName)
 	}
 
 	newFile, err := os.Create(filepath.Clean("/etc/apparmor.d/" + profileName))
@@ -320,9 +320,9 @@ func (ae *AppArmorEnforcer) UnregisterAppArmorProfile(podName, profileName strin
 
 	var newProfile string
 	if privileged {
-		newProfile = strings.Replace(ae.ApparmorDefaultPrivileged, "apparmor-default", profileName, -1)
+		newProfile = strings.ReplaceAll(ae.ApparmorDefaultPrivileged, "apparmor-default", profileName)
 	} else {
-		newProfile = strings.Replace(ae.ApparmorDefault, "apparmor-default", profileName, -1)
+		newProfile = strings.ReplaceAll(ae.ApparmorDefault, "apparmor-default", profileName)
 	}
 
 	newFile, err := os.Create(filepath.Clean("/etc/apparmor.d/" + profileName))

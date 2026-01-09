@@ -193,7 +193,7 @@ func (se *SELinuxEnforcer) UpdateSELinuxLabels(profilePath string) bool {
 
 	res := true
 	// Iterate through rules from the profile file
-	for _, line := range strings.Split(string(profile), "\n") {
+	for line := range strings.SplitSeq(string(profile), "\n") {
 		words := strings.Fields(line)
 		if len(words) != 7 { continue }
 

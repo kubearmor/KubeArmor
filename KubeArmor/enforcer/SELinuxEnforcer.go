@@ -293,7 +293,7 @@ func (se *SELinuxEnforcer) InstallSELinuxModulesIfNeeded() bool {
 		return false
 	}
 
-	for _, line := range strings.Split(res, "\n") {
+	for line := range strings.SplitSeq(res, "\n") {
 		// fields: ModuleName Priority Language
 		words := strings.Fields(line)
 
@@ -332,7 +332,7 @@ func (se *SELinuxEnforcer) RestoreSELinuxLabels(profilePath string) bool {
 
 	res := true
 
-	for _, line := range strings.Split(string(profile), "\n") {
+	for line := range strings.SplitSeq(string(profile), "\n") {
 		// fields: SubjectLabel SubjectPath ObjectLabel ObjectPath Permissive Directory Recursive
 
 		words := strings.Fields(line)
@@ -484,7 +484,7 @@ func (se *SELinuxEnforcer) UpdateSELinuxLabels(profilePath string) bool {
 
 	res := true
 
-	for _, line := range strings.Split(string(profile), "\n") {
+	for line := range strings.SplitSeq(string(profile), "\n") {
 		// fields: SubjectLabel SubjectPath ObjectLabel ObjectPath Permissive Directory Recursive
 
 		words := strings.Fields(line)

@@ -192,7 +192,7 @@ func getDeviceResource(class string, subClass, protocol *int32, level *int32) st
 }
 
 // newMatchPolicy Function
-func (fd *Feeder) newMatchPolicy(policyEnabled int, policyName, src string, mp interface{}) tp.MatchPolicy {
+func (fd *Feeder) newMatchPolicy(policyEnabled int, policyName, src string, mp any) tp.MatchPolicy {
 	match := tp.MatchPolicy{
 		PolicyName: policyName,
 		Source:     src,
@@ -391,9 +391,7 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, endPoint tp.EndPoint) {
 	name := endPoint.NamespaceName + "_" + endPoint.EndPointName
 
 	if action == "DELETED" {
-		if _, ok := fd.SecurityPolicies[name]; ok {
-			delete(fd.SecurityPolicies, name)
-		}
+		delete(fd.SecurityPolicies, name)
 	}
 
 	// ADDED | MODIFIED
@@ -1807,7 +1805,7 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 				if (!secPolicy.IsFromSource) || (secPolicy.IsFromSource && (strings.HasPrefix(log.Source, secPolicy.Source+" ") || secPolicy.Source == log.ProcessName)) {
 					skip := false
 
-					for _, matchCapability := range strings.Split(secPolicy.Resource, ",") {
+					for matchCapability := range strings.SplitSeq(secPolicy.Resource, ",") {
 						if skip {
 							break
 						}

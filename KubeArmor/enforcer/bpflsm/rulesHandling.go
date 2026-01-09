@@ -484,7 +484,7 @@ func fuseProcAndFileRules(procList, fileList map[InnerKey][2]uint8) {
 	}
 }
 
-func (be *BPFEnforcer) resolveConflicts(newPosture, oldPosture bool, newRuleList, oldRuleList map[InnerKey][2]uint8, cmap *ebpf.Map) {
+func (be *BPFEnforcer) resolveConflicts(_, _ bool, newRuleList, oldRuleList map[InnerKey][2]uint8, cmap *ebpf.Map) {
 	// We delete existing elements which are not in the fresh rule set
 	for key := range oldRuleList {
 		if _, ok := newRuleList[key]; !ok {
