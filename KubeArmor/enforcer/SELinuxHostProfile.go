@@ -149,7 +149,7 @@ func (se *SELinuxEnforcer) AllowedHostNetworkMatchProtocols(proto tp.NetworkProt
 		icmp := "n"
 		raw := "n"
 
-		for _, proto := range strings.Split(proto.Protocol, ",") {
+		for proto := range strings.SplitSeq(proto.Protocol, ",") {
 			if proto == "tcp" {
 				tcp = "t"
 			} else if proto == "udp" {
@@ -344,7 +344,7 @@ func (se *SELinuxEnforcer) BlockedHostNetworkMatchProtocols(proto tp.NetworkProt
 		icmp := "r"
 		raw := "i"
 
-		for _, proto := range strings.Split(proto.Protocol, ",") {
+		for proto := range strings.SplitSeq(proto.Protocol, ",") {
 			if proto == "tcp" {
 				tcp = "n"
 			} else if proto == "udp" {
