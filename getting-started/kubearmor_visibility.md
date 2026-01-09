@@ -48,6 +48,12 @@ This sample policy blocks execution of the `apt` and `apt-get` commands in wordp
    ```text
   kubectl annotate pods <pod-name> -n wordpress-mysql "kubearmor-visibility=process,file,network,capabilities"
   ```
+
+> [!NOTE]
+> Network logs can include a `Resource` string with `protocol=...` (for example: `domain=AF_UNIX type=SOCK_STREAM|SOCK_NONBLOCK|SOCK_CLOEXEC protocol=0`).
+>
+> For TCP connect telemetry gathered via the BPF System Monitor, the kernel protocol name is read into a fixed-size buffer (16 bytes) before it is sent to user space.
+
 * Open up a terminal, and watch logs using the `karmor` cli
   ```text
   karmor logs
