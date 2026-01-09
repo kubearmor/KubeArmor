@@ -4,6 +4,7 @@
 package core
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"io"
@@ -23,7 +24,8 @@ const kubearmorDir = "/var/run/kubearmor"
 
 // ListenToHook starts listening on a UNIX socket and waits for container hooks
 // to pass new containers
-func (dm *KubeArmorDaemon) ListenToK8sHook() {
+func (dm *KubeArmorDaemon) ListenToK8sHook(ctx context.Context) {
+
 	dm.Logger.Print("Started to monitor OCI Hook events")
 	if err := os.MkdirAll(kubearmorDir, 0750); err != nil {
 		dm.Logger.Warnf("Failed to create ka.sock dir: %v", err)
@@ -41,19 +43,27 @@ func (dm *KubeArmorDaemon) ListenToK8sHook() {
 		return
 	}
 
-	defer socket.Close()
+	go func() {
+		<-ctx.Done()
+		dm.Logger.Print("K8s hook listener: context cancelled, closing socket")
+		_ = socket.Close()
+	}()
+
 	defer os.Remove(listenPath)
 	ready := &atomic.Bool{}
 
 	for {
 		conn, err := socket.Accept()
 		if err != nil {
+			if ctx.Err() != nil || errors.Is(err, net.ErrClosed) {
+				return
+			}
 			dm.Logger.Warnf("Error accepting socket connection: %v", err)
+			continue
 		}
 
 		go dm.handleK8sConn(conn, ready)
 	}
-
 }
 
 // handleConn gets container details from container hooks.

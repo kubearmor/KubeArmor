@@ -4,6 +4,7 @@
 package monitor
 
 import (
+	"context"
 	"fmt"
 	"path/filepath"
 	"strconv"
@@ -127,10 +128,10 @@ func (mon *SystemMonitor) UpdateLogBase(ctx SyscallContext, log tp.Log) tp.Log {
 }
 
 // UpdateLogs Function
-func (mon *SystemMonitor) UpdateLogs() {
+func (mon *SystemMonitor) UpdateLogs(ctx context.Context) {
 	for {
 		select {
-		case <-StopChan:
+		case <-ctx.Done():
 			return
 
 		case msg, valid := <-mon.ContextChan:

@@ -4,6 +4,7 @@
 package monitor
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -382,21 +383,25 @@ func cleanMaps(pidMap tp.PidMap, execLogMap map[uint32]tp.Log, execLogMapLock *s
 }
 
 // CleanUpExitedHostPids Function
-func (mon *SystemMonitor) CleanUpExitedHostPids() {
+func (mon *SystemMonitor) CleanUpExitedHostPids(ctx context.Context) {
 	ActiveHostPidMap := *(mon.ActiveHostPidMap)
 	ActivePidMapLock := *(mon.ActivePidMapLock)
-	MonitorLock := *(mon.MonitorLock)
 
 	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(10 * time.Second):
+		}
+
 		now := time.Now()
 
 		ActivePidMapLock.Lock()
-
 		for containerID, pidMap := range ActiveHostPidMap {
 			for pid, pidNode := range pidMap {
-				if pidNode.Exited && now.After(pidNode.ExitedTime.Add(time.Second*5)) {
+				if pidNode.Exited && now.After(pidNode.ExitedTime.Add(5*time.Second)) {
 					cleanMaps(pidMap, mon.execLogMap, mon.execLogMapLock, pid)
-				} else if now.After(pidNode.ExitedTime.Add(time.Second * 30)) {
+				} else if now.After(pidNode.ExitedTime.Add(30 * time.Second)) {
 					p, err := os.FindProcess(int(pid))
 					if err == nil && p != nil {
 						if p.Signal(syscall.Signal(0)) != nil {
@@ -412,19 +417,6 @@ func (mon *SystemMonitor) CleanUpExitedHostPids() {
 				delete(ActiveHostPidMap, containerID)
 			}
 		}
-
 		ActivePidMapLock.Unlock()
-
-		// read monitor status
-		MonitorLock.RLock()
-		monStatus := mon.Status
-		MonitorLock.RUnlock()
-
-		if !monStatus {
-			break
-		}
-
-		time.Sleep(10 * time.Second)
 	}
-
 }

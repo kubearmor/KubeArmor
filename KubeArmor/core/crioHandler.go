@@ -359,7 +359,7 @@ func (dm *KubeArmorDaemon) UpdateCrioContainer(ctx context.Context, containerID,
 }
 
 // MonitorCrioEvents Function
-func (dm *KubeArmorDaemon) MonitorCrioEvents() {
+func (dm *KubeArmorDaemon) MonitorCrioEvents(ctx context.Context) {
 	dm.WgDaemon.Add(1)
 	defer dm.WgDaemon.Done()
 
@@ -374,7 +374,9 @@ func (dm *KubeArmorDaemon) MonitorCrioEvents() {
 
 	for {
 		select {
-		case <-StopChan:
+		case <-ctx.Done():
+			// Context cancellation indicates daemon shutdown.
+			dm.Logger.Print("Stopping CRI-O event monitor via context")
 			return
 
 		default:
@@ -390,8 +392,8 @@ func (dm *KubeArmorDaemon) MonitorCrioEvents() {
 
 			if len(newContainers) > 0 {
 				for containerID := range newContainers {
-					if err := dm.UpdateCrioContainer(context.Background(), containerID, "start"); err != nil {
-					kg.Warnf("Failed to update CRIO container %s: %s", containerID, err.Error())
+					if err := dm.UpdateCrioContainer(ctx, containerID, "start"); err != nil {
+						kg.Warnf("Failed to update CRIO container %s: %s", containerID, err.Error())
 						invalidContainers = append(invalidContainers, containerID)
 					}
 				}
@@ -403,7 +405,7 @@ func (dm *KubeArmorDaemon) MonitorCrioEvents() {
 
 			if len(deletedContainers) > 0 {
 				for containerID := range deletedContainers {
-					if err := dm.UpdateCrioContainer(context.Background(), containerID, "destroy"); err != nil {
+					if err := dm.UpdateCrioContainer(ctx, containerID, "destroy"); err != nil {
 						kg.Warnf("Failed to destroy CRIO container %s: %s", containerID, err.Error())
 					}
 				}
