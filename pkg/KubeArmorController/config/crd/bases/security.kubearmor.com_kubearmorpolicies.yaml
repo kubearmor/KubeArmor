@@ -87,6 +87,7 @@ spec:
                               path:
                                 pattern: ^\/+.*[^\/]$
                                 type: string
+                                maxLength: 200
                             type: object
                           type: array
                         message:
@@ -134,12 +135,14 @@ spec:
                         dir:
                           pattern: ^\/$|^\/.*\/$
                           type: string
+                          maxLength: 200
                         fromSource:
                           items:
                             properties:
                               path:
                                 pattern: ^\/+.*[^\/]$
                                 type: string
+                                maxLength: 200
                             type: object
                           type: array
                         message:
@@ -177,6 +180,7 @@ spec:
                               path:
                                 pattern: ^\/+.*[^\/]$
                                 type: string
+                                maxLength: 200
                             type: object
                           type: array
                         message:
@@ -186,6 +190,7 @@ spec:
                         path:
                           pattern: ^\/+.*[^\/]$
                           type: string
+                          maxLength: 200
                         readOnly:
                           type: boolean
                         severity:
@@ -265,6 +270,7 @@ spec:
                               path:
                                 pattern: ^\/+.*[^\/]$
                                 type: string
+                                maxLength: 200
                             type: object
                           type: array
                         message:
@@ -328,12 +334,14 @@ spec:
                         dir:
                           pattern: ^\/$|^\/.*\/$
                           type: string
+                          maxLength: 200
                         fromSource:
                           items:
                             properties:
                               path:
                                 pattern: ^\/+.*[^\/]$
                                 type: string
+                                maxLength: 200
                             type: object
                           type: array
                         message:
@@ -366,12 +374,14 @@ spec:
                         execname:
                           pattern: ^[^\/]+$
                           type: string
+                          maxLength: 200
                         fromSource:
                           items:
                             properties:
                               path:
                                 pattern: ^\/+.*[^\/]$
                                 type: string
+                                maxLength: 200
                             type: object
                           type: array
                         message:
@@ -381,6 +391,12 @@ spec:
                         path:
                           pattern: ^\/+.*[^\/]$
                           type: string
+                          maxLength: 200
+                        allowedArgs: 
+                          items: 
+                            type: string
+                          type: array
+                          maxItems: 20
                         severity:
                           maximum: 10
                           minimum: 1
@@ -471,6 +487,7 @@ spec:
                               path:
                                 pattern: ^\/+.*[^\/]$
                                 type: string
+                                maxLength: 200
                               recursive:
                                 type: boolean
                             type: object
@@ -478,6 +495,7 @@ spec:
                         path:
                           pattern: (^\/+.*[^\/]$)|(^\/$|^\/.*\/$)
                           type: string
+                          maxLength: 200
                         recursive:
                           type: boolean
                         syscall:
@@ -833,6 +851,7 @@ spec:
                               path:
                                 pattern: ^\/+.*[^\/]$
                                 type: string
+                                maxLength: 200
                               recursive:
                                 type: boolean
                             type: object

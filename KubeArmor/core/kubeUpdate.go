@@ -2971,9 +2971,14 @@ func (dm *KubeArmorDaemon) WatchConfigMap() cache.InformerSynced {
 						cfg.GlobalCfg.EnableIMA = enableIMA
 					}
 				}
+				dm.SystemMonitor.UpdateThrottlingConfig()
+				if _, ok := cm.Data[cfg.ConfigArgMatching]; ok {
+					cfg.GlobalCfg.MatchArgs, _ = strconv.ParseBool(cm.Data[cfg.ConfigArgMatching])
+					fmt.Println("Updated Match argr in configmap ", cfg.GlobalCfg.MatchArgs)
+				}
+				dm.SystemMonitor.UpdateMatchArgsConfig()
 				dm.UpdateIMA(cfg.GlobalCfg.EnableIMA)
 				dm.UpdateUSBDeviceHandler(cfg.GlobalCfg.USBDeviceHandler)
-				dm.SystemMonitor.UpdateThrottlingConfig()
 
 				dm.Logger.Printf("Current Global Posture is %v", currentGlobalPosture)
 				dm.UpdateGlobalPosture(globalPosture)
@@ -3036,6 +3041,11 @@ func (dm *KubeArmorDaemon) WatchConfigMap() cache.InformerSynced {
 						cfg.GlobalCfg.EnableIMA = enableIMA
 					}
 				}
+				if _, ok := cm.Data[cfg.ConfigArgMatching]; ok {
+					cfg.GlobalCfg.MatchArgs, _ = strconv.ParseBool(cm.Data[cfg.ConfigArgMatching])
+					fmt.Println("Updated Match argr in configmap ", cfg.GlobalCfg.MatchArgs)
+				}
+				dm.SystemMonitor.UpdateMatchArgsConfig()
 				dm.UpdateIMA(cfg.GlobalCfg.EnableIMA)
 				dm.UpdateUSBDeviceHandler(cfg.GlobalCfg.USBDeviceHandler)
 			}
