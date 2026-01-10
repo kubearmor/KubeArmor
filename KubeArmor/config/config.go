@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync/atomic"
 
 	"flag"
 
@@ -52,13 +53,13 @@ type KubearmorConfig struct {
 	HostDefaultCapabilitiesPosture string // Default Enforcement Action in Global Capabilities Context
 	HostDefaultDevicePosture       string // Default Enforcement Action in Global USB Device Conntext
 
-	CoverageTest       bool     // Enable/Disable Coverage Test
-	ConfigUntrackedNs  []string // untracked namespaces
-	LsmOrder           []string // LSM order
-	BPFFsPath          string   // path to the BPF filesystem
-	EnforcerAlerts     bool     // policy enforcer
-	DefaultPostureLogs bool     // Enable/Disable Default Posture logs for AppArmor LSM
-	InitTimeout        string   // Timeout for main thread init stages
+	CoverageTest       bool         // Enable/Disable Coverage Test
+	ConfigUntrackedNs  atomic.Value // untracked namespaces
+	LsmOrder           []string     // LSM order
+	BPFFsPath          string       // path to the BPF filesystem
+	EnforcerAlerts     bool         // policy enforcer
+	DefaultPostureLogs bool         // Enable/Disable Default Posture logs for AppArmor LSM
+	InitTimeout        string       // Timeout for main thread init stages
 
 	StateAgent  bool // enable KubeArmor state agent
 	UseOCIHooks bool
@@ -341,7 +342,7 @@ func LoadConfig() error {
 
 	GlobalCfg.CoverageTest = viper.GetBool(ConfigCoverageTest)
 
-	GlobalCfg.ConfigUntrackedNs = strings.Split(viper.GetString(ConfigUntrackedNs), ",")
+	GlobalCfg.ConfigUntrackedNs.Store(strings.Split(viper.GetString(ConfigUntrackedNs), ","))
 
 	GlobalCfg.LsmOrder = strings.Split(viper.GetString(LsmOrder), ",")
 
