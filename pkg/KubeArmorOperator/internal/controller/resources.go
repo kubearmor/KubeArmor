@@ -31,18 +31,24 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
-func generateDaemonset(name, enforcer, runtime, socket, nriSocket, btfPresent, apparmorfs, seccompPresent string, initDeploy bool, ociHooks string) *appsv1.DaemonSet {
+func generateDaemonset(name string, initDeploy bool, node Node) *appsv1.DaemonSet {
 	enforcerVolumes := []corev1.Volume{}
 	enforcerVolumeMounts := []corev1.VolumeMount{}
-	if !(enforcer == "apparmor" && apparmorfs == "no") {
-		enforcerVolumes, enforcerVolumeMounts = genEnforcerVolumes(enforcer)
+	if !(node.Enforcer == "apparmor" && node.ApparmorFs == "no") {
+		enforcerVolumes, enforcerVolumeMounts = genEnforcerVolumes(node.Enforcer)
 	}
-	runtimeVolumes, runtimeVolumeMounts := genRuntimeVolumes(runtime, socket, nriSocket)
+
+	if node.Enforcer == "apparmor" && node.ApparmorSnap == "yes" {
+		enforcerVolumes = append(enforcerVolumes, getApparmorSnapProfileVolume())
+		enforcerVolumeMounts = append(enforcerVolumeMounts, getApparmorSnapProfileVolumeMount())
+	}
+
+	runtimeVolumes, runtimeVolumeMounts := genRuntimeVolumes(node.Runtime, node.RuntimeSocket, node.NRIRuntimeSocket)
 	vols := []corev1.Volume{}
 	volMnts := []corev1.VolumeMount{}
 	vols = append(vols, enforcerVolumes...)
 	ociArgs := []string{}
-	if ociHooks == "yes" {
+	if node.OCIHooks == "yes" {
 		volType := corev1.HostPathDirectoryOrCreate
 		vols = append(vols, corev1.Volume{
 			Name: "kubearmor-path",
@@ -69,8 +75,8 @@ func generateDaemonset(name, enforcer, runtime, socket, nriSocket, btfPresent, a
 	commonVols := common.CommonVolumes
 	commonVolMnts := common.CommonVolumesMount
 
-	if initDeploy || btfPresent == "no" {
-		if btfPresent == "no" {
+	if initDeploy || node.BTF == "no" {
+		if node.BTF == "no" {
 			commonVols = append(commonVols, common.KernelHeaderVolumes...)
 			commonVolMnts = append(commonVolMnts, common.KernelHeaderVolumesMount...)
 		}
@@ -81,34 +87,34 @@ func generateDaemonset(name, enforcer, runtime, socket, nriSocket, btfPresent, a
 	volMnts = append(volMnts, commonVolMnts...)
 	daemonset := deployments.GenerateDaemonSet("generic", common.Namespace)
 
-	if btfPresent != "no" && !initDeploy {
+	if node.BTF != "no" && !initDeploy {
 		daemonset.Spec.Template.Spec.InitContainers = []corev1.Container{}
 	}
 
-	if nriSocket != "" && common.NRIEnabled {
+	if node.NRIRuntimeSocket != "" && common.NRIEnabled {
 		name = strings.Join([]string{
 			"kubearmor",
-			strings.ReplaceAll(enforcer, ".", "-"),
+			strings.ReplaceAll(node.Enforcer, ".", "-"),
 			"nri",
-			common.ShortSHA(nriSocket),
+			common.ShortSHA(node.NRIRuntimeSocket),
 		}, "-")
 	}
 
 	daemonset.Name = name
 	labels := map[string]string{
-		common.EnforcerLabel: enforcer,
-		common.RuntimeLabel:  runtime,
-		common.SocketLabel:   socket,
+		common.EnforcerLabel: node.Enforcer,
+		common.RuntimeLabel:  node.Runtime,
+		common.SocketLabel:   node.RuntimeSocket,
 		common.OsLabel:       "linux",
-		common.BTFLabel:      btfPresent,
-		common.SeccompLabel:  seccompPresent,
+		common.BTFLabel:      node.BTF,
+		common.SeccompLabel:  node.Seccomp,
 	}
 
 	AddOrUpdateNodeSelector(labels, common.GlobalNodeSelectors)
 	AddOrUpdateNodeSelector(labels, common.KubeArmorNodeSelector)
 
-	if nriSocket != "" {
-		labels[common.NRISocketLabel] = nriSocket
+	if node.NRIRuntimeSocket != "" {
+		labels[common.NRISocketLabel] = node.NRIRuntimeSocket
 	}
 	daemonset.Spec.Template.Spec.NodeSelector = common.CopyStrMap(labels)
 	labels["kubearmor-app"] = "kubearmor"
@@ -153,7 +159,7 @@ func generateDaemonset(name, enforcer, runtime, socket, nriSocket, btfPresent, a
 	daemonset.Spec.Template.Spec.Volumes = vols
 	daemonset.Spec.Template.Spec.Containers[0].VolumeMounts = volMnts
 
-	if btfPresent == "no" || initDeploy {
+	if node.BTF == "no" || initDeploy {
 		daemonset.Spec.Template.Spec.InitContainers[0].VolumeMounts = commonVolMnts
 		daemonset.Spec.Template.Spec.InitContainers[0].Image = common.GetApplicationImage(common.KubeArmorInitName)
 		daemonset.Spec.Template.Spec.InitContainers[0].ImagePullPolicy = corev1.PullPolicy(common.KubeArmorInitImagePullPolicy)
@@ -165,7 +171,7 @@ func generateDaemonset(name, enforcer, runtime, socket, nriSocket, btfPresent, a
 		UpdateTolerationsIfDefinedAndUpdated(&daemonset.Spec.Template.Spec.Tolerations, common.KubeArmorInitTolerations)
 	}
 	// update images
-	if seccompPresent == "yes" && common.ConfigDefaultSeccompEnabled == "true" {
+	if node.Seccomp == "yes" && common.ConfigDefaultSeccompEnabled == "true" {
 		daemonset.Spec.Template.Spec.Containers[0].SecurityContext.SeccompProfile = &corev1.SeccompProfile{
 			Type:             corev1.SeccompProfileTypeLocalhost,
 			LocalhostProfile: &common.SeccompProfile,
@@ -211,6 +217,26 @@ func genEnforcerVolumes(enforcer string) (vol []corev1.Volume, volMnt []corev1.V
 		volMnt = append(volMnt, common.EnforcerVolumesMounts[e]...)
 	}
 	return
+}
+
+func getApparmorSnapProfileVolume() corev1.Volume {
+	return corev1.Volume{
+		Name: "apparmor-snap-profiles",
+		VolumeSource: corev1.VolumeSource{
+			HostPath: &corev1.HostPathVolumeSource{
+				Path: "/var/lib/snapd/apparmor",
+				Type: &common.HostPathDirectory,
+			},
+		},
+	}
+}
+
+func getApparmorSnapProfileVolumeMount() corev1.VolumeMount {
+	return corev1.VolumeMount{
+		Name:      "apparmor-snap-profiles",
+		ReadOnly:  true,
+		MountPath: "/var/lib/snapd/apparmor",
+	}
 }
 
 func genRuntimeVolumes(runtime, runtimeSocket, nriSocket string) (vol []corev1.Volume, volMnt []corev1.VolumeMount) {

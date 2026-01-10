@@ -105,7 +105,7 @@ func init() {
 	// For now we are controlling snitch's EnableOCIHooks flag from operator's EnableOCIHooks flag, we could change this when we start support snitch flags from operator CRD.
 	cmdFlag := Cmd.PersistentFlags().Lookup("oci-hooks")
 	if !cmdFlag.Changed {
-			EnableOCIHooks = common.GetOCIHooks()
+		EnableOCIHooks = common.GetOCIHooks()
 	}
 }
 
@@ -122,7 +122,7 @@ func snitch() {
 
 	// Detecting enforcer
 	nodeEnforcer := enforcer.DetectEnforcer(order, PathPrefix, *Logger)
-	if (nodeEnforcer == "apparmor") && (enforcer.CheckIfApparmorFsPresent(PathPrefix, *Logger) == "no") {
+	if (nodeEnforcer == "apparmor") && (enforcer.CheckIfApparmorFsPresent(PathPrefix) == "no") {
 		nodeEnforcer = "NA"
 	}
 	if nodeEnforcer != "NA" {
@@ -160,7 +160,7 @@ func snitch() {
 	}
 
 	// Check BTF support
-	btfPresent := enforcer.CheckBtfSupport(PathPrefix, *Logger)
+	btfPresent := enforcer.CheckBtfSupport(PathPrefix)
 	Logger.Infof("Kernel has BTF: %s", btfPresent)
 
 	patchNode := metadata{}
@@ -174,13 +174,14 @@ func snitch() {
 	patchNode.Metadata.Labels[common.EnforcerLabel] = nodeEnforcer
 	patchNode.Metadata.Labels[common.RandLabel] = rand.String(4)
 	patchNode.Metadata.Labels[common.BTFLabel] = btfPresent
-	patchNode.Metadata.Labels[common.ApparmorFsLabel] = enforcer.CheckIfApparmorFsPresent(PathPrefix, *Logger)
+	patchNode.Metadata.Labels[common.ApparmorFsLabel] = enforcer.CheckIfApparmorFsPresent(PathPrefix)
+	patchNode.Metadata.Labels[common.ApparmorSnapProfileLabel] = enforcer.CheckIfApparmorSnapProfilesPresent(PathPrefix)
 	patchNode.Metadata.Labels[common.OCIHooksLabel] = ociHooksLabel
 
 	if nodeEnforcer == "none" {
 		patchNode.Metadata.Labels[common.SecurityFsLabel] = "no"
 	} else {
-		patchNode.Metadata.Labels[common.SecurityFsLabel] = enforcer.CheckIfSecurityFsPresent(PathPrefix, *Logger)
+		patchNode.Metadata.Labels[common.SecurityFsLabel] = enforcer.CheckIfSecurityFsPresent(PathPrefix)
 	}
 
 	patch, err := json.Marshal(patchNode)
