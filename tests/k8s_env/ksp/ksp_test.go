@@ -1889,5 +1889,30 @@ var _ = Describe("Ksp", func() {
 			)
 		})
 
+		It("it can block access to files in procfs", func() {
+			// Apply Policy
+			err := K8sApplyFile("multiubuntu/ksp-ubuntu-4-block-file-procfs.yaml")
+			Expect(err).To(BeNil())
+
+			// Start KubeArmor Logs
+			err = KarmorLogStart("policy", "multiubuntu", "File", ub4)
+			Expect(err).To(BeNil())
+
+			AssertCommand(ub4, "multiubuntu", []string{"bash", "-c", "cat /proc/version"},
+				MatchRegexp(".*Permission denied"), true,
+			)
+
+			expect := protobuf.Alert{
+				PolicyName: "ksp-ubuntu-4-block-file-procfs",
+				Severity:   "5",
+				Action:     "Block",
+				Result:     "Permission denied",
+			}
+
+			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
+			Expect(err).To(BeNil())
+			Expect(res.Found).To(BeTrue())
+		})
+
 	})
 })
