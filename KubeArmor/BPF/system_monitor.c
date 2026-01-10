@@ -2297,8 +2297,17 @@ int kretprobe__tcp_connect(struct pt_regs *ctx)
         return 0;
     }
 
-    args.args[0] = (unsigned long)conn.skc_prot->name;
-
+    const char* proto_str_p = READ_KERN(conn.skc_prot->name);
+    
+    // so far this is the only hack that worked, using a temporary stack variable
+    // skc_prot->name is of size 32
+    // but it's unclear why extending to 32 leading to issues
+    // we're not expecting protocol string (TCP) to exceed 16 bytes size
+    // it's should be safe to use 16 here
+    char proto_str[16] = {};
+    bpf_probe_read_str(proto_str, sizeof(proto_str), proto_str_p);
+    
+    args.args[0] = (unsigned long)proto_str;
     if (context->retval < 0 && !get_kubearmor_config(_ENFORCER_BPFLSM) && get_kubearmor_config(_ALERT_THROTTLING) && should_drop_alerts_per_container(context, ctx, types, &args))
     {
         return 0;
