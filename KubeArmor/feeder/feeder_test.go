@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"reflect"
 	"strconv"
 	"sync"
 	"testing"
@@ -227,4 +228,68 @@ func TestEventStructs_AddAndRemove(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestMarshalVisibilityLog(t *testing.T) {
+	// example visibility log - hostname field excluded since it is set
+	// in the feeder and this test just checks marshaling
+	visibilityLog := tp.Log{
+		ClusterName:       "default",
+		Type:              "HostLog",
+		Source:            "/usr/bin/dockerd",
+		Resource:          "/usr/bin/runc --version",
+		Operation:         "Process",
+		Data:              "syscall=SYS_EXECVE",
+		Result:            "Passed",
+		HostPID:           193088,
+		HostPPID:          914,
+		PID:               193088,
+		PPID:              914,
+		ParentProcessName: "/usr/bin/dockerd",
+		ProcessName:       "/usr/bin/runc",
+		ExecEvent:         tp.ExecEvent{},
+	}
+
+	expectedMarshaledLog := &pb.Log{
+		ClusterName:       "default",
+		Type:              "HostLog",
+		Source:            "/usr/bin/dockerd",
+		Resource:          "/usr/bin/runc --version",
+		Operation:         "Process",
+		Data:              "syscall=SYS_EXECVE",
+		Result:            "Passed",
+		HostPID:           193088,
+		HostPPID:          914,
+		PID:               193088,
+		PPID:              914,
+		ParentProcessName: "/usr/bin/dockerd",
+		ProcessName:       "/usr/bin/runc",
+		ExecEvent:         &pb.ExecEvent{},
+	}
+
+	t.Run("WithResource", func(t *testing.T) {
+		originalDropResource := cfg.GlobalCfg.DropResourceFromProcessLogs
+		defer func() { cfg.GlobalCfg.DropResourceFromProcessLogs = originalDropResource }()
+		cfg.GlobalCfg.DropResourceFromProcessLogs = false
+
+		marshaledLog := MarshalVisibilityLog(visibilityLog)
+		if !reflect.DeepEqual(marshaledLog, expectedMarshaledLog) {
+			t.Errorf("[FAIL] Expected marshaled log: %+v\nGot: %+v", expectedMarshaledLog, marshaledLog)
+		}
+	})
+
+	t.Run("WithoutResource", func(t *testing.T) {
+		originalDropResource := cfg.GlobalCfg.DropResourceFromProcessLogs
+		defer func() { cfg.GlobalCfg.DropResourceFromProcessLogs = originalDropResource }()
+		cfg.GlobalCfg.DropResourceFromProcessLogs = true
+
+		expectedWithoutResource := &pb.Log{}
+		*expectedWithoutResource = *expectedMarshaledLog
+		expectedWithoutResource.Resource = ""
+
+		marshaledLog := MarshalVisibilityLog(visibilityLog)
+		if !reflect.DeepEqual(marshaledLog, expectedWithoutResource) {
+			t.Errorf("[FAIL] Expected marshaled log: %+v\nGot: %+v", expectedWithoutResource, marshaledLog)
+		}
+	})
 }

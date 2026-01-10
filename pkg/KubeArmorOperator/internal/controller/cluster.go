@@ -1519,6 +1519,11 @@ func UpdateConfigMapData(config *opv1.KubeArmorConfigSpec) bool {
 		}
 		configMapData += fmt.Sprintf("%s: %s\n", common.ConfigDefaultNetworkPosture, config.DefaultNetworkPosture)
 	}
+	DropResourceFromProcessLogs := strconv.FormatBool(config.DropResourceFromProcessLogs)
+	if common.ConfigMapData[common.ConfigDropResourceFromProcessLogs] != DropResourceFromProcessLogs {
+		common.ConfigMapData[common.ConfigDropResourceFromProcessLogs] = DropResourceFromProcessLogs
+		updated = true
+	}
 	if config.DefaultVisibility != "" {
 		if common.ConfigMapData[common.ConfigVisibility] != config.DefaultVisibility {
 			common.ConfigMapData[common.ConfigVisibility] = config.DefaultVisibility

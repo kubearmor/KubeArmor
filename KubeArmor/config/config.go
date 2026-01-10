@@ -5,11 +5,10 @@
 package config
 
 import (
+	"flag"
 	"fmt"
 	"os"
 	"strings"
-
-	"flag"
 
 	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
 	"github.com/spf13/viper"
@@ -70,6 +69,8 @@ type KubearmorConfig struct {
 
 	ProcFsMount string // path where procfs is hosted
 
+	DropResourceFromProcessLogs bool // optionally drop resource field from process logs
+
 	MachineIDPath string // path to machine-id
 
 	USBDeviceHandler bool // enable USB device observability and enforcement
@@ -123,6 +124,7 @@ const (
 	ConfigThrottleSec                    string = "throttleSec"
 	ConfigAnnotateResources              string = "annotateResources"
 	ConfigProcFsMount                    string = "procfsMount"
+	ConfigDropResourceFromProcessLogs    string = "dropResourceFromProcessLogs"
 	ConfigMachineIDPath                  string = "machineIDPath"
 	UseOCIHooks                          string = "useOCIHooks"
 	ConfigEnableIma                      string = "enableIMA"
@@ -195,6 +197,8 @@ func readCmdLineParams() {
 
 	enableIMA := flag.Bool(ConfigEnableIma, false, "to enable/disable file integrity IMA hash using bpf_file_ima_hash")
 	usbDeviceHandler := flag.Bool(ConfigUSBDeviceHandler, false, "Enable USB device observability and enforcement")
+
+	dropResourceFromProcessLogs := flag.Bool(ConfigDropResourceFromProcessLogs, false, "drop resource field from process logs")
 
 	flags := []string{}
 	flag.VisitAll(func(f *flag.Flag) {
@@ -271,6 +275,8 @@ func readCmdLineParams() {
 	viper.SetDefault(ConfigEnableIma, *enableIMA)
 
 	viper.SetDefault(ConfigUSBDeviceHandler, *usbDeviceHandler)
+
+	viper.SetDefault(ConfigDropResourceFromProcessLogs, *dropResourceFromProcessLogs)
 }
 
 // LoadConfig Load configuration
@@ -358,6 +364,8 @@ func LoadConfig() error {
 	GlobalCfg.MachineIDPath = viper.GetString(ConfigMachineIDPath)
 
 	GlobalCfg.USBDeviceHandler = viper.GetBool(ConfigUSBDeviceHandler)
+
+	GlobalCfg.DropResourceFromProcessLogs = viper.GetBool(ConfigDropResourceFromProcessLogs)
 
 	LoadDynamicConfig()
 
