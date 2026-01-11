@@ -12,13 +12,15 @@ import (
 	"flag"
 
 	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
+	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 )
 
 // KubearmorConfig Structure
 type KubearmorConfig struct {
-	Cluster string // Cluster name to use for feeds
-	Host    string // Host name to use for feeds
+	Cluster                  string // Cluster name to use for feeds
+	Host                     string // Host name to use for feeds
+	ContainerdWorkerPoolSize int    // configurable worker pool size
 
 	GRPC              string // gRPC Port to use
 	TLSEnabled        bool   // enable tls
@@ -84,6 +86,7 @@ const (
 	PIDFilePath                          string = "/opt/kubearmor/kubearmor.pid"
 	ConfigCluster                        string = "cluster"
 	ConfigHost                           string = "host"
+	ConfigContainerdWorkerPoolSize       string = "containerd-worker-pool-size"
 	ConfigGRPC                           string = "gRPC"
 	ConfigTLSCertPath                    string = "tlsCertPath"
 	ConfigTLSCertProvider                string = "tlsCertProvider"
@@ -133,6 +136,11 @@ func readCmdLineParams() {
 	hostname, _ := os.Hostname()
 	clusterStr := flag.String(ConfigCluster, "default", "cluster name")
 	hostStr := flag.String(ConfigHost, hostname, "host name")
+	flag.Int(
+		ConfigContainerdWorkerPoolSize,
+		8,
+		"Number of workers for containerd event processing",
+	)
 
 	grpcStr := flag.String(ConfigGRPC, "32767", "gRPC port number")
 	tlsEnabled := flag.Bool(ConfigTLS, false, "enable tls for secure grpc connection")
@@ -196,14 +204,19 @@ func readCmdLineParams() {
 	enableIMA := flag.Bool(ConfigEnableIma, false, "to enable/disable file integrity IMA hash using bpf_file_ima_hash")
 	usbDeviceHandler := flag.Bool(ConfigUSBDeviceHandler, false, "Enable USB device observability and enforcement")
 
+	pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
+	_ = viper.BindPFlags(pflag.CommandLine)
+
+	// NOW parse CLI args (this is the key fix)
+	flag.Parse()
+
+	//  NOW print parsed arguments (will show real CLI values)
 	flags := []string{}
 	flag.VisitAll(func(f *flag.Flag) {
 		kv := fmt.Sprintf("%s:%v", f.Name, f.Value)
 		flags = append(flags, kv)
 	})
 	kg.Printf("Arguments [%s]", strings.Join(flags, " "))
-
-	flag.Parse()
 
 	viper.SetDefault(ConfigCluster, *clusterStr)
 	viper.SetDefault(ConfigHost, *hostStr)
@@ -310,6 +323,16 @@ func LoadConfig() error {
 	GlobalCfg.TLSCertPath = viper.GetString(ConfigTLSCertPath)
 	GlobalCfg.TLSCertProvider = viper.GetString(ConfigTLSCertProvider)
 	GlobalCfg.LogPath = viper.GetString(ConfigLogPath)
+
+	GlobalCfg.ContainerdWorkerPoolSize = viper.GetInt(ConfigContainerdWorkerPoolSize)
+
+	if GlobalCfg.ContainerdWorkerPoolSize <= 0 {
+		kg.Warnf(
+			"Invalid containerd-worker-pool-size=%d, falling back to default=8",
+			GlobalCfg.ContainerdWorkerPoolSize,
+		)
+		GlobalCfg.ContainerdWorkerPoolSize = 8
+	}
 
 	GlobalCfg.CRISocket = os.Getenv("CRI_SOCKET")
 	if GlobalCfg.CRISocket == "" {
