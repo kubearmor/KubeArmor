@@ -9,7 +9,7 @@ NODEV     = ENV['NODEV'] || "0"
 
 if OS == "centos" then
   if NETNEXT == "1" then
-    VM_IMG = "generic/centos9s"
+    VM_IMG = "generic/centos9s" # 5.14
     VM_NAME = "kubearmor-dev-next"
   else # default
     VM_IMG = "generic/centos8s" # 4.18
