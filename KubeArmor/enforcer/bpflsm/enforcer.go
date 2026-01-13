@@ -350,7 +350,7 @@ func (be *BPFEnforcer) TraceEvents() {
 
 				HostPID:  event.HostPID,
 				HostPPID: event.HostPPID,
-				TTY: event.TTY,
+				TTY:      event.TTY,
 			},
 		}, readLink)
 
