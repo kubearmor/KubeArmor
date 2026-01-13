@@ -278,8 +278,8 @@ func validateSocketFile(socketFile string) error {
 	}
 
 	// Basic path validation
-	if !strings.HasPrefix(socketFile, "/") && !strings.HasPrefix(socketFile, "./") {
-		return fmt.Errorf("socket file path must be absolute or relative:  %s", socketFile)
+	if !strings.HasPrefix(socketFile, "/") {
+		return fmt.Errorf("socket file path must be absolute (start with /): %s", socketFile)
 	}
 
 	// socket-like path
