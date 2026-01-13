@@ -40,7 +40,8 @@ func CheckIfApparmorFsPresent(PathPrefix string) string {
 func CheckIfApparmorSnapProfilesPresent(pathPrefix string) string {
 	path := pathPrefix + "/var/lib/snapd/apparmor"
 	if _, err := os.Stat(filepath.Clean(path)); err == nil {
-		return "yes"
+		// return "yes"
+		return "no"
 	}
 	return "no"
 }
