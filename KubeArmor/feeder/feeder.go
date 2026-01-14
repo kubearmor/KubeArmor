@@ -35,10 +35,10 @@ func parseDataString(data string) map[string]string {
 	if data == "" {
 		return nil
 	}
-	
+
 	result := make(map[string]string)
 	pairs := strings.Fields(data) // Split by whitespace
-	
+
 	for _, pair := range pairs {
 		if strings.Contains(pair, "=") {
 			parts := strings.SplitN(pair, "=", 2) // Split only on first "="
@@ -51,7 +51,7 @@ func parseDataString(data string) map[string]string {
 			}
 		}
 	}
-	
+
 	return result
 }
 
@@ -562,6 +562,77 @@ func (fd *Feeder) PushMessage(level, message string) {
 		}
 	}
 }
+func MarshalVisibilityLog(log tp.Log) *pb.Log {
+	pbLog := pb.Log{}
+
+	pbLog.Timestamp = log.Timestamp
+	pbLog.UpdatedTime = log.UpdatedTime
+
+	pbLog.ClusterName = cfg.GlobalCfg.Cluster
+
+	pbLog.NamespaceName = log.NamespaceName
+
+	var owner *pb.Podowner
+	if log.Owner != nil && (log.Owner.Ref != "" || log.Owner.Name != "" || log.Owner.Namespace != "") {
+		owner = &pb.Podowner{
+			Ref:       log.Owner.Ref,
+			Name:      log.Owner.Name,
+			Namespace: log.Owner.Namespace,
+		}
+	}
+
+	if pbLog.Owner == nil && owner != nil {
+		pbLog.Owner = owner
+	}
+
+	pbLog.PodName = log.PodName
+	pbLog.Labels = log.Labels
+
+	pbLog.ContainerID = log.ContainerID
+	pbLog.ContainerName = log.ContainerName
+	pbLog.ContainerImage = log.ContainerImage
+
+	pbLog.HostPPID = log.HostPPID
+	pbLog.HostPID = log.HostPID
+
+	pbLog.PPID = log.PPID
+	pbLog.PID = log.PID
+	pbLog.UID = log.UID
+
+	pbLog.ParentProcessName = log.ParentProcessName
+	pbLog.ProcessName = log.ProcessName
+
+	pbLog.Type = log.Type
+	pbLog.TTY = log.TTY
+	pbLog.Source = log.Source
+	pbLog.Operation = log.Operation
+	if !(pbLog.Operation == "Process" && cfg.GlobalCfg.DropResourceFromProcessLogs) {
+		pbLog.Resource = strings.ToValidUTF8(log.Resource, "")
+	}
+	pbLog.Cwd = log.Cwd
+
+	pbLog.ExecEvent = &pb.ExecEvent{
+		ExecID:         log.ExecEvent.ExecID,
+		ExecutableName: log.ExecEvent.ExecutableName,
+	}
+
+	if len(log.Data) > 0 {
+		pbLog.Data = log.Data
+	}
+	if log.EventData != nil {
+		pbLog.EventData = log.EventData
+	}
+	pbLog.ProcessHash = log.ProcessHash[:]
+	pbLog.ParentHash = log.ParentHash[:]
+	pbLog.ResourceHash = log.ResourceHash[:]
+	if len(log.HashAlgo) > 0 {
+		pbLog.HashAlgo = log.HashAlgo
+	}
+
+	pbLog.Result = log.Result
+
+	return &pbLog
+}
 
 // PushLog Function
 // PushLog Function
@@ -784,75 +855,10 @@ func (fd *Feeder) PushLog(log tp.Log) {
 			}
 		}
 	} else { // ContainerLog || HostLog
-		pbLog := pb.Log{}
 		node := fd.GetNodeInfo()
-
-		pbLog.Timestamp = log.Timestamp
-		pbLog.UpdatedTime = log.UpdatedTime
-
-		pbLog.ClusterName = cfg.GlobalCfg.Cluster
-
+		pbLog := MarshalVisibilityLog(log)
 		pbLog.HostName = node.NodeName
 		pbLog.NodeID = node.NodeID
-
-		pbLog.NamespaceName = log.NamespaceName
-
-		var owner *pb.Podowner
-		if log.Owner != nil && (log.Owner.Ref != "" || log.Owner.Name != "" || log.Owner.Namespace != "") {
-			owner = &pb.Podowner{
-				Ref:       log.Owner.Ref,
-				Name:      log.Owner.Name,
-				Namespace: log.Owner.Namespace,
-			}
-		}
-
-		if pbLog.Owner == nil && owner != nil {
-			pbLog.Owner = owner
-		}
-
-		pbLog.PodName = log.PodName
-		pbLog.Labels = log.Labels
-
-		pbLog.ContainerID = log.ContainerID
-		pbLog.ContainerName = log.ContainerName
-		pbLog.ContainerImage = log.ContainerImage
-
-		pbLog.HostPPID = log.HostPPID
-		pbLog.HostPID = log.HostPID
-
-		pbLog.PPID = log.PPID
-		pbLog.PID = log.PID
-		pbLog.UID = log.UID
-
-		pbLog.ParentProcessName = log.ParentProcessName
-		pbLog.ProcessName = log.ProcessName
-
-		pbLog.Type = log.Type
-		pbLog.TTY = log.TTY
-		pbLog.Source = log.Source
-		pbLog.Operation = log.Operation
-		pbLog.Resource = strings.ToValidUTF8(log.Resource, "")
-		pbLog.Cwd = log.Cwd
-
-		pbLog.ExecEvent = &pb.ExecEvent{
-			ExecID:         log.ExecEvent.ExecID,
-			ExecutableName: log.ExecEvent.ExecutableName,
-		}
-
-		if len(log.Data) > 0 {
-			pbLog.Data = log.Data
-		}
-		if log.EventData != nil {
-			pbLog.EventData = log.EventData
-		}
-		pbLog.ProcessHash = log.ProcessHash[:]
-		pbLog.ParentHash = log.ParentHash[:]
-		pbLog.ResourceHash = log.ResourceHash[:]
-		if len(log.HashAlgo) > 0 {
-			pbLog.HashAlgo = log.HashAlgo
-		}
-
-		pbLog.Result = log.Result
 
 		fd.EventStructs.LogLock.Lock()
 		defer fd.EventStructs.LogLock.Unlock()
@@ -860,7 +866,7 @@ func (fd *Feeder) PushLog(log tp.Log) {
 		lenlog := len(fd.EventStructs.LogStructs)
 		for uid := range fd.EventStructs.LogStructs {
 			select {
-			case fd.EventStructs.LogStructs[uid].Broadcast <- &pbLog:
+			case fd.EventStructs.LogStructs[uid].Broadcast <- pbLog:
 			default:
 				counter++
 				if counter == lenlog {
