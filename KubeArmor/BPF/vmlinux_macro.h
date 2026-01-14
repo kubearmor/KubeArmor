@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright 2022 Authors of KubeArmor */
+/* Copyright 2026 Authors of KubeArmor */
 
 #ifndef __VMLINUX_MACRO_H__
 #define __VMLINUX_MACRO_H__
