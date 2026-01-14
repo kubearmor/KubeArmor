@@ -51,6 +51,153 @@ type NsKey struct {
 	MntNS uint32
 }
 
+func (mon *SystemMonitor) containerIDFromProcCgroup(hostPid uint32) string {
+	// Check cache first (5 second TTL)
+	mon.cgroupCacheLock.RLock()
+	if entry, ok := mon.cgroupCache[hostPid]; ok {
+		if time.Since(entry.timestamp) < 5*time.Second {
+			mon.cgroupCacheLock.RUnlock()
+			return entry.containerID
+		}
+	}
+	mon.cgroupCacheLock.RUnlock()
+
+	// Get buffer from pool
+	bufPtr := mon.cgroupBufPool.Get().(*[]byte)
+	defer mon.cgroupBufPool.Put(bufPtr)
+	
+	cgPath := filepath.Join(cfg.GlobalCfg.ProcFsMount, strconv.FormatUint(uint64(hostPid), 10), "cgroup")
+	
+	file, err := os.Open(cgPath)
+	if err != nil {
+		return ""
+	}
+	defer file.Close()
+	
+	n, err := file.Read(*bufPtr)
+	if err != nil || n == 0 {
+		return ""
+	}
+	
+	data := (*bufPtr)[:n]
+	containerID := mon.parseCgroupData(data)
+	
+	// Cache the result
+	if containerID != "" {
+		mon.cgroupCacheLock.Lock()
+		mon.cgroupCache[hostPid] = cgroupCacheEntry{
+			containerID: containerID,
+			timestamp:   time.Now(),
+		}
+		mon.cgroupCacheLock.Unlock()
+	}
+	
+	return containerID
+}
+
+
+// parseCgroupData extracts container ID from cgroup file content
+func (mon *SystemMonitor) parseCgroupData(data []byte) string {
+	var token string
+	start := 0
+	
+	// Parse line by line
+	for i := 0; i < len(data); i++ {
+		if data[i] == '\n' {
+			line := data[start:i]
+			start = i + 1
+			
+			if len(line) == 0 {
+				continue
+			}
+			
+			// Find second ':' to get the cgroup path
+			colonCount := 0
+			pathStart := -1
+			for j := 0; j < len(line); j++ {
+				if line[j] == ':' {
+					colonCount++
+					if colonCount == 2 {
+						pathStart = j + 1
+						break
+					}
+				}
+			}
+			
+			if pathStart == -1 {
+				continue
+			}
+			
+			path := line[pathStart:]
+			token = mon.extractContainerIDFromPath(path)
+			if token != "" {
+				break
+			}
+		}
+	}
+	
+	if token == "" {
+		return ""
+	}
+	
+	// Match against container map
+	Containers := *(mon.Containers)
+	ContainersLock := *(mon.ContainersLock)
+	ContainersLock.RLock()
+	defer ContainersLock.RUnlock()
+	
+	for cid, c := range Containers {
+		if cid == token || strings.HasSuffix(cid, token) || strings.Contains(cid, token) {
+			return cid
+		}
+		if c.ContainerID == token || strings.HasSuffix(c.ContainerID, token) || strings.Contains(c.ContainerID, token) {
+			return cid
+		}
+	}
+	
+	return ""
+}
+
+// extractContainerIDFromPath extracts container ID from cgroup path using byte operations
+func (mon *SystemMonitor) extractContainerIDFromPath(path []byte) string {
+	// containerd: cri-containerd-<id>.scope
+	if idx := bytes.Index(path, []byte("cri-containerd-")); idx != -1 {
+		s := path[idx+15:]
+		if j := bytes.Index(s, []byte(".scope")); j != -1 {
+			return string(s[:j])
+		}
+	}
+	
+	// CRI-O: crio-<id>.scope
+	if idx := bytes.Index(path, []byte("crio-")); idx != -1 {
+		s := path[idx+5:]
+		if j := bytes.Index(s, []byte(".scope")); j != -1 {
+			return string(s[:j])
+		}
+	}
+	
+	// Docker: /docker/<id>
+	if idx := bytes.Index(path, []byte("/docker/")); idx != -1 {
+		s := path[idx+8:]
+		if k := bytes.IndexByte(s, '/'); k != -1 {
+			return string(s[:k])
+		}
+		return string(s)
+	}
+	
+	// containerd legacy: /containers/<id>
+	if idx := bytes.Index(path, []byte("/containers/")); idx != -1 {
+		s := path[idx+12:]
+		if k := bytes.IndexByte(s, '/'); k != -1 {
+			return string(s[:k])
+		}
+		return string(s)
+	}
+	
+	return ""
+}
+
+
 // NsVisibility Structure
 type NsVisibility struct {
 	NsKeys     []NsKey
@@ -122,6 +269,11 @@ func init() {
 	StopChan = make(chan struct{})
 }
 
+type cgroupCacheEntry struct {
+    containerID string
+    timestamp   time.Time
+}
+
 // SystemMonitor Structure
 type SystemMonitor struct {
 	// node
@@ -167,6 +319,10 @@ type SystemMonitor struct {
 	SyscallChannel chan []byte
 	SyscallPerfMap *perf.Reader
 
+	cgroupCache     map[uint32]cgroupCacheEntry
+    cgroupCacheLock *sync.RWMutex
+    cgroupBufPool   *sync.Pool
+
 	// lists to skip
 	UntrackedNamespaces []string
 
@@ -209,6 +365,15 @@ func NewSystemMonitor(node *tp.Node, nodeLock **sync.RWMutex, logger *fd.Feeder,
 	mon.Status = true
 	mon.UptimeTimeStamp = kl.GetUptimeTimestamp()
 	mon.HostByteOrder = binary.LittleEndian
+
+	mon.cgroupCache = make(map[uint32]cgroupCacheEntry)
+    mon.cgroupCacheLock = new(sync.RWMutex)
+    mon.cgroupBufPool = &sync.Pool{
+        New: func() interface{} {
+            buf := make([]byte, 4096)
+            return &buf
+        },
+    }
 
 	mon.execLogMap = map[uint32]tp.Log{}
 	mon.execLogMapLock = new(sync.RWMutex)
@@ -815,13 +980,12 @@ func (mon *SystemMonitor) TraceSyscall() {
 						mon.Logger.Warn("Event droped due to busy event channel")
 					}
 
-				}
+		}
 				mon.Logger.Debug("Event dropped due to replay timeout")
 			}()
 		}
 	}()
 	MonitorLock := *(mon.MonitorLock)
-
 	for {
 		select {
 		case <-StopChan:
@@ -858,21 +1022,33 @@ func (mon *SystemMonitor) TraceSyscall() {
 			}
 
 			containerID := ""
-
+			
 			if ctx.PidID != 0 && ctx.MntID != 0 {
 				containerID = mon.LookupContainerID(ctx.PidID, ctx.MntID)
-
-				if containerID != "" {
-					ContainersLock.RLock()
-					namespace := Containers[containerID].NamespaceName
-					if kl.ContainsElement(mon.UntrackedNamespaces, namespace) {
-						ContainersLock.RUnlock()
-						continue
+			}
+			// For exec events, cross-check container resolution via /proc/<HostPID>/cgroup to avoid rare namespace-map mixups
+			if ctx.EventID == SysExecve || ctx.EventID == SysExecveAt {
+				if alt := mon.containerIDFromProcCgroup(ctx.HostPID); alt != "" && alt != containerID {
+					containerID = alt
+					// refresh NsMap for this namespace to correct future lookups
+					if ctx.PidID != 0 && ctx.MntID != 0 {
+						mon.NsMapLock.Lock()
+						mon.NsMap[NsKey{PidNS: ctx.PidID, MntNS: ctx.MntID}] = containerID
+						mon.NsMapLock.Unlock()
 					}
-					ContainersLock.RUnlock()
 				}
 			}
-
+			
+			if containerID != "" {
+				ContainersLock.RLock()
+				namespace := Containers[containerID].NamespaceName
+				if kl.ContainsElement(mon.UntrackedNamespaces, namespace) {
+					ContainersLock.RUnlock()
+					continue
+				}
+				ContainersLock.RUnlock()
+			}
+			
 			if ctx.PidID != 0 && ctx.MntID != 0 && containerID == "" {
 				ReplayChannel <- dataRaw
 				continue
