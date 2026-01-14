@@ -362,7 +362,8 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 				dm.Logger.UpdateSecurityPolicies(action, endpoint)
 				if newPoint.PolicyEnabled == tp.KubeArmorPolicyEnabled {
 					// enforce security policies
-					if !kl.ContainsElement(dm.SystemMonitor.UntrackedNamespaces, endpoint.NamespaceName) {
+					if !kl.ContainsElement(cfg.GlobalCfg.ConfigUntrackedNs.Load().([]string), endpoint.NamespaceName) || action == deleteEvent {
+						// we want to avoid new policies in untracked namespaces but deletion of the existing policies should be allowed
 						if dm.RuntimeEnforcer != nil {
 							dm.RuntimeEnforcer.UpdateSecurityPolicies(endpoint)
 						}
@@ -547,7 +548,8 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 
 					if endpoint.PolicyEnabled == tp.KubeArmorPolicyEnabled {
 						// enforce security policies
-						if !kl.ContainsElement(dm.SystemMonitor.UntrackedNamespaces, endpoint.NamespaceName) {
+						if !kl.ContainsElement(cfg.GlobalCfg.ConfigUntrackedNs.Load().([]string), endpoint.NamespaceName) || action == deleteEvent {
+							// we want to avoid new policies in untracked namespaces but deletion of the existing policies should be allowed
 							if dm.RuntimeEnforcer != nil {
 								dm.RuntimeEnforcer.UpdateSecurityPolicies(endpoint)
 							}
@@ -1165,7 +1167,8 @@ func (dm *KubeArmorDaemon) UpdateSecurityPolicy(action string, secPolicyType str
 
 					if dm.EndPoints[idx].PolicyEnabled == tp.KubeArmorPolicyEnabled {
 						// enforce security policies
-						if !kl.ContainsElement(dm.SystemMonitor.UntrackedNamespaces, dm.EndPoints[idx].NamespaceName) {
+						if !kl.ContainsElement(cfg.GlobalCfg.ConfigUntrackedNs.Load().([]string), dm.EndPoints[idx].NamespaceName) || action == deleteEvent {
+							// we want to avoid new policies in untracked namespaces but deletion of the existing policies should be allowed
 							if dm.RuntimeEnforcer != nil {
 								dm.RuntimeEnforcer.UpdateSecurityPolicies(dm.EndPoints[idx])
 							}
@@ -1238,7 +1241,8 @@ func (dm *KubeArmorDaemon) UpdateSecurityPolicy(action string, secPolicyType str
 
 					if dm.EndPoints[idx].PolicyEnabled == tp.KubeArmorPolicyEnabled {
 						// enforce security policies
-						if !kl.ContainsElement(dm.SystemMonitor.UntrackedNamespaces, dm.EndPoints[idx].NamespaceName) {
+						if !kl.ContainsElement(cfg.GlobalCfg.ConfigUntrackedNs.Load().([]string), dm.EndPoints[idx].NamespaceName) || action == deleteEvent {
+							// we want to avoid new policies in untracked namespaces but deletion of the existing policies should be allowed
 							if dm.RuntimeEnforcer != nil {
 								dm.RuntimeEnforcer.UpdateSecurityPolicies(dm.EndPoints[idx])
 							}
@@ -2609,7 +2613,7 @@ func (dm *KubeArmorDaemon) UpdateDefaultPostureWithCM(endPoint *tp.EndPoint, act
 		if dm.RuntimeEnforcer != nil {
 			if endPoint.PolicyEnabled == tp.KubeArmorPolicyEnabled {
 				// enforce security policies
-				if !kl.ContainsElement(dm.SystemMonitor.UntrackedNamespaces, endPoint.NamespaceName) {
+				if !kl.ContainsElement(cfg.GlobalCfg.ConfigUntrackedNs.Load().([]string), endPoint.NamespaceName) {
 					dm.RuntimeEnforcer.UpdateSecurityPolicies(*endPoint)
 				} else {
 					dm.Logger.Warnf("Policy cannot be enforced in untracked namespace %s", endPoint.NamespaceName)
@@ -2684,7 +2688,7 @@ func (dm *KubeArmorDaemon) UpdateDefaultPosture(action string, namespace string,
 				if dm.RuntimeEnforcer != nil {
 					if endPoint.PolicyEnabled == tp.KubeArmorPolicyEnabled {
 						// enforce security policies
-						if !kl.ContainsElement(dm.SystemMonitor.UntrackedNamespaces, endPoint.NamespaceName) {
+						if !kl.ContainsElement(cfg.GlobalCfg.ConfigUntrackedNs.Load().([]string), endPoint.NamespaceName) {
 							dm.RuntimeEnforcer.UpdateSecurityPolicies(endPoint)
 						} else {
 							dm.Logger.Warnf("Policy cannot be enforced in untracked namespace %s", endPoint.NamespaceName)
@@ -2769,10 +2773,16 @@ func (dm *KubeArmorDaemon) updateVisibilityWithCM(cm *corev1.ConfigMap, _ string
 		return
 	}
 
-	// for each namespace if needed change the visibility
 	for _, ns := range nsList.Items {
-		// if namespace is annotated with visibility annotation don't update on config map change
-		if _, found := ns.Annotations[visibilityKey]; found || kl.ContainsElement(dm.SystemMonitor.UntrackedNamespaces, ns.Name) {
+		// 1. If namespace is untracked → explicitly remove visibility
+		if kl.ContainsElement(cfg.GlobalCfg.ConfigUntrackedNs.Load().([]string), ns.Name) {
+			//update visibility to empty for untracked namespaces
+			dm.UpdateVisibility(updateEvent, ns.Name, tp.Visibility{})
+			continue
+		}
+
+		// 2. If namespace has visibility annotation → skip CM-based updates
+		if _, found := ns.Annotations[visibilityKey]; found {
 			continue
 		}
 
@@ -2929,6 +2939,9 @@ func (dm *KubeArmorDaemon) WatchConfigMap() cache.InformerSynced {
 				dm.NodeLock.Lock()
 				dm.Node.ClusterName = cm.Data[cfg.ConfigCluster]
 				dm.NodeLock.Unlock()
+				if v, ok := cm.Data[cfg.ConfigUntrackedNs]; ok {
+					UpdateUntrackedNamespaces(v)
+				}
 				if _, ok := cm.Data[cfg.ConfigDefaultPostureLogs]; ok {
 					cfg.GlobalCfg.DefaultPostureLogs = (cm.Data[cfg.ConfigDefaultPostureLogs] == "true")
 				}
@@ -2982,10 +2995,11 @@ func (dm *KubeArmorDaemon) WatchConfigMap() cache.InformerSynced {
 				dm.updateVisibilityWithCM(cm, addEvent)
 			}
 		},
-		UpdateFunc: func(_, new any) {
-			if cm, ok := new.(*corev1.ConfigMap); ok && cm.Namespace == cmNS {
+		UpdateFunc: func(oldObj, newObj any) {
+			if cm, ok := newObj.(*corev1.ConfigMap); ok && cm.Namespace == cmNS {
 				cfg.GlobalCfg.HostVisibility = cm.Data[cfg.ConfigHostVisibility]
 				cfg.GlobalCfg.Visibility = cm.Data[cfg.ConfigVisibility]
+
 				cfg.GlobalCfg.Cluster = cm.Data[cfg.ConfigCluster]
 				cfg.GlobalCfg.DropResourceFromProcessLogs = (cm.Data[cfg.ConfigDropResourceFromProcessLogs] == "true")
 				dm.Node.ClusterName = cm.Data[cfg.ConfigCluster]
@@ -3007,7 +3021,13 @@ func (dm *KubeArmorDaemon) WatchConfigMap() cache.InformerSynced {
 
 				// update default posture for endpoints
 				dm.updatEndpointsWithCM(cm, updateEvent)
-				// update visibility for namespaces
+
+				// forward untracked namespaces to SystemMonitor
+				if v, ok := cm.Data[cfg.ConfigUntrackedNs]; ok {
+					UpdateUntrackedNamespaces(v)
+				}
+
+				// visibility updates are already handled here
 				dm.updateVisibilityWithCM(cm, updateEvent)
 
 				if _, ok := cm.Data[cfg.ConfigAlertThrottling]; ok {
@@ -3103,4 +3123,17 @@ func (dm *KubeArmorDaemon) GetConfigMapNS() string {
 		return "kubearmor"
 	}
 	return envNamespace
+}
+
+// UpdateUntrackedNamespaces updates the runtime untracked namespaces list.
+func UpdateUntrackedNamespaces(v string) {
+	parts := strings.Split(v, ",")
+
+	namespaces := make([]string, 0, len(parts))
+	for _, ns := range parts {
+		if ns = strings.TrimSpace(ns); ns != "" {
+			namespaces = append(namespaces, ns)
+		}
+	}
+	cfg.GlobalCfg.ConfigUntrackedNs.Store(namespaces)
 }
