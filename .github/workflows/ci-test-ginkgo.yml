@@ -204,6 +204,7 @@ jobs:
 
       - name: Test KubeArmor using Ginkgo
         run: |
+          sleep 5
           go install -mod=mod github.com/onsi/ginkgo/v2/ginkgo
           make
         working-directory: ./tests/k8s_env
