@@ -49,6 +49,7 @@ type NRIHandler struct {
 	dm *KubeArmorDaemon
 
 	containersByNamespaces map[namespaceKey]string
+	ctx                    context.Context
 
 	handleDeletedContainer func(tp.Container)
 	handleNewContainer     func(tp.Container)
@@ -66,7 +67,9 @@ func (dm *KubeArmorDaemon) NewNRIHandler(
 		stub.WithPluginIdx(cfg.GlobalCfg.NRIIndex),
 		stub.WithOnClose(func() {
 			kg.Printf("restarting NRI")
-			nri.Start()
+			if nri.ctx != nil {
+				nri.Start(nri.ctx)
+			}
 		}),
 	}
 
@@ -86,10 +89,11 @@ func (dm *KubeArmorDaemon) NewNRIHandler(
 }
 
 // Start initiates a configured NRI connection.
-func (nh *NRIHandler) Start() {
+func (nh *NRIHandler) Start(ctx context.Context) {
+	nh.ctx = ctx // ✅ STORE IT
+
 	go func() {
-		err := nh.stub.Run(context.Background())
-		if err != nil {
+		if err := nh.stub.Run(ctx); err != nil {
 			kg.Errf("Failed to connect to NRI: %s", err.Error())
 		}
 	}()
@@ -308,7 +312,7 @@ func (nh *NRIHandler) nriToKubeArmorContainer(nriContainer *api.Container) tp.Co
 }
 
 // MonitorNRIEvents monitors NRI events.
-func (dm *KubeArmorDaemon) MonitorNRIEvents() {
+func (dm *KubeArmorDaemon) MonitorNRIEvents(ctx context.Context) {
 	dm.WgDaemon.Add(1)
 	defer dm.WgDaemon.Done()
 
@@ -440,7 +444,7 @@ func (dm *KubeArmorDaemon) MonitorNRIEvents() {
 		return
 	}
 
-	NRI.Start()
+	NRI.Start(ctx)
 
 	dm.Logger.Print("Started to monitor NRI events")
 }

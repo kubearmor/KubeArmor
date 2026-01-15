@@ -6,6 +6,7 @@ package monitor
 
 import (
 	"bytes"
+	"context"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -709,10 +710,6 @@ func (mon *SystemMonitor) DestroySystemMonitor() error {
 		mon.BpfModule.Close()
 	}
 
-	if mon.ContextChan != nil {
-		close(mon.ContextChan)
-	}
-
 	for _, link := range mon.Probes {
 		if err := link.Close(); err != nil {
 			return err
@@ -734,30 +731,31 @@ func (mon *SystemMonitor) DestroySystemMonitor() error {
 // ======================= //
 
 // TraceSyscall Function
-func (mon *SystemMonitor) TraceSyscall() {
+func (mon *SystemMonitor) TraceSyscall(ctx context.Context) {
 	if mon.SyscallPerfMap != nil {
 		go func() {
 			for {
+				// read event from perf buffer
 				record, err := mon.SyscallPerfMap.Read()
 				if err != nil {
 					if errors.Is(err, perf.ErrClosed) {
-						// This should only happen when we call DestroyMonitor while terminating the process.
-						// Adding a Warn just in case it happens at runtime, to help debug
-						mon.Logger.Warnf("Perf Buffer closed, exiting TraceSyscall %s", err.Error())
+						// perf reader closed during shutdown → exit goroutine
+						mon.Logger.Warnf("Perf Buffer closed, exiting TraceSyscall: %s", err.Error())
 						return
 					}
-					mon.Logger.Warnf("Perf Event Error : %s", err.Error())
+					mon.Logger.Warnf("Perf Event Error: %s", err.Error())
 					continue
 				}
 
-				if record.LostSamples != 0 {
-					mon.Logger.Warnf("Lost Perf Events Count : %d", record.LostSamples)
-					continue
+				// non-blocking send to avoid panic during shutdown
+				select {
+				case mon.SyscallChannel <- record.RawSample:
+				default:
+					// channel closed or full → drop event safely
 				}
-				mon.SyscallChannel <- record.RawSample
-
 			}
 		}()
+
 	} else {
 		mon.Logger.Err("Perf Buffer nil, exiting TraceSyscall")
 		return
@@ -817,7 +815,7 @@ func (mon *SystemMonitor) TraceSyscall() {
 
 	for {
 		select {
-		case <-StopChan:
+		case <-ctx.Done():
 			return
 
 		case dataRaw, valid := <-mon.SyscallChannel:
