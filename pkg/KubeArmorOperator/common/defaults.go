@@ -95,6 +95,7 @@ var (
 	ConfigThrottleSec                 string = "throttleSec"
 	ConfigEnableNRI                   string = "enableNRI"
 	ConfigDropResourceFromProcessLogs string = "dropResourceFromProcessLogs"
+	ConfigArgMatching                 string = "matchArgs"
 
 	GlobalImagePullSecrets []corev1.LocalObjectReference = []corev1.LocalObjectReference{}
 	GlobalTolerations      []corev1.Toleration           = []corev1.Toleration{}
@@ -171,6 +172,9 @@ var (
 	DefaultMaxAlertPerSec string = "10"
 	DefaultThrottleSec    string = "30"
 
+	//Match Args
+	MatchArgs bool = true
+
 	// recommend policies
 	RecommendedPolicies opv1.RecommendedPolicies = opv1.RecommendedPolicies{
 		MatchExpressions: []securityv1.ClusterMatchExpressionsType{
@@ -220,6 +224,7 @@ var ConfigMapData = map[string]string{
 	ConfigAlertThrottling:             "true",
 	ConfigMaxAlertPerSec:              "10",
 	ConfigThrottleSec:                 "30",
+	ConfigArgMatching:                 "true",
 }
 
 var ConfigDefaultSeccompEnabled = "false"

@@ -10,6 +10,7 @@ enum
     _ALERT_THROTTLING = 3,
     _MAX_ALERT_PER_SEC = 4,
     _THROTTLE_SEC = 5,
+    _MATCH_ARGS = 6,
 };
 
 struct kaconfig
@@ -19,7 +20,7 @@ struct kaconfig
     __type(value, u32);
     __uint(max_entries, 16);
     __uint(pinning, LIBBPF_PIN_BY_NAME);
-}kubearmor_config SEC(".maps");
+} kubearmor_config SEC(".maps");
 
 static __always_inline u32 get_kubearmor_config(u32 config)
 {
