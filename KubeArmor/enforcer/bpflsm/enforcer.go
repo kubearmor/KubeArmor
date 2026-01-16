@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// Copyright 2022 Authors of KubeArmor
+// Copyright 2026 Authors of KubeArmor
 
 // Package bpflsm is responsible for setting/cleaning up objects for BPF LSM enforcer and handle updates for the same
 package bpflsm
@@ -350,7 +350,7 @@ func (be *BPFEnforcer) TraceEvents() {
 
 				HostPID:  event.HostPID,
 				HostPPID: event.HostPPID,
-				TTY: event.TTY,
+				TTY:      event.TTY,
 			},
 		}, readLink)
 

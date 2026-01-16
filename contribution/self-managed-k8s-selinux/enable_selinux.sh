@@ -1,6 +1,6 @@
 #!/bin/bash
 # SPDX-License-Identifier: Apache-2.0
-# Copyright 2021 Authors of KubeArmor
+# Copyright 2026  Authors of KubeArmor
 
 # before enabling selinux in k8s, you should install docker, k8s first
 sudo sed -i 's/SELINUX=permissive/SELINUX=enforcing/g' /etc/selinux/config

@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-# Copyright 2021 Authors of KubeArmor
+# Copyright 2026  Authors of KubeArmor
 
 # deploy docker-registry
 docker run -d -p 0.0.0.0:5000:5000 --restart=always --name registry registry:2

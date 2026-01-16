@@ -1,6 +1,6 @@
 #!/bin/bash
 # SPDX-License-Identifier: Apache-2.0
-# Copyright 2021 Authors of KubeArmor
+# Copyright 2026  Authors of KubeArmor
 
 if [ "$RUNTIME" == "" ]; then
     # TODO: Enable the support for docker here. Currently docker runtime in k3s env is leading to the issue:

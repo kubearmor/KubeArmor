@@ -1,14 +1,15 @@
 // SPDX-License-Identifier: Apache-2.0
-// Copyright 2024 Authors of KubeArmor
+// Copyright 2026 Authors of KubeArmor
 
 package seccomp
 
 import (
 	"encoding/json"
 	//"github.com/containers/common/pkg/seccomp"
-	"github.com/kubearmor/KubeArmor/KubeArmor/log"
 	"os"
 	"path/filepath"
+
+	"github.com/kubearmor/KubeArmor/KubeArmor/log"
 )
 
 var seccompPath = "/var/lib/kubelet/seccomp"

@@ -1,6 +1,6 @@
 #!/bin/bash
 # SPDX-License-Identifier: Apache-2.0
-# Copyright 2021 Authors of KubeArmor
+# Copyright 2026  Authors of KubeArmor
 
 [[ "$REPO" == "" ]] && REPO="kubearmor/kubearmor"
 

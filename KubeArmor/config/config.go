@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// Copyright 2021 Authors of KubeArmor
+// Copyright 2026  Authors of KubeArmor
 
 // Package config is the component responsible for loading KubeArmor configurations
 package config

@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright 2023 Authors of KubeArmor */
+/* Copyright 2026 Authors of KubeArmor */
 
 #ifndef __SHARED_H
 #define __SHARED_H

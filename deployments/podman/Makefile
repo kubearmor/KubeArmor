@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-# Copyright 2025 Authors of KubeArmor
+# Copyright 2026 Authors of KubeArmor
 
 # Go binaries to build
 DEPLOYHOOK_SRC := DeployHook/main.go

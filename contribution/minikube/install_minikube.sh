@@ -1,6 +1,6 @@
 #!/bin/bash
 # SPDX-License-Identifier: Apache-2.0
-# Copyright 2021 Authors of KubeArmor
+# Copyright 2026  Authors of KubeArmor
 
 # download the latest minikube package
 curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube_latest_amd64.deb

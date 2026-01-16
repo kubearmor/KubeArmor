@@ -1,6 +1,6 @@
 #!/bin/bash
 # SPDX-License-Identifier: Apache-2.0
-# Copyright 2021 Authors of KubeArmor
+# Copyright 2026  Authors of KubeArmor
 
 docker rm -f `docker ps -aq` 2> /dev/null
 docker rmi -f `docker images -aq` 2> /dev/null

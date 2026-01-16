@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// Copyright 2021 Authors of KubeArmor
+// Copyright 2026  Authors of KubeArmor
 
 package core
 
@@ -391,7 +391,7 @@ func (dm *KubeArmorDaemon) MonitorCrioEvents() {
 			if len(newContainers) > 0 {
 				for containerID := range newContainers {
 					if err := dm.UpdateCrioContainer(context.Background(), containerID, "start"); err != nil {
-					kg.Warnf("Failed to update CRIO container %s: %s", containerID, err.Error())
+						kg.Warnf("Failed to update CRIO container %s: %s", containerID, err.Error())
 						invalidContainers = append(invalidContainers, containerID)
 					}
 				}

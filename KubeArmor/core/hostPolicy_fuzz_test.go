@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
-// Copyright 2024 Authors of KubeArmor
+// Copyright 2026 Authors of KubeArmor
 package core
 
 import (
 	"context"
+	"testing"
+
 	"github.com/kubearmor/KubeArmor/KubeArmor/policy"
 	pb "github.com/kubearmor/KubeArmor/protobuf"
-	"testing"
 )
 
 func FuzzHostPolicy(f *testing.F) {

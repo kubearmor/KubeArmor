@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// Copyright 2021 Authors of KubeArmor
+// Copyright 2026  Authors of KubeArmor
 
 // Package main is the entrypoint to initializing the armor
 package main
