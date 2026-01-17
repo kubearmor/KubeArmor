@@ -525,6 +525,8 @@ func (dm *KubeArmorDaemon) UpdateContainerdContainer(ctx context.Context, contai
 		delete(dm.Containers, containerID)
 		dm.ContainersLock.Unlock()
 
+		dm.EndPointsLock.Lock()
+
 		// delete endpoint if no security rules and containers
 		if !dm.K8sEnabled {
 			idx := 0
@@ -540,8 +542,6 @@ func (dm *KubeArmorDaemon) UpdateContainerdContainer(ctx context.Context, contai
 				idx++
 			}
 		}
-
-		dm.EndPointsLock.Lock()
 		for idx, endPoint := range dm.EndPoints {
 			if endPoint.NamespaceName == container.NamespaceName && endPoint.EndPointName == container.EndPointName && kl.ContainsElement(endPoint.Containers, container.ContainerID) {
 
