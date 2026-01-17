@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// Copyright 2021 Authors of KubeArmor
+// Copyright 2026 Authors of KubeArmor
 
 // Package log contains log util wrappers for enhanced pretty logging
 package log
@@ -7,6 +7,7 @@ package log
 import (
 	"encoding/json"
 	"os"
+	"strings"
 	"time"
 
 	"go.uber.org/zap"
@@ -62,7 +63,7 @@ func initLogger() {
 	config.EncoderConfig.EncodeTime = customTimeEncoder
 
 	// this is not read from config/viper as logger is initialized before config
-	if val, ok := os.LookupEnv("DEBUG"); ok && val == "true" {
+	if val, ok := os.LookupEnv("DEBUG"); ok && strings.ToLower(val) == "true" {
 		config.Level.SetLevel(zap.DebugLevel) // set to enable debug logging
 	}
 
