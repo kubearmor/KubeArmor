@@ -153,8 +153,11 @@ func (p *Preset) TraceEvents() {
 	}()
 
 	for {
-
-		dataRaw := <-p.EventsChannel
+		dataRaw, ok := <-p.EventsChannel
+		if !ok {
+			p.Logger.Print("EventsChannel closed, exiting TraceEvents")
+			return
+		}
 
 		var event base.EventPreset
 
@@ -346,6 +349,10 @@ func (p *Preset) Destroy() error {
 			p.Logger.Err(err.Error())
 			errBPFCleanUp = errors.Join(errBPFCleanUp, err)
 		}
+	}
+
+	if p.EventsChannel != nil {
+		close(p.EventsChannel)
 	}
 
 	p = nil
