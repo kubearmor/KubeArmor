@@ -56,7 +56,7 @@ spec:
 
 1. **Argument count:** a maximum of **20 arguments** per process are supported for a specific path.
 2. **Character limit:** the maximum length for a single argument is **104 characters**.
-3. **Enforcement behavior:** when `matchArgs` is enabled, if the enforcer encounters an argument exceeding the 104-character limit, the execution is **blocked by default**.
+3. **Enforcement behavior:** when `matchArgs` is enabled, if more than 20 arguments are provided, argument matching is not performed (the process is evaluated without an argument-match).
 
 ## Example alert
 
