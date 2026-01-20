@@ -58,6 +58,15 @@ KubeArmor is designed to be flexible and work on different Linux systems. It doe
 
 You can configure KubeArmor to prefer one enforcer over another using the `lsm.lsmOrder` configuration option. KubeArmor will try to initialize the enforcers in the specified order (`bpf`, `selinux`, `apparmor`) and use the first one that is available and successfully initialized. If none of the preferred ones are available, it falls back to any other supported, available LSM. If _no_ supported enforcer can be initialized, KubeArmor will run in a limited capacity (primarily for monitoring, not enforcement).
 
+### Disable enforcer initialization
+
+To disable runtime enforcer initialization, set the first value in the LSM order to an empty string or `none`.
+
+- Use `lsm.lsmOrder[0] = ""` to specify an empty LSM.
+- Use `lsm.lsmOrder[0] = "none"` to explicitly specify no LSM.
+
+When `lsm.lsmOrder[0]` is empty or set to `none`, KubeArmor skips initializing the runtime enforcer.
+
 You can see KubeArmor selecting the LSM in the `NewRuntimeEnforcer` function (from `KubeArmor/enforcer/runtimeEnforcer.go`):
 
 ```go
