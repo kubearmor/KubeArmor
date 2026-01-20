@@ -22,9 +22,6 @@ KubeArmor also exposes this setting as a command-line flag:
 
 - `-matchArgs` (default: `true`)
 
-> **Note**
-> When `matchArgs` is disabled, policies can still be applied, but argument-specific rules are not enabled.
-
 ## Writing a policy with `allowedArgs`
 
 Use `allowedArgs` under a `process.matchPaths` entry to list which arguments are allowed for that path.
