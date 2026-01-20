@@ -1,30 +1,40 @@
 # Process Argument Matching
 
-KubeArmor provides the ability to enforce security policies based on process arguments, offering finer granularity in rule definitions. This guide demonstrates how to enable this feature and define policies to utilize it.
+KubeArmor provides the ability to enforce security policies based on process arguments, offering finer granularity in rule definitions.
 
-## Enabling/Disabling Process Argument Matching
+## Overview
 
-To enable or disable this feature, you must modify the KubeArmor configuration (typically within the KubeArmor ConfigMap or DaemonSet arguments).
+Process argument matching lets a policy constrain a process execution by listing allowed process arguments for a specific `process.matchPaths[].path`.
 
-* **Enable:** Add `matchArgs=true`
-* **Disable:** Remove the flag or set `matchArgs=false`
+## Prerequisites
 
-### Limitations
+- A running KubeArmor deployment.
+- Permission to update KubeArmor’s configuration (for example, ConfigMap/DaemonSet arguments).
 
-Please note the following constraints when using Process Argument Matching:
+## Enabling/Disabling process argument matching
 
-1.  **Argument Count:** A maximum of **20 arguments** per process are supported for a specific path.
-2.  **Character Limit:** The maximum length for a single argument is **104 characters**.
-3.  **Enforcement Behavior:** When `matchArgs` is enabled, if the enforcer encounters an argument exceeding the 104-character limit, the execution will be **blocked by default** for security reasons.
+Argument matching is controlled by the `matchArgs` configuration key.
 
-### Sample Policy
+- **Enable:** set `matchArgs=true`
+- **Disable:** set `matchArgs=false`
 
-The following policy demonstrates how to allow specific arguments for a process while blocking others.
+KubeArmor also exposes this setting as a command-line flag:
+
+- `-matchArgs` (default: `true`)
+
+> **Note**
+> When `matchArgs` is disabled, policies can still be applied, but argument-specific rules are not enabled.
+
+## Writing a policy with `allowedArgs`
+
+Use `allowedArgs` under a `process.matchPaths` entry to list which arguments are allowed for that path.
+
+### Sample policy
 
 **Scenario:** Allow `/usr/bin/python3.6` to execute only if it is accompanied by the arguments `-m` and `random`.
 
-```yaml 
-apiVersion: [security.kubearmor.com/v1](https://security.kubearmor.com/v1)
+```yaml
+apiVersion: security.kubearmor.com/v1
 kind: KubeArmorPolicy
 metadata:
   name: ksp-ubuntu-1-allow-proc-args
@@ -39,14 +49,23 @@ spec:
     matchPaths:
     - path: /usr/bin/python3.6
       allowedArgs:
-        - -m
-        - random 
+      - -m
+      - random
   action:
     Block
 ```
-### Policy violation alert 
-If a process is executed with arguments that do not match the policy, a policy violation alert similar to the following will be generated:
-``` json 
+
+## Limitations
+
+1. **Argument count:** a maximum of **20 arguments** per process are supported for a specific path.
+2. **Character limit:** the maximum length for a single argument is **104 characters**.
+3. **Enforcement behavior:** when `matchArgs` is enabled, if the enforcer encounters an argument exceeding the 104-character limit, the execution is **blocked by default**.
+
+## Example alert
+
+If a process is executed with arguments that do not match the policy, a policy violation alert similar to the following is generated:
+
+```json
 {
   "Timestamp": 1765863439,
   "UpdatedTime": "2025-12-16T05:37:19.127331Z",
@@ -93,3 +112,7 @@ If a process is executed with arguments that do not match the policy, a policy v
   "KubeArmorVersion": "v1.6.5-8-g3d55b346-dirty"
 }
 ```
+
+## Related documentation
+
+- [Security policy specification](./security_policy_specification.md)
