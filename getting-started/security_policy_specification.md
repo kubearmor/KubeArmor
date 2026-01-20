@@ -30,6 +30,7 @@ spec:
     matchPaths:
     - path: [absolute executable path]
       ownerOnly: [true|false]              # --> optional
+      allowedArgs: ["arg1", ...]           # --> optional
       fromSource:                          # --> optional
       - path: [absolute exectuable path]
     matchDirectories:
@@ -181,6 +182,7 @@ Now, we will briefly explain how to define a security policy.
       matchPaths:
       - path: [absolute executable path]
         ownerOnly: [true|false]            # --> optional
+        allowedArgs: ["arg1", ...]         # --> optional
         fromSource:                        # --> optional
         - path: [absolute executable path]
       matchDirectories:
@@ -215,6 +217,12 @@ Now, we will briefly explain how to define a security policy.
           fromSource:
           - path: /bin/bash
     ```
+
+  * allowedArgs
+
+    If `allowedArgs` is set for a `process.matchPaths` entry, KubeArmor can match the process execution based on the provided arguments.
+
+    See [Process Argument Matching](./process_arguments.md).
 
 ### File
 
