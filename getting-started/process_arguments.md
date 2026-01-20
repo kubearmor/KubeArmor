@@ -56,8 +56,6 @@ spec:
 
 ## Limitations
 
-> These limits are documented in the KubeArmor repository alongside the implementation.
-
 1. **Argument count:** a maximum of **20 arguments** per process are supported for a specific path.
 2. **Character limit:** the maximum length for a single argument is **104 characters**.
 
