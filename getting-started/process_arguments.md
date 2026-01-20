@@ -6,6 +6,8 @@ KubeArmor provides the ability to enforce security policies based on process arg
 
 Process argument matching lets a policy constrain a process execution by listing allowed process arguments for a specific `process.matchPaths[].path`.
 
+This is configured by the `matchArgs` setting and expressed in policies using `allowedArgs`.
+
 ## Prerequisites
 
 - A running KubeArmor deployment.
@@ -54,61 +56,17 @@ spec:
 
 ## Limitations
 
+> These limits are documented in the KubeArmor repository alongside the implementation.
+
 1. **Argument count:** a maximum of **20 arguments** per process are supported for a specific path.
 2. **Character limit:** the maximum length for a single argument is **104 characters**.
-3. **Enforcement behavior:** when `matchArgs` is enabled, if more than 20 arguments are provided, argument matching is not performed (the process is evaluated without an argument-match).
 
-## Example alert
+## Troubleshooting
 
-If a process is executed with arguments that do not match the policy, a policy violation alert similar to the following is generated:
+### `allowedArgs` does not seem to be applied
 
-```json
-{
-  "Timestamp": 1765863439,
-  "UpdatedTime": "2025-12-16T05:37:19.127331Z",
-  "ClusterName": "default",
-  "HostName": "aryan",
-  "NamespaceName": "multiubuntu",
-  "Owner": {
-    "Ref": "Deployment",
-    "Name": "ubuntu-1-deployment",
-    "Namespace": "multiubuntu"
-  },
-  "PodName": "ubuntu-1-deployment-8dc5d8d48-5s8pf",
-  "Labels": "group=group-1,container=ubuntu-1",
-  "ContainerID": "4771ac3e9074f1bf8b01038d0cf776960aa44b18edccc0f2b017e8465dedefcd",
-  "ContainerName": "ubuntu-1-container",
-  "ContainerImage": "docker.io/kubearmor/ubuntu-w-utils:latest@sha256:8c94d921d36698a63e02337302989e8311169b750cc0dd4713e688f3631ab4ba",
-  "HostPPID": 190507,
-  "HostPID": 191949,
-  "PPID": 190507,
-  "PID": 113,
-  "UID": 0,
-  "ParentProcessName": "/bin/bash",
-  "ProcessName": "/usr/bin/python3.6",
-  "PolicyName": "ksp-ubuntu-1-allow-proc-args",
-  "Severity": "5",
-  "Message": "block all arguments except allowedArgs",
-  "Type": "MatchedPolicy",
-  "Source": "/bin/bash",
-  "Operation": "Process",
-  "Resource": "/usr/bin/python3.6 -m pydoc",
-  "Data": "lsm=SECURITY_BPRM_CHECK",
-  "EventData": {
-    "Lsm": "SECURITY_BPRM_CHECK"
-  },
-  "Enforcer": "BPFLSM",
-  "Action": "Block",
-  "Result": "Permission denied",
-  "Cwd": "/",
-  "TTY": "pts0",
-  "ExecEvent": {
-    "ExecID": "824416229130095",
-    "ExecutableName": "bash"
-  },
-  "KubeArmorVersion": "v1.6.5-8-g3d55b346-dirty"
-}
-```
+1. Confirm argument matching is enabled with `matchArgs=true` (or `-matchArgs=true`).
+2. Confirm `allowedArgs` is specified under a `process.matchPaths` entry.
 
 ## Related documentation
 
