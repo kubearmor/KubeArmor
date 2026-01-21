@@ -171,21 +171,21 @@ func NewKubeArmorDaemon() *KubeArmorDaemon {
 func (dm *KubeArmorDaemon) DestroyKubeArmorDaemon() {
 	close(StopChan)
 
-	if dm.RuntimeEnforcer != nil {
-		// close runtime enforcer
-		if err := dm.CloseRuntimeEnforcer(); err != nil {
-			dm.Logger.Errf("Failed to stop KubeArmor Enforcer: %s", err.Error())
-		} else {
-			dm.Logger.Print("Stopped KubeArmor Enforcer")
-		}
-	}
-
 	if dm.SystemMonitor != nil {
 		// close system monitor
 		if err := dm.CloseSystemMonitor(); err != nil {
 			dm.Logger.Errf("Failed to stop KubeArmor Monitor: %s", err.Error())
 		} else {
 			dm.Logger.Print("Stopped KubeArmor Monitor")
+		}
+	}
+
+	if dm.RuntimeEnforcer != nil {
+		// close runtime enforcer
+		if err := dm.CloseRuntimeEnforcer(); err != nil {
+			dm.Logger.Errf("Failed to stop KubeArmor Enforcer: %s", err.Error())
+		} else {
+			dm.Logger.Print("Stopped KubeArmor Enforcer")
 		}
 	}
 
@@ -640,17 +640,21 @@ func KubeArmor() {
 		dm.Logger.Print("Started to monitor system events")
 
 		// initialize runtime enforcer
-		if err := dm.InitRuntimeEnforcer(dm.SystemMonitor.PinPath); err != nil {
-			dm.Logger.Printf("Disabled KubeArmor Enforcer: %s", err.Error())
+		if cfg.GlobalCfg.LsmOrder[0] == "" || cfg.GlobalCfg.LsmOrder[0] == "none" {
+			dm.Logger.Printf("Disabled KubeArmor Enforcer: No LSM specified")
 		} else {
-			dm.Logger.Print("Initialized KubeArmor Enforcer")
+			if err := dm.InitRuntimeEnforcer(dm.SystemMonitor.PinPath); err != nil {
+				dm.Logger.Printf("Disabled KubeArmor Enforcer: %s", err.Error())
+			} else {
+				dm.Logger.Print("Initialized KubeArmor Enforcer")
 
-			if cfg.GlobalCfg.Policy && !cfg.GlobalCfg.HostPolicy {
-				dm.Logger.Print("Started to protect containers")
-			} else if !cfg.GlobalCfg.Policy && cfg.GlobalCfg.HostPolicy {
-				dm.Logger.Print("Started to protect a host")
-			} else if cfg.GlobalCfg.Policy && cfg.GlobalCfg.HostPolicy {
-				dm.Logger.Print("Started to protect a host and containers")
+				if cfg.GlobalCfg.Policy && !cfg.GlobalCfg.HostPolicy {
+					dm.Logger.Print("Started to protect containers")
+				} else if !cfg.GlobalCfg.Policy && cfg.GlobalCfg.HostPolicy {
+					dm.Logger.Print("Started to protect a host")
+				} else if cfg.GlobalCfg.Policy && cfg.GlobalCfg.HostPolicy {
+					dm.Logger.Print("Started to protect a host and containers")
+				}
 			}
 		}
 

@@ -75,6 +75,8 @@ type KubearmorConfig struct {
 	MachineIDPath string // path to machine-id
 
 	USBDeviceHandler bool // enable USB device observability and enforcement
+
+	MatchArgs bool // enable argument rules for policy
 }
 
 // GlobalCfg Global configuration for Kubearmor
@@ -130,6 +132,7 @@ const (
 	UseOCIHooks                          string = "useOCIHooks"
 	ConfigEnableIma                      string = "enableIMA"
 	ConfigUSBDeviceHandler               string = "enableUSBDeviceHandler"
+	ConfigArgMatching                    string = "matchArgs"
 )
 
 func readCmdLineParams() {
@@ -200,6 +203,8 @@ func readCmdLineParams() {
 	usbDeviceHandler := flag.Bool(ConfigUSBDeviceHandler, false, "Enable USB device observability and enforcement")
 
 	dropResourceFromProcessLogs := flag.Bool(ConfigDropResourceFromProcessLogs, false, "drop resource field from process logs")
+
+	matchArgs := flag.Bool(ConfigArgMatching, true, "enabling Argument matching")
 
 	flags := []string{}
 	flag.VisitAll(func(f *flag.Flag) {
@@ -278,6 +283,8 @@ func readCmdLineParams() {
 	viper.SetDefault(ConfigUSBDeviceHandler, *usbDeviceHandler)
 
 	viper.SetDefault(ConfigDropResourceFromProcessLogs, *dropResourceFromProcessLogs)
+
+	viper.SetDefault(ConfigArgMatching, *matchArgs)
 }
 
 // LoadConfig Load configuration
@@ -367,6 +374,8 @@ func LoadConfig() error {
 	GlobalCfg.USBDeviceHandler = viper.GetBool(ConfigUSBDeviceHandler)
 
 	GlobalCfg.DropResourceFromProcessLogs = viper.GetBool(ConfigDropResourceFromProcessLogs)
+
+	GlobalCfg.MatchArgs = viper.GetBool(ConfigArgMatching)
 
 	LoadDynamicConfig()
 

@@ -1558,6 +1558,13 @@ func UpdateConfigMapData(config *opv1.KubeArmorConfigSpec) bool {
 	}
 	configMapData += fmt.Sprintf("%s: %s\n", common.ConfigThrottleSec, ThrottleSec)
 
+	MatchArgsEnabled := strconv.FormatBool(config.MatchArgs)
+	if common.ConfigMapData[common.ConfigArgMatching] != MatchArgsEnabled {
+		common.ConfigMapData[common.ConfigArgMatching] = MatchArgsEnabled
+		updated = true
+	}
+	configMapData += fmt.Sprintf("%s: %t\n", common.ConfigArgMatching, config.MatchArgs)
+
 	common.ConfigMapData[common.KubeArmorConfigFileName] = configMapData
 
 	return updated

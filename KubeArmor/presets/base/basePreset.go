@@ -48,8 +48,8 @@ type Preset struct {
 
 // InnerKey type
 type InnerKey struct {
-	Path   [256]byte
-	Source [256]byte
+	Path   [200]byte
+	Source [200]byte
 }
 
 // EventPreset type
