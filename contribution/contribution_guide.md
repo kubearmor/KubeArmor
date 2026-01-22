@@ -90,7 +90,7 @@ To make a contribution, please follow the steps below.
 
    ![open pull request](../.gitbook/assets/open_pull_request.png)  
 
-   A pull request should contain the details of all commits as specific as possible, including "Fixes: \#\(issue number\)".  
+   A pull request should contain the details of all commits as specific as possible, including "Fixes: #(issue number)".  
 
    Finally, click the "Create pull request" button.
 
