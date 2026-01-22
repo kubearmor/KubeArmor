@@ -1,6 +1,6 @@
 // +build ignore
 /* SPDX-License-Identifier: GPL-2.0    */
-/* Copyright 2023 Authors of KubeArmor */
+/* Copyright 2026 Authors of KubeArmor */
 
 #include "vmlinux.h"
 #include <bpf/bpf_helpers.h>
