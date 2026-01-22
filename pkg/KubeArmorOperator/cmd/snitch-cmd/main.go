@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// Copyright 2021 Authors of KubeArmor
+// Copyright 2026 Authors of KubeArmor
 
 // Package snitch is the collection of all the subcommands available in kArmor while providing relevant options for the same
 package main

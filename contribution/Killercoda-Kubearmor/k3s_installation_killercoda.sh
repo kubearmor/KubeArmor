@@ -1,6 +1,6 @@
 #!/bin/bash
 # SPDX-License-Identifier: Apache-2.0
-# Copyright 2023 Authors of KubeArmor
+# Copyright 2026 Authors of KubeArmor
 
 if [ "$RUNTIME" == "" ]; then
     if [ -S /var/run/docker.sock ]; then

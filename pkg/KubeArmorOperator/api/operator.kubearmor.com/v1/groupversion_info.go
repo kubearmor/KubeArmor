@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// Copyright 2023 Authors of KubeArmor
+// Copyright 2026 Authors of KubeArmor
 
 // Package v1 contains API Schema definitions for the operator v1 API group
 // +kubebuilder:object:generate=true

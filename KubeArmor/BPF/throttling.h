@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright 2024 Authors of KubeArmor */
+/* Copyright 2026 Authors of KubeArmor */
 
 #ifndef __THROTTLING_H
 #define __THROTTLING_H
