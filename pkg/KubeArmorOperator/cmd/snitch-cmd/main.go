@@ -105,7 +105,7 @@ func init() {
 	// For now we are controlling snitch's EnableOCIHooks flag from operator's EnableOCIHooks flag, we could change this when we start support snitch flags from operator CRD.
 	cmdFlag := Cmd.PersistentFlags().Lookup("oci-hooks")
 	if !cmdFlag.Changed {
-			EnableOCIHooks = common.GetOCIHooks()
+		EnableOCIHooks = common.GetOCIHooks()
 	}
 }
 
@@ -120,16 +120,24 @@ func snitch() {
 
 	seccomp.LoadSeccompInNode()
 
-	// Detecting enforcer
-	nodeEnforcer := enforcer.DetectEnforcer(order, PathPrefix, *Logger)
-	if (nodeEnforcer == "apparmor") && (enforcer.CheckIfApparmorFsPresent(PathPrefix, *Logger) == "no") {
-		nodeEnforcer = "NA"
-	}
-	if nodeEnforcer != "NA" {
-		Logger.Infof("Node enforcer is %s", nodeEnforcer)
-	} else {
-		Logger.Info("Node doesn't supports any KubeArmor Supported Lsm, Enforcement is disabled")
+	var nodeEnforcer string
+	if order[0] == "none" {
+		Logger.Info("LSM order is set to none, skipping LSM detection")
 		nodeEnforcer = "none"
+	} else {
+		// Detecting enforcer
+
+		nodeEnforcer = enforcer.DetectEnforcer(order, PathPrefix, *Logger)
+
+		if (nodeEnforcer == "apparmor") && (enforcer.CheckIfApparmorFsPresent(PathPrefix, *Logger) == "no") {
+			nodeEnforcer = "NA"
+		}
+		if nodeEnforcer != "NA" {
+			Logger.Infof("Node enforcer is %s", nodeEnforcer)
+		} else {
+			Logger.Info("Node doesn't supports any KubeArmor Supported Lsm, Enforcement is disabled")
+			nodeEnforcer = "none"
+		}
 	}
 
 	// Detecting runtime
