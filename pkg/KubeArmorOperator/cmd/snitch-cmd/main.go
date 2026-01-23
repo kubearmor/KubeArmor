@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/cmd"
 	"github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/seccomp"
 	"github.com/opencontainers/runtime-spec/specs-go"
 
@@ -39,21 +40,17 @@ type metadataSpec struct {
 	Labels map[string]string `json:"labels"`
 }
 
-var K8sClient *kubernetes.Clientset
-var Logger *zap.SugaredLogger
-var KubeConfig string
-var Context string
-var LsmOrder string
-var PathPrefix string = "/rootfs"
-var NodeName string
-var Runtime string
-var EnableOCIHooks bool
-var LogLevel string
+var (
+	PathPrefix string = "/rootfs"
+	o          cmd.SnitchOptions
+	Logger     *zap.SugaredLogger
+	K8sClient  *kubernetes.Clientset
+)
 
 // Cmd represents the base command when called without any subcommands
 var Cmd = &cobra.Command{
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-		level, err := zapcore.ParseLevel(LogLevel)
+		level, err := zapcore.ParseLevel(o.LogLevel)
 		if err != nil {
 			return errors.New("unable to parse log level")
 		}
@@ -61,7 +58,7 @@ var Cmd = &cobra.Command{
 		config.Level.SetLevel(level)
 		log, _ := config.Build()
 		Logger = log.Sugar()
-		K8sClient = k8s.NewClient(*Logger, KubeConfig)
+		K8sClient = k8s.NewClient(*Logger, o.KubeConfig)
 		//Initialise k8sClient for all child commands to inherit
 		if K8sClient == nil {
 			return errors.New("couldn't create k8s client")
@@ -69,11 +66,11 @@ var Cmd = &cobra.Command{
 		return nil
 	},
 	Run: func(cmd *cobra.Command, args []string) {
-		Logger.Infof("Running snitch in node %s", NodeName)
-		Logger.Infof("lsm order=%s", LsmOrder)
+		Logger.Infof("Running snitch in node %s", o.NodeName)
+		Logger.Infof("lsm order=%s", o.LsmOrder)
 		Logger.Infof("path prefix=%s", PathPrefix)
-		Logger.Infof("k8s runtime=%s", Runtime)
-		Logger.Infof("KubeConfig path=%s", KubeConfig)
+		Logger.Infof("k8s runtime=%s", o.Runtime)
+		Logger.Infof("KubeConfig path=%s", o.KubeConfig)
 		snitch()
 
 	},
@@ -91,21 +88,20 @@ operation) of containers at the system level.
 
 func init() {
 	if home := homedir.HomeDir(); home != "" {
-		Cmd.PersistentFlags().StringVar(&KubeConfig, "kubeconfig", filepath.Join(home, ".kube", "config"), "Path to the kubeconfig file to use")
+		Cmd.PersistentFlags().StringVar(&o.KubeConfig, "kubeconfig", filepath.Join(home, ".kube", "config"), "Path to the kubeconfig file to use")
 	} else {
-		Cmd.PersistentFlags().StringVar(&KubeConfig, "kubeconfig", "", "Path to the kubeconfig file to use")
+		Cmd.PersistentFlags().StringVar(&o.KubeConfig, "kubeconfig", "", "Path to the kubeconfig file to use")
 	}
-	Cmd.PersistentFlags().StringVar(&LsmOrder, "lsm", "bpf,apparmor,selinux", "lsm preference order to use")
-	Cmd.PersistentFlags().StringVar(&NodeName, "nodename", "", "node name to label")
+	Cmd.PersistentFlags().StringVar(&o.LsmOrder, "lsm", "bpf,apparmor,selinux", "lsm preference order to use")
+	Cmd.PersistentFlags().StringVar(&o.NodeName, "nodename", "", "node name to label")
 	Cmd.PersistentFlags().StringVar(&PathPrefix, "pathprefix", "/rootfs", "path prefix for runtime search")
-	Cmd.PersistentFlags().StringVar(&Runtime, "runtime", "", "runtime detected by k8s")
-	Cmd.PersistentFlags().BoolVar(&EnableOCIHooks, "oci-hooks", false, "enable oci hooks")
-	Cmd.PersistentFlags().StringVar(&LogLevel, "loglevel", "info", "log level, e.g., debug, info, warn, error")
-
+	Cmd.PersistentFlags().StringVar(&o.Runtime, "runtime", "", "runtime detected by k8s")
+	Cmd.PersistentFlags().BoolVar(&o.EnableOCIHooks, "oci-hooks", false, "enable oci hooks")
+	Cmd.PersistentFlags().StringVar(&o.LogLevel, "loglevel", "info", "log level, e.g., debug, info, warn, error")
 	// For now we are controlling snitch's EnableOCIHooks flag from operator's EnableOCIHooks flag, we could change this when we start support snitch flags from operator CRD.
 	cmdFlag := Cmd.PersistentFlags().Lookup("oci-hooks")
 	if !cmdFlag.Changed {
-		EnableOCIHooks = common.GetOCIHooks()
+		o.EnableOCIHooks = common.GetOCIHooks()
 	}
 }
 
@@ -116,7 +112,7 @@ func Execute() {
 }
 
 func snitch() {
-	order := strings.Split(LsmOrder, ",")
+	order := strings.Split(o.LsmOrder, ",")
 
 	seccomp.LoadSeccompInNode()
 
@@ -141,7 +137,7 @@ func snitch() {
 	}
 
 	// Detecting runtime
-	runtime, socket, nriSocket := runtimepkg.DetectRuntimeViaMap(PathPrefix, Runtime, *Logger)
+	runtime, socket, nriSocket := runtimepkg.DetectRuntimeViaMap(PathPrefix, o.Runtime, *Logger)
 	if runtime != "NA" {
 		Logger.Infof("Detected %s as node runtime, runtime socket=%s", runtime, socket)
 	} else {
@@ -150,7 +146,7 @@ func snitch() {
 		os.Exit(1)
 	}
 	ociHooksLabel := "no"
-	if EnableOCIHooks {
+	if o.EnableOCIHooks {
 		ociHooksLabel = "yes"
 		var criSocket string
 
@@ -197,12 +193,12 @@ func snitch() {
 		Logger.Errorf("Error while marshaling json, error=%s", err.Error())
 		os.Exit(1)
 	}
-	_, err = K8sClient.CoreV1().Nodes().Patch(context.Background(), NodeName, types.MergePatchType, patch, v1.PatchOptions{})
+	_, err = K8sClient.CoreV1().Nodes().Patch(context.Background(), o.NodeName, types.MergePatchType, patch, v1.PatchOptions{})
 	if err != nil {
-		Logger.Errorf("Error while patching node %s error=%s", NodeName, err.Error())
+		Logger.Errorf("Error while patching node %s error=%s", o.NodeName, err.Error())
 		os.Exit(1)
 	} else {
-		Logger.Infof("Patched node %s, patch=%s", NodeName, string(patch))
+		Logger.Infof("Patched node %s, patch=%s", o.NodeName, string(patch))
 	}
 }
 
