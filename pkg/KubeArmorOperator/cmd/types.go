@@ -29,3 +29,14 @@ type OperatorOptions struct {
 	ProviderHostname, ProviderEndpoint string
 	ImagePullSecrets                   []string
 }
+
+type SnitchOptions struct {
+	KubeConfig string
+	Context    string
+	LsmOrder   string
+
+	NodeName       string
+	Runtime        string
+	EnableOCIHooks bool
+	LogLevel       string
+}
