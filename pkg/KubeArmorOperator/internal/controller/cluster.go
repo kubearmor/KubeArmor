@@ -17,6 +17,7 @@ import (
 	"time"
 
 	certutil "github.com/kubearmor/KubeArmor/KubeArmor/cert"
+	"github.com/kubearmor/KubeArmor/KubeArmor/log"
 	deployments "github.com/kubearmor/KubeArmor/deployments/get"
 	secv1 "github.com/kubearmor/KubeArmor/pkg/KubeArmorController/api/security.kubearmor.com/v1"
 	secv1client "github.com/kubearmor/KubeArmor/pkg/KubeArmorController/client/clientset/versioned"
@@ -25,6 +26,7 @@ import (
 	opv1client "github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/client/clientset/versioned"
 	"github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/client/clientset/versioned/scheme"
 	opv1Informer "github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/client/informers/externalversions"
+	"github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/cmd"
 	"github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/common"
 	"github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/recommend"
 	"github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/utils"
@@ -44,13 +46,19 @@ import (
 	"k8s.io/kubectl/pkg/util/slice"
 )
 
-var informer informers.SharedInformerFactory
-var deployment_uuid types.UID
-var deployment_name string = "kubearmor-operator"
-var PathPrefix string
-var initDeploy, annotateResource, annotateExisting bool
-var ProviderHostname, ProviderEndpoint string
-var ImagePullSecrets []corev1.LocalObjectReference
+var (
+	informer                           informers.SharedInformerFactory
+	deployment_uuid                    types.UID
+	deployment_name                    string = "kubearmor-operator"
+	PathPrefix                         string
+	initDeploy                         bool
+	annotateResource                   bool
+	annotateExisting                   bool
+	ProviderHostname, ProviderEndpoint string
+	ImagePullSecrets                   []corev1.LocalObjectReference
+	LsmOrder                           string
+	LsmFlagString                      string
+)
 
 type ClusterWatcher struct {
 	Nodes          []Node
@@ -76,12 +84,12 @@ type Node struct {
 	OCIHooks         string
 }
 
-func NewClusterWatcher(client *kubernetes.Clientset, log *zap.SugaredLogger, extClient *apiextensionsclientset.Clientset, opv1Client *opv1client.Clientset, secv1Client *secv1client.Clientset, pathPrefix, deploy_name, providerHostname, providerEndpoint string, initdeploy, annotateresource, annotateexisting bool, imagePullSecrets []string) *ClusterWatcher {
+func NewClusterWatcher(o *cmd.OperatorOptions) *ClusterWatcher {
 	if informer == nil {
-		informer = informers.NewSharedInformerFactory(client, 0)
+		informer = informers.NewSharedInformerFactory(o.K8sClient, 0)
 	}
 	if deployment_uuid == "" {
-		deploy, err := client.AppsV1().Deployments(common.Namespace).Get(context.Background(), deployment_name, v1.GetOptions{})
+		deploy, err := o.K8sClient.AppsV1().Deployments(common.Namespace).Get(context.Background(), deployment_name, v1.GetOptions{})
 		if err != nil {
 			log.Warnf("Cannot get deployment %s, error=%s", deployment_name, err.Error())
 		} else {
@@ -90,27 +98,28 @@ func NewClusterWatcher(client *kubernetes.Clientset, log *zap.SugaredLogger, ext
 			common.SnitchImageTag = strings.Split(operatorImage, ":")[1]
 		}
 	}
-	PathPrefix = pathPrefix
-	deployment_name = deploy_name
-	initDeploy = initdeploy
-	annotateResource = annotateresource
-	annotateExisting = annotateexisting
-	ProviderHostname = providerHostname
-	ProviderEndpoint = providerEndpoint
+	PathPrefix = o.PathPrefix
+	deployment_name = o.DeploymentName
+	initDeploy = o.InitDeploy
+	annotateResource = o.AnnotateResource
+	annotateExisting = o.AnnotateExisting
+	ProviderHostname = o.ProviderHostname
+	ProviderEndpoint = o.ProviderEndpoint
+	LsmOrder = o.LsmOrder
+	LsmFlagString = "--lsm=" + LsmOrder
 
 	// add image pull secrets
-	ImagePullSecrets = utils.SanitizePullSecrets(imagePullSecrets)
-
+	ImagePullSecrets = utils.SanitizePullSecrets(o.ImagePullSecrets)
 	return &ClusterWatcher{
 		Nodes:          []Node{},
 		Daemonsets:     make(map[string]int),
-		Log:            log,
+		Log:            o.Logger,
 		NodesLock:      &sync.Mutex{},
 		DaemonsetsLock: &sync.Mutex{},
-		Client:         client,
-		ExtClient:      extClient,
-		Opv1Client:     opv1Client,
-		Secv1Client:    secv1Client,
+		Client:         o.K8sClient,
+		ExtClient:      o.ExtClient,
+		Opv1Client:     o.Opv1Client,
+		Secv1Client:    o.Secv1Client,
 	}
 }
 
