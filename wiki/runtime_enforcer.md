@@ -56,7 +56,15 @@ The application trying to read the file will receive a "Permission denied" error
 
 KubeArmor is designed to be flexible and work on different Linux systems. It doesn't assume a specific OS security module is available. When KubeArmor starts on a node, it checks which security modules are enabled and supported on that particular system.
 
-You can configure KubeArmor to prefer one enforcer over another using the `lsm.lsmOrder` configuration option. KubeArmor will try to initialize the enforcers in the specified order (`bpf`, `selinux`, `apparmor`) and use the first one that is available and successfully initialized. If none of the preferred ones are available, it falls back to any other supported, available LSM. If _no_ supported enforcer can be initialized, KubeArmor will run in a limited capacity (primarily for monitoring, not enforcement).
+You can configure KubeArmor to prefer one enforcer over another using the `lsm.lsmOrder` configuration option. KubeArmor will try to initialize the enforcers in the specified order (`bpf`, `selinux`, `apparmor`) and use the first one that is available and successfully initialized.
+
+When KubeArmor runs under the KubeArmor Operator, the operator also passes an `--lsm=<order>` command-line argument to the managed components. (In the operator controller, this flag is constructed as `--lsm=` + the configured order.)
+
+{% hint style="info" %}
+Use `lsm.lsmOrder: none` to request no LSM/enforcer. In this mode, the node-side detection treats the order as `none` and skips LSM detection.
+{% endhint %}
+
+If none of the preferred ones are available, it falls back to any other supported, available LSM. If _no_ supported enforcer can be initialized, KubeArmor will run in a limited capacity (primarily for monitoring, not enforcement).
 
 You can see KubeArmor selecting the LSM in the `NewRuntimeEnforcer` function (from `KubeArmor/enforcer/runtimeEnforcer.go`):
 
