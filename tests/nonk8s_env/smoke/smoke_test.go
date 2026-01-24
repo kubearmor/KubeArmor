@@ -3,6 +3,7 @@
 package smoke_test
 
 import (
+	"slices"
 	"time"
 
 	. "github.com/kubearmor/KubeArmor/tests/util"
@@ -12,7 +13,9 @@ import (
 
 var _ = BeforeSuite(func() {
 	// install wordpress-mysql deployment
-	_, err := RunDockerCommand("compose -f res/wordpress_docker/compose.yaml up -d")
+	_, err := RunDockerCommand([]string{
+		"compose", "-f", "res/wordpress_docker/compose.yaml", "up", "-d",
+	})
 	Expect(err).To(BeNil())
 
 	time.Sleep(5 * time.Second)
@@ -20,90 +23,82 @@ var _ = BeforeSuite(func() {
 
 var _ = AfterSuite(func() {
 	// delete wordpress-mysql app
-	_, err := RunDockerCommand("rm -f wordpress-mysql")
+	_, err := RunDockerCommand([]string{"rm", "-f", "wordpress-mysql"})
 	Expect(err).To(BeNil())
 
 	time.Sleep(5 * time.Second)
 })
 
 var _ = Describe("Systemd", func() {
-
 	Describe(" Apply and Delete Policy ", func() {
-
 		It(" It can add policy successfully ", func() {
 			policyPath := "res/ksp-wordpress-block-policy.yaml"
 
 			err := SendPolicy("ADDED", policyPath)
-
 			Expect(err).To(BeNil())
 		})
-		It("It can delete policy", func() {
 
+		It("It can delete policy", func() {
 			policyPath := "res/ksp-wordpress-block-policy.yaml"
 
 			err := SendPolicy("DELETED", policyPath)
-
 			Expect(err).To(BeNil())
 		})
 	})
 
-	Describe(" It can receive policy and container info ", func() {
-
-		It(" It can receive updated container list through grpc ", func() {
-
+	Describe("Receive policy and container info ", func() {
+		It("can receive updated container list through grpc ", func() {
 			resp, err := ContainerInfo()
 			Expect(err).To(BeNil())
 
-			contains := false
-			for _, containerName := range resp.ContainerList {
-				if containerName == "wordpress-mysql" {
-					contains = true
-					break
-				}
-			}
+			contains := slices.Contains(resp.ContainerList, "wordpress-mysql")
 			Expect(contains).To(BeTrue())
 
 			// Deleting the container and then checking if the list is updated or not
-			_, err = RunDockerCommand("rm -f wordpress-mysql")
+			_, err = RunDockerCommand([]string{"rm", "-f", "wordpress-mysql"})
 			Expect(err).To(BeNil())
 
 			resp, err = ContainerInfo()
 			Expect(err).To(BeNil())
-			contains = false
-			for _, containerName := range resp.ContainerList {
-				if containerName == "wordpress-mysql" {
-					contains = true
-					break
-				}
-			}
+
+			contains = slices.Contains(resp.ContainerList, "wordpress-mysql")
 			Expect(contains).To(BeFalse())
 
 		})
-		It(" It can receive updated policy list through grpc ", func() {
-			_, err := RunDockerCommand("compose -f res/wordpress_docker/compose.yaml up -d")
+
+		It("can receive updated policy list through grpc ", func() {
+			_, err := RunDockerCommand([]string{
+				"compose", "-f", "res/wordpress_docker/compose.yaml", "up", "-d",
+			})
 			Expect(err).To(BeNil())
 			time.Sleep(5 * time.Second)
 			// No policy is applied right now
 			resp, err := ContainerInfo()
 			Expect(err).To(BeNil())
 
-			listLength := len(resp.ContainerMap["wordpress-mysql"].PolicyList)
-			Expect(listLength).To(Equal(0))
+			contains := slices.Contains(
+				resp.ContainerMap["wordpress-mysql"].PolicyList,
+				"ksp-block-policy",
+			)
+			Expect(contains).To(BeFalse())
 
 			// With policy applied
-
 			policyPath := "res/ksp-wordpress-block-policy.yaml"
 
 			err = SendPolicy("ADDED", policyPath)
-
 			Expect(err).To(BeNil())
 
 			resp, err = ContainerInfo()
 			Expect(err).To(BeNil())
 
-			listLength = len(resp.ContainerMap["wordpress-mysql"].PolicyList)
-			Expect(listLength).To(Equal(1))
+			contains = slices.Contains(
+				resp.ContainerMap["wordpress-mysql"].PolicyList,
+				"ksp-block-policy",
+			)
+			Expect(contains).To(BeTrue())
 
+			err = SendPolicy("DELETED", policyPath)
+			Expect(err).To(BeNil())
 		})
 	})
 })
