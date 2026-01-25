@@ -166,7 +166,9 @@ func (dm *KubeArmorDaemon) checkAndUpdateNode(item *corev1.Node) {
 }
 
 // WatchK8sNodes Function
-func (dm *KubeArmorDaemon) WatchK8sNodes() {
+func (dm *KubeArmorDaemon) WatchK8sNodes(ctx context.Context) {
+	dm.WgDaemon.Add(1)
+	defer dm.WgDaemon.Done()
 	kg.Printf("GlobalCfg.Host=%s, KUBEARMOR_NODENAME=%s", cfg.GlobalCfg.Host, os.Getenv("KUBEARMOR_NODENAME"))
 
 	nodeName := os.Getenv("KUBEARMOR_NODENAME")
@@ -199,10 +201,12 @@ func (dm *KubeArmorDaemon) WatchK8sNodes() {
 		return
 	}
 
-	go factory.Start(StopChan)
-	factory.WaitForCacheSync(StopChan)
+	go factory.Start(ctx.Done())
+	factory.WaitForCacheSync(ctx.Done())
+
 	kg.Print("Started watching node information")
 
+	<-ctx.Done()
 }
 
 // ================ //
@@ -971,7 +975,9 @@ func (dm *KubeArmorDaemon) handlePodEvent(event string, obj *corev1.Pod) {
 }
 
 // WatchK8sPods Function
-func (dm *KubeArmorDaemon) WatchK8sPods() {
+func (dm *KubeArmorDaemon) WatchK8sPods(ctx context.Context) {
+	dm.WgDaemon.Add(1)
+	defer dm.WgDaemon.Done()
 
 	if !kl.IsK8sEnv() {
 		dm.Logger.Print("not in a k8s environment")
@@ -1013,8 +1019,12 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 		return
 	}
 
-	go factory.Start(StopChan)
-	dm.Logger.Print("Started watching pod information")
+	go factory.Start(ctx.Done())
+	factory.WaitForCacheSync(ctx.Done())
+
+	kg.Print("Started watching node information")
+
+	<-ctx.Done()
 
 }
 
@@ -1740,7 +1750,8 @@ func (dm *KubeArmorDaemon) CreateSecurityPolicy(policyType string, securityPolic
 }
 
 // WatchSecurityPolicies Function
-func (dm *KubeArmorDaemon) WatchSecurityPolicies() cache.InformerSynced {
+func (dm *KubeArmorDaemon) WatchSecurityPolicies(ctx context.Context) cache.InformerSynced {
+
 	for {
 		if err := K8s.CheckCustomResourceDefinition("kubearmorpolicies"); err != nil {
 			time.Sleep(time.Second * 1)
@@ -1833,7 +1844,7 @@ func (dm *KubeArmorDaemon) WatchSecurityPolicies() cache.InformerSynced {
 		return nil
 	}
 
-	go factory.Start(StopChan)
+	go factory.Start(ctx.Done())
 	return registration.HasSynced
 }
 
@@ -1940,7 +1951,7 @@ func (dm *KubeArmorDaemon) WatchClusterSecurityPolicies(timeout time.Duration) c
 		return nil
 	}
 
-	go factory.Start(StopChan)
+	go factory.Start(ctx.Done())
 	return registration.HasSynced
 }
 
@@ -2820,7 +2831,7 @@ func (dm *KubeArmorDaemon) UpdateGlobalPosture(posture tp.DefaultPosture) {
 }
 
 // WatchDefaultPosture Function
-func (dm *KubeArmorDaemon) WatchDefaultPosture() cache.InformerSynced {
+func (dm *KubeArmorDaemon) WatchDefaultPosture(ctx context.Context) cache.InformerSynced {
 	factory := informers.NewSharedInformerFactory(K8s.K8sClient, 0)
 	informer := factory.Core().V1().Namespaces().Informer()
 
@@ -2914,12 +2925,12 @@ func (dm *KubeArmorDaemon) WatchDefaultPosture() cache.InformerSynced {
 		return nil
 	}
 
-	go factory.Start(StopChan)
+	go factory.Start(ctx.Done())
 	return registration.HasSynced
 }
 
 // WatchConfigMap function
-func (dm *KubeArmorDaemon) WatchConfigMap() cache.InformerSynced {
+func (dm *KubeArmorDaemon) WatchConfigMap(ctx context.Context) cache.InformerSynced {
 	configMapLabelOption := informers.WithTweakListOptions(func(opts *metav1.ListOptions) {
 		opts.LabelSelector = fmt.Sprintf("kubearmor-app=%s", "kubearmor-configmap")
 	})
@@ -3078,7 +3089,7 @@ func (dm *KubeArmorDaemon) WatchConfigMap() cache.InformerSynced {
 		return nil
 	}
 
-	go factory.Start(StopChan)
+	go factory.Start(ctx.Done())
 	return registration.HasSynced
 }
 
