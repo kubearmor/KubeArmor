@@ -194,6 +194,7 @@ func generateDaemonset(name, enforcer, runtime, socket, nriSocket, btfPresent, a
 		utils.UpdateTolerationFromGlobal(common.GlobalTolerations, &daemonset.Spec.Template.Spec.Tolerations)
 	}
 	daemonset.Spec.Template.Spec.Containers[0].Args = append(daemonset.Spec.Template.Spec.Containers[0].Args, ociArgs...)
+	daemonset.Spec.Template.Spec.Containers[0].Args = append(daemonset.Spec.Template.Spec.Containers[0].Args, LsmFlagString)
 	daemonset.Spec.Template.Spec.InitContainers[0].Image = common.GetApplicationImage(common.KubeArmorInitName)
 	daemonset.Spec.Template.Spec.InitContainers[0].ImagePullPolicy = corev1.PullPolicy(common.KubeArmorInitImagePullPolicy)
 
@@ -336,6 +337,7 @@ func deploySnitch(nodename string, runtime string) *batchv1.Job {
 							"--nodename=$(NODE_NAME)",
 							"--pathprefix=" + PathPrefix,
 							"--runtime=" + runtime,
+							"--lsm=" + LsmOrder,
 						},
 						Env: []corev1.EnvVar{
 							{
