@@ -45,7 +45,7 @@ RUN CGO_ENABLED=0 GOOS=${GOOS} GOARCH=${GOARCH} GO111MODULE=on go build -a -o op
 RUN CGO_ENABLED=0 GOOS=${GOOS} GOARCH=${GOARCH} GO111MODULE=on go build -a -o snitch cmd/snitch-cmd/main.go
 RUN CGO_ENABLED=0 GOOS=${GOOS} GOARCH=${GOARCH} GO111MODULE=on go build -a -o hook/hook ./hook
 
-FROM redhat/ubi9-minimal AS operator
+FROM redhat/ubi9-minimal:9.7-1769056855 AS operator
 
 ARG VERSION=latest
 
@@ -72,7 +72,7 @@ USER 1000
 
 ENTRYPOINT ["/operator"]
 
-FROM redhat/ubi9-minimal AS snitch
+FROM redhat/ubi9-minimal:9.7-1769056855 AS snitch
 
 ARG VERSION=latest
 
