@@ -75,7 +75,7 @@ ENTRYPOINT ["/KubeArmor/kubearmor-test"]
 
 ### Make UBI-based executable image
 
-FROM redhat/ubi9-minimal AS kubearmor-ubi
+FROM redhat/ubi9-minimal:9.7-1769056855 AS kubearmor-ubi
 
 ARG VERSION=latest
 ENV KUBEARMOR_UBI=true
@@ -112,7 +112,7 @@ USER 1000
 ENTRYPOINT ["/KubeArmor/kubearmor"]
 
 ### Make UBI-based test executable image for coverage calculation
-FROM redhat/ubi9-minimal AS kubearmor-ubi-test
+FROM redhat/ubi9-minimal:9.7-1769056855 AS kubearmor-ubi-test
 
 ARG VERSION=latest
 ENV KUBEARMOR_UBI=true
