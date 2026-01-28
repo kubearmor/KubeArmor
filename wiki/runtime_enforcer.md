@@ -183,6 +183,39 @@ This snippet shows the key steps: generating the profile content, writing it to 
 
 SELinux policy management is complex, often involving compiling policy modules and managing file contexts. KubeArmor's SELinux enforcer focuses primarily on basic host policy enforcement (in standalone mode, not typically in Kubernetes clusters using the default SELinux integration). It interacts with tools like `chcon` to set file security contexts based on policies.
 
+{% hint style="warning" %}
+When using the SELinux enforcer, configure a dedicated SELinux profile directory.
+
+The SELinux enforcer deletes and recreates the configured directory during initialization (it calls `os.RemoveAll()` on `GlobalCfg.SELinuxProfileDir` after normalizing it to end with `/`).
+
+Do not set this value to `/`.
+{% endhint %}
+
+### Configure the SELinux profile directory
+
+#### Overview
+
+The SELinux enforcer uses `SELinuxProfileDir` (from `GlobalCfg.SELinuxProfileDir`) as the directory that stores KubeArmor-managed SELinux profile files.
+
+#### Prerequisites
+
+- SELinux is enabled and selected as the active runtime enforcer.
+
+#### Step-by-step
+
+1. Set the SELinux profile directory using the `--seLinuxProfileDir` flag.
+2. Use a dedicated directory for KubeArmor-managed SELinux profiles.
+
+#### Example
+
+```bash
+kubearmor --seLinuxProfileDir /var/lib/kubearmor/selinux/
+```
+
+#### Related documentation
+
+- [KubeArmor on VM/Bare-Metal](../getting-started/kubearmor_vm.md)
+
 ```go
 // KubeArmor/enforcer/SELinuxEnforcer.go (Simplified)
 
@@ -218,6 +251,7 @@ func (se *SELinuxEnforcer) UpdateSELinuxLabels(profilePath string) bool {
 				se.Logger.Warnf("Unable to update the SELinux label (%s) of %s (%s)", objectLabel, objectPath, err.Error())
 				res = false
 			}
+
 		}
 		// ... handles directory and recursive options ...
 	}
