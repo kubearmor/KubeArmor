@@ -58,7 +58,14 @@ This sample policy blocks execution of the `apt` and `apt-get` commands in wordp
   POD_NAME=$(kubectl get pods -n wordpress-mysql -l app=wordpress -o jsonpath='{.items[0].metadata.name}') && kubectl -n wordpress-mysql exec -it $POD_NAME -- bash
   # apt update
   ```
-* In the terminal running `karmor logs`, the policy violation along with container visibility is shown, in this case for example
+
+### Omitting `Resource` from process visibility logs
+
+KubeArmor can omit the `Resource` field from **process** visibility logs.
+
+> **Note**
+> The `Resource` field is shown in the example output above (for example, `Resource: /usr/bin/apt update`). When this option is enabled, that field is not included in process visibility logs.
+
   <details>
   <summary>Click to expand</summary>
 
