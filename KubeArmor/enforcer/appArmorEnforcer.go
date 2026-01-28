@@ -157,7 +157,7 @@ profile apparmor-default flags=(attach_disconnected,mediate_deleted) {
 				continue // still need to check other profiles
 			}
 
-			if err := os.Remove(filepath.Clean("/etc/apparmor.d/" + fileName)); err != nil {
+			if err := kl.RemoveSafe(filepath.Clean("/etc/apparmor.d/" + fileName)); err != nil {
 				ae.Logger.Warnf("Unable to remove /etc/apparmor.d/%s (%s)", fileName, err.Error())
 				continue // still need to check other profiles
 			}
@@ -465,7 +465,7 @@ func (ae *AppArmorEnforcer) UnregisterAppArmorHostProfile() bool {
 		if err := ae.CreateAppArmorHostProfile(); err != nil {
 			ae.Logger.Warnf("Unable to reset the KubeArmor host profile in %s", cfg.GlobalCfg.Host)
 
-			if err := os.Remove(appArmorHostFile); err != nil {
+			if err := kl.RemoveSafe(appArmorHostFile); err != nil {
 				ae.Logger.Warnf("Unable to remove the KubeArmor host profile from %s (%s)", cfg.GlobalCfg.Host, err.Error())
 			}
 
@@ -475,13 +475,13 @@ func (ae *AppArmorEnforcer) UnregisterAppArmorHostProfile() bool {
 		if err := kl.RunCommandAndWaitWithErr("apparmor_parser", []string{"-r", "-W", "-C", appArmorHostFile}); err != nil {
 			ae.Logger.Warnf("Unable to reset the KubeArmor host profile in %s", cfg.GlobalCfg.Host)
 
-			if err := os.Remove(appArmorHostFile); err != nil {
+			if err := kl.RemoveSafe(appArmorHostFile); err != nil {
 				ae.Logger.Warnf("Unable to remove the KubeArmor host profile from %s (%s)", cfg.GlobalCfg.Host, err.Error())
 			}
 
 		}
 
-		if err := os.Remove(appArmorHostFile); err != nil {
+		if err := kl.RemoveSafe(appArmorHostFile); err != nil {
 			ae.Logger.Warnf("Unable to remove the KubeArmor host profile from %s (%s)", cfg.GlobalCfg.Host, err.Error())
 			return false
 		}

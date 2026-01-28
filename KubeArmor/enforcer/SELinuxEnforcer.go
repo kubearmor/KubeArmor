@@ -81,7 +81,7 @@ func NewSELinuxEnforcer(node tp.Node, logger *fd.Feeder) *SELinuxEnforcer {
 	}
 
 	// remove old profiles if exists
-	if err = os.RemoveAll(filepath.Clean(cfg.GlobalCfg.SELinuxProfileDir)); err != nil {
+	if err = kl.RemoveAllSafe(filepath.Clean(cfg.GlobalCfg.SELinuxProfileDir)); err != nil {
 		se.Logger.Errf("Failed to remove existing SELinux profiles (%s)", err.Error())
 		return nil
 	}
