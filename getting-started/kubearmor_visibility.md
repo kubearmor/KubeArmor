@@ -128,9 +128,16 @@ This sample policy blocks execution of the `apt` and `apt-get` commands in wordp
 
   ```
 
-  </details>
+#### Omitting `Resource` from process visibility logs
 
-### Getting Host Visibility
+For process visibility events (`Operation: Process`), the log `Resource` field typically includes the executed binary plus its arguments (for example, `"/usr/bin/apt update"`).
+
+KubeArmor supports a configuration option to omit the `Resource` field in process visibility logs.
+
+{% hint style="info" %}
+This option only affects the process `Resource` field in the visibility logs. Other log fields are not affected.
+{% endhint %}
+
 
 * Host Visibility is not enabled by default . To enable Host  Visibility we need to annotate the node using `kubectl annotate node`
 ```
