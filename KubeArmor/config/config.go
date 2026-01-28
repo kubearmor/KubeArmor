@@ -377,6 +377,8 @@ func LoadConfig() error {
 
 	GlobalCfg.MatchArgs = viper.GetBool(ConfigArgMatching)
 
+	GlobalCfg.SELinuxProfileDir = viper.GetString(ConfigSELinuxProfileDir)
+
 	LoadDynamicConfig()
 
 	kg.Printf("Final Configuration [%+v]", GlobalCfg)
