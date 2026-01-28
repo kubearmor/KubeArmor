@@ -11,7 +11,7 @@ replace (
 
 require (
 	github.com/kubearmor/KubeArmor/KubeArmor v0.0.0-20250701060635-600e11526ec1
-	github.com/kubearmor/KubeArmor/deployments v0.0.0-20250701060635-600e11526ec1
+	github.com/kubearmor/KubeArmor/deployments v0.0.0-20260128145356-d52bcdf2a9ba
 	github.com/kubearmor/KubeArmor/pkg/KubeArmorController v0.0.0-20250701060635-600e11526ec1
 	github.com/opencontainers/runtime-spec v1.2.1
 	github.com/spf13/cobra v1.10.1
