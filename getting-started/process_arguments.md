@@ -55,6 +55,23 @@ When the enforcer reports a process exec event (`lsm=SECURITY_BPRM_CHECK`), the 
 - `Source` is set from the event's parent/source process.
 - `Resource` contains the original `Source` value produced by the base log builder, and falls back to `ProcessName` when empty.
 
+      allowedArgs:
+        - -m
+        - random
+  action:
+    Block
+```
+
+## Policy violation alert
+
+If a process is executed with arguments that do not match the policy, a policy violation alert is generated.
+
+When the enforcer reports a process exec event (`lsm=SECURITY_BPRM_CHECK`), the log fields are populated as follows:
+
+- `ProcessName` is set from the event's process path.
+- `Source` is set from the event's parent/source process.
+- `Resource` contains the original `Source` value produced by the base log builder, and falls back to `ProcessName` when empty.
+
 The following is an example alert:
 
 ```json
