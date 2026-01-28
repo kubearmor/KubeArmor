@@ -18,18 +18,20 @@ spec:
     spec:
       {{- if .Values.kubearmor.image.imagePullSecrets }}
       imagePullSecrets:
-      {{ toYaml .Values.kubearmor.image.imagePullSecrets | indent 6 }}
+    {{ toYaml .Values.kubearmor.image.imagePullSecrets | indent 4 }}
       {{- end }}
       {{- if .Values.kubearmor.tolerations }}
       tolerations:
-      {{ toYaml .Values.kubearmor.tolerations | indent 6 }}
+    {{ toYaml .Values.kubearmor.tolerations | indent 4 }}
       {{- end }}
       containers:
       - args:
-        - -gRPC=32767
-        {{printf "- -tlsEnabled=%t" .Values.tls.enabled}}
-        {{printf "- -tlsCertPath=%s" .Values.kubearmor.tls.tlsCertPath}}
-        {{printf "- -tlsCertProvider=%s" .Values.kubearmor.tls.tlsCertProvider}}
+        - "-gRPC=32767"
+        - {{ printf "--tlsEnabled=%t" .Values.tls.enabled | quote }}
+        {{- if .Values.tls.enabled }}
+        - {{ printf "--tlsCertPath=%s" .Values.kubearmor.tls.tlsCertPath | quote }}
+        - {{ printf "--tlsCertProvider=%s" .Values.kubearmor.tls.tlsCertProvider | quote }}
+        {{- end }}
         image: {{printf "%s:%s" .Values.kubearmor.image.repository .Values.kubearmor.image.tag}}
         imagePullPolicy: {{ .Values.kubearmor.imagePullPolicy }}
         env:
@@ -118,8 +120,6 @@ spec:
       restartPolicy: Always
       serviceAccountName: kubearmor
       terminationGracePeriodSeconds: 30
-      tolerations:
-      - operator: Exists
       volumes:
       {{- toYaml .Values.kubearmor.commonVolumes | trim | nindent 8}}
       {{- if .Values.tls.enabled -}}
