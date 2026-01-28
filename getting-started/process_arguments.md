@@ -43,6 +43,10 @@ spec:
 
 1. **Argument count:** A maximum of **20 arguments** are supported.
 
+## Related documentation
+
+* [Policy Spec for Containers](./security_policy_specification.md)
+
 ## Example alert
 
 When a process is executed with arguments that do not match the policy, an alert similar to the following is generated:
