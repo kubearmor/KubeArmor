@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/kubearmor/KubeArmor/KubeArmor/buildinfo"
+	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
 	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
 	"github.com/kubearmor/KubeArmor/KubeArmor/core"
 	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
@@ -45,7 +46,7 @@ func main() {
 			if this is triggered that means there is incomplete cleanup process
 			from the last installation */
 			path := filepath.Join(bpfMapsDir, entry.Name())
-			err := os.Remove(path)
+			err := kl.RemoveSafe(path)
 			if err != nil {
 				kg.Errf("Failed to delete BPF map %s: %v", path, err)
 			} else {

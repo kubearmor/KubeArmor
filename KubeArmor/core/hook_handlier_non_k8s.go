@@ -32,7 +32,7 @@ func (dm *KubeArmorDaemon) ListenToNonK8sHook() {
 	}
 
 	listenPath := filepath.Join(kubearmorDir, "ka.sock")
-	err := os.Remove(listenPath) // in case kubearmor crashed and the socket wasn't removed (cleaning the socket file if got crashed)
+	err := kl.RemoveSafe(listenPath) // in case kubearmor crashed and the socket wasn't removed (cleaning the socket file if got crashed)
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		dm.Logger.Warnf("Failed to cleanup ka.sock: %v", err)
 	}
@@ -49,7 +49,7 @@ func (dm *KubeArmorDaemon) ListenToNonK8sHook() {
 	}
 
 	defer socket.Close()
-	defer os.Remove(listenPath)
+	defer kl.RemoveSafe(listenPath)
 	ready := &atomic.Bool{}
 
 	for {

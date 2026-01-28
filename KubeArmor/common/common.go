@@ -6,6 +6,7 @@ package common
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -683,4 +684,42 @@ func NormalizeIP(ipStr string) string {
 	} else {
 		return "[" + ipStr + "]" // IPv6
 	}
+}
+
+// errUnsafePathToRemove error
+var errUnsafePathToRemove = errors.New("unsafe path to remove")
+
+// isUnsafePathToRemove checks if path is empty or absolute root "/"
+// return true to mark the path unsafe to remove
+func isUnsafePathToRemove(path string) bool {
+	if path == "" {
+		return true
+	}
+
+	clean := filepath.Clean(path)
+
+	// root /
+	if clean == string(filepath.Separator) {
+		return true
+	}
+
+	return false
+}
+
+// RemoveSafe func remove the given path if it is safe(not empty or /)
+// to remove using os.Remove
+func RemoveSafe(path string) error {
+	if isUnsafePathToRemove(path) {
+		return errUnsafePathToRemove
+	}
+	return os.Remove(path)
+}
+
+// RemoveAllSafe func remove the given path if it is safe(not empty or /)
+// to remove using os.RemoveAll
+func RemoveAllSafe(path string) error {
+	if isUnsafePathToRemove(path) {
+		return errUnsafePathToRemove
+	}
+	return os.RemoveAll(path)
 }

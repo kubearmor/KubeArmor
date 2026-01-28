@@ -874,7 +874,7 @@ func (dm *KubeArmorDaemon) removeBackUpPolicy(name string) {
 		return
 	}
 
-	if err := os.Remove(fname); err != nil {
+	if err := kl.RemoveSafe(fname); err != nil {
 		kg.Errf("unable to delete file:%s err=%s", fname, err.Error())
 	}
 }
