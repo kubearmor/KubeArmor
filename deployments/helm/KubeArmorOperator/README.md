@@ -62,7 +62,7 @@ spec:
     # default visibility configuration
     defaultVisibility: [comma separated: process|file|network] # DEFAULT - process,network
 
-    # optionally drop the Resource field (full cmdline) from process visibility logs
+    # optionally drop the Resource field from process logs
     dropResourceFromProcessLogs: false                         # DEFAULT - false
 
     # enabling NRI
