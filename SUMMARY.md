@@ -31,6 +31,7 @@
 
 * [KubeArmor Events](getting-started/kubearmor-events.md)
 * [Control Telemetry/Visibility](getting-started/kubearmor_visibility.md)
+* [Configure `kubearmor-config` ConfigMap](getting-started/configuring_kubearmor_configmap.md)
 * [Security Posture](getting-started/default_posture.md)
 * [Policy Spec for Containers](getting-started/security_policy_specification.md)
 * [Policy Examples for Containers](getting-started/security_policy_examples.md)
