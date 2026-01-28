@@ -147,15 +147,17 @@
       ~/KubeArmor/KubeArmor$ make vagrant-destroy
       ```
 
-    * VM Setup using Vagrant with Ubuntu 21.10 (v5.13)
+    * VM Setup using Vagrant with Ubuntu 22.04 (v5.15+)
 
-      To use the recent Linux kernel v5.13 for dev env, you can run `make` with the `NETNEXT` flag set to `1` for the respective make option.
+      To use the Ubuntu 22.04 box (Kernel 5.15+) for the dev environment, run `make` with the `NETNEXT` flag set to `1`.
 
       ```text
       ~/KubeArmor/KubeArmor$ make vagrant-up NETNEXT=1
       ```
 
-       You can also make the setting static by changing `NETNEXT=0` to `NETNEXT=1` in the Makefile.
+      `NETNEXT=1` is required to test BPF-LSM enforcement (Kernel version >5.7).
+
+      You can also make the setting static by changing `NETNEXT=0` to `NETNEXT=1` in the Makefile.
 
       ```text
       ~/KubeArmor/KubeArmor$ vi Makefile
