@@ -13,9 +13,9 @@ To enable or disable this feature, you must modify the KubeArmor configuration (
 
 Please note the following constraints when using Process Argument Matching:
 
-1.  **Argument Count:** A maximum of **20 arguments** per process are supported for a specific path.
-2.  **Character Limit:** The maximum length for a single argument is **104 characters**.
-3.  **Enforcement Behavior:** When `matchArgs` is enabled, if the enforcer encounters an argument exceeding the 104-character limit, the execution will be **blocked by default** for security reasons.
+1. **Argument Count:** A maximum of **20 arguments** per process are supported for a specific path.
+2. **Character Limit:** The maximum length for a single argument is **104 characters**.
+3. **Enforcement Behavior:** When `matchArgs` is enabled, if the enforcer encounters an argument exceeding the 104-character limit, the execution will be **blocked by default** for security reasons.
 
 ### Sample Policy
 
@@ -23,7 +23,7 @@ The following policy demonstrates how to allow specific arguments for a process 
 
 **Scenario:** Allow `/usr/bin/python3.6` to execute only if it is accompanied by the arguments `-m` and `random`.
 
-```yaml 
+```yaml
 apiVersion: [security.kubearmor.com/v1](https://security.kubearmor.com/v1)
 kind: KubeArmorPolicy
 metadata:
@@ -40,13 +40,24 @@ spec:
     - path: /usr/bin/python3.6
       allowedArgs:
         - -m
-        - random 
+        - random
   action:
     Block
 ```
-### Policy violation alert 
-If a process is executed with arguments that do not match the policy, a policy violation alert similar to the following will be generated:
-``` json 
+
+## Policy violation alert
+
+If a process is executed with arguments that do not match the policy, a policy violation alert is generated.
+
+When the enforcer reports a process exec event (`lsm=SECURITY_BPRM_CHECK`), the log fields are populated as follows:
+
+- `ProcessName` is set from the event's process path.
+- `Source` is set from the event's parent/source process.
+- `Resource` contains the original `Source` value produced by the base log builder, and falls back to `ProcessName` when empty.
+
+The following is an example alert:
+
+```json
 {
   "Timestamp": 1765863439,
   "UpdatedTime": "2025-12-16T05:37:19.127331Z",
