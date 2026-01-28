@@ -3,22 +3,22 @@
 We provide multiple Vagrant VMs for development and testing.
 
 > **Prerequisites & Security Modules:**
-> * **AppArmor:** Enabled by default on all **Ubuntu** environments.
-> * **SELinux:** Enabled by default on all **CentOS** environments.
-> * **BPF-LSM:** To test BPF-LSM enforcement, you **must** use `NETNEXT=1` (Ubuntu 22.04 or CentOS 9) to ensure Kernel version >5.7 is used.
+> - **AppArmor:** Enabled by default on all **Ubuntu** environments.
+> - **SELinux:** Enabled by default on all **CentOS** environments.
+> - **BPF-LSM:** To test BPF-LSM enforcement, use `NETNEXT=1` (Ubuntu 22.04 or CentOS 9) to ensure Kernel version > 5.7 is used.
 
 ## Vagrant Values
 
 - OS = { centos | ubuntu } (ubuntu by default)
   - If OS == centos
     - NETNEXT = { 0 | 1 } (0 by default)
-      - 0: CentOS 8 (Kernel 4.18)
-      - 1: CentOS 9 (Kernel 5.14+, Supports BPF-LSM)
+      - 0: CentOS 8
+      - 1: CentOS 9
   - If OS == ubuntu
     - NETNEXT = { -1 | 0 | 1 } (0 by default)
-      - -1: Ubuntu 18.04 (Kernel 4.15)
-      - 0: Ubuntu 20.04 (Kernel 5.4)
-      - 1: Ubuntu 22.04 (Kernel 5.15+, Supports BPF-LSM)
+      - -1: Ubuntu 18.04
+      - 0: Ubuntu 20.04
+      - 1: Ubuntu 22.04
 
 - K8S = { k3s | kubeadm } (k3s by default)
 
@@ -38,6 +38,7 @@ You must navigate to the vagrant directory first.
 $ cd KubeArmor/contribution/vagrant
 $ [Vagrant Values] vagrant { up | status | ssh | destroy }
 ```
+
 
 **Examples:**
 
