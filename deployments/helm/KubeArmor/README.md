@@ -44,6 +44,14 @@ helm upgrade --install kubearmor . -n kubearmor --create-namespace
 | kubearmorController.resources | object | { requests: { cpu: 10m, memory: 64Mi } } | kubearmor-controller container resources requests/limits |
 
 ## kubearmor-args
+
+### Default posture value normalization
+
+KubeArmor normalizes some posture values to lowercase.
+
+- **Global** default postures (`-defaultFilePosture`, `-defaultNetworkPosture`, `-defaultCapabilitiesPosture`) accept `audit`/`Audit` and `block`/`Block`.
+- **Namespace** default posture annotations (for example, `kubearmor-file-posture`) are interpreted case-insensitively for `audit` and `block`.
+
 ```
 $ sudo ./kubearmor -h
 Usage of ./kubearmor:
