@@ -2,6 +2,7 @@
 
 These are the release notes for the various versions.
 
+- [v1.7](getting-started/release_notes_v1.7.md)
 - [v1.6](getting-started/release_notes_v1.6.md)
 - [v1.5](getting-started/release_notes_v1.5.md)
 - [v1.4](getting-started/release_notes_v1.4.md)
