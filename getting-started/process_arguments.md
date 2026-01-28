@@ -1,30 +1,38 @@
 # Process Argument Matching
 
-KubeArmor provides the ability to enforce security policies based on process arguments, offering finer granularity in rule definitions. This guide demonstrates how to enable this feature and define policies to utilize it.
+KubeArmor provides the ability to enforce security policies based on **process arguments**, offering finer granularity in rule definitions.
 
-## Enabling/Disabling Process Argument Matching
+## Overview
 
-To enable or disable this feature, you must modify the KubeArmor configuration (typically within the KubeArmor ConfigMap or DaemonSet arguments).
+Process argument matching is configured in two places:
 
-* **Enable:** Add `matchArgs=true`
-* **Disable:** Remove the flag or set `matchArgs=false`
+1. **KubeArmor configuration**: enable or disable argument matching.
+2. **Policy rules**: define allowed arguments for a specific executable path.
 
-### Limitations
+## Prerequisites
 
-Please note the following constraints when using Process Argument Matching:
+- A running KubeArmor deployment where policies are enforced.
+- A policy (KubeArmorPolicy / KubeArmorClusterPolicy / KubeArmorHostPolicy) that includes `process.matchPaths` rules.
 
-1.  **Argument Count:** A maximum of **20 arguments** per process are supported for a specific path.
-2.  **Character Limit:** The maximum length for a single argument is **104 characters**.
-3.  **Enforcement Behavior:** When `matchArgs` is enabled, if the enforcer encounters an argument exceeding the 104-character limit, the execution will be **blocked by default** for security reasons.
+## Enable or disable process argument matching
 
-### Sample Policy
+Configure this feature via the `matchArgs` setting.
 
-The following policy demonstrates how to allow specific arguments for a process while blocking others.
+- **Enable**: set `matchArgs=true`
+- **Disable**: set `matchArgs=false` (or remove the setting)
 
-**Scenario:** Allow `/usr/bin/python3.6` to execute only if it is accompanied by the arguments `-m` and `random`.
+Where to set it depends on how KubeArmor is deployed (for example, via DaemonSet arguments or a ConfigMap).
 
-```yaml 
-apiVersion: [security.kubearmor.com/v1](https://security.kubearmor.com/v1)
+## Define allowed arguments in a policy
+
+To match process arguments, add `allowedArgs` under a `process.matchPaths` entry.
+
+### Sample policy
+
+Scenario: allow `/usr/bin/python3.6` to execute only when invoked with the arguments `-m` and `random`.
+
+```yaml
+apiVersion: security.kubearmor.com/v1
 kind: KubeArmorPolicy
 metadata:
   name: ksp-ubuntu-1-allow-proc-args
@@ -37,16 +45,27 @@ spec:
       container: ubuntu-1
   process:
     matchPaths:
-    - path: /usr/bin/python3.6
-      allowedArgs:
-        - -m
-        - random 
+      - path: /usr/bin/python3.6
+        allowedArgs:
+          - -m
+          - random
   action:
     Block
 ```
-### Policy violation alert 
-If a process is executed with arguments that do not match the policy, a policy violation alert similar to the following will be generated:
-``` json 
+
+## Limitations
+
+The following limitations are documented for process argument matching:
+
+1. **Argument count**: a maximum of **20 arguments** per process are supported for a specific path.
+2. **Per-argument size**: the maximum length for a single argument is **104 characters**.
+3. **Over-limit behavior**: when `matchArgs` is enabled, if an argument exceeds the 104-character limit, execution is **blocked by default**.
+
+## Example: policy violation alert
+
+If a process is executed with arguments that do not match the policy, a policy violation alert similar to the following is generated:
+
+```json
 {
   "Timestamp": 1765863439,
   "UpdatedTime": "2025-12-16T05:37:19.127331Z",
@@ -93,3 +112,9 @@ If a process is executed with arguments that do not match the policy, a policy v
   "KubeArmorVersion": "v1.6.5-8-g3d55b346-dirty"
 }
 ```
+
+## Related documentation
+
+- [Policy Spec for Containers](./security_policy_specification.md)
+- [Cluster Policy Spec for Containers](./cluster_security_policy_specification.md)
+- [Policy Spec for Nodes/VMs](./host_security_policy_specification.md)
