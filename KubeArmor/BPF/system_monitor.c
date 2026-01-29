@@ -2391,7 +2391,7 @@ int kretprobe__tcp_connect(struct pt_regs *ctx)
     // so far this is the only hack that worked, using a temporary stack variable
     // skc_prot->name is of size 32
     // but it's unclear why extending to 32 leading to issues
-    // we're not expecting protocol string (TCP) to exceed 16 bytes size
+    // we're not expecting protocol string (TCP/TCPv6) to exceed 16 bytes size
     // it's should be safe to use 16 here
     char proto_str[16] = {};
     bpf_probe_read_str(proto_str, sizeof(proto_str), proto_str_p);
@@ -2458,37 +2458,53 @@ int kretprobe__inet_csk_accept(struct pt_regs *ctx)
     struct sock_common conn = READ_KERN(newsk->__sk_common);
     struct sockaddr_in sockv4;
     struct sockaddr_in6 sockv6;
-    sys_context_t context = {};
+    
+    // exceeding stack size limit of 512 bytes on specific environments
+    // using perf buffer to optimize it
+    bufs_t *bufs_p = get_buffer(DATA_BUF_TYPE);
+    if (bufs_p == NULL)
+        return 0;
+
+    sys_context_t *context = (sys_context_t *)bufs_p->buf;
+    if (context == NULL)
+        return 0;
+
+    __builtin_memset(context, 0, sizeof(sys_context_t));
+
     args_t args = {};
     u64 types = ARG_TYPE0(STR_T) | ARG_TYPE1(SOCKADDR_T);
-    init_context(&context);
-    context.argnum = get_arg_num(types);
+    init_context(context);
+    context->argnum = get_arg_num(types);
     int *err_ptr = (int *)PT_REGS_PARM3(ctx);
-    bpf_probe_read(&context.retval, sizeof(context.retval), err_ptr);
+    bpf_probe_read(&context->retval, sizeof(context->retval), err_ptr);
 
-    if (context.retval >= 0 && drop_syscall(_NETWORK_PROBE))
+    if (context->retval >= 0 && drop_syscall(_NETWORK_PROBE))
     {
         return 0;
     }
 
-    if (get_connection_info(&conn, &sockv4, &sockv6, &context, &args, _TCP_ACCEPT) != 0)
+    if (get_connection_info(&conn, &sockv4, &sockv6, context, &args, _TCP_ACCEPT) != 0)
     {
         return 0;
     }
 
-    args.args[0] = (unsigned long)conn.skc_prot->name;
+    const char* proto_str_p = READ_KERN(conn.skc_prot->name);
+    // so far this is the only hack that worked, using a temporary stack variable
+    // skc_prot->name is of size 32
+    // but it's unclear why extending to 32 leading to issues
+    // we're not expecting protocol string (TCP/TCPv6) to exceed 16 bytes size
+    // it's should be safe to use 16 here
+    char proto_str[16] = {};
+    bpf_probe_read_str(proto_str, sizeof(proto_str), proto_str_p);
+    
+    args.args[0] = (unsigned long)proto_str;
 
-    if (context.retval < 0 && !get_kubearmor_config(_ENFORCER_BPFLSM) && get_kubearmor_config(_ALERT_THROTTLING) && should_drop_alerts_per_container(&context, ctx, types, &args))
+    if (context->retval < 0 && !get_kubearmor_config(_ENFORCER_BPFLSM) && get_kubearmor_config(_ALERT_THROTTLING) && should_drop_alerts_per_container(context, ctx, types, &args))
     {
         return 0;
     }
 
     set_buffer_offset(DATA_BUF_TYPE, sizeof(sys_context_t));
-    bufs_t *bufs_p = get_buffer(DATA_BUF_TYPE);
-    if (bufs_p == NULL)
-        return 0;
-
-    save_context_to_buffer(bufs_p, (void *)&context);
     save_args_to_buffer(types, &args);
     events_perf_submit(ctx, DATA_BUF_TYPE);
 
