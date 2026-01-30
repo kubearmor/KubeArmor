@@ -10,7 +10,9 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"os/user"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -88,6 +90,16 @@ type EventStructs struct {
 
 	LogStructs map[string]EventStruct[pb.Log]
 	LogLock    sync.RWMutex
+}
+type cachedUserName struct {
+	Username  string
+	ExpiresAt time.Time
+}
+
+type UserNameMap struct {
+	usernames map[uint32]cachedUserName
+	mu        sync.RWMutex
+	ttl       time.Duration
 }
 
 // AddMsgStruct Function
@@ -217,6 +229,9 @@ type BaseFeeder struct {
 
 	// log server
 	LogServer *grpc.Server
+
+	// username map
+	UserNameMap UserNameMap
 }
 
 type OuterKey struct {
@@ -384,6 +399,11 @@ func NewFeeder(node *tp.Node, nodeLock **sync.RWMutex) (feeder *Feeder) {
 	// initialize default postures
 	fd.DefaultPostures = map[string]tp.DefaultPosture{}
 	fd.DefaultPosturesLock = new(sync.Mutex)
+
+	fd.UserNameMap = UserNameMap{
+		usernames: make(map[uint32]cachedUserName),
+		ttl:       10 * time.Minute,
+	}
 
 	return fd
 }
@@ -630,7 +650,6 @@ func MarshalVisibilityLog(log tp.Log) *pb.Log {
 	}
 
 	pbLog.Result = log.Result
-
 	return &pbLog
 }
 
@@ -712,6 +731,11 @@ func (fd *Feeder) PushLog(log tp.Log) {
 	log.FileVisibilityEnabled = false
 	log.NetworkVisibilityEnabled = false
 	log.CapabilitiesVisibilityEnabled = false
+
+	if log.Type == "MatchedHostPolicy" || log.Type == "HostLog" {
+		// getting username is supported for host alerts only due to performance overhead
+		log.UserName = fd.UserNameMap.GetUsername(uint32(log.UID))
+	}
 
 	// standard output / file output
 	if fd.Output == "stdout" {
@@ -837,6 +861,8 @@ func (fd *Feeder) PushLog(log tp.Log) {
 		pbAlert.MaxAlertsPerSec = log.MaxAlertsPerSec
 		pbAlert.DroppingAlertsInterval = log.DroppingAlertsInterval
 
+		pbAlert.UserName = log.UserName
+
 		fd.EventStructs.AlertLock.Lock()
 		defer fd.EventStructs.AlertLock.Unlock()
 		counter := 0
@@ -859,7 +885,7 @@ func (fd *Feeder) PushLog(log tp.Log) {
 		pbLog := MarshalVisibilityLog(log)
 		pbLog.HostName = node.NodeName
 		pbLog.NodeID = node.NodeID
-
+		pbLog.UserName = log.UserName
 		fd.EventStructs.LogLock.Lock()
 		defer fd.EventStructs.LogLock.Unlock()
 		counter := 0
@@ -964,4 +990,35 @@ func (fd *Feeder) GetNodeInfo() tp.Node {
 
 	node := *fd.Node
 	return node
+}
+func (uname *UserNameMap) GetUsername(uid uint32) string {
+	uname.mu.RLock()
+	entry, exists := uname.usernames[uid]
+	uname.mu.RUnlock()
+
+	// If it exists and hasn't expired, return cached value
+	if exists && time.Now().Before(entry.ExpiresAt) {
+		return entry.Username
+	}
+
+	// Entry is missing or expired. Add it to map.
+	uidStr := strconv.FormatUint(uint64(uid), 10)
+	u, err := user.LookupId(uidStr)
+
+	name := ""
+	if err != nil {
+		// notfound
+		name = ""
+	} else {
+		name = u.Username
+	}
+
+	// Update cache
+	uname.mu.Lock()
+	uname.usernames[uid] = cachedUserName{
+		Username:  name,
+		ExpiresAt: time.Now().Add(uname.ttl),
+	}
+	uname.mu.Unlock()
+	return name
 }
