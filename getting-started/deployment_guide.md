@@ -5,14 +5,30 @@ This guide assumes you have access to a [k8s cluster](support_matrix.md). If you
 Check the [KubeArmor support matrix](support_matrix.md) to verify if your platform is supported.
 
 ## Install KubeArmor
-```
-helm repo add kubearmor https://kubearmor.github.io/charts
-helm repo update kubearmor
-helm upgrade --install kubearmor-operator kubearmor/kubearmor-operator -n kubearmor --create-namespace
-kubectl apply -f https://raw.githubusercontent.com/kubearmor/KubeArmor/main/pkg/KubeArmorOperator/config/samples/sample-config.yml
-```
 
-You can find more details about helm related values and configurations [here](https://github.com/kubearmor/KubeArmor/tree/main/deployments/helm/KubeArmorOperator).
+1. Add the Helm repository.
+
+   ```sh
+   helm repo add kubearmor https://kubearmor.github.io/charts
+   helm repo update kubearmor
+   ```
+
+2. Install the KubeArmor Operator (recommended for most deployments).
+
+   ```sh
+   helm upgrade --install kubearmor-operator kubearmor/kubearmor-operator -n kubearmor --create-namespace
+   kubectl apply -f https://raw.githubusercontent.com/kubearmor/KubeArmor/main/pkg/KubeArmorOperator/config/samples/sample-config.yml
+   ```
+
+3. Open the Operator chart configuration reference.
+
+   - Operator Helm values: https://github.com/kubearmor/KubeArmor/tree/main/deployments/helm/KubeArmorOperator
+
+4. (Optional) Install KubeArmor directly using the `kubearmor/kubearmor` chart.
+
+   - Chart README (in this repo): [deployments/helm/KubeArmor/README.md](../deployments/helm/KubeArmor/README.md)
+
+   The chart README includes examples for configuring `imagePullSecrets`, `tolerations`, and `kubearmor.args`.
 
 ## Install kArmor CLI (Optional)
 
@@ -118,6 +134,7 @@ karmor logs -n default --json
 ```
 
 </details>
+
 
 <details>
   <summary><h4>Deny access to service account token</h4></summary>
