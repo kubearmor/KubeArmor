@@ -1,5 +1,6 @@
 ## Install KubeArmor
-Install KubeArmor using Helm chart repo. Also see [values](#Values) for your respective environment.
+Install KubeArmor using Helm chart repo. Also see [values](#values) for your respective environment.
+
 ```
 helm repo add kubearmor https://kubearmor.github.io/charts
 helm repo update kubearmor
@@ -7,9 +8,73 @@ helm upgrade --install kubearmor kubearmor/kubearmor -n kubearmor --create-names
 ```
 
 Install KubeArmor using Helm charts locally (for testing)
+
 ```
 cd deployments/helm/KubeArmor
 helm upgrade --install kubearmor . -n kubearmor --create-namespace
+```
+
+## Configure workload scheduling and image pulls
+
+This chart exposes per-workload settings for:
+
+- `imagePullSecrets` (private registries)
+- `tolerations` (scheduling onto tainted nodes)
+- `args` (KubeArmor daemon CLI flags)
+
+### Configure `imagePullSecrets`
+
+Set `imagePullSecrets` as a YAML list of `name` entries.
+
+```yaml
+kubearmor:
+  image:
+    imagePullSecrets:
+      - name: my-registry-secret
+
+kubearmorRelay:
+  image:
+    imagePullSecrets:
+      - name: my-registry-secret
+
+kubearmorController:
+  image:
+    imagePullSecrets:
+      - name: my-registry-secret
+```
+
+### Configure `tolerations`
+
+Set tolerations as a YAML list.
+
+```yaml
+kubearmor:
+  tolerations:
+    - key: "node-role.kubernetes.io/control-plane"
+      operator: "Exists"
+      effect: "NoSchedule"
+
+kubearmorRelay:
+  tolerations:
+    - key: "dedicated"
+      operator: "Equal"
+      value: "security"
+      effect: "NoSchedule"
+
+kubearmorController:
+  tolerations:
+    - operator: "Exists"
+```
+
+### Configure KubeArmor daemon `args`
+
+Use `kubearmor.args` to pass additional flags to the `kubearmor` container.
+
+```yaml
+kubearmor:
+  args:
+    - "-logPath=stdout"
+    - "-visibility=process,file,network"
 ```
 
 ## Values
