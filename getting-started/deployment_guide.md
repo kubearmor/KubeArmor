@@ -13,7 +13,7 @@ Check the [KubeArmor support matrix](support_matrix.md) to verify if your platfo
    helm repo update kubearmor
    ```
 
-2. Install the KubeArmor Operator (recommended for most deployments).
+2. Install the KubeArmor Operator.
 
    ```sh
    helm upgrade --install kubearmor-operator kubearmor/kubearmor-operator -n kubearmor --create-namespace
