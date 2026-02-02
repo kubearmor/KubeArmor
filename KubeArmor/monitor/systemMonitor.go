@@ -571,7 +571,7 @@ func (mon *SystemMonitor) InitBPF() error {
 
 	mon.Logger.Print("Initialized the eBPF system monitor")
 
-	systemCalls := []string{"open", "openat", "execve", "execveat", "socket", "connect", "accept", "bind", "listen", "unlink", "unlinkat", "rmdir", "ptrace", "chown", "setuid", "setgid", "fchownat", "mount", "umount"}
+	systemCalls := []string{"open", "openat", "execve", "execveat", "socket", "connect", "bind", "listen", "unlink", "unlinkat", "rmdir", "ptrace", "chown", "setuid", "setgid", "fchownat", "mount", "umount"}
 	// {category, event}
 	sysTracepoints := [][2]string{{"syscalls", "sys_exit_openat"}, {"syscalls", "sys_enter_setns"}, {"syscalls", "sys_exit_setns"}, {"sched", "sched_process_fork"}}
 	sysKprobes := []string{"do_exit", "security_bprm_check", "security_file_open", "security_path_mknod", "security_path_unlink", "security_path_rmdir", "security_ptrace_access_check"}

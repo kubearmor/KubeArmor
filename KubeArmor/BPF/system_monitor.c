@@ -2248,6 +2248,14 @@ int kprobe__accept(struct pt_regs *ctx)
     return save_args(_SYS_ACCEPT, ctx);
 }
 
+// This is disabled currently and will not be loaded by system monitor
+// the decision to disable this probe was taken for two main reasons
+// 1. we're interested in (established) tcp_accpt event only that we're already monitor using __x64_sys_inet_csk_accept
+// 2. if we're interested in socket information as well this is not a good place to get that information
+//    if the request is placed in accept queue then socket might not be initialized and further will change
+//    when the tcp connection is established. A better alternative would be to get the socket information with
+//    kprobe attached to security_socket_accept lsm hook, there we'll get the valid sock address and can read
+//    from there in kretprobe/__x64_sys_accept.
 SEC("kretprobe/__x64_sys_accept")
 int kretprobe__accept(struct pt_regs *ctx)
 {
