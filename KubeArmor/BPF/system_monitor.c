@@ -2434,10 +2434,12 @@ int kretprobe__inet_csk_accept(struct pt_regs *ctx)
 
     // Code from https://github.com/iovisor/bcc/blob/master/tools/tcpaccept.py with adaptations
     u16 protocol = 1;
+#ifndef BTF_SUPPORTED    
     int gso_max_segs_offset = offsetof(struct sock, sk_gso_max_segs);
     int sk_lingertime_offset = offsetof(struct sock, sk_lingertime);
-
-    if (sk_lingertime_offset - gso_max_segs_offset == 2)
+    // this is no more a valid assumption for kernel > v6.8
+    // since BTF is supported since 5.3 it should not be an issue
+    if (sk_lingertime_offset - gso_max_segs_offset == 2) 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 6, 0)
         protocol = READ_KERN(newsk->sk_protocol);
 #else
@@ -2458,6 +2460,9 @@ int kretprobe__inet_csk_accept(struct pt_regs *ctx)
         protocol = READ_KERN(*(u8 *)((u64)&newsk->sk_wmem_queued - 1));
 #else
 #error "Fix your compiler's __BYTE_ORDER__?!"
+#endif
+#else // <= BTF_SUPPORTED
+    protocol = READ_KERN(newsk->sk_protocol);
 #endif
 
     if (protocol != IPPROTO_TCP)
