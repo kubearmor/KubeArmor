@@ -24,7 +24,7 @@ replace (
 
 require (
 	github.com/Masterminds/sprig/v3 v3.3.0
-	github.com/cilium/cilium v1.18.4
+	github.com/cilium/cilium v1.18.1
 	github.com/cilium/ebpf v0.19.1-0.20251013125301-c27ff922fc6a
 	github.com/containerd/containerd/api v1.9.0
 	github.com/containerd/containerd/v2 v2.1.5
