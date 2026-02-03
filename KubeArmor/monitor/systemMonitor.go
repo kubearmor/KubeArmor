@@ -1005,6 +1005,10 @@ func (mon *SystemMonitor) TraceSyscall() {
 						log.ExecEvent.ExecutableName = comm
 					}
 
+					if mon.isProcessInformationMissing(&log) {
+						continue
+					}
+
 					// push the generated log
 					if mon.Logger != nil {
 						go mon.Logger.PushLog(log)
@@ -1100,6 +1104,10 @@ func (mon *SystemMonitor) TraceSyscall() {
 					log.ExecEvent.ExecID = strconv.FormatUint(ctx.ExecID, 10)
 					if comm := strings.TrimRight(string(ctx.Comm[:]), "\x00"); len(comm) > 0 {
 						log.ExecEvent.ExecutableName = comm
+					}
+
+					if mon.isProcessInformationMissing(&log) {
+						continue
 					}
 
 					// push the generated log

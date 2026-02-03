@@ -559,27 +559,8 @@ func (mon *SystemMonitor) UpdateLogs() {
 				continue
 			}
 
-			if log.ProcessName == "" {
-				switch log.Operation {
-				case "Process":
-					if log.Resource != "" {
-						if res := strings.Split(log.Resource, " "); len(res) > 0 {
-							log.ProcessName = res[0]
-						}
-					} else {
-						mon.Logger.Debug("Dropping Process Event with empty processName and Resource")
-						continue
-					}
-				case "Network", "File":
-					if log.Source != "" {
-						if src := strings.Split(log.Source, " "); len(src) > 0 {
-							log.ProcessName = src[0]
-						}
-					} else {
-						mon.Logger.Debugf("Dropping %s Event with empty processName and Source", log.Operation)
-						continue
-					}
-				}
+			if mon.isProcessInformationMissing(&log) {
+				continue
 			}
 
 			// fallback logic: in case we get relative path in log.Resource for file and process event
@@ -619,6 +600,32 @@ func (mon *SystemMonitor) UpdateLogs() {
 			}
 		}
 	}
+}
+
+func (mon *SystemMonitor) isProcessInformationMissing(log *tp.Log) bool {
+	if log.ProcessName == "" {
+		switch log.Operation {
+		case "Process":
+			if log.Resource != "" {
+				if res := strings.Split(log.Resource, " "); len(res) > 0 {
+					log.ProcessName = res[0]
+				}
+			} else {
+				mon.Logger.Debug("Process Event with empty processName and Resource")
+				return true
+			}
+		case "Network", "File":
+			if log.Source != "" {
+				if src := strings.Split(log.Source, " "); len(src) > 0 {
+					log.ProcessName = src[0]
+				}
+			} else {
+				mon.Logger.Debugf("%s Event with empty processName and Source", log.Operation)
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func updateHashData(log *tp.Log, hash HashContext) {
