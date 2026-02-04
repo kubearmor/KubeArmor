@@ -19,6 +19,8 @@ helm upgrade --install kubearmor . -n kubearmor --create-namespace
 | kubearmor.image.repository | string | kubearmor/kubearmor | kubearmor image repo |
 | kubearmor.image.tag | string | stable | kubearmor image tag |
 | kubearmor.imagePullPolicy | string | Always | kubearmor imagePullPolicy |
+| kubearmor.imagePullSecrets | list | [] | Image pull secrets to use for KubeArmor workloads (DaemonSet) |
+| kubearmor.tolerations | list | [] | Pod tolerations to use for KubeArmor workloads (DaemonSet) |
 | kubearmor.args | list | [] | Specify additional args to the kubearmor daemon. See [kubearmor-args](#kubearmor-args) |
 | kubearmor.configMap.defaultFilePosture | string | audit | Default file posture for KubeArmor |
 | kubearmor.configMap.defaultNetworkPosture | string | audit | Default network posture for KubeArmor |
@@ -29,6 +31,8 @@ helm upgrade --install kubearmor . -n kubearmor --create-namespace
 | kubearmorRelay.image.repository | string | kubearmor/kubearmor-relay | kubearmor-relay image repo |
 | kubearmorRelay.image.tag | string | latest | kubearmor-relay image tag |
 | kubearmorRelay.imagePullPolicy | string | Always | kubearmor-relay imagePullPolicy |
+| kubearmorRelay.imagePullSecrets | list | [] | Image pull secrets to use for KubeArmor Relay workloads (Deployment) |
+| kubearmorRelay.tolerations | list | [] | Pod tolerations to use for KubeArmor Relay workloads (Deployment) |
 | kubearmorRelay.resources | object | { requests: { cpu: 10m, memory: 64Mi } } | kubearmor-relay container resources requests/limits |
 | kubearmorInit.image.repository | string | kubearmor/kubearmor-init | kubearmor-init image repo |
 | kubearmorInit.image.tag | string | stable | kubearmor-init image tag |
@@ -41,6 +45,8 @@ helm upgrade --install kubearmor . -n kubearmor --create-namespace
 | kubearmorController.image.tag | string | latest | kubearmor-controller image tag |
 | kubearmorController.mutation.failurePolicy | string | Ignore | kubearmor-controller failure policy |
 | kubearmorController.imagePullPolicy | string | Always | kubearmor-controller imagePullPolicy |
+| kubearmorController.imagePullSecrets | list | [] | Image pull secrets to use for KubeArmor Controller workloads (Deployment) |
+| kubearmorController.tolerations | list | [] | Pod tolerations to use for KubeArmor Controller workloads (Deployment) |
 | kubearmorController.resources | object | { requests: { cpu: 10m, memory: 64Mi } } | kubearmor-controller container resources requests/limits |
 
 ## kubearmor-args
