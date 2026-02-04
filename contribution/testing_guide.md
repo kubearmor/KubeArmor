@@ -1,6 +1,12 @@
 # Testing Guide
 
 There are two ways to check the functionalities of KubeArmor: 1) testing KubeArmor manually and 2) using the testing framework.
+
+## Prerequisites
+
+- Install Go **1.24.11** (see the `go` directive in `go.mod`).
+- Run a Kubernetes cluster that supports running KubeArmor on the same node as the Kubernetes node(s).
+
 # 0. Make sure Kubernetes cluster is running 
 
 Although there are many ways to run a Kubernetes cluster (like minikube or kind), it will not work with locally developed KubeArmor. KubeArmor needs to be on the same node as where the Kubernetes nodes exist. If you try to do this it will not identify your node since minikube and kind use virtualized nodes. You would either need to build your images and deploy them into these clusters or you can simply use `k3s` or `kubeadm` for development purposes. If you are new to these terms then the easiest way to do this is by following this guide: [K3s installation guide](k3s/README.md)
