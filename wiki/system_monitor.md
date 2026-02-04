@@ -236,9 +236,60 @@ The System Monitor acts as a fundamental data source:
 - It uses the mappings maintained by the Container/Node Identity component to add context to raw events.
 - It prepares and forwards structured event logs to the Log Feeder.
 
-Essentially, the Monitor is the "observer" part of KubeArmor's runtime security. It sees everything, correlates it to your workloads, and reports it, enabling both enforcement (via the Enforcer's rules acting on these observed events) and visibility.
+## Monitoring details that affect troubleshooting
 
-## Conclusion
+This section calls out a few monitoring details that are useful when troubleshooting why a specific event is (or is not) present in telemetry.
+
+### `sys_accept` syscall is not monitored by the System Monitor
+
+In the System Monitor initialization code, the list of syscalls hooked via `link.Kprobe("sys_"+syscallName, ...)` includes `"accept"`:
+
+```go
+// KubeArmor/monitor/systemMonitor.go
+systemCalls := []string{"open", "openat", "execve", "execveat", "socket", "connect", "accept", "bind", "listen", ...}
+```
+
+At the same time, network-accept telemetry is also produced by the monitor's kretprobe on `inet_csk_accept` (which emits events labeled as `kprobe=tcp_accept` in logs).
+
+If a specific `accept(2)` syscall event is not visible in telemetry, confirm whether the expected data is coming from `tcp_accept` (kernel accept path) rather than from syscall-level `SYS_ACCEPT` entries.
+
+### Some events are dropped when process context is missing
+
+When the System Monitor builds a log message, it applies best-effort fallback rules for missing process context.
+
+In `KubeArmor/monitor/logUpdate.go`, when `log.ProcessName` is empty:
+
+- For `Operation == "Process"`, the monitor sets `log.ProcessName` from `log.Resource` (first token). If `log.Resource` is also empty, the event is dropped.
+- For `Operation == "Network"` and `Operation == "File"`, the monitor sets `log.ProcessName` from `log.Source` (first token). If `log.Source` is empty, the event is dropped.
+
+```go
+// KubeArmor/monitor/logUpdate.go
+if log.ProcessName == "" {
+    switch log.Operation {
+    case "Process":
+        if log.Resource != "" {
+            if res := strings.Split(log.Resource, " "); len(res) > 0 {
+                log.ProcessName = res[0]
+            }
+        } else {
+            mon.Logger.Debug("Dropping Process Event with empty processName and Resource")
+            continue
+        }
+    case "Network", "File":
+        if log.Source != "" {
+            if src := strings.Split(log.Source, " "); len(src) > 0 {
+                log.ProcessName = src[0]
+            }
+        } else {
+            mon.Logger.Debugf("Dropping %s Event with empty processName and Source", log.Operation)
+            continue
+        }
+    }
+}
+```
+
+If telemetry appears to be missing certain process/file/network records, check whether the event is being dropped due to empty `ProcessName` plus missing `Resource`/`Source`.
+
 
 In this chapter, you learned that the KubeArmor System Monitor is the component responsible for observing system events happening within the kernel. Using eBPF technology, it detects file access, process execution, network activity, and other critical operations. It enriches this raw data with Container/Node Identity context and prepares it for logging and analysis, providing essential visibility into your system's runtime behavior, regardless of whether an action was allowed, audited, or blocked by policy.
 
