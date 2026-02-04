@@ -222,7 +222,7 @@ The System Monitor uses different eBPF programs attached to various kernel hooks
 | :------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------- | :---------------------------- |
 | **Process**    | Process execution (`execve`, `execveat`), process exit (`do_exit`), privilege changes (`setuid`, `setgid`)                                                 | Tracepoints, Kprobes, BPF-LSM |
 | **File**       | File open (`open`, `openat`), delete (`unlink`, `unlinkat`, `rmdir`), change owner (`chown`, `fchownat`)                                                   | Kprobes, Tracepoints, BPF-LSM |
-| **Network**    | Socket creation (`socket`), connection attempts (`connect`), accepting connections (`tcp_accept` kretprobe events)                                         | Kprobes, Tracepoints, BPF-LSM |
+| **Network**    | Socket creation (`socket`), connection attempts (`connect`), TCP connect/accept hooks (`tcp_connect`, `inet_csk_accept`)                                   | Kprobes, Tracepoints, BPF-LSM |
 | **Capability** | Use of privileged kernel features (capabilities)                                                                                                           | BPF-LSM, Kprobes              |
 | **Syscall**    | General system call entry/exit for various calls                                                                                                           | Kprobes, Tracepoints          |
 
