@@ -61,6 +61,15 @@ The System Monitor relies heavily on eBPF programs loaded into the Linux kernel.
 6.  **Data Reception (in KubeArmor Daemon):** The System Monitor component in the KubeArmor Daemon continuously reads from this ring buffer.
 7.  **Context Enrichment:** For each incoming event, the System Monitor uses the Namespace IDs provided by the eBPF program to look up the corresponding Container ID, Pod Name, Namespace, and Labels in its internal identity map (the one built by the Container/Node Identity component). It also adds other relevant details like the process's current working directory and parent process.
 8.  **Log/Alert Generation:** The System Monitor formats all this enriched information into a structured log or alert message.
+
+    {% hint style="info" %}
+    KubeArmor skips processing of some events when required process metadata is missing.
+
+    In the monitor pipeline, events are expected to include a process identifier (for example, `ProcessName`, plus `Resource` for `Process` operations or `Source` for `File`/`Network` operations). When this data is missing and cannot be derived from the available fields, the event is dropped and is not forwarded to the Log Feeder.
+
+    This validation applies to process execution syscalls (for example, `execve` and `execveat`) as well as other monitored operations.
+    {% endhint %}
+
 9.  **Forwarding:** The formatted log is then sent to the Log Feeder component, which is responsible for sending it to your configured logging or alerting systems.
 
 Here's a simple sequence diagram illustrating this:
