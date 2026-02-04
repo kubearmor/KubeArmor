@@ -40,7 +40,7 @@ This is where the **System Monitor** is essential. Even when an action is blocke
 When the web server attempts to read `/etc/passwd`:
 
 - The System Monitor's eBPF programs, also attached to kernel hooks, **detect** the file access attempt.
-- It collects data: the process ID, the file path (`/etc/pass/passwd`), the type of access (read).
+- It collects data: the process ID, the file path (`/etc/passwd`), the type of access (read).
 - It adds context: it uses the process ID and Namespace IDs to look up in KubeArmor's internal map and identifies that this process belongs to the container with label `app: my-web-app`.
 - It also sees that the Runtime Enforcer returned an error code indicating the action was blocked.
 - The System Monitor bundles all this information (who, what, where, when, and the outcome - Blocked) and sends it to KubeArmor for logging.
