@@ -53,9 +53,11 @@ The System Monitor provides the crucial visibility layer, even for actions that 
 
 KubeArmor reports established TCP accept activity via the `tcp_accept` kretprobe (for example, `kretprobe/inet_csk_accept`).
 
-For `tcp_accept`, the protocol value is copied into a fixed-size buffer (16 bytes) before being sent to user space.
+KubeArmor also attaches kprobes/kretprobes to the `accept(2)` syscall (for example, `kprobe/sys_accept` and `kretprobe/sys_accept`).
 
-`accept(2)` syscall monitoring is disabled in the System Monitor. As a result, events that would have been captured only via `accept(2)` (for example, non-TCP accept queue activity) are not reported by the System Monitor.
+> Note
+> 
+> The repository’s Go-based System Monitor wiring (see `KubeArmor/monitor/systemMonitor.go`) includes `accept` in its syscall probe list.
 
 ## How the System Monitor Works (Under the Hood)
 
