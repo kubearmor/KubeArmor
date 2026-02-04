@@ -40,7 +40,7 @@ This is where the **System Monitor** is essential. Even when an action is blocke
 When the web server attempts to read `/etc/passwd`:
 
 - The System Monitor's eBPF programs, also attached to kernel hooks, **detect** the file access attempt.
-- It collects data: the process ID, the file path (`/etc/passwd`), the type of access (read).
+- It collects data: the process ID, the file path (`/etc/pass/passwd`), the type of access (read).
 - It adds context: it uses the process ID and Namespace IDs to look up in KubeArmor's internal map and identifies that this process belongs to the container with label `app: my-web-app`.
 - It also sees that the Runtime Enforcer returned an error code indicating the action was blocked.
 - The System Monitor bundles all this information (who, what, where, when, and the outcome - Blocked) and sends it to KubeArmor for logging.
@@ -222,9 +222,22 @@ The System Monitor uses different eBPF programs attached to various kernel hooks
 | :------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------- | :---------------------------- |
 | **Process**    | Process execution (`execve`, `execveat`), process exit (`do_exit`), privilege changes (`setuid`, `setgid`)                                                 | Tracepoints, Kprobes, BPF-LSM |
 | **File**       | File open (`open`, `openat`), delete (`unlink`, `unlinkat`, `rmdir`), change owner (`chown`, `fchownat`)                                                   | Kprobes, Tracepoints, BPF-LSM |
-| **Network**    | Socket creation (`socket`), connection attempts (`connect`), accepting connections (`accept`), binding addresses (`bind`), listening on sockets (`listen`) | Kprobes, Tracepoints, BPF-LSM |
+| **Network**    | Socket creation (`socket`), connection attempts (`connect`), accepting connections (`tcp_accept` kretprobe events)                                         | Kprobes, Tracepoints, BPF-LSM |
 | **Capability** | Use of privileged kernel features (capabilities)                                                                                                           | BPF-LSM, Kprobes              |
 | **Syscall**    | General system call entry/exit for various calls                                                                                                           | Kprobes, Tracepoints          |
+
+## Event completeness checks
+
+KubeArmor drops some events when key process fields are missing.
+
+* For **Process** events (`execve`, `execveat`), if both `ProcessName` and `Resource` are empty, the event is dropped.
+* For **Network** and **File** events, if both `ProcessName` and `Source` are empty, the event is dropped.
+
+This behavior comes from the System Monitor log update loop, which checks `log.ProcessName` and falls back to parsing `log.Resource` (Process) or `log.Source` (Network/File). If neither is present, the event is not logged.
+
+{% hint style="info" %}
+If a workflow relies on seeing every attempted exec event, ensure the process information is available (for example, by validating whether `ProcessName`/`Source` fields are populated in the emitted logs).
+{% endhint %}
 
 The specific hooks used might vary slightly depending on the kernel version and the chosen Runtime Enforcerconfiguration (AppArmor/SELinux use different integration points than pure BPF-LSM), but the goal is the same: intercept and report relevant system calls and kernel security hooks.
 
