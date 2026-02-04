@@ -240,18 +240,23 @@ The System Monitor acts as a fundamental data source:
 
 This section calls out a few monitoring details that are useful when troubleshooting why a specific event is (or is not) present in telemetry.
 
-### `sys_accept` syscall is not monitored by the System Monitor
+### `accept(2)` vs `tcp_accept` (`inet_csk_accept`) telemetry
 
-In the System Monitor initialization code, the list of syscalls hooked via `link.Kprobe("sys_"+syscallName, ...)` includes `"accept"`:
+The System Monitor uses multiple kernel hooks for network-accept visibility.
 
-```go
-// KubeArmor/monitor/systemMonitor.go
-systemCalls := []string{"open", "openat", "execve", "execveat", "socket", "connect", "accept", "bind", "listen", ...}
-```
+1. The monitor attaches syscall-level probes for `accept(2)` as part of its `systemCalls` list:
 
-At the same time, network-accept telemetry is also produced by the monitor's kretprobe on `inet_csk_accept` (which emits events labeled as `kprobe=tcp_accept` in logs).
+   ```go
+   // KubeArmor/monitor/systemMonitor.go
+   systemCalls := []string{"open", "openat", "execve", "execveat", "socket", "connect", "accept", "bind", "listen", ...}
+   ```
 
-If a specific `accept(2)` syscall event is not visible in telemetry, confirm whether the expected data is coming from `tcp_accept` (kernel accept path) rather than from syscall-level `SYS_ACCEPT` entries.
+2. The monitor also emits TCP accept events from a kretprobe on `inet_csk_accept` (these show up as `kprobe=tcp_accept` in the log's `Data` field).
+
+If a workload's accept activity is not appearing as expected, check which event type is being queried/filtered:
+
+- Syscall-based events use `syscall=...` in `Data`.
+- TCP accept events use `kprobe=tcp_accept` in `Data`.
 
 ### Some events are dropped when process context is missing
 
