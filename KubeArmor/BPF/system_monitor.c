@@ -2248,6 +2248,14 @@ int kprobe__accept(struct pt_regs *ctx)
     return save_args(_SYS_ACCEPT, ctx);
 }
 
+// This is disabled currently and will not be loaded by system monitor
+// the decision to disable this probe was taken for two main reasons
+// 1. we're interested in (established) tcp_accpt event only that we're already monitor using __x64_sys_inet_csk_accept
+// 2. if we're interested in socket information as well this is not a good place to get that information
+//    if the request is placed in accept queue then socket might not be initialized and further will change
+//    when the tcp connection is established. A better alternative would be to get the socket information with
+//    kprobe attached to security_socket_accept lsm hook, there we'll get the valid sock address and can read
+//    from there in kretprobe/__x64_sys_accept.
 SEC("kretprobe/__x64_sys_accept")
 int kretprobe__accept(struct pt_regs *ctx)
 {
@@ -2391,7 +2399,7 @@ int kretprobe__tcp_connect(struct pt_regs *ctx)
     // so far this is the only hack that worked, using a temporary stack variable
     // skc_prot->name is of size 32
     // but it's unclear why extending to 32 leading to issues
-    // we're not expecting protocol string (TCP) to exceed 16 bytes size
+    // we're not expecting protocol string (TCP/TCPv6) to exceed 16 bytes size
     // it's should be safe to use 16 here
     char proto_str[16] = {};
     bpf_probe_read_str(proto_str, sizeof(proto_str), proto_str_p);
@@ -2426,10 +2434,12 @@ int kretprobe__inet_csk_accept(struct pt_regs *ctx)
 
     // Code from https://github.com/iovisor/bcc/blob/master/tools/tcpaccept.py with adaptations
     u16 protocol = 1;
+#ifndef BTF_SUPPORTED    
     int gso_max_segs_offset = offsetof(struct sock, sk_gso_max_segs);
     int sk_lingertime_offset = offsetof(struct sock, sk_lingertime);
-
-    if (sk_lingertime_offset - gso_max_segs_offset == 2)
+    // this is no more a valid assumption for kernel > v6.8
+    // since BTF is supported since 5.3 it should not be an issue
+    if (sk_lingertime_offset - gso_max_segs_offset == 2) 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 6, 0)
         protocol = READ_KERN(newsk->sk_protocol);
 #else
@@ -2451,6 +2461,9 @@ int kretprobe__inet_csk_accept(struct pt_regs *ctx)
 #else
 #error "Fix your compiler's __BYTE_ORDER__?!"
 #endif
+#else // <= BTF_SUPPORTED
+    protocol = READ_KERN(newsk->sk_protocol);
+#endif
 
     if (protocol != IPPROTO_TCP)
         return 0;
@@ -2458,37 +2471,53 @@ int kretprobe__inet_csk_accept(struct pt_regs *ctx)
     struct sock_common conn = READ_KERN(newsk->__sk_common);
     struct sockaddr_in sockv4;
     struct sockaddr_in6 sockv6;
-    sys_context_t context = {};
+    
+    // exceeding stack size limit of 512 bytes on specific environments
+    // using perf buffer to optimize it
+    bufs_t *bufs_p = get_buffer(DATA_BUF_TYPE);
+    if (bufs_p == NULL)
+        return 0;
+
+    sys_context_t *context = (sys_context_t *)bufs_p->buf;
+    if (context == NULL)
+        return 0;
+
+    __builtin_memset(context, 0, sizeof(sys_context_t));
+
     args_t args = {};
     u64 types = ARG_TYPE0(STR_T) | ARG_TYPE1(SOCKADDR_T);
-    init_context(&context);
-    context.argnum = get_arg_num(types);
+    init_context(context);
+    context->argnum = get_arg_num(types);
     int *err_ptr = (int *)PT_REGS_PARM3(ctx);
-    bpf_probe_read(&context.retval, sizeof(context.retval), err_ptr);
+    bpf_probe_read(&context->retval, sizeof(context->retval), err_ptr);
 
-    if (context.retval >= 0 && drop_syscall(_NETWORK_PROBE))
+    if (context->retval >= 0 && drop_syscall(_NETWORK_PROBE))
     {
         return 0;
     }
 
-    if (get_connection_info(&conn, &sockv4, &sockv6, &context, &args, _TCP_ACCEPT) != 0)
+    if (get_connection_info(&conn, &sockv4, &sockv6, context, &args, _TCP_ACCEPT) != 0)
     {
         return 0;
     }
 
-    args.args[0] = (unsigned long)conn.skc_prot->name;
+    const char* proto_str_p = READ_KERN(conn.skc_prot->name);
+    // so far this is the only hack that worked, using a temporary stack variable
+    // skc_prot->name is of size 32
+    // but it's unclear why extending to 32 leading to issues
+    // we're not expecting protocol string (TCP/TCPv6) to exceed 16 bytes size
+    // it's should be safe to use 16 here
+    char proto_str[16] = {};
+    bpf_probe_read_str(proto_str, sizeof(proto_str), proto_str_p);
+    
+    args.args[0] = (unsigned long)proto_str;
 
-    if (context.retval < 0 && !get_kubearmor_config(_ENFORCER_BPFLSM) && get_kubearmor_config(_ALERT_THROTTLING) && should_drop_alerts_per_container(&context, ctx, types, &args))
+    if (context->retval < 0 && !get_kubearmor_config(_ENFORCER_BPFLSM) && get_kubearmor_config(_ALERT_THROTTLING) && should_drop_alerts_per_container(context, ctx, types, &args))
     {
         return 0;
     }
 
     set_buffer_offset(DATA_BUF_TYPE, sizeof(sys_context_t));
-    bufs_t *bufs_p = get_buffer(DATA_BUF_TYPE);
-    if (bufs_p == NULL)
-        return 0;
-
-    save_context_to_buffer(bufs_p, (void *)&context);
     save_args_to_buffer(types, &args);
     events_perf_submit(ctx, DATA_BUF_TYPE);
 
