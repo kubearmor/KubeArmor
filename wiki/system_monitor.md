@@ -230,13 +230,13 @@ The System Monitor uses different eBPF programs attached to various kernel hooks
 
 KubeArmor drops some events when key process fields are missing.
 
-* For **Process** events (`execve`, `execveat`), if both `ProcessName` and `Resource` are empty, the event is dropped.
+* For **Process** events, if both `ProcessName` and `Resource` are empty, the event is dropped.
 * For **Network** and **File** events, if both `ProcessName` and `Source` are empty, the event is dropped.
 
 This behavior comes from the System Monitor log update loop, which checks `log.ProcessName` and falls back to parsing `log.Resource` (Process) or `log.Source` (Network/File). If neither is present, the event is not logged.
 
 {% hint style="info" %}
-If a workflow relies on seeing every attempted exec event, ensure the process information is available (for example, by validating whether `ProcessName`/`Source` fields are populated in the emitted logs).
+If logs look incomplete, check whether `ProcessName`, `Source`, and `Resource` are populated in the emitted events.
 {% endhint %}
 
 The specific hooks used might vary slightly depending on the kernel version and the chosen Runtime Enforcerconfiguration (AppArmor/SELinux use different integration points than pure BPF-LSM), but the goal is the same: intercept and report relevant system calls and kernel security hooks.
