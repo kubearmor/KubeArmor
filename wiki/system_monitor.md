@@ -49,11 +49,18 @@ Without the System Monitor, you would just have a failed system call ("Permissio
 
 The System Monitor provides the crucial visibility layer, even for actions that are successfully prevented by enforcement. It also provides visibility for actions that are simply Audited by policy, or even for actions that are Allowed but that you want to monitor.
 
+## Network accept events
+
+KubeArmor reports established TCP accept activity via the `tcp_accept` kretprobe (for example, `kretprobe/inet_csk_accept`).
+
+KubeArmor also attaches kprobes/kretprobes to the `accept(2)` syscall (for example, `kprobe/sys_accept` and `kretprobe/sys_accept`).
+
+> Note
+> 
+> The repository’s Go-based System Monitor wiring (see `KubeArmor/monitor/systemMonitor.go`) includes `accept` in its syscall probe list.
+
 ## How the System Monitor Works (Under the Hood)
 
-The System Monitor relies heavily on eBPF programs loaded into the Linux kernel. Here's a simplified flow:
-
-1.  **Initialization:** When the KubeArmor Daemon starts on a node, its System Monitor component loads various eBPF programs into the kernel.
 2.  **Hooking:** These eBPF programs attach to specific points (called "hooks") within the kernel where system events occur (e.g., just before a file open is processed, or when a new process is created).
 3.  **Event Detection:** When a user application or system process performs an action (like `open("/etc/passwd")`), the kernel reaches the attached eBPF hook.
 4.  **Data Collection (in Kernel):** The eBPF program at the hook executes. It can access information about the event directly from the kernel's memory (like the process structure, file path, network socket details). It also gets the process's Namespace IDs Container/Node Identity.
