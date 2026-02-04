@@ -15,7 +15,7 @@ Its main job is to:
 1.  **Observe:** Watch for specific actions happening deep within the Linux kernel, like:
     - Processes starting or ending.
     - Files being opened, read, or written.
-    - Network connections being made.
+    - Network connections being made or accepted.
     - Changes to system privileges (capabilities).
 2.  **Collect Data:** Gather detailed information about these events (which process, what file path, what network address, etc.).
 3.  **Add Context:** Crucially, it correlates the low-level event data with the higher-level Container/Node Identity information KubeArmor maintains (like which container, pod, or node the event originated from).
