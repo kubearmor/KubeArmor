@@ -5,35 +5,60 @@ This guide assumes you have access to a [k8s cluster](support_matrix.md). If you
 Check the [KubeArmor support matrix](support_matrix.md) to verify if your platform is supported.
 
 ## Install KubeArmor
-```
-helm repo add kubearmor https://kubearmor.github.io/charts
-helm repo update kubearmor
-helm upgrade --install kubearmor-operator kubearmor/kubearmor-operator -n kubearmor --create-namespace
-kubectl apply -f https://raw.githubusercontent.com/kubearmor/KubeArmor/main/pkg/KubeArmorOperator/config/samples/sample-config.yml
-```
 
-You can find more details about helm related values and configurations [here](https://github.com/kubearmor/KubeArmor/tree/main/deployments/helm/KubeArmorOperator).
+1. Add the Helm repository:
+
+   ```bash
+   helm repo add kubearmor https://kubearmor.github.io/charts
+   helm repo update kubearmor
+   ```
+
+2. Install the KubeArmor Operator:
+
+   ```bash
+   helm upgrade --install kubearmor-operator kubearmor/kubearmor-operator -n kubearmor --create-namespace
+   ```
+
+3. Create a `KubeArmorConfig` object:
+
+   ```bash
+   kubectl apply -f https://raw.githubusercontent.com/kubearmor/KubeArmor/main/pkg/KubeArmorOperator/config/samples/sample-config.yml
+   ```
+
+### Configure image pull secrets (Helm)
+
+Use Helm values to configure `imagePullSecrets` for the Operator deployment.
+
+1. Create a Kubernetes image pull secret in the `kubearmor` namespace.
+2. Set the secret name in the Helm values under `global.registry.secretName`.
+
+   ```bash
+   helm upgrade --install kubearmor-operator kubearmor/kubearmor-operator \
+     -n kubearmor --create-namespace \
+     --set global.registry.secretName=<your-secret-name>
+   ```
+
+You can find more details about Helm values and configurations in the chart sources at [deployments/helm/KubeArmorOperator](https://github.com/kubearmor/KubeArmor/tree/main/deployments/helm/KubeArmorOperator).
 
 ## Install kArmor CLI (Optional)
 
-```
+```bash
 curl -sfL http://get.kubearmor.io/ | sudo sh -s -- -b /usr/local/bin
 # sudo access is needed to install it in /usr/local/bin directory. But, if you prefer not to use sudo, you can install it in a different directory which is in your PATH.
 ```
 
-> [!NOTE] 
+> [!NOTE]
 > kArmor CLI provides a Developer Friendly way to interact with KubeArmor Telemetry. You can stream KubeArmor telemetry independently of kArmor CLI tool and integrate it with your chosen SIEM (Security Information and Event Management) solutions. [Here's a guide](https://github.com/kubearmor/kubearmor-relay-server/blob/main/README.md#streaming-kubearmor-telemetry-to-external-siem-tools) on how to achieve this integration. This guide assumes you have kArmor CLI to access KubeArmor Telemetry but you can view it on your SIEM tool once integrated.
 
 ## Deploy test nginx app
 
-```
+```bash
 kubectl create deployment nginx --image=nginx
 POD=$(kubectl get pod -l app=nginx -o name)
 ```
 
-> [!NOTE] 
+> [!NOTE]
 > `$POD` is used to refer to the target nginx pod in many cases below.
-
 
 ## Sample policies
 
@@ -44,7 +69,7 @@ Package management tools can be used in the runtime env to download new binaries
 
 Lets apply the policy to block such execution:
 
-```
+```bash
 cat <<EOF | kubectl apply -f -
 apiVersion: security.kubearmor.com/v1
 kind: KubeArmorPolicy
@@ -64,13 +89,77 @@ EOF
 ```
 
 Now execute the `apt` command to download the `masscan` tool.
-```
+
+```bash
 kubectl exec -it $POD -- bash -c "apt update && apt install masscan"
 ```
 
 It will be denied permission to execute.
 
+```text
+sh: 1: apt: Permission denied
+command terminated with exit code 126
 ```
+
+If you don't see Permission denied please refer [here](FAQ.md#debug-kubearmor-installation-issue-in-dockerized-kubernetes-environment) to debug this issue
+
+## Install kArmor CLI (Optional)
+
+```bash
+curl -sfL http://get.kubearmor.io/ | sudo sh -s -- -b /usr/local/bin
+# sudo access is needed to install it in /usr/local/bin directory. But, if you prefer not to use sudo, you can install it in a different directory which is in your PATH.
+```
+
+> [!NOTE]
+> kArmor CLI provides a Developer Friendly way to interact with KubeArmor Telemetry. You can stream KubeArmor telemetry independently of kArmor CLI tool and integrate it with your chosen SIEM (Security Information and Event Management) solutions. [Here's a guide](https://github.com/kubearmor/kubearmor-relay-server/blob/main/README.md#streaming-kubearmor-telemetry-to-external-siem-tools) on how to achieve this integration. This guide assumes you have kArmor CLI to access KubeArmor Telemetry but you can view it on your SIEM tool once integrated.
+
+## Deploy test nginx app
+
+```bash
+kubectl create deployment nginx --image=nginx
+POD=$(kubectl get pod -l app=nginx -o name)
+```
+
+> [!NOTE]
+> `$POD` is used to refer to the target nginx pod in many cases below.
+
+## Sample policies
+
+<details>
+  <summary><h4>Deny execution of package management tools (apt/apt-get)</h4></summary>
+
+Package management tools can be used in the runtime env to download new binaries that will increase the attack surface of the pods. Attackers use package management tools to download accessory tooling (such as `masscan`) to further their cause. It is better to block usage of package management tools in production environments.
+
+Lets apply the policy to block such execution:
+
+```bash
+cat <<EOF | kubectl apply -f -
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: block-pkg-mgmt-tools-exec
+spec:
+  selector:
+    matchLabels:
+      app: nginx
+  process:
+    matchPaths:
+    - path: /usr/bin/apt
+    - path: /usr/bin/apt-get
+  action:
+    Block
+EOF
+```
+
+Now execute the `apt` command to download the `masscan` tool.
+
+```bash
+kubectl exec -it $POD -- bash -c "apt update && apt install masscan"
+```
+
+It will be denied permission to execute.
+
+```text
 sh: 1: apt: Permission denied
 command terminated with exit code 126
 ```
@@ -82,7 +171,7 @@ If you don't see Permission denied please refer [here](FAQ.md#debug-kubearmor-in
 <details>
   <summary><h4>Get policy violations notifications using kArmor CLI</h4></summary>
 
-```
+```bash
 karmor logs -n default --json
 ```
 
@@ -125,7 +214,8 @@ karmor logs -n default --json
 K8s mounts the service account token by default in each pod even if there is no app using it. Attackers use these service account tokens to do lateral movements.
 
 For e.g., to access service account token:
-```
+
+```text
 ❯ kubectl exec -it $POD -- bash
 (inside pod) $ curl https://$KUBERNETES_PORT_443_TCP_ADDR/api --insecure --header "Authorization: Bearer $(cat /run/secrets/kubernetes.io/serviceaccount/token)"
 {                                
@@ -141,10 +231,12 @@ For e.g., to access service account token:
   ]
 }
 ```
+
 Thus we can see that one can use the service account token to access the Kube API server.
 
 Lets apply a policy to block access to service account token:
-```
+
+```bash
 cat <<EOF | kubectl apply -f -
 apiVersion: security.kubearmor.com/v1
 kind: KubeArmorPolicy
@@ -165,7 +257,7 @@ EOF
 
 Now when anyone tries to access to service account token, it would be `Permission Denied`.
 
-```
+```text
 ❯ kubectl exec -it $POD -- bash
 (inside pod) $ curl https://$KUBERNETES_PORT_443_TCP_ADDR/api --insecure --header "Authorization: Bearer $(cat /run/secrets/kubernetes.io/serviceaccount/token)"
 cat: /run/secrets/kubernetes.io/serviceaccount/token: Permission denied
@@ -183,7 +275,6 @@ cat: /run/secrets/kubernetes.io/serviceaccount/token: Permission denied
 
 If you don't see Permission denied please refer [here](FAQ.md#debug-kubearmor-installation) to debug this issue.
 
-
 </details>
 
 <details>
@@ -192,7 +283,8 @@ If you don't see Permission denied please refer [here](FAQ.md#debug-kubearmor-in
 Access to certain folders/paths might have to be audited for compliance/reporting reasons.
 
 File Visibility is disabled by default to minimize telemetry. Some file based policies will need that enabled. To enable file visibility on a namespace level:
-```
+
+```bash
 kubectl annotate ns default kubearmor-visibility="process,file,network" --overwrite
 ```
 
