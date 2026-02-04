@@ -12,6 +12,19 @@ helm upgrade --install kubearmor-operator kubearmor/kubearmor-operator -n kubear
 kubectl apply -f https://raw.githubusercontent.com/kubearmor/KubeArmor/main/pkg/KubeArmorOperator/config/samples/sample-config.yml
 ```
 
+### Helm workload customization tips
+
+Some KubeArmor Helm workloads render Kubernetes fields such as `imagePullSecrets` and `tolerations` from chart values.
+
+* Configure image pull secrets using the chart's `imagePullSecrets` values for the workload you are deploying.
+* Configure tolerations using the chart's `tolerations` values for the workload you are deploying.
+
+TLS-related CLI flags are also controlled by values. In the KubeArmor Helm templates, the container arguments are rendered as `--tlsEnabled=...` and, when TLS is enabled, `--tlsCertPath=...` and `--tlsCertProvider=...` are included.
+
+{% hint style="info" %}
+If TLS is disabled, `--tlsCertPath` and `--tlsCertProvider` are omitted from the rendered arguments.
+{% endhint %}
+
 You can find more details about helm related values and configurations [here](https://github.com/kubearmor/KubeArmor/tree/main/deployments/helm/KubeArmorOperator).
 
 ## Install kArmor CLI (Optional)

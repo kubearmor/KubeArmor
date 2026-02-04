@@ -222,9 +222,22 @@ The System Monitor uses different eBPF programs attached to various kernel hooks
 | :------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------- | :---------------------------- |
 | **Process**    | Process execution (`execve`, `execveat`), process exit (`do_exit`), privilege changes (`setuid`, `setgid`)                                                 | Tracepoints, Kprobes, BPF-LSM |
 | **File**       | File open (`open`, `openat`), delete (`unlink`, `unlinkat`, `rmdir`), change owner (`chown`, `fchownat`)                                                   | Kprobes, Tracepoints, BPF-LSM |
-| **Network**    | Socket creation (`socket`), connection attempts (`connect`), accepting connections (`accept`), binding addresses (`bind`), listening on sockets (`listen`) | Kprobes, Tracepoints, BPF-LSM |
+| **Network**    | Socket creation (`socket`), connection attempts (`connect`), TCP connect/accept hooks (`tcp_connect`, `inet_csk_accept`)                                   | Kprobes, Tracepoints, BPF-LSM |
 | **Capability** | Use of privileged kernel features (capabilities)                                                                                                           | BPF-LSM, Kprobes              |
 | **Syscall**    | General system call entry/exit for various calls                                                                                                           | Kprobes, Tracepoints          |
+
+## Event completeness checks
+
+KubeArmor drops some events when key process fields are missing.
+
+* For **Process** events, if both `ProcessName` and `Resource` are empty, the event is dropped.
+* For **Network** and **File** events, if both `ProcessName` and `Source` are empty, the event is dropped.
+
+This behavior comes from the System Monitor log update loop, which checks `log.ProcessName` and falls back to parsing `log.Resource` (Process) or `log.Source` (Network/File). If neither is present, the event is not logged.
+
+{% hint style="info" %}
+If logs look incomplete, check whether `ProcessName`, `Source`, and `Resource` are populated in the emitted events.
+{% endhint %}
 
 The specific hooks used might vary slightly depending on the kernel version and the chosen Runtime Enforcerconfiguration (AppArmor/SELinux use different integration points than pure BPF-LSM), but the goal is the same: intercept and report relevant system calls and kernel security hooks.
 
