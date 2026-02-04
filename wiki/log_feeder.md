@@ -16,6 +16,12 @@ It receives structured information, including:
 - **System Logs:** Telemetry about system activities that KubeArmor is monitoring, even if no specific policy applies (e.g., process executions, file accesses, network connections, depending on visibility settings).
 - **KubeArmor Messages:** Internal messages from the KubeArmor Daemon itself (useful for debugging and monitoring KubeArmor's status).
 
+{% hint style="info" %}
+The Log Feeder streams only the events that successfully pass through the monitor pipeline.
+
+If an event is missing required process metadata (for example, a `Process` event without a usable `ProcessName`/`Resource`, or a `File`/`Network` event without a usable `ProcessName`/`Source`) and that data cannot be derived from the available fields, the event is dropped before it reaches the feeder.
+{% endhint %}
+
 The Log Feeder formats this information into standardized messages (using **Protobuf**, a language-neutral, platform-neutral, extensible mechanism for serializing structured data) and sends it out over a **gRPC** interface. gRPC is a high-performance framework for inter-process communication.
 
 This gRPC interface allows various clients to connect to the KubeArmor Daemon on each node and subscribe to streams of these security events in real-time. Tools like `karmor log` (part of the KubeArmor client tools) connect to this feeder to display events. External systems like Security Information and Event Management (SIEM) platforms can also integrate by writing clients that understand the KubeArmor gRPC format.
