@@ -266,6 +266,8 @@ typedef struct __attribute__((__packed__)) sys_context
 
 BPF_LRU_HASH(pid_ns_map, u32, u32);
 
+// BPF_HASH(proc_sys_map, u64, u8);
+
 typedef struct args
 {
     unsigned long args[6];
@@ -1704,6 +1706,7 @@ int kprobe__do_exit(struct pt_regs *ctx)
     // delete entry for file access which are not successful and are not deleted from file_map since kretprobe/__x64_sys_openat hook is not triggered
     bpf_map_delete_elem(&file_map, &tgid);
     bpf_map_delete_elem(&proc_file_access, &tgid);
+    // bpf_map_delete_elem(&proc_sys_map, &tgid);
 
     // delete entry for exec (host) pid
     bpf_map_delete_elem(&kubearmor_exec_pids, &tgid);
@@ -1853,6 +1856,14 @@ static __always_inline int trace_ret_generic(u32 id, struct pt_regs *ctx, u64 ty
 
     u64 pid_tgid = bpf_get_current_pid_tgid();
 
+    // // check return value of flagged file open events in procfs and sysfs, drop if not permission denied
+    // if (scope == _FILE_PROBE) {
+    //     u8 *flag = bpf_map_lookup_elem(&proc_sys_map, &pid_tgid);
+    //     if (flag && context.retval != -13) {
+    //         return 0;
+    //     }
+    // }
+
     struct path *p = bpf_map_lookup_elem(&file_map, &pid_tgid);
     if (p)
     {
@@ -1957,8 +1968,13 @@ int kprobe__openat(struct pt_regs *ctx)
     struct pathname_t path = {};
     bpf_probe_read_user_str(path.path, sizeof(path.path), pathname);
 
+    // u64 pid_tgid = bpf_get_current_pid_tgid();
+
     if (isProcDir(path.path) == 0)
     {
+        // u8 flag = 1;
+        // bpf_map_update_elem(&proc_file_access, &pid_tgid, &path, BPF_ANY);
+        // bpf_map_update_elem(&proc_sys_map, &pid_tgid, &flag, BPF_ANY);
         u64 tgid = bpf_get_current_pid_tgid();
         bpf_map_update_elem(&proc_file_access, &tgid, &path, BPF_ANY);
         return 0;
