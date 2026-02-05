@@ -8,6 +8,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -46,6 +47,7 @@ var (
 	Logger     *zap.SugaredLogger
 	K8sClient  *kubernetes.Clientset
 )
+var SocketFile string
 
 // Cmd represents the base command when called without any subcommands
 var Cmd = &cobra.Command{
@@ -81,6 +83,12 @@ var Cmd = &cobra.Command{
 KubeArmor is a container-aware runtime security enforcement system that
 restricts the behavior (such as process execution, file access, and networking
 operation) of containers at the system level.
+
+Socket Detection:
+- By default, snitch auto-detects CRI sockets using a predefined search order
+- Use --socket-file to explicitly specify the socket path when multiple runtimes are present
+- Example: --socket-file /run/k3s/containerd/containerd. sock
+
 	`,
 	SilenceUsage:  true,
 	SilenceErrors: true,
@@ -98,6 +106,7 @@ func init() {
 	Cmd.PersistentFlags().StringVar(&o.Runtime, "runtime", "", "runtime detected by k8s")
 	Cmd.PersistentFlags().BoolVar(&o.EnableOCIHooks, "oci-hooks", false, "enable oci hooks")
 	Cmd.PersistentFlags().StringVar(&o.LogLevel, "loglevel", "info", "log level, e.g., debug, info, warn, error")
+	Cmd.PersistentFlags().StringVar(&SocketFile, "socket-file", "", "explicit path to CRI socket file")
 	// For now we are controlling snitch's EnableOCIHooks flag from operator's EnableOCIHooks flag, we could change this when we start support snitch flags from operator CRD.
 	cmdFlag := Cmd.PersistentFlags().Lookup("oci-hooks")
 	if !cmdFlag.Changed {
@@ -137,7 +146,7 @@ func snitch() {
 	}
 
 	// Detecting runtime
-	runtime, socket, nriSocket := runtimepkg.DetectRuntimeViaMap(PathPrefix, o.Runtime, *Logger)
+	runtime, socket, nriSocket := runtimepkg.DetectRuntimeViaMap(PathPrefix, o.Runtime, SocketFile, *Logger)
 	if runtime != "NA" {
 		Logger.Infof("Detected %s as node runtime, runtime socket=%s", runtime, socket)
 	} else {
@@ -191,6 +200,10 @@ func snitch() {
 
 	if err != nil {
 		Logger.Errorf("Error while marshaling json, error=%s", err.Error())
+		os.Exit(1)
+	}
+	if err := validateSocketFile(SocketFile); err != nil {
+		Logger.Errorf("Invalid socket file: %s", err.Error())
 		os.Exit(1)
 	}
 	_, err = K8sClient.CoreV1().Nodes().Patch(context.Background(), o.NodeName, types.MergePatchType, patch, v1.PatchOptions{})
@@ -262,4 +275,22 @@ func applyCRIOHook(socket string) error {
 
 func main() {
 	Execute()
+}
+
+func validateSocketFile(socketFile string) error {
+	if socketFile == "" {
+		return nil
+	}
+
+	// path validation
+	if !strings.HasPrefix(socketFile, "/") {
+		return fmt.Errorf("socket file path must be absolute (start with /): %s", socketFile)
+	}
+
+	// socket-like path
+	if !strings.HasSuffix(socketFile, ".sock") {
+		Logger.Warnf("Socket file doesn't end with .sock: %s", socketFile)
+	}
+
+	return nil
 }
