@@ -50,7 +50,7 @@ FROM alpine:3.22 AS kubearmor
 RUN echo "@community http://dl-cdn.alpinelinux.org/alpine/edge/community" | tee -a /etc/apk/repositories
 
 RUN apk --no-cache update
-RUN apk add apparmor@community apparmor-utils@community bash
+RUN apk add apparmor@community apparmor-utils@community bash nftables
 
 COPY --from=builder /usr/src/KubeArmor/KubeArmor/kubearmor /KubeArmor/kubearmor
 COPY --from=builder /usr/src/KubeArmor/BPF/*.o /opt/kubearmor/BPF/
@@ -91,7 +91,7 @@ LABEL name="kubearmor" \
                   at the system level."
 
 RUN microdnf -y update && \
-    microdnf -y install --nodocs --setopt=install_weak_deps=0 --setopt=keepcache=0 shadow-utils procps libcap && \
+    microdnf -y install --nodocs --setopt=install_weak_deps=0 --setopt=keepcache=0 shadow-utils procps libcap nftables && \
     microdnf clean all
 
 RUN groupadd --gid 1000 default \
@@ -106,7 +106,7 @@ COPY --from=builder --chown=default:default /usr/src/KubeArmor/KubeArmor/templat
 # COPY --from=apparmor-builder /tmp/apparmor/apparmor_parser /usr/sbin/
 # RUN chmod u+s /usr/sbin/apparmor_parser
 
-RUN setcap "cap_sys_admin=ep cap_sys_ptrace=ep cap_ipc_lock=ep cap_sys_resource=ep cap_dac_override=ep cap_dac_read_search=ep" /KubeArmor/kubearmor
+RUN setcap "cap_sys_admin=ep cap_sys_ptrace=ep cap_ipc_lock=ep cap_sys_resource=ep cap_dac_override=ep cap_dac_read_search=ep cap_net_admin=ep" /KubeArmor/kubearmor
 
 USER 1000
 ENTRYPOINT ["/KubeArmor/kubearmor"]
@@ -128,7 +128,7 @@ LABEL name="kubearmor" \
                   at the system level."
 
 RUN microdnf -y update && \
-    microdnf -y install --nodocs --setopt=install_weak_deps=0 --setopt=keepcache=0 shadow-utils procps libcap && \
+    microdnf -y install --nodocs --setopt=install_weak_deps=0 --setopt=keepcache=0 shadow-utils procps libcap nftables && \
     microdnf clean all
 
 RUN groupadd --gid 1000 default \
@@ -140,7 +140,7 @@ COPY --from=builder --chown=default:default /usr/src/KubeArmor/BPF/*.o /opt/kube
 COPY --from=builder --chown=default:default /usr/src/KubeArmor/KubeArmor/templates/* /KubeArmor/templates/
 COPY --from=builder-test --chown=default:default /usr/src/KubeArmor/KubeArmor/kubearmor-test /KubeArmor/kubearmor-test
 
-RUN setcap "cap_sys_admin=ep cap_sys_ptrace=ep cap_ipc_lock=ep cap_sys_resource=ep cap_dac_override=ep cap_dac_read_search=ep" /KubeArmor/kubearmor-test
+RUN setcap "cap_sys_admin=ep cap_sys_ptrace=ep cap_ipc_lock=ep cap_sys_resource=ep cap_dac_override=ep cap_dac_read_search=ep cap_net_admin=ep" /KubeArmor/kubearmor-test
 
 USER 1000
 ENTRYPOINT ["/KubeArmor/kubearmor-test"]
