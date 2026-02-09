@@ -15,6 +15,7 @@ type SecurityV1Interface interface {
 	RESTClient() rest.Interface
 	KubeArmorClusterPoliciesGetter
 	KubeArmorHostPoliciesGetter
+	KubeArmorNetworkPoliciesGetter
 	KubeArmorPoliciesGetter
 }
 
@@ -29,6 +30,10 @@ func (c *SecurityV1Client) KubeArmorClusterPolicies() KubeArmorClusterPolicyInte
 
 func (c *SecurityV1Client) KubeArmorHostPolicies() KubeArmorHostPolicyInterface {
 	return newKubeArmorHostPolicies(c)
+}
+
+func (c *SecurityV1Client) KubeArmorNetworkPolicies() KubeArmorNetworkPolicyInterface {
+	return newKubeArmorNetworkPolicies(c)
 }
 
 func (c *SecurityV1Client) KubeArmorPolicies(namespace string) KubeArmorPolicyInterface {

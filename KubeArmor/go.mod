@@ -37,6 +37,7 @@ require (
 	github.com/kubearmor/KubeArmor/protobuf v0.0.0-20250701060635-600e11526ec1
 	github.com/opencontainers/runtime-spec v1.2.1
 	github.com/spf13/viper v1.21.0
+	go.aporeto.io/netlink-go v1.112.0
 	go.uber.org/zap v1.27.0
 	golang.org/x/exp v0.0.0-20250911091902-df9299821621
 	golang.org/x/sys v0.37.0
@@ -96,6 +97,7 @@ require (
 	github.com/go-viper/mapstructure/v2 v2.4.0 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/groupcache v0.0.0-20241129210726-2c02b8208cf8 // indirect
+	github.com/golang/mock v1.4.3 // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/google/btree v1.1.3 // indirect
 	github.com/google/gnostic-models v0.7.0 // indirect

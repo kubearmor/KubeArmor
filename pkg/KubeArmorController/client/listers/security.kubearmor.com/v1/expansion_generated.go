@@ -13,6 +13,10 @@ type KubeArmorClusterPolicyListerExpansion interface{}
 // KubeArmorHostPolicyLister.
 type KubeArmorHostPolicyListerExpansion interface{}
 
+// KubeArmorNetworkPolicyListerExpansion allows custom methods to be added to
+// KubeArmorNetworkPolicyLister.
+type KubeArmorNetworkPolicyListerExpansion interface{}
+
 // KubeArmorPolicyListerExpansion allows custom methods to be added to
 // KubeArmorPolicyLister.
 type KubeArmorPolicyListerExpansion interface{}

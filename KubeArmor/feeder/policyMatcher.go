@@ -191,6 +191,14 @@ func getDeviceResource(class string, subClass, protocol *int32, level *int32) st
 	return res
 }
 
+// getNetworkResource Function
+func getNetworkResource(peerRules []tp.NetworkPeer, ifaces []string, portRules []tp.PortType) string {
+	var res string
+	// TODO
+
+	return res
+}
+
 // newMatchPolicy Function
 func (fd *Feeder) newMatchPolicy(policyEnabled int, policyName, src string, mp any) tp.MatchPolicy {
 	match := tp.MatchPolicy{
@@ -379,6 +387,22 @@ func (fd *Feeder) newMatchPolicy(policyEnabled int, policyName, src string, mp a
 		match.Action = dmt.Action
 		match.Resource = getDeviceResource(dmt.Class, dmt.SubClass, dmt.Protocol, dmt.Level)
 		match.ResourceType = "USB Device"
+	} else if ing, ok := mp.(tp.IngressType); ok {
+		match.Severity = strconv.Itoa(ing.Severity)
+		match.Tags = ing.Tags
+		match.Message = ing.Message
+		match.Operation = "NetworkFirewall" // TODO
+		match.Action = ing.Action
+		match.Resource = ""
+		match.ResourceType = "Ingress"
+	} else if egr, ok := mp.(tp.EgressType); ok {
+		match.Severity = strconv.Itoa(egr.Severity)
+		match.Tags = egr.Tags
+		match.Message = egr.Message
+		match.Operation = "NetworkFirewall" // TODO
+		match.Action = egr.Action
+		match.Resource = ""
+		match.ResourceType = "Egress"
 	} else {
 		return tp.MatchPolicy{}
 	}
@@ -1041,6 +1065,42 @@ func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.Hos
 	fd.SecurityPoliciesLock.Lock()
 	fd.SecurityPolicies[fd.Node.NodeName] = matches
 	fd.SecurityPoliciesLock.Unlock()
+}
+
+// =============================== //
+// == Network Security Policies == //
+// =============================== //
+
+// UpdateNetworkSecurityPolicies Function
+func (fd *Feeder) UpdateNetworkSecurityPolicies(action string, secPolicies []tp.NetworkSecurityPolicy) {
+	if action == "DELETED" {
+		delete(fd.SecurityPolicies, fd.Node.NodeName)
+		return
+	}
+
+	// ADDED | MODIFIED
+	matches := tp.MatchPolicies{}
+
+	for _, secPolicy := range secPolicies {
+		policyName := secPolicy.Metadata["policyName"]
+
+		// ingress
+		for _, in := range secPolicy.Spec.Ingress {
+			match := fd.newMatchPolicy(fd.Node.PolicyEnabled, policyName, "", in)
+			matches.Policies = append(matches.Policies, match)
+		}
+
+		// egress
+		for _, eg := range secPolicy.Spec.Egress {
+			match := fd.newMatchPolicy(fd.Node.PolicyEnabled, policyName, "", eg)
+			matches.Policies = append(matches.Policies, match)
+		}
+	}
+
+	fd.SecurityPoliciesLock.Lock()
+	fd.SecurityPolicies[fd.Node.NodeName] = matches
+	fd.SecurityPoliciesLock.Unlock()
+
 }
 
 // ===================== //
@@ -1795,6 +1855,50 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 						specificity = sp
 						continue
 					}
+				}
+
+			case "NetworkFirewall":
+				if secPolicy.Operation != log.Operation {
+					continue
+				}
+
+				parts := strings.Split(log.Resource, " ")
+				direction := "INGRESS"
+				if parts[1] == "OUTPUT" {
+					direction = "EGRESS"
+				}
+
+				if secPolicy.PolicyName == parts[0] {
+					log.Type = "MatchedPolicy"
+
+					log.PolicyName = secPolicy.PolicyName
+					log.Severity = secPolicy.Severity
+
+					if len(secPolicy.Tags) > 0 {
+						log.Tags = strings.Join(secPolicy.Tags[:], ",")
+						log.ATags = secPolicy.Tags
+					}
+
+					if len(secPolicy.Message) > 0 {
+						log.Message = secPolicy.Message
+					}
+
+					log.Resource = direction
+
+					log.Enforcer = "NetworkPolicyEnforcer"
+					log.Action = parts[2]
+				} else if parts[0] == "Default" { // Default Posture
+					log.Type = "MatchedPolicy"
+
+					log.PolicyName = "DefaultPosture"
+
+					log.Severity = ""
+					log.Tags = ""
+					log.Message = ""
+
+					log.Resource = direction
+					log.Enforcer = "NetworkPolicyEnforcer"
+					log.Action = parts[2]
 				}
 
 			case "Capabilities":
