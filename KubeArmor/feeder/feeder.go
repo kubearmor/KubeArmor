@@ -694,6 +694,16 @@ func (fd *Feeder) PushLog(log tp.Log) {
 		log.Resource = parts[0] + " " + classPart
 	}
 
+	if log.Operation == "NetworkFirewall" {
+		log.Enforcer = "NetworkPolicyEnforcer"
+		parts := strings.Split(log.Resource, " ")
+		direction := "INGRESS"
+		if parts[1] == "OUTPUT" {
+			direction = "EGRESS"
+		}
+		log.Resource = direction
+	}
+
 	if log.Source == "" {
 		// even if a log doesn't have a source, it must have a type
 		if log.Type == "" {
@@ -857,6 +867,10 @@ func (fd *Feeder) PushLog(log tp.Log) {
 
 		if len(log.Action) > 0 {
 			pbAlert.Action = log.Action
+		}
+
+		if log.Operation == "NetworkFirewall" {
+			pbAlert.Type = "MatchedNetworkPolicy"
 		}
 
 		pbAlert.Result = log.Result

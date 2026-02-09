@@ -3,7 +3,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.16.5
+    controller-gen.kubebuilder.io/version: v0.19.0
   name: kubearmorclusterpolicies.security.kubearmor.com
 spec:
   group: security.kubearmor.com
@@ -86,9 +86,9 @@ spec:
                           items:
                             properties:
                               path:
+                                maxLength: 200
                                 pattern: ^\/+.*[^\/]$
                                 type: string
-                                maxLength: 200
                             type: object
                           type: array
                         message:
@@ -136,14 +136,13 @@ spec:
                         dir:
                           pattern: ^\/$|^\/.*\/$
                           type: string
-                          maxLength: 200
                         fromSource:
                           items:
                             properties:
                               path:
+                                maxLength: 200
                                 pattern: ^\/+.*[^\/]$
                                 type: string
-                                maxLength: 200
                             type: object
                           type: array
                         message:
@@ -179,9 +178,9 @@ spec:
                           items:
                             properties:
                               path:
+                                maxLength: 200
                                 pattern: ^\/+.*[^\/]$
                                 type: string
-                                maxLength: 200
                             type: object
                           type: array
                         message:
@@ -189,9 +188,9 @@ spec:
                         ownerOnly:
                           type: boolean
                         path:
+                          maxLength: 200
                           pattern: ^\/+.*[^\/]$
                           type: string
-                          maxLength: 200
                         readOnly:
                           type: boolean
                         severity:
@@ -269,9 +268,9 @@ spec:
                           items:
                             properties:
                               path:
+                                maxLength: 200
                                 pattern: ^\/+.*[^\/]$
                                 type: string
-                                maxLength: 200
                             type: object
                           type: array
                         message:
@@ -335,14 +334,13 @@ spec:
                         dir:
                           pattern: ^\/$|^\/.*\/$
                           type: string
-                          maxLength: 200
                         fromSource:
                           items:
                             properties:
                               path:
+                                maxLength: 200
                                 pattern: ^\/+.*[^\/]$
                                 type: string
-                                maxLength: 200
                             type: object
                           type: array
                         message:
@@ -372,17 +370,21 @@ spec:
                           - Audit
                           - Block
                           type: string
+                        allowedArgs:
+                          items:
+                            type: string
+                          maxItems: 20
+                          type: array
                         execname:
                           pattern: ^[^\/]+$
                           type: string
-                          maxLength: 200
                         fromSource:
                           items:
                             properties:
                               path:
+                                maxLength: 200
                                 pattern: ^\/+.*[^\/]$
                                 type: string
-                                maxLength: 200
                             type: object
                           type: array
                         message:
@@ -390,14 +392,9 @@ spec:
                         ownerOnly:
                           type: boolean
                         path:
+                          maxLength: 200
                           pattern: ^\/+.*[^\/]$
                           type: string
-                          maxLength: 200
-                        allowedArgs: 
-                          items: 
-                            type: string
-                          type: array
-                          maxItems: 20
                         severity:
                           maximum: 10
                           minimum: 1
@@ -483,9 +480,9 @@ spec:
                               dir:
                                 type: string
                               path:
+                                maxLength: 200
                                 pattern: ^\/+.*[^\/]$
                                 type: string
-                                maxLength: 200
                               recursive:
                                 type: boolean
                             type: object
@@ -493,7 +490,6 @@ spec:
                         path:
                           pattern: (^\/+.*[^\/]$)|(^\/$|^\/.*\/$)
                           type: string
-                          maxLength: 200
                         recursive:
                           type: boolean
                         syscall:
@@ -847,9 +843,9 @@ spec:
                               dir:
                                 type: string
                               path:
+                                maxLength: 200
                                 pattern: ^\/+.*[^\/]$
                                 type: string
-                                maxLength: 200
                               recursive:
                                 type: boolean
                             type: object

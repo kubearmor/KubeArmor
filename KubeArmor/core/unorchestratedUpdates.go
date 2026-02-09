@@ -812,6 +812,42 @@ func (dm *KubeArmorDaemon) backupKubeArmorContainerPolicy(policy tp.SecurityPoli
 	}
 }
 
+// backupKubeArmorNetworkPolicy Function
+func (dm *KubeArmorDaemon) backupKubeArmorNetworkPolicy(policy tp.NetworkSecurityPolicy) {
+	// Check for "/opt/kubearmor/policies" path. If dir not found, create the same
+	if _, err := os.Stat(cfg.PolicyDir); err != nil {
+		if err = os.MkdirAll(cfg.PolicyDir, 0700); err != nil {
+			kg.Warnf("Dir creation failed for [%v]", cfg.PolicyDir)
+			return
+		}
+	}
+
+	type BackupWrapper struct {
+		Kind     string            `json:"kind"`
+		Metadata map[string]string `json:"metadata"`
+		Spec     interface{}       `json:"spec"`
+	}
+
+	backup := BackupWrapper{
+		Kind:     "KubeArmorNetworkPolicy",
+		Metadata: policy.Metadata,
+		Spec:     policy.Spec,
+	}
+
+	var file *os.File
+	var err error
+
+	if file, err = os.Create(cfg.PolicyDir + policy.Metadata["policyName"] + ".yaml"); err == nil {
+		if policyBytes, err := json.Marshal(backup); err == nil {
+			if _, err = file.Write(policyBytes); err == nil {
+				if err := file.Close(); err != nil {
+					dm.Logger.Err(err.Error())
+				}
+			}
+		}
+	}
+}
+
 func (dm *KubeArmorDaemon) restoreKubeArmorPolicies() {
 	if _, err := os.Stat(cfg.PolicyDir); err != nil {
 		kg.Warn("Policies dir not found for restoration")
@@ -824,6 +860,7 @@ func (dm *KubeArmorDaemon) restoreKubeArmorPolicies() {
 			if data, err := os.ReadFile(cfg.PolicyDir + file.Name()); err == nil {
 
 				var k struct {
+					Kind     string            `json:"kind"`
 					Metadata map[string]string `json:"metadata"`
 				}
 
@@ -843,6 +880,17 @@ func (dm *KubeArmorDaemon) restoreKubeArmorPolicies() {
 						})
 					}
 
+				} else if k.Kind == "KubeArmorNetworkPolicy" {
+					var networkPolicy tp.K8sKubeArmorNetworkPolicy
+					if err := json.Unmarshal(data, &networkPolicy); err == nil {
+						networkPolicy.Metadata.Name = k.Metadata["policyName"]
+						dm.ParseAndUpdateNetworkSecurityPolicy(tp.K8sKubeArmorNetworkPolicyEvent{
+							Type:   "ADDED",
+							Object: networkPolicy,
+						})
+					} else {
+						kg.Errf("Failed to unmarshal network policy: %v", err)
+					}
 				} else { // HostSecurityPolicy
 					var hostPolicy tp.K8sKubeArmorHostPolicy
 					if err := json.Unmarshal(data, &hostPolicy); err == nil {
