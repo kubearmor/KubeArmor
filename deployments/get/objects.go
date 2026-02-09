@@ -64,7 +64,7 @@ func GetClusterRole() *rbacv1.ClusterRole {
 			},
 			{
 				APIGroups: []string{"security.kubearmor.com"},
-				Resources: []string{"kubearmorpolicies", "kubearmorclusterpolicies", "kubearmorhostpolicies"},
+				Resources: []string{"kubearmorpolicies", "kubearmorclusterpolicies", "kubearmorhostpolicies", "kubearmornetworkpolicies"},
 				Verbs:     []string{"get", "list", "watch", "update", "delete"},
 			},
 			{
@@ -431,6 +431,7 @@ func GenerateDaemonSet(env, namespace string) *appsv1.DaemonSet {
 										"SYS_ADMIN",
 										"SYS_PTRACE",
 										"MAC_ADMIN",
+										"NET_ADMIN",
 										"SYS_RESOURCE",
 										"IPC_LOCK",
 										"CAP_DAC_OVERRIDE",

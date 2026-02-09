@@ -105,6 +105,7 @@ rules:
   - kubearmorpolicies
   - kubearmorclusterpolicies
   - kubearmorhostpolicies
+  - kubearmornetworkpolicies
   verbs:
   - get
   - list
@@ -161,6 +162,7 @@ rules:
   - kubearmorpolicies
   - kubearmorclusterpolicies
   - kubearmorhostpolicies
+  - kubearmornetworkpolicies
   verbs:
   - create
   - delete
@@ -175,6 +177,7 @@ rules:
   - kubearmorpolicies/status
   - kubearmorclusterpolicies/status
   - kubearmorhostpolicies/status
+  - kubearmornetworkpolicies/status
   verbs:
   - get
   - patch

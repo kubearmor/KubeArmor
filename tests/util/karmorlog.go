@@ -214,18 +214,33 @@ func KarmorLogStart(logFilter string, ns string, op string, pod string) error {
 		eventChan = make(chan klog.EventInfo, maxEvents)
 	}
 	go func() {
-		err := klog.StartObserver(k8sClient, klog.Options{
-			LogFilter:        logFilter,
-			ReadCAFromSecret: true,
-			TlsCertPath:      "/var/lib/kubearmor/tls",
-			TlsCertProvider:  klog.SelfCertProvider,
-			Namespace:        ns,
-			Operation:        op,
-			PodName:          pod,
-			MsgPath:          "none",
-			EventChan:        eventChan,
-			GRPC:             gRPC,
-		})
+		var opt klog.Options
+		if ns != "" && pod != "" { // for pod
+			opt = klog.Options{
+				LogFilter:        logFilter,
+				ReadCAFromSecret: true,
+				TlsCertPath:      "/var/lib/kubearmor/tls",
+				TlsCertProvider:  klog.SelfCertProvider,
+				Namespace:        ns,
+				Operation:        op,
+				PodName:          pod,
+				MsgPath:          "none",
+				EventChan:        eventChan,
+				GRPC:             gRPC,
+			}
+		} else { // for host
+			opt = klog.Options{
+				LogFilter:        logFilter,
+				ReadCAFromSecret: true,
+				TlsCertPath:      "/var/lib/kubearmor/tls",
+				TlsCertProvider:  klog.SelfCertProvider,
+				Operation:        op,
+				MsgPath:          "none",
+				EventChan:        eventChan,
+				GRPC:             gRPC,
+			}
+		}
+		err := klog.StartObserver(k8sClient, opt)
 		if err != nil {
 			log.Errorf("failed to start observer. Error=%s", err.Error())
 		}

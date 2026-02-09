@@ -547,6 +547,41 @@ func (kh *K8sHandler) WatchK8sHostSecurityPolicies() *http.Response {
 	return nil
 }
 
+// WatchK8sNetworkSecurityPolicies Function
+func (kh *K8sHandler) WatchK8sNetworkSecurityPolicies() *http.Response {
+	if !kl.IsK8sEnv() { // not Kubernetes
+		return nil
+	}
+
+	if kl.IsInK8sCluster() {
+		URL := "https://" + kh.K8sHost + ":" + kh.K8sPort + "/apis/security.kubearmor.com/v1/kubearmornetworkpolicies?watch=true"
+
+		req, err := http.NewRequest("GET", URL, nil)
+		if err != nil {
+			return nil
+		}
+
+		req.Header.Add("Content-Type", "application/json")
+		req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", kh.K8sToken))
+
+		resp, err := kh.WatchClient.Do(req) // #nosec G704
+		if err != nil {
+			return nil
+		}
+
+		return resp
+	}
+
+	// kube-proxy (local)
+	URL := "http://" + kh.K8sHost + ":" + kh.K8sPort + "/apis/security.kubearmor.com/v1/kubearmornetworkpolicies?watch=true"
+
+	if resp, err := http.Get(URL); err == nil /* #nosec */ {
+		return resp
+	}
+
+	return nil
+}
+
 // this function get the owner details of a pod
 func getTopLevelOwner(obj metav1.ObjectMeta, namespace string, objkind string) (string, string, string, error) {
 	ownerRef := kl.GetControllingPodOwner(obj.OwnerReferences)

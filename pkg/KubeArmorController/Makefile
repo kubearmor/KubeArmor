@@ -61,6 +61,9 @@ manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and Cust
 	cp config/crd/bases/security.kubearmor.com_kubearmorhostpolicies.yaml ../../deployments/CRD/KubeArmorHostPolicy.yaml
 	cp config/crd/bases/security.kubearmor.com_kubearmorhostpolicies.yaml crd/KubeArmorHostPolicy.yaml
 	cp config/crd/bases/security.kubearmor.com_kubearmorhostpolicies.yaml ../../deployments/helm/KubeArmor/templates/crds/hsp.yaml
+	cp config/crd/bases/security.kubearmor.com_kubearmornetworkpolicies.yaml ../../deployments/CRD/KubeArmorNetworkPolicy.yaml
+	cp config/crd/bases/security.kubearmor.com_kubearmornetworkpolicies.yaml crd/KubeArmorNetworkPolicy.yaml
+	cp config/crd/bases/security.kubearmor.com_kubearmornetworkpolicies.yaml ../../deployments/helm/KubeArmor/templates/crds/nsp.yaml
 
 .PHONY: generate
 generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
