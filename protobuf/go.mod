@@ -1,6 +1,6 @@
 module github.com/kubearmor/KubeArmor/protobuf
 
-go 1.24.12
+go 1.24.13
 
 replace (
 	github.com/go-jose/go-jose/v4 => github.com/go-jose/go-jose/v4 v4.0.5
