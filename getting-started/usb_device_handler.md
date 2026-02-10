@@ -20,6 +20,33 @@ The USB Device Handler works by:
 3. The most specific matching policy is selected and its action (Allow, Audit, or Block) is enforced.
 4. Enforcement is achieved through [sysfs-based USB authorization](https://docs.kernel.org/usb/authorization.html), by modifying the device configuration under `/sys/bus/usb/devices/`.
 
+## Logs
+
+When the handler reports a USB event, the generated log includes time fields:
+
+- `Timestamp`: numeric timestamp populated by KubeArmor.
+- `UpdatedTime`: RFC 3339 / ISO 8601 timestamp string populated by KubeArmor.
+
+Example (fields shown are a subset of a full log):
+
+```json
+{
+  "Timestamp": 1770693725,
+  "UpdatedTime": "2026-02-10T03:22:05.471945Z",
+  "Operation": "Device",
+  "Resource": "USB MASS-STORAGE",
+  "Data": "Class=8 SubClass=6 Protocol=80 Level=2 SysPath=/sys/bus/usb/devices/2-4.1:1.0",
+  "EventData": {
+    "Class": "8",
+    "Level": "2",
+    "Protocol": "80",
+    "SubClass": "6",
+    "SysPath": "/sys/bus/usb/devices/2-4.1:1.0"
+  },
+  "Result": "Passed"
+}
+```
+
 ## Policy Handling
 
 The handler maintains an ordered list of rules, sorted by their specificity.
