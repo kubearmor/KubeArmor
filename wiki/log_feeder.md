@@ -85,6 +85,7 @@ message Alert {
   int32 PPID = 10;
   int32 PID = 11;
   int32 UID = 12;
+  string UserName = 44; // Username resolved from UID (host logs/alerts)
   string ParentProcessName = 25;
   string ProcessName = 26;
 
@@ -133,6 +134,8 @@ message Log {
   string TTY = 26;
 
   ExecEvent ExecEvent = 27;
+
+  string UserName = 34; // Username resolved from UID (host logs)
 }
 
 // Simplified definitions for nested structs
