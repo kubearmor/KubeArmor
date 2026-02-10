@@ -32,6 +32,10 @@ spec:
         - {{ printf "--tlsCertPath=%s" .Values.kubearmor.tls.tlsCertPath | quote }}
         - {{ printf "--tlsCertProvider=%s" .Values.kubearmor.tls.tlsCertProvider | quote }}
         {{- end }}
+
+        {{- with .Values.kubearmor.args }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
         image: {{printf "%s:%s" .Values.kubearmor.image.repository .Values.kubearmor.image.tag}}
         imagePullPolicy: {{ .Values.kubearmor.imagePullPolicy }}
         env:
