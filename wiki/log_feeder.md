@@ -134,6 +134,8 @@ message Log {
   string TTY = 26;
 
   ExecEvent ExecEvent = 27;
+
+  string UserName = 34; // Username resolved from UID (host logs)
 }
 
 // Simplified definitions for nested structs
