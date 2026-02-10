@@ -92,6 +92,7 @@ message Alert {
   string ParentHash = 40;
   string ResourceHash = 41;
   string HashAlgo = 42;
+  string UserName = 44;
 }
 
 // log struct
@@ -137,6 +138,7 @@ message Log {
   string ParentHash = 30;
   string ResourceHash = 31;
   string HashAlgo = 32;
+  string UserName = 34;
 }
 
 // request message

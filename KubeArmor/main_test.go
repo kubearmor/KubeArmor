@@ -13,7 +13,7 @@ import (
 
 var clusterPtr, gRPCPtr, logPathPtr *string
 var enableKubeArmorPolicyPtr, enableKubeArmorHostPolicyPtr, enableKubeArmorVMPtr, coverageTestPtr, enableK8sEnv, tlsEnabled *bool
-var defaultFilePosturePtr, defaultCapabilitiesPosturePtr, defaultNetworkPosturePtr, hostDefaultCapabilitiesPosturePtr, hostDefaultNetworkPosturePtr, hostDefaultFilePosturePtr, procFsMountPtr *string
+var defaultFilePosturePtr, defaultCapabilitiesPosturePtr, defaultNetworkPosturePtr, hostDefaultCapabilitiesPosturePtr, hostDefaultNetworkPosturePtr, hostDefaultFilePosturePtr, procFsMountPtr, lsmOrder *string
 
 func init() {
 	// options (string)
@@ -44,6 +44,7 @@ func init() {
 
 	// options (boolean)
 	coverageTestPtr = flag.Bool("coverageTest", false, "enabling CoverageTest")
+	lsmOrder = flag.String("lsm", "bpf,apparmor,selinux", "LSM order to be set in the system")
 
 }
 
@@ -68,6 +69,7 @@ func TestMain(t *testing.T) {
 		fmt.Sprintf("-coverageTest=%s", strconv.FormatBool(*coverageTestPtr)),
 		fmt.Sprintf("-tlsEnabled=%s", strconv.FormatBool(*tlsEnabled)),
 		fmt.Sprintf("-procfsMount=%s", *procFsMountPtr),
+		fmt.Sprintf("-lsm=%s", *lsmOrder),
 	}
 
 	t.Log("[INFO] Executed KubeArmor")

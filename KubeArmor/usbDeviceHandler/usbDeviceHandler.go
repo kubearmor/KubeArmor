@@ -15,6 +15,7 @@ import (
 	"strings"
 	"sync"
 
+	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
 	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
 	fd "github.com/kubearmor/KubeArmor/KubeArmor/feeder"
 	mon "github.com/kubearmor/KubeArmor/KubeArmor/monitor"
@@ -496,6 +497,11 @@ func toUint8Safe(v int32) uint8 {
 // generateLog Function
 func (de *USBDeviceHandler) generateLog(r EnforcementRule, sysPath string) {
 	log := tp.Log{}
+
+	timestamp, updatedTime := kl.GetDateTimeNow()
+
+	log.Timestamp = timestamp
+	log.UpdatedTime = updatedTime
 
 	log.Operation = "Device"
 	log.Resource = mon.GetUSBResource(toUint8Safe(r.Class), toUint8Safe(r.SubClass), toUint8Safe(r.Protocol), toUint8Safe(r.Level))
