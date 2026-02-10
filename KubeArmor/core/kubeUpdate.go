@@ -1108,6 +1108,11 @@ func (dm *KubeArmorDaemon) UpdateSecurityPolicy(action string, secPolicyType str
 
 	for idx := range endPointsLength {
 		dm.EndPointsLock.RLock()
+		// 	endpoints length could be changed due to pod deletion, so check the length before accessing the endpoint
+		if idx >= len(dm.EndPoints) {
+			dm.EndPointsLock.RUnlock()
+			break
+		}
 		endPoint := dm.EndPoints[idx]
 		dm.EndPointsLock.RUnlock()
 
