@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
-// Copyright 2024 Authors of KubeArmor
+// Copyright 2026 Authors of KubeArmor
 
 package core
 
 import (
 	"fmt"
+	"math/rand"
 	"sync"
 	"testing"
 	"time"
@@ -17,14 +18,14 @@ import (
 func TestUpdateSecurityPolicyRaceCondition(t *testing.T) {
 	// Create a test daemon
 	dm := &KubeArmorDaemon{
-		EndPoints:                 []tp.EndPoint{},
-		EndPointsLock:             &sync.RWMutex{},
-		SecurityPolicies:          []tp.SecurityPolicy{},
-		SecurityPoliciesLock:      &sync.RWMutex{},
-		HostSecurityPolicies:      []tp.HostSecurityPolicy{},
-		HostSecurityPoliciesLock:  &sync.RWMutex{},
-		DefaultPostures:           map[string]tp.DefaultPosture{},
-		DefaultPosturesLock:       &sync.Mutex{},
+		EndPoints:                []tp.EndPoint{},
+		EndPointsLock:            &sync.RWMutex{},
+		SecurityPolicies:         []tp.SecurityPolicy{},
+		SecurityPoliciesLock:     &sync.RWMutex{},
+		HostSecurityPolicies:     []tp.HostSecurityPolicy{},
+		HostSecurityPoliciesLock: &sync.RWMutex{},
+		DefaultPostures:          map[string]tp.DefaultPosture{},
+		DefaultPosturesLock:      &sync.Mutex{},
 	}
 
 	// Initialize with some test endpoints
@@ -85,7 +86,9 @@ func TestUpdateSecurityPolicyRaceCondition(t *testing.T) {
 				dm.EndPointsLock.Lock()
 				if len(dm.EndPoints) > 0 {
 					// Remove an endpoint
-					dm.EndPoints = dm.EndPoints[:len(dm.EndPoints)-1]
+					// dm.EndPoints = dm.EndPoints[:len(dm.EndPoints)-1]
+					shrink := rand.Intn(len(dm.EndPoints))
+					dm.EndPoints = dm.EndPoints[:len(dm.EndPoints)-shrink]
 				}
 				// Add a new endpoint
 				newEndpoint := tp.EndPoint{
@@ -98,13 +101,12 @@ func TestUpdateSecurityPolicyRaceCondition(t *testing.T) {
 				dm.EndPoints = append(dm.EndPoints, newEndpoint)
 				counter++
 				dm.EndPointsLock.Unlock()
-				time.Sleep(1 * time.Millisecond)
 			}
 		}
 	}()
 
 	// Let the race condition test run for a short time
-	time.Sleep(100 * time.Millisecond)
+	time.Sleep(50 * time.Millisecond)
 	close(stopCh)
 	wg.Wait()
 
@@ -200,21 +202,21 @@ func TestUpdateHostSecurityPoliciesRaceCondition(t *testing.T) {
 func TestUpdateDefaultPostureRaceCondition(t *testing.T) {
 	// Skip this test for now due to external dependencies (Logger)
 	t.Skip("Skipping UpdateDefaultPosture test due to external dependencies")
-	
+
 	dm := &KubeArmorDaemon{
-		EndPoints:               []tp.EndPoint{},
-		EndPointsLock:           &sync.RWMutex{},
-		DefaultPostures:         map[string]tp.DefaultPosture{},
-		DefaultPosturesLock:     &sync.Mutex{},
+		EndPoints:           []tp.EndPoint{},
+		EndPointsLock:       &sync.RWMutex{},
+		DefaultPostures:     map[string]tp.DefaultPosture{},
+		DefaultPosturesLock: &sync.Mutex{},
 	}
 
 	// Initialize with test endpoints
 	for i := 0; i < 30; i++ {
 		endpoint := tp.EndPoint{
-			NamespaceName:   "test-namespace",
-			EndPointName:    fmt.Sprintf("test-endpoint-%d", i),
-			ContainerName:   fmt.Sprintf("test-container-%d", i),
-			DefaultPosture:  tp.DefaultPosture{FileAction: "allow"},
+			NamespaceName:  "test-namespace",
+			EndPointName:   fmt.Sprintf("test-endpoint-%d", i),
+			ContainerName:  fmt.Sprintf("test-container-%d", i),
+			DefaultPosture: tp.DefaultPosture{FileAction: "allow"},
 		}
 		dm.EndPoints = append(dm.EndPoints, endpoint)
 	}
