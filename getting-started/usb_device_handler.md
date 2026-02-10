@@ -29,6 +29,8 @@ When the handler reports a USB event, the generated log includes time fields:
 
 Example (fields shown are a subset of a full log):
 
+Example (fields shown are a subset of a full log):
+
 ```json
 {
   "Timestamp": 1770693725,
