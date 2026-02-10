@@ -279,6 +279,12 @@ The primary difference in the container alerts events vs the telemetry events (s
 
 The fields are self-explanatory and have similar meaning as in the context of container based events (explained above).
 
+{% hint style="info" %}
+Host policy alerts (`Type: MatchedHostPolicy`) and host telemetry logs (`Type: HostLog`) can include a `UserName` field resolved from the numeric `UID`.
+
+If the username cannot be resolved, `UserName` is empty and might be omitted depending on the output format.
+{% endhint %}
+
 <details><summary><h4>Process Alert</h4></summary>
 
 ```json
@@ -291,6 +297,7 @@ The fields are self-explanatory and have similar meaning as in the context of co
   "HostPID": 1787227,
   "PPID": 1979,
   "PID": 1787227,
+  "UserName": "",
   "ParentProcessName": "/bin/bash",
   "ProcessName": "/bin/sleep",
   "PolicyName": "sleep-deny",
@@ -322,6 +329,7 @@ Note that KubeArmor also alerts events blocked due to other system policy enforc
   "PPID": 1791315,
   "PID": 1791316,
   "UID": 204,
+  "UserName": "",
   "ParentProcessName": "/usr/sbin/sshd",
   "ProcessName": "/usr/sbin/sshd",
   "PolicyName": "DefaultPosture",
@@ -350,6 +358,7 @@ Note that KubeArmor also alerts events blocked due to other system policy enforc
   "PPID": 1791315,
   "PID": 1791316,
   "UID": 204,
+  "UserName": "",
   "ParentProcessName": "/usr/sbin/sshd",
   "ProcessName": "/usr/sbin/sshd",
   "PolicyName": "DefaultPosture",
