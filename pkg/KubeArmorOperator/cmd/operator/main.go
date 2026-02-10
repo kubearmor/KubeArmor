@@ -75,6 +75,7 @@ func init() {
 	Cmd.PersistentFlags().BoolVar(&o.AnnotateResource, "annotateResource", false, "when true kubearmor annotate k8s resources with apparmor annotation")
 	Cmd.PersistentFlags().BoolVar(&o.AnnotateExisting, "annotateExisting", false, "when true kubearmor-controller restarts and annotates existing resources, with required annotations")
 	Cmd.PersistentFlags().StringArrayVar(&o.ImagePullSecrets, "image-pull-secrets", []string{}, "Image pull secrets for pulling KubeArmor images")
+	Cmd.PersistentFlags().StringVar(&o.SocketFile, "socket-file", "", "explicit path to CRI socket file (passed to snitch for runtime detection)")
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.

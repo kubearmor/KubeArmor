@@ -333,12 +333,18 @@ func deploySnitch(nodename string, runtime string) *batchv1.Job {
 					{
 						Name:  "snitch",
 						Image: common.GetApplicationImage(common.SnitchName),
-						Args: []string{
-							"--nodename=$(NODE_NAME)",
-							"--pathprefix=" + PathPrefix,
-							"--runtime=" + runtime,
-							"--lsm=" + LsmOrder,
-						},
+						Args: func() []string {
+							args := []string{
+								"--nodename=$(NODE_NAME)",
+								"--pathprefix=" + PathPrefix,
+								"--runtime=" + runtime,
+								"--lsm=" + LsmOrder,
+							}
+							if SocketFile != "" {
+								args = append(args, "--socket-file="+SocketFile)
+							}
+							return args
+						}(),
 						Env: []corev1.EnvVar{
 							{
 								Name: "NODE_NAME",

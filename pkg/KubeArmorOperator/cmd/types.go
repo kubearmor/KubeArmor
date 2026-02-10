@@ -28,6 +28,7 @@ type OperatorOptions struct {
 	LogLevel                           string
 	ProviderHostname, ProviderEndpoint string
 	ImagePullSecrets                   []string
+	SocketFile                         string
 }
 
 type SnitchOptions struct {
