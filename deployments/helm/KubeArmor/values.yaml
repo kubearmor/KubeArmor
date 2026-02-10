@@ -137,7 +137,7 @@ kubearmor:
 
   # kubearmor daemonset arguments. See `kubearmor --help`
   args: []
-  
+
   tls:
     tlsCertPath: /var/lib/kubearmor/tls
     tlsCertProvider: self
