@@ -118,6 +118,8 @@
 #define PT_REGS_PARM6(x) ((x)->r9)
 #elif defined(bpf_target_arm64)
 #define PT_REGS_PARM6(x) ((x)->regs[5])
+#elif defined(bpf_target_loongarch)
+#define PT_REGS_PARM6(x) ((x)->regs[9])
 #endif
 
 #if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
@@ -170,6 +172,33 @@ enum
     _SYS_SETGID = 144,
     _SYS_MOUNT = 165,
     _SYS_UMOUNT = 166,
+
+    // network
+    _SYS_SOCKET = 198,
+    _SYS_CONNECT = 203,
+    _SYS_ACCEPT = 202,
+    _SYS_BIND = 200,
+    _SYS_LISTEN = 201,
+
+    // process
+    _SYS_EXECVE = 221,
+    _SYS_EXECVEAT = 281,
+};
+#elif defined(bpf_target_loongarch)
+enum
+{
+    // file
+    _SYS_OPEN = UNDEFINED_SYSCALL,
+    _SYS_OPENAT = 56,
+    _SYS_CLOSE = 57,
+    _SYS_UNLINK = UNDEFINED_SYSCALL,
+    _SYS_UNLINKAT = 35,
+    _SYS_CHOWN = UNDEFINED_SYSCALL,
+    _SYS_FCHOWNAT = 54,
+    _SYS_SETUID = 146,
+    _SYS_SETGID = 144,
+    _SYS_MOUNT = 40,
+    _SYS_UMOUNT = 39,
 
     // network
     _SYS_SOCKET = 198,
