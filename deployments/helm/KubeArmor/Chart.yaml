@@ -1,8 +1,8 @@
 apiVersion: v2
-appVersion: v1.6.7
+appVersion: v1.6.8
 description: A Helm chart for Kubearmor on Kubernetes
 home: https://github.com/kubearmor/KubeArmor
 icon: https://github.com/kubearmor/KubeArmor/blob/main/.gitbook/assets/logo.png?raw=true
 name: kubearmor
 type: application
-version: v1.6.7
+version: v1.6.8
