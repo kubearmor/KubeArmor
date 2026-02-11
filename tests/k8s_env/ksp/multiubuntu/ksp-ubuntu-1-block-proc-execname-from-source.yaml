@@ -13,11 +13,11 @@ spec:
     matchPaths:
     - execname: curl
       fromSource:
-      - path: /bin/bash
+      - path: /bin/dash
   action:
     Block
 
 # Test for issue #1899 fix: execname + fromSource support in BPF-LSM
-# This policy blocks curl execution when called from /bin/bash
+# This policy blocks curl execution when called from /bin/dash
 # Before the fix, this would fail - the fromSource check was not implemented for execname
-# After the fix, this should properly block: bash -c "curl http://example.com"
+# After the fix, this should properly block: Dash -c "curl http://example.com"

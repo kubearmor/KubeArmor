@@ -4,7 +4,7 @@
 
 #include "shared.h"
 #include "syscalls.h"
-#include "arg_matching_helpers.h"
+
 SEC("lsm/bprm_check_security")
 int BPF_PROG(enforce_proc, struct linux_binprm *bprm, int ret)
 {
@@ -181,24 +181,24 @@ int BPF_PROG(enforce_proc, struct linux_binprm *bprm, int ret)
     goto decision;
   }
 
-  // match exec name + fromSource
+  // match exec name (with and without fromSource)
   struct qstr d_name;
-  if (fromSourceCheck) {
-    d_name = BPF_CORE_READ(f_path.dentry, d_name);
+  d_name = BPF_CORE_READ(f_path.dentry, d_name);
+  if (fromSourceCheck)
+  {
     bpf_map_update_elem(&bufk, &two, z, BPF_ANY);
     bpf_probe_read_str(pk->path, MAX_STRING_SIZE, d_name.name);
     bpf_probe_read_str(pk->source, MAX_STRING_SIZE, store->source);
 
     val = bpf_map_lookup_elem(inner, pk);
 
-    if (val && (val->processmask & RULE_EXEC)) {
+    if (val && (val->processmask & RULE_EXEC))
+    {
       match = true;
       goto decision;
     }
   }
-
   // match exec name without fromSource
-  d_name = BPF_CORE_READ(f_path.dentry, d_name);
   bpf_map_update_elem(&bufk, &two, z, BPF_ANY);
   bpf_probe_read_str(pk->path, MAX_STRING_SIZE, d_name.name);
 
