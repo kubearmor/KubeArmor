@@ -64,7 +64,7 @@ func GetClusterRole() *rbacv1.ClusterRole {
 			},
 			{
 				APIGroups: []string{"security.kubearmor.com"},
-				Resources: []string{"kubearmorpolicies", "kubearmorclusterpolicies", "kubearmorhostpolicies"},
+				Resources: []string{"kubearmorpolicies", "kubearmorclusterpolicies", "kubearmorhostpolicies", "kubearmornetworkpolicies"},
 				Verbs:     []string{"get", "list", "watch", "update", "delete"},
 			},
 			{

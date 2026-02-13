@@ -213,6 +213,24 @@ type K8sKubeArmorHostPolicies struct {
 	Items []K8sKubeArmorHostPolicy `json:"items"`
 }
 
+// K8sKubeArmorNetworkPolicyEvent Structure
+type K8sKubeArmorNetworkPolicyEvent struct {
+	Type   string                    `json:"type"`
+	Object K8sKubeArmorNetworkPolicy `json:"object"`
+}
+
+// K8sKubeArmorNetworkPolicy Structure
+type K8sKubeArmorNetworkPolicy struct {
+	Metadata metav1.ObjectMeta   `json:"metadata"`
+	Spec     NetworkSecuritySpec `json:"spec"`
+	Status   K8sPolicyStatus     `json:"status,omitempty"`
+}
+
+// K8sKubeArmorHostPolicies Structure
+type K8sKubeArmorNetworkPolicies struct {
+	Items []K8sKubeArmorNetworkPolicy `json:"items"`
+}
+
 // ExecEvent struct
 type ExecEvent struct {
 	ExecID         string
@@ -677,6 +695,70 @@ type Visibility struct {
 	Capabilities bool `json:"capabilties,omitempty"`
 	DNS          bool `json:"dns,omitempty"`
 	IMA          bool `json:"ima,omitempty"`
+}
+
+// ============================= //
+// == Network Security Policy == //
+// ============================= //
+
+// IPBlock Structure
+type IPBlock struct {
+	CIDR string `json:"cidr,omitempty"`
+}
+
+// NetworkPeer Structure
+type NetworkPeer struct {
+	IPBlock *IPBlock `json:"ipBlock,omitempty"`
+}
+
+// PortType Structure
+type PortType struct {
+	Port     string `json:"port,omitempty"`
+	EndPort  *int32 `json:"endPort,omitempty"`
+	Protocol string `json:"protocol,omitempty"`
+}
+
+// IngressType Structure
+type IngressType struct {
+	From      []NetworkPeer `json:"from,omitempty"`
+	Interface []string      `json:"iface,omitempty"`
+	Ports     []PortType    `json:"ports,omitempty"`
+
+	Severity int      `json:"severity,omitempty"`
+	Tags     []string `json:"tags,omitempty"`
+	Message  string   `json:"message,omitempty"`
+	Action   string   `json:"action"`
+}
+
+// EgressType Structure
+type EgressType struct {
+	To        []NetworkPeer `json:"to,omitempty"`
+	Interface []string      `json:"iface,omitempty"`
+	Ports     []PortType    `json:"ports,omitempty"`
+
+	Severity int      `json:"severity,omitempty"`
+	Tags     []string `json:"tags,omitempty"`
+	Message  string   `json:"message,omitempty"`
+	Action   string   `json:"action"`
+}
+
+// NetworkSecuritySpec Structure
+type NetworkSecuritySpec struct {
+	NodeSelector NodeSelectorType `json:"nodeSelector"`
+
+	Ingress []IngressType `json:"ingress,omitempty"`
+	Egress  []EgressType  `json:"egress,omitempty"`
+
+	Severity int      `json:"severity,omitempty"`
+	Tags     []string `json:"tags,omitempty"`
+	Message  string   `json:"message,omitempty"`
+	Action   string   `json:"action"`
+}
+
+// NetworkSecurityPolicy Structure
+type NetworkSecurityPolicy struct {
+	Metadata map[string]string   `json:"metadata"`
+	Spec     NetworkSecuritySpec `json:"spec"`
 }
 
 // ================== //
