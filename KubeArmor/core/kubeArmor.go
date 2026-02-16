@@ -6,9 +6,6 @@ package core
 
 import (
 	"context"
-	"crypto/hmac"
-	"crypto/sha256"
-	"encoding/hex"
 	"fmt"
 	"os"
 	"os/signal"
@@ -199,7 +196,7 @@ func (dm *KubeArmorDaemon) DestroyKubeArmorDaemon() {
 	}
 
 	if dm.USBDeviceHandler != nil {
-		//close USB device handler
+		// close USB device handler
 		if dm.CloseUSBDeviceHandler() {
 			dm.Logger.Print("Stopped USB Device Handler")
 		}
@@ -212,7 +209,7 @@ func (dm *KubeArmorDaemon) DestroyKubeArmorDaemon() {
 	}
 
 	if dm.StateAgent != nil {
-		//go dm.StateAgent.PushNodeEvent(dm.Node, state.EventDeleted)
+		// go dm.StateAgent.PushNodeEvent(dm.Node, state.EventDeleted)
 		if err := dm.CloseStateAgent(); err != nil {
 			kg.Errf("Failed to destroy StateAgent: %s", err.Error())
 		} else {
@@ -547,17 +544,10 @@ func KubeArmor() {
 		}
 	}
 
-	protectedID := func(id, key string) string {
-		mac := hmac.New(sha256.New, []byte(id))
-		mac.Write([]byte(key))
-		return hex.EncodeToString(mac.Sum(nil))
-	}
-
 	if dm.Node.NodeID == "" {
 		id, _ := os.ReadFile(cfg.GlobalCfg.MachineIDPath)
 		dm.Node.NodeID = strings.TrimSuffix(string(id), "\n")
 	}
-	dm.Node.NodeID = protectedID(dm.Node.NodeID, dm.Node.NodeName)
 
 	kg.Printf("Node Name: %s", dm.Node.NodeName)
 	kg.Printf("Node IP: %s", dm.Node.NodeIP)
@@ -729,7 +719,6 @@ func KubeArmor() {
 	}
 
 	if dm.K8sEnabled && cfg.GlobalCfg.Policy {
-
 		if cfg.GlobalCfg.UseOCIHooks &&
 			(strings.Contains(dm.Node.ContainerRuntimeVersion, "cri-o") ||
 				(strings.Contains(dm.Node.ContainerRuntimeVersion, "containerd") && dm.checkNRIAvailability() == nil)) {
@@ -944,7 +933,7 @@ func KubeArmor() {
 		}
 		pb.RegisterPolicyServiceServer(dm.Logger.LogServer, policyService)
 
-		//Enable grpc service to send kubearmor data to client in unorchestrated mode
+		// Enable grpc service to send kubearmor data to client in unorchestrated mode
 		probe := &Probe{}
 		probe.GetContainerData = dm.SetProbeContainerData
 		pb.RegisterProbeServiceServer(dm.Logger.LogServer, probe)
