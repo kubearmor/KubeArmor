@@ -302,7 +302,7 @@ func LoadConfig() error {
 		cfgfile = "kubearmor.yaml"
 	}
 
-	if _, err := os.Stat(cfgfile); err == nil {
+	if _, err := os.Stat(cfgfile); err == nil { //#nosec G703
 		kg.Printf("setting config from file [%s]", cfgfile)
 		viper.SetConfigFile(cfgfile)
 		err := viper.ReadInConfig()

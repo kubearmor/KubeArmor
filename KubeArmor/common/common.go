@@ -381,13 +381,13 @@ func IsK8sLocal() bool {
 
 	k8sConfig := os.Getenv("KUBECONFIG")
 	if k8sConfig != "" {
-		if _, err := os.Stat(filepath.Clean(k8sConfig)); err == nil {
+		if _, err := os.Stat(filepath.Clean(k8sConfig)); err == nil { // #nosec G703
 			return true
 		}
 	}
 
 	home := os.Getenv("HOME")
-	if _, err := os.Stat(filepath.Clean(home + "/.kube/config")); err == nil {
+	if _, err := os.Stat(filepath.Clean(home + "/.kube/config")); err == nil { // #nosec G703
 		return true
 	}
 

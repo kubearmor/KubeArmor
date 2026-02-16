@@ -22,7 +22,7 @@ type TlsConfig struct {
 	// If CA is Provided Using a K8s Secret
 	// Namespace, Secret and K8sClient are Required
 	ReadCACertFromSecret bool
-	Secret               string
+	SecretName           string
 	Namespace            string
 	K8sClient            *kubernetes.Clientset
 
@@ -46,7 +46,7 @@ func NewTlsCredentialManager(cfg *TlsConfig) *TlsCredentialManager {
 				CertConfig: cfg.CertCfg,
 				K8sClient:  cfg.K8sClient,
 				Namespace:  cfg.Namespace,
-				Secret:     cfg.Secret,
+				SecretName: cfg.SecretName,
 			}
 			return &TlsCredentialManager{
 				CertLoader: &cl,
