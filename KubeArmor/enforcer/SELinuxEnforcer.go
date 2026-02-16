@@ -65,10 +65,10 @@ func NewSELinuxEnforcer(node tp.Node, logger *fd.Feeder) *SELinuxEnforcer {
 
 	// SELinux templates
 	templatePath := homeDir + "/templates"
-	if _, err := os.Stat(filepath.Clean(templatePath + "/install.sh")); err != nil {
+	if _, err := os.Stat(filepath.Clean(templatePath + "/install.sh")); err != nil { //#nosec G703
 		// go test
 		templatePath = os.Getenv("PWD") + "/../templates"
-		if _, err := os.Stat(filepath.Clean(templatePath + "/install.sh")); err != nil {
+		if _, err := os.Stat(filepath.Clean(templatePath + "/install.sh")); err != nil { //#nosec G703
 			se.Logger.Err("Failed to find templates/install.sh")
 			return nil
 		}

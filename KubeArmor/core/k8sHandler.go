@@ -130,7 +130,7 @@ func (kh *K8sHandler) InitLocalAPIClient() error {
 	kubeconfig := os.Getenv("KUBECONFIG")
 	if kubeconfig == "" {
 		kubeconfig = os.Getenv("HOME") + "/.kube/config"
-		if _, err := os.Stat(filepath.Clean(kubeconfig)); err != nil {
+		if _, err := os.Stat(filepath.Clean(kubeconfig)); err != nil { //#nosec G703
 			return fmt.Errorf("kubeconfig file not found at %s: %w", kubeconfig, err)
 		}
 	}
@@ -207,7 +207,7 @@ func (kh *K8sHandler) DoRequest(cmd string, data any, path string) ([]byte, erro
 		req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", kh.K8sToken))
 	}
 
-	resp, err := kh.HTTPClient.Do(req)
+	resp, err := kh.HTTPClient.Do(req) // #nosec G704 -- safe request sent only to trusted Kubernetes API server
 	if err != nil {
 		return nil, err
 	}
@@ -494,7 +494,7 @@ func (kh *K8sHandler) WatchK8sSecurityPolicies() *http.Response {
 		req.Header.Add("Content-Type", "application/json")
 		req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", kh.K8sToken))
 
-		resp, err := kh.WatchClient.Do(req)
+		resp, err := kh.WatchClient.Do(req) // #nosec G704 -- safe request, sent only to trusted Kubernetes API server
 		if err != nil {
 			return nil
 		}
@@ -529,7 +529,7 @@ func (kh *K8sHandler) WatchK8sHostSecurityPolicies() *http.Response {
 		req.Header.Add("Content-Type", "application/json")
 		req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", kh.K8sToken))
 
-		resp, err := kh.WatchClient.Do(req)
+		resp, err := kh.WatchClient.Do(req) // #nosec G704 -- safe request, sent only to trusted Kubernetes API server
 		if err != nil {
 			return nil
 		}
