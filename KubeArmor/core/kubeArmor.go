@@ -544,9 +544,25 @@ func KubeArmor() {
 		}
 	}
 
+	machineIdPaths := []string{
+		cfg.GlobalCfg.MachineIDPath,
+		"/var/lib/dbus/machine-id",
+	}
+
 	if dm.Node.NodeID == "" {
-		id, _ := os.ReadFile(cfg.GlobalCfg.MachineIDPath)
-		dm.Node.NodeID = strings.TrimSuffix(string(id), "\n")
+		for _, path := range machineIdPaths {
+			if id, err := os.ReadFile(path); err == nil {
+				cleanId := strings.TrimSpace(string(id))
+				if cleanId != "" {
+					dm.Node.NodeID = cleanId
+					break
+				}
+			}
+		}
+	}
+
+	if dm.Node.NodeID == "" {
+		dm.Node.NodeID = dm.Node.NodeName
 	}
 
 	kg.Printf("Node Name: %s", dm.Node.NodeName)
