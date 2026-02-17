@@ -80,7 +80,7 @@ type KubeArmorDaemon struct {
 	HostSecurityPolicies     []tp.HostSecurityPolicy
 	HostSecurityPoliciesLock *sync.RWMutex
 
-	//DefaultPosture (namespace -> postures)
+	// DefaultPosture (namespace -> postures)
 	DefaultPostures     map[string]tp.DefaultPosture
 	DefaultPosturesLock *sync.Mutex
 
@@ -196,7 +196,7 @@ func (dm *KubeArmorDaemon) DestroyKubeArmorDaemon() {
 	}
 
 	if dm.USBDeviceHandler != nil {
-		//close USB device handler
+		// close USB device handler
 		if dm.CloseUSBDeviceHandler() {
 			dm.Logger.Print("Stopped USB Device Handler")
 		}
@@ -209,7 +209,7 @@ func (dm *KubeArmorDaemon) DestroyKubeArmorDaemon() {
 	}
 
 	if dm.StateAgent != nil {
-		//go dm.StateAgent.PushNodeEvent(dm.Node, state.EventDeleted)
+		// go dm.StateAgent.PushNodeEvent(dm.Node, state.EventDeleted)
 		if err := dm.CloseStateAgent(); err != nil {
 			kg.Errf("Failed to destroy StateAgent: %s", err.Error())
 		} else {
@@ -544,17 +544,17 @@ func KubeArmor() {
 		}
 	}
 
-	machineIdPaths := []string{
+	machineIDPaths := []string{
 		cfg.GlobalCfg.MachineIDPath,
 		"/var/lib/dbus/machine-id",
 	}
 
 	if dm.Node.NodeID == "" {
-		for _, path := range machineIdPaths {
+		for _, path := range machineIDPaths {
 			if id, err := os.ReadFile(path); err == nil {
-				cleanId := strings.TrimSpace(string(id))
-				if cleanId != "" {
-					dm.Node.NodeID = cleanId
+				cleanID := strings.TrimSpace(string(id))
+				if cleanID != "" {
+					dm.Node.NodeID = cleanID
 					break
 				}
 			}
@@ -949,7 +949,7 @@ func KubeArmor() {
 		}
 		pb.RegisterPolicyServiceServer(dm.Logger.LogServer, policyService)
 
-		//Enable grpc service to send kubearmor data to client in unorchestrated mode
+		// Enable grpc service to send kubearmor data to client in unorchestrated mode
 		probe := &Probe{}
 		probe.GetContainerData = dm.SetProbeContainerData
 		pb.RegisterProbeServiceServer(dm.Logger.LogServer, probe)
