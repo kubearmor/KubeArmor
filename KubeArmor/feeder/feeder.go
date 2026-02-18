@@ -259,7 +259,8 @@ type Feeder struct {
 	DefaultPostures     map[string]tp.DefaultPosture
 	DefaultPosturesLock *sync.Mutex
 
-	AlertMap map[OuterKey]AlertThrottleState
+	AlertMap     map[OuterKey]AlertThrottleState
+	AlertMapLock sync.RWMutex
 
 	ContainerNsKey map[string]common.OuterKey
 }
@@ -553,7 +554,7 @@ func (fd *Feeder) PushMessage(level, message string) {
 	pbMsg.Timestamp = timestamp
 	pbMsg.UpdatedTime = updatedTime
 
-	//pbMsg.ClusterName = cfg.GlobalCfg.Cluster
+	// pbMsg.ClusterName = cfg.GlobalCfg.Cluster
 	pbMsg.ClusterName = cfg.GlobalCfg.Cluster
 
 	pbMsg.HostName = cfg.GlobalCfg.Host
@@ -575,13 +576,14 @@ func (fd *Feeder) PushMessage(level, message string) {
 		default:
 			counter++
 			if counter == lenMsg {
-				//Default on the last uid in Messagestruct means the msg isnt pushed into Broadcast
+				// Default on the last uid in Messagestruct means the msg isnt pushed into Broadcast
 				kg.Printf("msg channel busy, msg dropped")
 			}
 
 		}
 	}
 }
+
 func MarshalVisibilityLog(log tp.Log) *pb.Log {
 	pbLog := pb.Log{}
 
@@ -874,7 +876,7 @@ func (fd *Feeder) PushLog(log tp.Log) {
 			default:
 				counter++
 				if counter == lenAlert {
-					//Default on the last uid in Alterstruct means the Alert isnt pushed into Broadcast
+					// Default on the last uid in Alterstruct means the Alert isnt pushed into Broadcast
 					kg.Printf("log channel busy, alert dropped.")
 				}
 
@@ -896,7 +898,7 @@ func (fd *Feeder) PushLog(log tp.Log) {
 			default:
 				counter++
 				if counter == lenlog {
-					//Default on the last uid in Logstuct means the log isnt pushed into Broadcase
+					// Default on the last uid in Logstuct means the log isnt pushed into Broadcase
 					kg.Printf("log channel busy, log dropped.")
 				}
 			}
@@ -908,7 +910,7 @@ func loadTLSCredentials(ip string) (credentials.TransportCredentials, error) {
 	// create certificate configurations
 	serverCertConfig := cert.DefaultKubeArmorServerConfig
 	serverCertConfig.IPs = []string{ip}
-	serverCertConfig.NotAfter = time.Now().Add(365 * 24 * time.Hour) //valid for 1 year
+	serverCertConfig.NotAfter = time.Now().Add(365 * 24 * time.Hour) // valid for 1 year
 	// as of now daemonset creates certificates dynamically
 	tlsConfig := cert.TlsConfig{
 		CertCfg:      serverCertConfig,
@@ -926,6 +928,9 @@ func (fd *Feeder) ShouldDropAlertsPerContainer(pidNs, mntNs uint32) (bool, bool)
 		PidNs: pidNs,
 		MntNs: mntNs,
 	}
+
+	fd.AlertMapLock.Lock()
+	defer fd.AlertMapLock.Unlock()
 
 	if fd.AlertMap == nil {
 		fd.AlertMap = make(map[OuterKey]AlertThrottleState)
@@ -975,14 +980,18 @@ func (fd *Feeder) ShouldDropAlertsPerContainer(pidNs, mntNs uint32) (bool, bool)
 }
 
 func (fd *Feeder) DeleteAlertMapKey(outkey kl.OuterKey) {
+	fd.AlertMapLock.Lock()
+	defer fd.AlertMapLock.Unlock()
 	delete(fd.AlertMap, OuterKey{PidNs: outkey.PidNs, MntNs: outkey.MntNs})
 }
+
 func (fd *Feeder) GetEnforcer() string {
 	fd.EnforcerLock.RLock()
 	val := fd.Enforcer
 	fd.EnforcerLock.RUnlock()
 	return val
 }
+
 func (fd *Feeder) GetNodeInfo() tp.Node {
 	lock := *fd.NodeLock
 	lock.RLock()
@@ -991,6 +1000,7 @@ func (fd *Feeder) GetNodeInfo() tp.Node {
 	node := *fd.Node
 	return node
 }
+
 func (uname *UserNameMap) GetUsername(uid uint32) string {
 	uname.mu.RLock()
 	entry, exists := uname.usernames[uid]
