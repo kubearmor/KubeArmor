@@ -33,6 +33,7 @@
 | Result                 | shows whether the event was allowed or denied                             | Passed                                                                                                        |
 | Source                 | lists the source from where the operation request came                    | /knoxAutoPolicy                                                                                               |
 | Type                   | specifies it as container log                                             | ContainerLog                                                                                                  |
+| EventData              | key/value data parsed from `Data` and (for network operations) `Resource` | {"Syscall":"SYS_CONNECT","Fd":"10","Sa_family":"AF_INET","Sin_port":"53","Sin_addr":"10.0.0.10"} |
 
 <details><summary><h4>Process Log</h4></summary>
 
@@ -114,6 +115,13 @@
   "Operation": "Network",
   "Resource": "sa_family=AF_INET sin_port=53 sin_addr=10.0.0.10",
   "Data": "syscall=SYS_CONNECT fd=10",
+  "EventData": {
+    "Syscall": "SYS_CONNECT",
+    "Fd": "10",
+    "Sa_family": "AF_INET",
+    "Sin_port": "53",
+    "Sin_addr": "10.0.0.10"
+  },
   "Result": "Passed"
 }
 ```
