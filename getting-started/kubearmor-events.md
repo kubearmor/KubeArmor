@@ -30,9 +30,29 @@
 | PodName                | lists the pod name where the log got generated                            | mysql-76ddc6ddc4-h47hv                                                                                        |
 | ProcessName            | specifies the operation that happened inside the pod for this log         | /knoxAutoPolicy                                                                                               |
 | Resource               | lists the resources that was requested                                    | //accuknox-obs.db                                                                                             |
+| EventData              | key/value map derived from `Data` and, for `Operation: Network`, `Resource` | {"Syscall":"SYS_CONNECT","Fd":"10"}                                                                     |
 | Result                 | shows whether the event was allowed or denied                             | Passed                                                                                                        |
 | Source                 | lists the source from where the operation request came                    | /knoxAutoPolicy                                                                                               |
 | Type                   | specifies it as container log                                             | ContainerLog                                                                                                  |
+
+#### EventData
+
+`EventData` is an optional `map<string,string>` field in the gRPC `Log` and `Alert` messages.
+
+* If `Data` is a space-separated `key=value` string, the feeder parses it and populates `EventData`.
+* If `Operation` is `Network`, the feeder also parses `Resource` (when it is in the same `key=value` form) and merges those values into `EventData`.
+
+Example `Data` value:
+
+```text
+syscall=SYS_CONNECT fd=10
+```
+
+Example `Resource` value for `Operation: Network`:
+
+```text
+sa_family=AF_INET sin_port=53 sin_addr=10.0.0.10
+```
 
 <details><summary><h4>Process Log</h4></summary>
 
