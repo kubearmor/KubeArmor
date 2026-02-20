@@ -34,6 +34,10 @@
 | Source                 | lists the source from where the operation request came                    | /knoxAutoPolicy                                                                                               |
 | Type                   | specifies it as container log                                             | ContainerLog                                                                                                  |
 
+{% hint style="info" %}
+Some event types (for example, host logs) include additional fields that are not shown in the container-only tables below.
+{% endhint %}
+
 <details><summary><h4>Process Log</h4></summary>
 
 ```json
@@ -160,6 +164,24 @@ The primary difference in the container alerts events vs the telemetry events (s
 | cluster_id             | specifies the cluster id where the alert was generated                               | 596                                                                                                  |
 | component_name         | gives the component which generated this log/alert                                   | kubearmor                                                                                            |
 | tenant_id              | specifies the tenant id where this cluster is onboarded in AccuKnox SaaS             | 11                                                                                                   |
+
+## Host logs
+
+Host logs use the same top-level shape as container telemetry logs, but the `Type` is typically `HostLog`.
+
+### Additional host log fields
+
+| Field | Description |
+| --- | --- |
+| `UID` | Numeric user ID for the host process.
+| `Username` | Resolved username for the host process UID (when available).
+
+### Timestamp fields
+
+| Field | Description |
+| --- | --- |
+| `Timestamp` | Integer timestamp.
+| `UpdatedTime` | Human-readable time string.
 
 <details><summary><h4>Process Alert</h4></summary>
 
