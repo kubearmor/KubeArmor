@@ -67,6 +67,7 @@ func DetectRuntimeViaMap(pathPrefix string, k8sRuntime string, explicitSocket st
 						log.Warnf("%s", err)
 					}
 				}
+				k8sRuntime := determineRuntimeFromSocket(path)
 				return k8sRuntime, path, ""
 			} else {
 				log.Warnf("%s", err)
@@ -77,6 +78,7 @@ func DetectRuntimeViaMap(pathPrefix string, k8sRuntime string, explicitSocket st
 	for runtime, paths := range common.ContainerRuntimeSocketMap {
 		for _, path := range paths {
 			if _, err := os.Stat(pathPrefix + path); err == nil || os.IsPermission(err) {
+				runtime = determineRuntimeFromSocket(path)
 				return runtime, path, ""
 			} else {
 				log.Warnf("%s", err)
