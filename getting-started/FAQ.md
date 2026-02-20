@@ -21,6 +21,33 @@ If you are applying an Allow-based policies and expecting unknown actions to be 
 
 </details>
 
+<details><summary><h4>KubeArmor is panicking with <code>runtime error: index out of range [...]</code> during frequent policy updates. What can I do?</h4></summary>
+
+This panic can occur when policy updates happen concurrently with changes to the daemon's internal endpoint/policy lists.
+
+### Validate with Go race tests (for developers)
+
+1. Navigate to the core package.
+
+   ```text
+   $ cd KubeArmor/core
+   ```
+
+2. Run the targeted race-condition stress tests.
+
+   ```text
+   $ go test -race -run 'Test(UpdateSecurityPolicyRaceCondition|UpdateHostSecurityPoliciesRaceCondition|ConcurrentEndpointAccess)$'
+   ```
+
+### Share actionable data when filing an issue
+
+- Capture the full panic stack trace.
+- Include whether the failure reproduces under `go test -race`.
+
+Related documentation: [Testing Guide](../contribution/testing_guide.md)
+
+</details>
+
 <details><summary><h4>How is KubeArmor different from PodSecurityPolicy/PodSecurityContext?</h4></summary>
 
 Native k8s supports specifying a security context for the pod or container. It requires one to specify native AppArmor, SELinux, seccomp policies. But there are a few problems with this approach:
