@@ -1,0 +1,19 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: ksp-ubuntu-4-block-file-procfs
+  namespace: multiubuntu
+spec:
+  severity: 5
+  message: "a file in procfs was accessed"
+  tags:
+  - WARNING
+  selector:
+    matchLabels:
+      container: ubuntu-4
+  file:
+    matchPaths:
+    - path: /proc/version
+      readOnly: false
+  action:
+    Block
