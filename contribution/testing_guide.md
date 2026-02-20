@@ -128,6 +128,56 @@ $ kubectl -n [namespace name] exec -it [pod name] -- bash -c [command]
     ```
 
 - To run a specific suit of tests move to the directory of test and run
+
+# 3. Run Go race-condition stress tests (developers)
+
+Use Go's race detector to exercise KubeArmor daemon code paths that update security policies and mutate the daemon's in-memory endpoint/policy slices concurrently.
+
+## 3.1. Prerequisites
+
+- Install Go.
+- Run the tests from the repository root so the `KubeArmor/` module paths resolve.
+
+## 3.2. Run the targeted race-condition tests
+
+1. Navigate to the core package directory.
+
+   ```text
+   $ cd KubeArmor/core
+   ```
+
+2. Run the `kubeUpdate` race-condition tests with the race detector enabled.
+
+   ```text
+   $ go test -race -run 'Test(UpdateSecurityPolicyRaceCondition|UpdateHostSecurityPoliciesRaceCondition|ConcurrentEndpointAccess)$'
+   ```
+
+These tests are implemented in `KubeArmor/core/kubeUpdate_race_test.go`.
+
+## 3.3. Run the full core package test suite under the race detector
+
+1. Navigate to the core package directory.
+
+   ```text
+   $ cd KubeArmor/core
+   ```
+
+2. Run all core tests with the race detector enabled.
+
+   ```text
+   $ go test -race ./...
+   ```
+
+{% hint style="info" %}
+`TestUpdateDefaultPostureRaceCondition` is currently skipped in the test file due to external dependencies.
+{% endhint %}
+
+## 3.4. Troubleshooting
+
+- If a test fails with a panic similar to `runtime error: index out of range [...]`, run it repeatedly with `-race` to reproduce under contention and confirm the fix.
+- If the race detector reports data races, reduce the scope using `-run` (above) to isolate which test triggers the report.
+
+- To run a specific suit of tests move to the directory of test and run
     ```text
     ~/KubeArmor/tests/test_directory$ ginkgo --focus "Suit_Name"
     ```
