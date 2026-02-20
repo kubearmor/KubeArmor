@@ -35,6 +35,16 @@ helm upgrade --install kubearmor-operator . -n kubearmor --create-namespace
 
 The operator needs a `KubeArmorConfig` object in order to create resources related to KubeArmor. A default config is present in Helm `values.yaml` which can be overridden during Helm install. To install KubeArmor with default configuration use `--set autoDeploy=true` flag with helm install/upgrade command. It is possible to specify configuration even after KubeArmor resources have been installed by directly editing the created `KubeArmorConfig` CR.
 
+### Select the CRI socket file
+
+Set `kubearmorOperator.socketFile` to an absolute socket path when automatic CRI socket detection is not sufficient.
+
+```bash
+helm upgrade --install kubearmor-operator kubearmor/kubearmor-operator \
+  -n kubearmor --create-namespace \
+  --set kubearmorOperator.socketFile=/var/run/containerd/containerd.sock
+```
+
 By Default the helm does not deploys the default KubeArmor Configurations (KubeArmorConfig CR) and once installed, the operator waits for the user to create a `KubeArmorConfig` object.
 ## KubeArmorConfig specification
 
