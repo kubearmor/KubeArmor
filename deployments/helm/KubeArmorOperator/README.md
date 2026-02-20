@@ -15,6 +15,14 @@ cd deployments/helm/KubeArmorOperator
 helm upgrade --install kubearmor-operator . -n kubearmor --create-namespace
 ```
 
+To pin a specific operator image tag:
+
+```bash
+helm upgrade --install kubearmor-operator kubearmor/kubearmor-operator \
+  -n kubearmor --create-namespace \
+  --set kubearmorOperator.image.tag=latest
+```
+
 ## Values
 
 | Key | Type | Default | Description |
