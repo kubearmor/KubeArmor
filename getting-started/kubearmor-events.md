@@ -174,7 +174,6 @@ Host logs use the same top-level shape as container telemetry logs, but the `Typ
 | Field | Description |
 | --- | --- |
 | `UID` | Numeric user ID for the host process.
-| `Username` | Resolved username for the host process UID (when available).
 
 ### Timestamp fields
 
