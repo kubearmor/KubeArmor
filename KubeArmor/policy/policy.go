@@ -18,8 +18,10 @@ type PolicyServer struct {
 	pb.PolicyServiceServer
 	UpdateContainerPolicy  func(tp.K8sKubeArmorPolicyEvent) pb.PolicyStatus
 	UpdateHostPolicy       func(tp.K8sKubeArmorHostPolicyEvent) pb.PolicyStatus
+	UpdateNetworkPolicy    func(tp.K8sKubeArmorNetworkPolicyEvent) pb.PolicyStatus
 	ContainerPolicyEnabled bool
 	HostPolicyEnabled      bool
+	NetworkPolicyEnabled   bool
 }
 
 // ContainerPolicy accepts container events on gRPC and update container security policies
@@ -81,6 +83,39 @@ func (p *PolicyServer) HostPolicy(c context.Context, data *pb.Policy) (*pb.Respo
 
 	} else {
 		kg.Warn("Invalid Host Policy Event")
+		res.Status = pb.PolicyStatus_Invalid
+	}
+
+	return res, nil
+}
+
+// NetworkPolicy accepts network policy event on gRPC service and updates network security policies. It responds with 1 if success else 0.
+func (p *PolicyServer) NetworkPolicy(c context.Context, data *pb.Policy) (*pb.Response, error) {
+	res := new(pb.Response)
+	if !p.NetworkPolicyEnabled {
+		res.Status = pb.PolicyStatus_NotEnabled
+		kg.Warn("Network policies are not enabled")
+		return res, nil
+	}
+	policyEvent := tp.K8sKubeArmorNetworkPolicyEvent{}
+
+	err := json.Unmarshal(data.Policy, &policyEvent)
+	if err == nil {
+
+		if policyEvent.Object.Metadata.Name != "" {
+
+			res.Status = p.UpdateNetworkPolicy(policyEvent)
+
+		} else {
+
+			kg.Warn("Empty Network Policy Event")
+
+			res.Status = pb.PolicyStatus_Invalid
+
+		}
+
+	} else {
+		kg.Warn("Invalid Network Policy Event")
 		res.Status = pb.PolicyStatus_Invalid
 	}
 
