@@ -1,5 +1,11 @@
 # Install KubeArmorOperator
 
+## Overview
+
+KubeArmorOperator deploys a Kubernetes Job named `kubearmor-snitch` on cluster nodes to detect the container runtime.
+
+If runtime detection fails due to multiple CRI sockets being present, set `kubearmorOperator.socketFile` to point to one specific CRI socket.
+
 Install KubeArmorOperator using the official `kubearmor` Helm chart repo. Also see [values](#values) for your respective environment.
 
 ```bash
@@ -32,6 +38,45 @@ helm upgrade --install kubearmor-operator . -n kubearmor --create-namespace
 | kubearmorConfig | object | [values.yaml](values.yaml) | KubeArmor default configurations |
 | kubearmorOperator.annotateResource | bool | false | flag to control RBAC permissions conditionally, use `--annotateResource=<value>` arg as well to pass the same value to operator configuration |
 | autoDeploy | bool | false | Auto deploy KubeArmor with default configurations |
+
+### Configure a specific CRI socket
+
+The Helm value `kubearmorOperator.socketFile` is passed to the snitch job as `--socket-file`.
+
+{% hint style="info" %}
+`--socket-file` accepts an empty value (default), which enables the existing auto-detection behavior.
+{% endhint %}
+
+#### Prerequisites
+
+* Know the absolute path to the CRI socket on the node (for example, `/var/run/containerd/containerd.sock`).
+
+#### Step-by-step
+
+1. Install/upgrade the chart and set `kubearmorOperator.socketFile`.
+
+   ```bash
+   helm upgrade --install kubearmor-operator kubearmor/kubearmor-operator \
+     -n kubearmor --create-namespace \
+     --set kubearmorOperator.socketFile=/var/run/containerd/containerd.sock
+   ```
+
+2. Verify the snitch job completes.
+
+   ```bash
+   kubectl get pods -n kubearmor -l kubearmor-app=kubearmor-snitch
+   ```
+
+#### Tips and best practices
+
+* Use an absolute path. The snitch runtime detection logic rejects non-absolute socket paths.
+* If the value uses the `unix://` prefix, snitch strips the prefix before validating the path.
+
+#### Troubleshooting
+
+* **snitch exits with an error about the socket path**
+
+  Ensure the socket file path is absolute and that the process can stat the socket on the host.
 
 The operator needs a `KubeArmorConfig` object in order to create resources related to KubeArmor. A default config is present in Helm `values.yaml` which can be overridden during Helm install. To install KubeArmor with default configuration use `--set autoDeploy=true` flag with helm install/upgrade command. It is possible to specify configuration even after KubeArmor resources have been installed by directly editing the created `KubeArmorConfig` CR.
 
