@@ -4,7 +4,7 @@
 
 KubeArmorOperator deploys a Kubernetes Job named `kubearmor-snitch` on cluster nodes to detect the container runtime.
 
-If runtime detection fails due to multiple CRI sockets being present, set `kubearmorOperator.socketFile` to point to one specific CRI socket.
+To force snitch to use a specific CRI socket, set `kubearmorOperator.socketFile` to point to that socket.
 
 Install KubeArmorOperator using the official `kubearmor` Helm chart repo. Also see [values](#values) for your respective environment.
 
