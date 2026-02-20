@@ -30,6 +30,7 @@
 ## Documentation
 
 * [KubeArmor Events](getting-started/kubearmor-events.md)
+* [Snitch: CRI socket detection](getting-started/snitch-cri-socket-detection.md)
 * [Control Telemetry/Visibility](getting-started/kubearmor_visibility.md)
 * [Security Posture](getting-started/default_posture.md)
 * [Policy Spec for Containers](getting-started/security_policy_specification.md)
