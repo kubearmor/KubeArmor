@@ -18,6 +18,8 @@ It receives structured information, including:
 
 The Log Feeder formats this information into standardized messages (using **Protobuf**, a language-neutral, platform-neutral, extensible mechanism for serializing structured data) and sends it out over a **gRPC** interface. gRPC is a high-performance framework for inter-process communication.
 
+In addition to the string fields (such as `Resource` and `Data`), the Protobuf schema also includes an `EventData` map on both `Alert` and `Log` messages (`map<string,string> EventData`).
+
 This gRPC interface allows various clients to connect to the KubeArmor Daemon on each node and subscribe to streams of these security events in real-time. Tools like `karmor log` (part of the KubeArmor client tools) connect to this feeder to display events. External systems like Security Information and Event Management (SIEM) platforms can also integrate by writing clients that understand the KubeArmor gRPC format.
 
 ## Why is Log Feeding Important? Your Window into Security
@@ -100,6 +102,7 @@ message Alert {
   string Operation = 19; // e.g., Process, File, Network
   string Resource = 20; // e.g., /etc/passwd, tcp://1.2.3.4:80
   string Data = 21; // Additional data if any
+  map<string, string> EventData = 43;
   string Enforcer = 28; // e.g., BPFLSM, AppArmor, eBPF Monitor
   string Action = 22; // e.g., Allow, Audit, Block
   string Result = 23; // e.g., Failed, Passed, Error
