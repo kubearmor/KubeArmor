@@ -39,6 +39,8 @@ The operator needs a `KubeArmorConfig` object in order to create resources relat
 
 Set `kubearmorOperator.socketFile` to an absolute socket path when automatic CRI socket detection is not sufficient.
 
+> Note: CI workflows set the operator image tag with `--set kubearmorOperator.image.tag=...` (without the `global.` prefix).
+
 ```bash
 helm upgrade --install kubearmor-operator kubearmor/kubearmor-operator \
   -n kubearmor --create-namespace \
