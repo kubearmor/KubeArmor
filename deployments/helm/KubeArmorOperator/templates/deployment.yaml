@@ -63,6 +63,9 @@ spec:
         args:
         - --annotateExisting={{ .Values.kubearmorOperator.annotateExisting }}
         - --annotateResource={{ .Values.kubearmorOperator.annotateResource }}
+        {{- if .Values.kubearmorOperator.socketFile }}
+        - --socket-file={{ .Values.kubearmorOperator.socketFile }}
+        {{- end }}
         {{- if .Values.kubearmorOperator.image.imagePullSecrets }}
         - --image-pull-secrets={{ .Values.kubearmorOperator.image.imagePullSecrets | toJson }}
 

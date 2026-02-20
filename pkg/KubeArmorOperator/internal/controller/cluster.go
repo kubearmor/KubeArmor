@@ -58,6 +58,7 @@ var (
 	ImagePullSecrets                   []corev1.LocalObjectReference
 	LsmOrder                           string
 	LsmFlagString                      string
+	SocketFile                         string
 )
 
 type ClusterWatcher struct {
@@ -107,6 +108,7 @@ func NewClusterWatcher(o *cmd.OperatorOptions) *ClusterWatcher {
 	ProviderEndpoint = o.ProviderEndpoint
 	LsmOrder = o.LsmOrder
 	LsmFlagString = "--lsm=" + LsmOrder
+	SocketFile = o.SocketFile
 
 	// add image pull secrets
 	ImagePullSecrets = utils.SanitizePullSecrets(o.ImagePullSecrets)

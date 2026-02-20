@@ -37,6 +37,8 @@ kubearmorOperator:
   annotateResource: false
   annotateExisting: false
   name: kubearmor-operator
+  # If not set, the operator will auto-detect the CRI socket
+  socketFile: ""
   image:
     repository: docker.io/kubearmor/kubearmor-operator
     tag: ""
