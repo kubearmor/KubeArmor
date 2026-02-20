@@ -12,6 +12,17 @@ helm upgrade --install kubearmor-operator kubearmor/kubearmor-operator -n kubear
 kubectl apply -f https://raw.githubusercontent.com/kubearmor/KubeArmor/main/pkg/KubeArmorOperator/config/samples/sample-config.yml
 ```
 
+### Configure CRI socket detection (optional)
+
+The KubeArmor operator deploys a per-node job (called `snitch`) to detect the node's container runtime and socket.
+
+If the runtime socket auto-detection does not work in an environment, configure an explicit CRI socket path for `snitch` using the `--socket-file` flag.
+
+Requirements for `--socket-file`:
+
+* Use an **absolute path**.
+* Ensure the socket path is **readable** by the `snitch` job.
+
 You can find more details about helm related values and configurations [here](https://github.com/kubearmor/KubeArmor/tree/main/deployments/helm/KubeArmorOperator).
 
 ## Install kArmor CLI (Optional)
