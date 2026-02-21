@@ -5,6 +5,22 @@ This guide assumes you have access to a [k8s cluster](support_matrix.md). If you
 Check the [KubeArmor support matrix](support_matrix.md) to verify if your platform is supported.
 
 ## Install KubeArmor
+
+<details>
+<summary><strong>On MicroShift</strong></summary>
+
+> [!NOTE]
+> This guide assumes that you are the cluster administrator or have the necessary permissions to perform the following operation.
+
+MicroShift limits the [SecurityContextConstraint](https://docs.openshift.com/container-platform/4.13/authentication/managing-security-context-constraints.html#security-context-constraints-about_configuring-internal-oauth) (SCC) of new namespaces to [restricted-v2](https://github.com/openshift/microshift/blob/main/docs/user/howto_pod_security.md) by default. This results in pod security admission errors for KubeArmor resources and prevents them from running. To install KubeArmor successfully on MicroShift create a custom `kubearmor-scc` SecurityContextConstraint required for KubeArmor to run properly:
+
+  ```shell
+  oc apply -f https://raw.githubusercontent.com/kubearmor/KubeArmor/main/pkg/KubeArmorOperator/config/rbac/kubearmor-scc.yaml
+  ```
+
+- After creating the SCC install KubeArmor by executing the following commands:
+</details>
+
 ```
 helm repo add kubearmor https://kubearmor.github.io/charts
 helm repo update kubearmor
@@ -144,6 +160,16 @@ For e.g., to access service account token:
 Thus we can see that one can use the service account token to access the Kube API server.
 
 Lets apply a policy to block access to service account token:
+
+> [!NOTE]
+> This policy will not work on MicroShift.
+> To block access to the service account token, add the following rule to the policy:
+```yaml
+matchDirectories:
+  - dir: /containers/storage/overlay-containers/
+    recursive: true
+```
+
 ```
 cat <<EOF | kubectl apply -f -
 apiVersion: security.kubearmor.com/v1
