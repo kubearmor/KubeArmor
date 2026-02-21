@@ -1,0 +1,26 @@
+name: Review Assign
+
+on:
+  pull_request:
+    types: [opened]
+
+jobs:
+  assign:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    - name: Extract reviewers from CODEOWNERS
+      id: extract_reviewers
+      run: |
+        # Extract reviewers from CODEOWNERS
+        reviewers=$(grep -Eo '@\w+' CODEOWNERS | tr '\n' ',' | sed 's/,$//')
+        echo "REVIEWERS=$reviewers" >> $GITHUB_ENV
+
+    - name: Assign Reviewers
+      uses: hkusu/review-assign-action@v1
+      with:
+        reviewers: ${{ env.REVIEWERS }}
+        max-num-of-reviewers: 5
