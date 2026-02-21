@@ -1,0 +1,17 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: network-allow-tcp
+  namespace: nptest
+spec:
+  severity: 8
+  selector:
+    matchLabels:
+      container: ubuntu-1
+  network:
+    matchProtocols:
+    - protocol: tcp
+      fromSource:
+      - path: /usr/bin/curl
+  action:
+    Allow
