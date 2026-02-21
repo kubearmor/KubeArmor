@@ -58,16 +58,25 @@ spec:
                 enum:
                 - Allow
                 - Audit
+                - BatchAudit
                 - Block
                 type: string
               apparmor:
                 type: string
+              batchAudit:
+                properties:
+                  intervalSeconds:
+                    format: int32
+                    minimum: 1
+                    type: integer
+                type: object
               capabilities:
                 properties:
                   action:
                     enum:
                     - Allow
                     - Audit
+                    - BatchAudit
                     - Block
                     type: string
                   matchCapabilities:
@@ -77,6 +86,7 @@ spec:
                           enum:
                           - Allow
                           - Audit
+                          - BatchAudit
                           - Block
                           type: string
                         capability:
@@ -86,9 +96,9 @@ spec:
                           items:
                             properties:
                               path:
+                                maxLength: 200
                                 pattern: ^\/+.*[^\/]$
                                 type: string
-                                maxLength: 200
                             type: object
                           type: array
                         message:
@@ -123,6 +133,7 @@ spec:
                     enum:
                     - Allow
                     - Audit
+                    - BatchAudit
                     - Block
                     type: string
                   matchDevice:
@@ -132,6 +143,7 @@ spec:
                           enum:
                           - Allow
                           - Audit
+                          - BatchAudit
                           - Block
                           type: string
                         class:
@@ -177,6 +189,7 @@ spec:
                     enum:
                     - Allow
                     - Audit
+                    - BatchAudit
                     - Block
                     type: string
                   matchDirectories:
@@ -186,6 +199,7 @@ spec:
                           enum:
                           - Allow
                           - Audit
+                          - BatchAudit
                           - Block
                           type: string
                         dir:
@@ -195,9 +209,9 @@ spec:
                           items:
                             properties:
                               path:
+                                maxLength: 200
                                 pattern: ^\/+.*[^\/]$
                                 type: string
-                                maxLength: 200
                             type: object
                           type: array
                         message:
@@ -227,15 +241,16 @@ spec:
                           enum:
                           - Allow
                           - Audit
+                          - BatchAudit
                           - Block
                           type: string
                         fromSource:
                           items:
                             properties:
                               path:
+                                maxLength: 200
                                 pattern: ^\/+.*[^\/]$
                                 type: string
-                                maxLength: 200
                             type: object
                           type: array
                         message:
@@ -243,9 +258,9 @@ spec:
                         ownerOnly:
                           type: boolean
                         path:
+                          maxLength: 200
                           pattern: ^\/+.*[^\/]$
                           type: string
-                          maxLength: 200
                         readOnly:
                           type: boolean
                         severity:
@@ -267,6 +282,7 @@ spec:
                           enum:
                           - Allow
                           - Audit
+                          - BatchAudit
                           - Block
                           type: string
                         message:
@@ -308,6 +324,7 @@ spec:
                     enum:
                     - Allow
                     - Audit
+                    - BatchAudit
                     - Block
                     type: string
                   matchProtocols:
@@ -317,15 +334,16 @@ spec:
                           enum:
                           - Allow
                           - Audit
+                          - BatchAudit
                           - Block
                           type: string
                         fromSource:
                           items:
                             properties:
                               path:
+                                maxLength: 200
                                 pattern: ^\/+.*[^\/]$
                                 type: string
-                                maxLength: 200
                             type: object
                           type: array
                         message:
@@ -370,6 +388,7 @@ spec:
                     enum:
                     - Allow
                     - Audit
+                    - BatchAudit
                     - Block
                     type: string
                   matchDirectories:
@@ -379,19 +398,19 @@ spec:
                           enum:
                           - Allow
                           - Audit
+                          - BatchAudit
                           - Block
                           type: string
                         dir:
                           pattern: ^\/$|^\/.*\/$
                           type: string
-                          maxLength: 200
                         fromSource:
                           items:
                             properties:
                               path:
+                                maxLength: 200
                                 pattern: ^\/+.*[^\/]$
                                 type: string
-                                maxLength: 200
                             type: object
                           type: array
                         message:
@@ -419,8 +438,14 @@ spec:
                           enum:
                           - Allow
                           - Audit
+                          - BatchAudit
                           - Block
                           type: string
+                        allowedArgs:
+                          items:
+                            type: string
+                          maxItems: 20
+                          type: array
                         execname:
                           pattern: ^[^\/]+$
                           type: string
@@ -428,9 +453,9 @@ spec:
                           items:
                             properties:
                               path:
+                                maxLength: 200
                                 pattern: ^\/+.*[^\/]$
                                 type: string
-                                maxLength: 200
                             type: object
                           type: array
                         message:
@@ -438,14 +463,9 @@ spec:
                         ownerOnly:
                           type: boolean
                         path:
+                          maxLength: 200
                           pattern: ^\/+.*[^\/]$
                           type: string
-                          maxLength: 200
-                        allowedArgs: 
-                          items: 
-                            type: string
-                          type: array
-                          maxItems: 20
                         severity:
                           maximum: 10
                           minimum: 1
@@ -463,6 +483,7 @@ spec:
                           enum:
                           - Allow
                           - Audit
+                          - BatchAudit
                           - Block
                           type: string
                         message:
@@ -509,9 +530,9 @@ spec:
                               dir:
                                 type: string
                               path:
+                                maxLength: 200
                                 pattern: ^\/+.*[^\/]$
                                 type: string
-                                maxLength: 200
                               recursive:
                                 type: boolean
                             type: object
@@ -519,7 +540,6 @@ spec:
                         path:
                           pattern: (^\/+.*[^\/]$)|(^\/$|^\/.*\/$)
                           type: string
-                          maxLength: 200
                         recursive:
                           type: boolean
                         syscall:
@@ -873,9 +893,9 @@ spec:
                               dir:
                                 type: string
                               path:
+                                maxLength: 200
                                 pattern: ^\/+.*[^\/]$
                                 type: string
-                                maxLength: 200
                               recursive:
                                 type: boolean
                             type: object

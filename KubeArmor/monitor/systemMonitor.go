@@ -34,11 +34,21 @@ const (
 	PermissionDenied = -13
 	MaxStringLen     = 4096
 	PinPath          = "/sys/fs/bpf"
+	// kernel BPF object names are limited to BPF_OBJ_NAME_LEN (16) including
+	// the trailing null terminator
+	bpfObjNameMaxLen = 15
 	visibilityOff    = uint32(1)
 	visibilityOn     = uint32(0)
 	// how many event the channel can hold
-	SyscallChannelSize   = 1 << 13 //8192
+	SyscallChannelSize   = 1 << 13 // 8192
 	DefaultVisibilityKey = uint32(0xc0ffee)
+
+	execveRetStageMatchSource     = uint32(0)
+	execveRetStageMatchNoSource   = uint32(1)
+	execveRetStageAggregateSubmit = uint32(2)
+
+	traceRetStageFileAggregate = uint32(0)
+	traceRetStageSubmit        = uint32(1)
 )
 
 // ======================= /=/
@@ -151,11 +161,16 @@ type SystemMonitor struct {
 	BpfConfigMap         *cle.Map
 	BpfNsVisibilityMap   *cle.Map
 	BpfVisibilityMapSpec cle.MapSpec
+	BatchAuditPolicyMap  *cle.Map
+	BatchAuditAggMap     *cle.Map
 
-	NsVisibilityMap  map[NsKey]*cle.Map
-	NamespacePidsMap map[string]NsVisibility
-	BpfMapLock       *sync.RWMutex
-	PinPath          string
+	NsVisibilityMap     map[NsKey]*cle.Map
+	NamespacePidsMap    map[string]NsVisibility
+	BatchAuditPolicies  map[uint64]batchAuditPolicyMeta
+	BatchAuditWakeChan  chan struct{}
+	BpfMapLock          *sync.RWMutex
+	BatchAuditStateLock *sync.RWMutex
+	PinPath             string
 
 	// Probes Links
 	Probes map[string]link.Link
@@ -182,8 +197,7 @@ type SystemMonitor struct {
 }
 
 // NewSystemMonitor Function
-func NewSystemMonitor(node *tp.Node, nodeLock **sync.RWMutex, logger *fd.Feeder, containers *map[string]tp.Container, containersLock **sync.RWMutex,
-	activeHostPidMap *map[string]tp.PidMap, activePidMapLock **sync.RWMutex, monitorLock **sync.RWMutex) *SystemMonitor {
+func NewSystemMonitor(node *tp.Node, nodeLock **sync.RWMutex, logger *fd.Feeder, containers *map[string]tp.Container, containersLock **sync.RWMutex, activeHostPidMap *map[string]tp.PidMap, activePidMapLock **sync.RWMutex, monitorLock **sync.RWMutex) *SystemMonitor {
 	mon := new(SystemMonitor)
 
 	mon.Node = node
@@ -213,6 +227,9 @@ func NewSystemMonitor(node *tp.Node, nodeLock **sync.RWMutex, logger *fd.Feeder,
 	mon.BpfMapLock = new(sync.RWMutex)
 	mon.NsVisibilityMap = make(map[NsKey]*cle.Map)
 	mon.NamespacePidsMap = make(map[string]NsVisibility)
+	mon.BatchAuditPolicies = make(map[uint64]batchAuditPolicyMeta)
+	mon.BatchAuditWakeChan = make(chan struct{}, 1)
+	mon.BatchAuditStateLock = new(sync.RWMutex)
 	mon.BpfVisibilityMapSpec = cle.MapSpec{
 		Type:       cle.Hash,
 		KeySize:    4,
@@ -275,6 +292,7 @@ func (mon *SystemMonitor) initBPFMaps() error {
 
 	return errors.Join(errviz, errconfig)
 }
+
 func (mon *SystemMonitor) UpdateMatchArgsConfig() {
 	if cfg.GlobalCfg.MatchArgs {
 		if err := mon.BpfConfigMap.Update(uint32(6), uint32(1), cle.UpdateAny); err != nil {
@@ -581,6 +599,12 @@ func (mon *SystemMonitor) InitBPF() error {
 	if mon.BpfModule != nil {
 
 		mon.Probes = make(map[string]link.Link)
+		if err := mon.initExecRetTailCalls(); err != nil {
+			return err
+		}
+		if err := mon.initTraceRetTailCalls(); err != nil {
+			return err
+		}
 
 		mon.Probes["kprobe__udp_sendmsg"], err = link.Kprobe("udp_sendmsg", mon.BpfModule.Programs["kprobe__udp_sendmsg"], nil)
 		if err != nil {
@@ -642,10 +666,123 @@ func (mon *SystemMonitor) InitBPF() error {
 			mon.Logger.Warnf("error initializing events perf map: %v", err)
 		}
 
+		mon.BatchAuditPolicyMap = mon.BpfModule.Maps["batch_audit_policies"]
+		if mon.BatchAuditPolicyMap == nil {
+			mon.Logger.Warn("batch audit policy map is not available in system monitor module")
+		}
+
+		mon.BatchAuditAggMap = mon.BpfModule.Maps["batch_audit_aggregations"]
+		if mon.BatchAuditAggMap == nil {
+			mon.Logger.Warn("batch audit aggregation map is not available in system monitor module")
+		}
+
 		if cfg.GlobalCfg.EnableIMA {
 			if err := mon.InitImaHash(); err != nil {
 				mon.Logger.Warnf("error initializing IMA hash module: %s", err)
 			}
+		}
+	}
+
+	return nil
+}
+
+type tailCallProgram struct {
+	index uint32
+	name  string
+}
+
+func (mon *SystemMonitor) getBPFMap(name string) *cle.Map {
+	if mon.BpfModule == nil {
+		return nil
+	}
+
+	if m := mon.BpfModule.Maps[name]; m != nil {
+		return m
+	}
+
+	if len(name) > bpfObjNameMaxLen {
+		trimmed := name[:bpfObjNameMaxLen]
+		if m := mon.BpfModule.Maps[trimmed]; m != nil {
+			mon.Logger.Warnf("using truncated BPF map name %s for %s", trimmed, name)
+			return m
+		}
+	}
+
+	return nil
+}
+
+func (mon *SystemMonitor) initExecRetTailCalls() error {
+	if mon.BpfModule == nil {
+		return fmt.Errorf("bpf module is nil")
+	}
+
+	programs := []tailCallProgram{
+		{index: execveRetStageMatchSource, name: "kprobe__execve_ret_match_source"},
+		{index: execveRetStageMatchNoSource, name: "kprobe__execve_ret_match_nosource"},
+		{index: execveRetStageAggregateSubmit, name: "kprobe__execve_ret_aggregate_submit"},
+	}
+
+	progArray := mon.getBPFMap("exec_ret_tailcalls")
+	if progArray == nil {
+		for _, p := range programs {
+			if mon.BpfModule.Programs[p.name] != nil {
+				return fmt.Errorf("exec return tailcall map not found")
+			}
+		}
+		mon.Logger.Warn("exec return tailcall programs are not available in BPF object, skipping initialization")
+		return nil
+	}
+
+	for _, p := range programs {
+		prog := mon.BpfModule.Programs[p.name]
+		if prog == nil {
+			return fmt.Errorf("tailcall program %s not found", p.name)
+		}
+
+		fd := uint32(prog.FD())
+		if err := progArray.Put(p.index, fd); err != nil {
+			return fmt.Errorf("failed to update exec return tailcall slot %d: %w", p.index, err)
+		}
+	}
+
+	return nil
+}
+
+func (mon *SystemMonitor) initTraceRetTailCalls() error {
+	if mon.BpfModule == nil {
+		return fmt.Errorf("bpf module is nil")
+	}
+
+	type tailCallProgram struct {
+		index uint32
+		name  string
+	}
+
+	programs := []tailCallProgram{
+		{index: traceRetStageFileAggregate, name: "kprobe__trace_ret_generic_file_aggregate"},
+		{index: traceRetStageSubmit, name: "kprobe__trace_ret_generic_submit"},
+	}
+
+	progArray := mon.getBPFMap("trace_ret_tailcalls")
+	if progArray == nil {
+		for _, p := range programs {
+			if mon.BpfModule.Programs[p.name] != nil {
+				return fmt.Errorf("trace return tailcall map not found")
+			}
+		}
+		mon.Logger.Warn("trace return tailcall programs are not available in BPF object, skipping initialization")
+		return nil
+	}
+
+	for _, p := range programs {
+		prog := mon.BpfModule.Programs[p.name]
+		if prog == nil {
+			return fmt.Errorf("tailcall program %s not found", p.name)
+		}
+
+		fd := uint32(prog.FD())
+		if err := progArray.Put(p.index, fd); err != nil {
+			return fmt.Errorf("failed to update trace return tailcall slot %d: %w", p.index, err)
 		}
 	}
 
@@ -707,11 +844,11 @@ probeBPFLSM:
 
 // DestroySystemMonitor Function
 func (mon *SystemMonitor) DestroySystemMonitor() error {
-
 	(*mon.MonitorLock).Lock()
 	defer (*mon.MonitorLock).Unlock()
 
 	mon.Status = false
+	mon.notifyBatchAuditRefresh()
 
 	if mon.SyscallPerfMap != nil {
 		if err := mon.SyscallPerfMap.Close(); err != nil {
@@ -933,7 +1070,6 @@ func (mon *SystemMonitor) TraceSyscall() {
 				if len(args) != 2 {
 					continue
 				}
-
 			} else if ctx.EventID == SysExecve {
 				if len(args) == 2 { // enter
 					var execPath string
@@ -1147,6 +1283,5 @@ func (mon *SystemMonitor) TraceSyscall() {
 			mon.ContextChan <- ContextCombined{ContainerID: containerID, ContextSys: ctx, ContextArgs: args, HashData: hashes}
 			MonitorLock.Unlock()
 		}
-
 	}
 }

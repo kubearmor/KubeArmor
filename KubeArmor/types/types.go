@@ -601,6 +601,10 @@ const (
 	ProtectProc PresetName = "protectProc"
 )
 
+type BatchAuditType struct {
+	IntervalSeconds int32 `json:"intervalSeconds,omitempty"`
+}
+
 // SecuritySpec Structure
 type SecuritySpec struct {
 	Selector SelectorType `json:"selector"`
@@ -612,7 +616,8 @@ type SecuritySpec struct {
 	Syscalls     SyscallsType     `json:"syscalls,omitempty"`
 	Presets      []PresetType     `json:"presets,omitempty"`
 
-	AppArmor string `json:"apparmor,omitempty"`
+	AppArmor   string         `json:"apparmor,omitempty"`
+	BatchAudit BatchAuditType `json:"batchAudit"`
 
 	Severity int      `json:"severity,omitempty"`
 	Tags     []string `json:"tags,omitempty"`
@@ -647,7 +652,8 @@ type HostSecuritySpec struct {
 	Syscalls     SyscallsType     `json:"syscalls,omitempty"`
 	Device       DeviceType       `json:"device,omitempty"`
 
-	AppArmor string `json:"apparmor,omitempty"`
+	AppArmor   string         `json:"apparmor,omitempty"`
+	BatchAudit BatchAuditType `json:"batchAudit"`
 
 	Severity int      `json:"severity,omitempty"`
 	Tags     []string `json:"tags,omitempty"`
