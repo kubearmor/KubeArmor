@@ -3,7 +3,7 @@
 
 ### Builder
 
-FROM golang:1.24-alpine3.22 AS builder
+FROM docker.io/dockerhardened/golang:1.21-alpine AS builder
 
 RUN apk --no-cache update
 RUN apk add --no-cache git clang llvm make gcc protobuf protobuf-dev curl elfutils-dev
