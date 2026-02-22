@@ -1,6 +1,34 @@
 # Testing Guide
 
 There are two ways to check the functionalities of KubeArmor: 1) testing KubeArmor manually and 2) using the testing framework.
+
+## Unit tests
+
+Run unit tests with `go test`.
+
+### Policy package tests
+
+The policy gRPC handlers are covered by unit tests and fuzz tests in `KubeArmor/policy/policy_test.go`.
+
+From the repository root:
+
+```sh
+go test ./KubeArmor/policy -v
+```
+
+## Fuzz tests
+
+Fuzz tests for the policy handlers are implemented as Go fuzzing functions in `KubeArmor/policy/policy_test.go`:
+
+- `FuzzContainerPolicy`
+- `FuzzHostPolicy`
+
+The OSS-Fuzz build script compiles these fuzzers from the `KubeArmor/policy` package (see `KubeArmor/fuzz/build.sh`).
+
+{% hint style="info" %}
+This guide documents where the fuzz tests live in the source tree. Execution of fuzzers depends on the fuzzing environment used (for example, an OSS-Fuzz build).
+{% endhint %}
+
 # 0. Make sure Kubernetes cluster is running 
 
 Although there are many ways to run a Kubernetes cluster (like minikube or kind), it will not work with locally developed KubeArmor. KubeArmor needs to be on the same node as where the Kubernetes nodes exist. If you try to do this it will not identify your node since minikube and kind use virtualized nodes. You would either need to build your images and deploy them into these clusters or you can simply use `k3s` or `kubeadm` for development purposes. If you are new to these terms then the easiest way to do this is by following this guide: [K3s installation guide](k3s/README.md)
