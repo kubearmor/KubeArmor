@@ -37,7 +37,7 @@ const (
 	visibilityOff    = uint32(1)
 	visibilityOn     = uint32(0)
 	// how many event the channel can hold
-	SyscallChannelSize   = 1 << 13 //8192
+	SyscallChannelSize   = 1 << 13 // 8192
 	DefaultVisibilityKey = uint32(0xc0ffee)
 )
 
@@ -151,11 +151,15 @@ type SystemMonitor struct {
 	BpfConfigMap         *cle.Map
 	BpfNsVisibilityMap   *cle.Map
 	BpfVisibilityMapSpec cle.MapSpec
+	BatchAuditPolicyMap  *cle.Map
+	BatchAuditAggMap     *cle.Map
 
-	NsVisibilityMap  map[NsKey]*cle.Map
-	NamespacePidsMap map[string]NsVisibility
-	BpfMapLock       *sync.RWMutex
-	PinPath          string
+	NsVisibilityMap     map[NsKey]*cle.Map
+	NamespacePidsMap    map[string]NsVisibility
+	BatchAuditPolicies  map[uint64]batchAuditPolicyMeta
+	BpfMapLock          *sync.RWMutex
+	BatchAuditStateLock *sync.RWMutex
+	PinPath             string
 
 	// Probes Links
 	Probes map[string]link.Link
@@ -182,8 +186,7 @@ type SystemMonitor struct {
 }
 
 // NewSystemMonitor Function
-func NewSystemMonitor(node *tp.Node, nodeLock **sync.RWMutex, logger *fd.Feeder, containers *map[string]tp.Container, containersLock **sync.RWMutex,
-	activeHostPidMap *map[string]tp.PidMap, activePidMapLock **sync.RWMutex, monitorLock **sync.RWMutex) *SystemMonitor {
+func NewSystemMonitor(node *tp.Node, nodeLock **sync.RWMutex, logger *fd.Feeder, containers *map[string]tp.Container, containersLock **sync.RWMutex, activeHostPidMap *map[string]tp.PidMap, activePidMapLock **sync.RWMutex, monitorLock **sync.RWMutex) *SystemMonitor {
 	mon := new(SystemMonitor)
 
 	mon.Node = node
@@ -213,6 +216,8 @@ func NewSystemMonitor(node *tp.Node, nodeLock **sync.RWMutex, logger *fd.Feeder,
 	mon.BpfMapLock = new(sync.RWMutex)
 	mon.NsVisibilityMap = make(map[NsKey]*cle.Map)
 	mon.NamespacePidsMap = make(map[string]NsVisibility)
+	mon.BatchAuditPolicies = make(map[uint64]batchAuditPolicyMeta)
+	mon.BatchAuditStateLock = new(sync.RWMutex)
 	mon.BpfVisibilityMapSpec = cle.MapSpec{
 		Type:       cle.Hash,
 		KeySize:    4,
@@ -275,6 +280,7 @@ func (mon *SystemMonitor) initBPFMaps() error {
 
 	return errors.Join(errviz, errconfig)
 }
+
 func (mon *SystemMonitor) UpdateMatchArgsConfig() {
 	if cfg.GlobalCfg.MatchArgs {
 		if err := mon.BpfConfigMap.Update(uint32(6), uint32(1), cle.UpdateAny); err != nil {
@@ -642,6 +648,16 @@ func (mon *SystemMonitor) InitBPF() error {
 			mon.Logger.Warnf("error initializing events perf map: %v", err)
 		}
 
+		mon.BatchAuditPolicyMap = mon.BpfModule.Maps["batch_audit_policies"]
+		if mon.BatchAuditPolicyMap == nil {
+			mon.Logger.Warn("batch audit policy map is not available in system monitor module")
+		}
+
+		mon.BatchAuditAggMap = mon.BpfModule.Maps["batch_audit_aggregations"]
+		if mon.BatchAuditAggMap == nil {
+			mon.Logger.Warn("batch audit aggregation map is not available in system monitor module")
+		}
+
 		if cfg.GlobalCfg.EnableIMA {
 			if err := mon.InitImaHash(); err != nil {
 				mon.Logger.Warnf("error initializing IMA hash module: %s", err)
@@ -707,7 +723,6 @@ probeBPFLSM:
 
 // DestroySystemMonitor Function
 func (mon *SystemMonitor) DestroySystemMonitor() error {
-
 	(*mon.MonitorLock).Lock()
 	defer (*mon.MonitorLock).Unlock()
 
@@ -933,7 +948,6 @@ func (mon *SystemMonitor) TraceSyscall() {
 				if len(args) != 2 {
 					continue
 				}
-
 			} else if ctx.EventID == SysExecve {
 				if len(args) == 2 { // enter
 					var execPath string
@@ -1147,6 +1161,5 @@ func (mon *SystemMonitor) TraceSyscall() {
 			mon.ContextChan <- ContextCombined{ContainerID: containerID, ContextSys: ctx, ContextArgs: args, HashData: hashes}
 			MonitorLock.Unlock()
 		}
-
 	}
 }

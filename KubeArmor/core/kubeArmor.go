@@ -303,6 +303,7 @@ func (dm *KubeArmorDaemon) MonitorSystemEvents() {
 		go dm.SystemMonitor.TraceSyscall()
 		go dm.SystemMonitor.UpdateLogs()
 		go dm.SystemMonitor.CleanUpExitedHostPids()
+		go dm.SystemMonitor.PollBatchAuditEvents()
 	}
 }
 

@@ -75,7 +75,7 @@
 #define MAX_STRING_SIZE 4096
 #define MAX_STR_ARR_ELEM 20
 #define MAX_LOOP_LIMIT 25
-#define MAX_PATH_LEN 256
+#define MAX_PATH_LEN 200
 
 #define NONE_T 0UL
 #define INT_T 1UL
@@ -334,6 +334,11 @@ struct exec_pid_map kubearmor_exec_pids SEC(".maps");
 
 struct pathname_t
 {
+    char path[256];
+};
+
+struct batch_audit_pathname_t
+{
     char path[MAX_PATH_LEN];
 };
 
@@ -346,7 +351,7 @@ struct
     __uint(pinning, LIBBPF_PIN_BY_NAME);
 } proc_file_access SEC(".maps");
 
-struct batch_audit_path_t
+struct batch_audit_paths_t
 {
     char path[MAX_PATH_LEN]; // file or exec path
     char source[MAX_PATH_LEN]; // source exec path
@@ -355,7 +360,7 @@ struct batch_audit_path_t
 struct batch_audit_policy_key_t
 {
     struct outer_key okey;
-    struct batch_audit_path_t paths;
+    struct batch_audit_paths_t paths;
 };
 
 struct batch_audit_policy_val_t
@@ -399,14 +404,15 @@ struct
 } batch_audit_aggregations SEC(".maps");
 
 // scratch maps
-BPF_PERCPU_ARRAY(batch_audit_exec_path_scratch, struct pathname_t, 1);
-BPF_PERCPU_ARRAY(batch_audit_exec_path_source_scratch, struct batch_audit_path_t, 1);
+BPF_PERCPU_ARRAY(batch_audit_exec_path_scratch, struct batch_audit_pathname_t, 1);
+BPF_PERCPU_ARRAY(batch_audit_exec_path_source_scratch, struct batch_audit_paths_t, 1);
 BPF_PERCPU_ARRAY(batch_audit_policy_key_scratch, struct batch_audit_policy_key_t, 1);
-BPF_PERCPU_ARRAY(batch_audit_aggregation_val_scratch, struct batch_audit_aggregation_val_t, 1);
+BPF_ARRAY(batch_audit_aggregation_val_scratch, struct batch_audit_aggregation_val_t, 1);
 
-BPF_LRU_HASH(batch_audit_pid_to_exec_path, u32, struct pathname_t);
+BPF_LRU_HASH(batch_audit_pid_to_exec_path, u32, struct batch_audit_pathname_t);
 BPF_LRU_HASH(batch_audit_pid_to_exec_size, u32, u32);
 BPF_LRU_HASH(batch_audit_pid_to_exec_data, u32, struct buffers);
+BPF_LRU_HASH(batch_audit_pid_to_file_path, u32, struct batch_audit_pathname_t);
 
 // == Pid NS Management == //
 
@@ -1372,6 +1378,46 @@ static __always_inline bool batch_audit_owner_match(__u32 uid, __u32 oid, __u16 
     return true;
 }
 
+static __always_inline void batch_audit_store_file_path_from_file_map(void)
+{
+    u64 pid_tgid = bpf_get_current_pid_tgid();
+    struct path *path = bpf_map_lookup_elem(&file_map, &pid_tgid);
+    if (!path)
+    {
+        return;
+    }
+
+    bufs_t *bufs_p = get_buffer(FILE_BUF_TYPE);
+    if (!bufs_p)
+    {
+        return;
+    }
+    if (!prepend_path(path, bufs_p, FILE_BUF_TYPE))
+    {
+        return;
+    }
+
+    u32 *off = get_buffer_offset(FILE_BUF_TYPE);
+    if (!off)
+    {
+        return;
+    }
+
+    u32 idx = 0;
+    struct batch_audit_pathname_t *dst = bpf_map_lookup_elem(&batch_audit_exec_path_scratch, &idx);
+    if (!dst)
+    {
+        return;
+    }
+    if (bpf_probe_read_str(dst->path, sizeof(dst->path), (void *)&bufs_p->buf[*off]) <= 0)
+    {
+        return;
+    }
+
+    u32 pid = pid_tgid >> 32;
+    bpf_map_update_elem(&batch_audit_pid_to_file_path, &pid, dst, BPF_ANY);
+}
+
 static __always_inline bool batch_audit_match_process(struct outer_key *okey, const char *path, const char *source, __u32 uid, __u32 oid, __u64 *policy_hash)
 {
     if (!okey || !path || !policy_hash)
@@ -1387,7 +1433,7 @@ static __always_inline bool batch_audit_match_process(struct outer_key *okey, co
     }
 
     pkey->okey = *okey;
-    struct batch_audit_path_t *paths = &pkey->paths;
+    struct batch_audit_paths_t *paths = &pkey->paths;
 
 #pragma unroll
     for (int i = 0; i < MAX_PATH_LEN; i++)
@@ -1447,57 +1493,6 @@ static __always_inline bool batch_audit_match_process(struct outer_key *okey, co
         }
     }
 
-#pragma unroll
-    for (int i = 0; i < MAX_PATH_LEN; i++)
-    {
-        paths->path[i] = '\0';
-    }
-
-#pragma unroll
-    for (int i = 0; i < MAX_PATH_LEN; i++)
-    {
-        char c = path[i];
-        paths->path[i] = c;
-        if (c == '\0')
-        {
-            break;
-        }
-        if (c != '/')
-        {
-            continue;
-        }
-
-        val = bpf_map_lookup_elem(&batch_audit_policies, pkey);
-        if (!val)
-        {
-            continue;
-        }
-
-        if (!(val->process_mask & BATCH_AUDIT_RULE_DIR) || !(val->process_mask & BATCH_AUDIT_RULE_EXEC))
-        {
-            continue;
-        }
-
-        if (!batch_audit_owner_match(uid, oid, val->process_mask))
-        {
-            return false;
-        }
-
-        if (val->process_mask & BATCH_AUDIT_RULE_RECURSIVE)
-        {
-            *policy_hash = val->policy_hash;
-            return true;
-        }
-
-        if (i != last_slash)
-        {
-            continue;
-        }
-
-        *policy_hash = val->policy_hash;
-        return true;
-    }
-
     return false;
 }
 
@@ -1516,7 +1511,7 @@ static __always_inline bool batch_audit_match_file(struct outer_key *okey, const
     }
 
     pkey->okey = *okey;
-    struct batch_audit_path_t *paths = &pkey->paths;
+    struct batch_audit_paths_t *paths = &pkey->paths;
 
 #pragma unroll
     for (int i = 0; i < MAX_PATH_LEN; i++)
@@ -1547,74 +1542,26 @@ static __always_inline bool batch_audit_match_file(struct outer_key *okey, const
         return true;
     }
 
-#pragma unroll
-    for (int i = 0; i < MAX_PATH_LEN; i++)
-    {
-        paths->path[i] = '\0';
-    }
-
-    int last_slash = -1;
-    int non_recursive_idx = -1;
-    __u64 non_recursive_policy_hash = 0;
-
-#pragma unroll
-    for (int i = 0; i < MAX_PATH_LEN; i++)
-    {
-        char c = path[i];
-        paths->path[i] = c;
-        if (c == '\0')
-        {
-            break;
-        }
-        if (c != '/')
-        {
-            continue;
-        }
-        last_slash = i;
-
-        val = bpf_map_lookup_elem(&batch_audit_policies, pkey);
-        if (!val)
-        {
-            continue;
-        }
-
-        if (!(val->file_mask & BATCH_AUDIT_RULE_DIR))
-        {
-            continue;
-        }
-
-        if (!batch_audit_owner_match(uid, oid, val->file_mask))
-        {
-            return false;
-        }
-
-        // TODO: we might want to verify if this behavior is the same as for
-        // Audit actions.
-        if (has_flags && (val->file_mask & BATCH_AUDIT_RULE_READ) && !(val->file_mask & BATCH_AUDIT_RULE_WRITE) && !is_readonly)
-        {
-            return false;
-        }
-
-        if (val->file_mask & BATCH_AUDIT_RULE_RECURSIVE)
-        {
-            *policy_hash = val->policy_hash;
-            return true;
-        }
-        non_recursive_idx = i;
-        non_recursive_policy_hash = val->policy_hash;
-    }
-
-    if (non_recursive_idx >= 0 && non_recursive_idx == last_slash)
-    {
-        *policy_hash = non_recursive_policy_hash;
-        return true;
-    }
-
     return false;
 }
 
 static __always_inline void batch_audit_aggregate(__u64 policy_hash, __u64 event_hash, const void *entry_sample, __u32 entry_sample_size, const void *ret_sample, __u32 ret_sample_size)
 {
+    // making the verifier happy
+    const __u32 max_seg = MAX_BUFFER_SIZE / 2;
+    if (entry_sample_size > max_seg)
+    {
+        entry_sample_size = max_seg;
+    }
+    if (ret_sample_size > max_seg)
+    {
+        ret_sample_size = max_seg;
+    }
+    if (entry_sample_size + ret_sample_size > MAX_BUFFER_SIZE)
+    {
+        ret_sample_size = MAX_BUFFER_SIZE - entry_sample_size;
+    }
+
     struct batch_audit_aggregation_key_t key = {
         .policy_hash = policy_hash,
         .event_hash = event_hash,
@@ -1651,7 +1598,7 @@ static __always_inline void batch_audit_aggregate(__u64 policy_hash, __u64 event
     val->count += 1;
     val->last_seen = bpf_ktime_get_ns();
 
-    if (val -> entry_sample_size != 0)
+    if (val->entry_sample_size != 0)
     {
         return;
     }
@@ -1663,7 +1610,7 @@ static __always_inline void batch_audit_aggregate(__u64 policy_hash, __u64 event
         if (ret_sample && ret_sample_size > 0)
         {
             val->ret_sample_size = ret_sample_size;
-            bpf_probe_read(val->sample_data, ret_sample_size, ret_sample);
+            bpf_probe_read(&val->sample_data[entry_sample_size], ret_sample_size, ret_sample);
         }
     }
 }
@@ -1673,36 +1620,18 @@ static __always_inline void batch_audit_file_aggregate(u32 id, args_t *args, sys
     struct outer_key okey = {};
     get_outer_key(&okey, t);
 
-    void *path_ptr = NULL;
     int flags = 0;
     bool has_flags = false;
     bool is_readonly = false;
 
     switch (id) {
         case _SYS_OPEN:
-            path_ptr = (void *)args->args[0];
             flags = (int)args->args[1];
             has_flags = true;
             break;
         case _SYS_OPENAT:
-            path_ptr = (void *)args->args[1];
             flags = (int)args->args[2];
             has_flags = true;
-            break;
-        case _SYS_UNLINK:
-            path_ptr = (void *)args->args[1];
-            break;
-        case _SYS_UNLINKAT:
-            path_ptr = (void *)args->args[1];
-            break;
-        case _SYS_RMDIR:
-            path_ptr = (void *)args->args[0];
-            break;
-        case _SYS_CHOWN:
-            path_ptr = (void *)args->args[0];
-            break;
-        case _SYS_FCHOWNAT:
-            path_ptr = (void *)args->args[1];
             break;
     }
 
@@ -1716,13 +1645,22 @@ static __always_inline void batch_audit_file_aggregate(u32 id, args_t *args, sys
     }
 
     u32 idx = 0;
-    struct batch_audit_path_t *paths = bpf_map_lookup_elem(&batch_audit_exec_path_source_scratch, &idx);
+    struct batch_audit_paths_t *paths = bpf_map_lookup_elem(&batch_audit_exec_path_source_scratch, &idx);
     if (!paths)
     {
         return;
     }
 
-    if (path_ptr && bpf_probe_read_user_str(paths->path, sizeof(paths->path), path_ptr) > 0)
+    u32 pid = bpf_get_current_pid_tgid() >> 32;
+    struct batch_audit_pathname_t *cached_path = bpf_map_lookup_elem(&batch_audit_pid_to_file_path, &pid);
+
+    bool has_path = false;
+    if (cached_path && bpf_probe_read(paths->path, sizeof(paths->path), cached_path->path) == 0)
+    {
+        has_path = true;
+    }
+
+    if (has_path)
     {
         paths->source[0] = '\0';
         struct file *file_p = get_task_file(t);
@@ -1759,21 +1697,28 @@ static __always_inline void batch_audit_file_aggregate(u32 id, args_t *args, sys
             u64 hash = 0;
             char op = 'F';
             hash = fnv1a_hash64(&op, sizeof(op), hash);
+            hash = fnv1a_hash64(&id, sizeof(id), hash);
             hash = fnv1a_hash64_str(paths->path, sizeof(paths->path), hash);
             hash = fnv1a_hash64(&okey.pid_ns, sizeof(okey.pid_ns), hash);
             hash = fnv1a_hash64(&okey.mnt_ns, sizeof(okey.mnt_ns), hash);
             hash = fnv1a_hash64(&context->uid, sizeof(context->uid), hash);
             hash = fnv1a_hash64(&context->oid, sizeof(context->oid), hash);
             hash = fnv1a_hash64(&context->retval, sizeof(context->retval), hash);
+            if (has_flags)
+            {
+                hash = fnv1a_hash64(&flags, sizeof(flags), hash);
+            }
 
             u32 *off = get_buffer_offset(DATA_BUF_TYPE);
             if (off)
             {
                 u32 size = *off;
-                batch_audit_aggregate(policy_hash, hash, bufs_p->buf, size, NULL, 0);
+                batch_audit_aggregate(policy_hash, hash, bufs_p->buf, size, paths->source, sizeof(paths->source));
             }
         }
     }
+
+    bpf_map_delete_elem(&batch_audit_pid_to_file_path, &pid);
 }
 
 // ==== Container Exec Events ====
@@ -2036,7 +1981,7 @@ int kprobe__execve(struct pt_regs *ctx)
     save_str_arr_to_buffer(bufs_p, (const char *const *)argv);
 
     u32 idx = 0;
-    struct pathname_t *p = bpf_map_lookup_elem(&batch_audit_exec_path_scratch, &idx);
+    struct batch_audit_pathname_t *p = bpf_map_lookup_elem(&batch_audit_exec_path_scratch, &idx);
     if (p && bpf_probe_read_user_str(p->path, sizeof(p->path), filename) > 0)
     {
         u32 pid = bpf_get_current_pid_tgid() >> 32;
@@ -2127,7 +2072,7 @@ int kretprobe__execve(struct pt_regs *ctx)
         }
 
         u32 idx = 0;
-        struct batch_audit_path_t *paths = bpf_map_lookup_elem(&batch_audit_exec_path_source_scratch, &idx);
+        struct batch_audit_paths_t *paths = bpf_map_lookup_elem(&batch_audit_exec_path_source_scratch, &idx);
         if (!paths)
         {
             goto cleanup;
@@ -2135,7 +2080,7 @@ int kretprobe__execve(struct pt_regs *ctx)
         paths->path[0] = '\0';
         paths->source[0] = '\0';
 
-        struct pathname_t *p = bpf_map_lookup_elem(&batch_audit_pid_to_exec_path, &pid);
+        struct batch_audit_pathname_t *p = bpf_map_lookup_elem(&batch_audit_pid_to_exec_path, &pid);
         if (!p)
         {
             goto cleanup;
@@ -2241,7 +2186,7 @@ int kprobe__execveat(struct pt_regs *ctx)
     save_to_buffer(bufs_p, DATA_BUF_TYPE, (void *)&flags, sizeof(int), EXEC_FLAGS_T);
 
     u32 idx = 0;
-    struct pathname_t *p = bpf_map_lookup_elem(&batch_audit_exec_path_scratch, &idx);
+    struct batch_audit_pathname_t *p = bpf_map_lookup_elem(&batch_audit_exec_path_scratch, &idx);
     if (p && bpf_core_read_user(p->path, sizeof(p->path), pathname))
     {
         u32 pid = bpf_get_current_pid_tgid() >> 32;
@@ -2331,7 +2276,7 @@ int kretprobe__execveat(struct pt_regs *ctx)
         }
 
         u32 idx = 0;
-        struct batch_audit_path_t *paths = bpf_map_lookup_elem(&batch_audit_exec_path_source_scratch, &idx);
+        struct batch_audit_paths_t *paths = bpf_map_lookup_elem(&batch_audit_exec_path_source_scratch, &idx);
         if (!paths)
         {
             goto cleanup;
@@ -2339,7 +2284,7 @@ int kretprobe__execveat(struct pt_regs *ctx)
         paths->path[0] = '\0';
         paths->source[0] = '\0';
 
-        struct pathname_t *p = bpf_map_lookup_elem(&batch_audit_pid_to_exec_path, &pid);
+        struct batch_audit_pathname_t *p = bpf_map_lookup_elem(&batch_audit_pid_to_exec_path, &pid);
         if (!p)
         {
             goto cleanup;
@@ -2401,6 +2346,8 @@ int kprobe__do_exit(struct pt_regs *ctx)
     // delete entry for file access which are not successful and are not deleted from file_map since kretprobe/__x64_sys_openat hook is not triggered
     bpf_map_delete_elem(&file_map, &tgid);
     bpf_map_delete_elem(&proc_file_access, &tgid);
+    u32 pid = tgid >> 32;
+    bpf_map_delete_elem(&batch_audit_pid_to_file_path, &pid);
 
     // delete entry for exec (host) pid
     bpf_map_delete_elem(&kubearmor_exec_pids, &tgid);
@@ -2571,12 +2518,16 @@ static __always_inline int trace_ret_generic(u32 id, struct pt_regs *ctx, u64 ty
         return 0;
 
     save_context_to_buffer(bufs_p, (void *)&context);
+    if (scope == _FILE_PROBE)
+    {
+        batch_audit_store_file_path_from_file_map();
+    }
     save_args_to_buffer(types, &args);
     if (scope == _FILE_PROBE)
     {
         save_all_hashes_to_the_buffer(bufs_p, true);
-        u32 id = context.host_pid | FILE_HASH_MASK;
-        bpf_map_delete_elem(&kubearmor_ima_hash_map, &id);
+        u32 hash_id = context.host_pid | FILE_HASH_MASK;
+        bpf_map_delete_elem(&kubearmor_ima_hash_map, &hash_id);
 
         struct task_struct *t = (struct task_struct *)bpf_get_current_task();
         batch_audit_file_aggregate(id, &args, &context, bufs_p, t);

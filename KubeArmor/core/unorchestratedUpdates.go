@@ -22,7 +22,6 @@ import (
 
 // SetContainerVisibility function enables visibility flag arguments for un-orchestrated container and updates the visibility map
 func (dm *KubeArmorDaemon) SetContainerNSVisibility() {
-
 	visibility := tp.Visibility{}
 
 	if strings.Contains(cfg.GlobalCfg.Visibility, "process") {
@@ -235,6 +234,12 @@ func (dm *KubeArmorDaemon) handlePolicyEvent(eventType string, createEndPoint bo
 				}
 			}
 		}
+		if dm.SystemMonitor != nil {
+			if err := dm.SystemMonitor.UpdateBatchAuditPoliciesForEndpoint(newPoint); err != nil {
+				dm.Logger.Warnf("Failed to update batch audit policies for endpoint %s/%s: %s",
+					newPoint.NamespaceName, newPoint.EndPointName, err)
+			}
+		}
 	case "MODIFIED":
 		dm.EndPoints[endpointIdx] = newPoint
 		if cfg.GlobalCfg.Policy {
@@ -252,6 +257,12 @@ func (dm *KubeArmorDaemon) handlePolicyEvent(eventType string, createEndPoint bo
 				}
 			}
 		}
+		if dm.SystemMonitor != nil {
+			if err := dm.SystemMonitor.UpdateBatchAuditPoliciesForEndpoint(newPoint); err != nil {
+				dm.Logger.Warnf("Failed to update batch audit policies for endpoint %s/%s: %s",
+					newPoint.NamespaceName, newPoint.EndPointName, err)
+			}
+		}
 	default: // DELETED
 		// update security policies after policy deletion
 		if endpointIdx >= 0 {
@@ -260,6 +271,12 @@ func (dm *KubeArmorDaemon) handlePolicyEvent(eventType string, createEndPoint bo
 			dm.RuntimeEnforcer.UpdateSecurityPolicies(newPoint)
 			if dm.Presets != nil {
 				dm.Presets.UpdateSecurityPolicies(newPoint)
+			}
+			if dm.SystemMonitor != nil {
+				if err := dm.SystemMonitor.UpdateBatchAuditPoliciesForEndpoint(newPoint); err != nil {
+					dm.Logger.Warnf("Failed to update batch audit policies for endpoint %s/%s: %s",
+						newPoint.NamespaceName, newPoint.EndPointName, err)
+				}
 			}
 			// delete endpoint if no containers or policies
 			if len(newPoint.Containers) == 0 && len(newPoint.SecurityPolicies) == 0 {
@@ -275,12 +292,11 @@ func (dm *KubeArmorDaemon) handlePolicyEvent(eventType string, createEndPoint bo
 
 // ParseAndUpdateContainerSecurityPolicy Function
 func (dm *KubeArmorDaemon) ParseAndUpdateContainerSecurityPolicy(event tp.K8sKubeArmorPolicyEvent) pb.PolicyStatus {
-
 	// create a container security policy
 	secPolicy := tp.SecurityPolicy{}
 
 	secPolicy.Metadata = map[string]string{}
-	secPolicy.Metadata["namespaceName"] = "container_namespace" //event.Object.Metadata.Namespace
+	secPolicy.Metadata["namespaceName"] = "container_namespace" // event.Object.Metadata.Namespace
 	secPolicy.Metadata["policyName"] = event.Object.Metadata.Name
 
 	if err := kl.Clone(event.Object.Spec, &secPolicy.Spec); err != nil {
@@ -296,6 +312,11 @@ func (dm *KubeArmorDaemon) ParseAndUpdateContainerSecurityPolicy(event tp.K8sKub
 		secPolicy.Spec.Action = "Allow"
 	case "audit":
 		secPolicy.Spec.Action = "Audit"
+	case "batchAudit":
+		secPolicy.Spec.Action = "BatchAudit"
+		if secPolicy.Spec.BatchAudit.IntervalSeconds <= 0 {
+			secPolicy.Spec.BatchAudit.IntervalSeconds = batchAuditDefaultIntervalSeconds
+		}
 	case "block":
 		secPolicy.Spec.Action = "Block"
 	case "":
@@ -626,11 +647,15 @@ func (dm *KubeArmorDaemon) ParseAndUpdateContainerSecurityPolicy(event tp.K8sKub
 	}
 
 	// handle updates to global policy store
+	oldActionWasBatchAudit := false
 	if event.Type == "ADDED" {
 		dm.SecurityPoliciesLock.Lock()
 		newPolicy := true
 		for idx, policy := range dm.SecurityPolicies {
 			if policy.Metadata["namespaceName"] == secPolicy.Metadata["namespaceName"] && policy.Metadata["policyName"] == secPolicy.Metadata["policyName"] {
+				if policy.Spec.Action == "BatchAudit" {
+					oldActionWasBatchAudit = true
+				}
 				// update
 				newPolicy = false
 				dm.SecurityPolicies[idx] = secPolicy
@@ -645,11 +670,25 @@ func (dm *KubeArmorDaemon) ParseAndUpdateContainerSecurityPolicy(event tp.K8sKub
 		dm.SecurityPoliciesLock.Lock()
 		for idx, policy := range dm.SecurityPolicies {
 			if policy.Metadata["namespaceName"] == secPolicy.Metadata["namespaceName"] && policy.Metadata["policyName"] == secPolicy.Metadata["policyName"] {
+				if policy.Spec.Action == "BatchAudit" {
+					oldActionWasBatchAudit = true
+				}
 				dm.SecurityPolicies = append(dm.SecurityPolicies[:idx], dm.SecurityPolicies[idx+1:]...)
 				break
 			}
 		}
 		dm.SecurityPoliciesLock.Unlock()
+	}
+
+	if dm.SystemMonitor != nil {
+		if event.Type == "DELETED" {
+			if secPolicy.Spec.Action == "BatchAudit" || oldActionWasBatchAudit {
+				dm.SystemMonitor.HandleBatchAuditPolicyDelete(secPolicy)
+			}
+		}
+		if event.Type != "DELETED" && oldActionWasBatchAudit && secPolicy.Spec.Action != "BatchAudit" {
+			dm.SystemMonitor.HandleBatchAuditPolicyDelete(secPolicy)
+		}
 	}
 
 	dm.Logger.Printf("Detected a Container Security Policy (%s/%s/%s)", strings.ToLower(event.Type), secPolicy.Metadata["namespaceName"], secPolicy.Metadata["policyName"])
@@ -866,7 +905,6 @@ func (dm *KubeArmorDaemon) restoreKubeArmorPolicies() {
 
 // removeBackUpPolicy Function
 func (dm *KubeArmorDaemon) removeBackUpPolicy(name string) {
-
 	fname := cfg.PolicyDir + name + ".yaml"
 	// Check for "/opt/kubearmor/policies" path. If dir not found, create the same
 	if _, err := os.Stat(fname); err != nil {

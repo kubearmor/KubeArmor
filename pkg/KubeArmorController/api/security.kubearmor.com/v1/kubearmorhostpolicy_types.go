@@ -18,7 +18,8 @@ type KubeArmorHostPolicySpec struct {
 	Syscalls     SyscallsType         `json:"syscalls,omitempty"`
 	Device       DeviceType           `json:"device,omitempty"`
 
-	AppArmor string `json:"apparmor,omitempty"`
+	AppArmor   string         `json:"apparmor,omitempty"`
+	BatchAudit BatchAuditType `json:"batchAudit,omitempty"`
 
 	// +kubebuilder:validation:optional
 	Severity SeverityType `json:"severity,omitempty"`
