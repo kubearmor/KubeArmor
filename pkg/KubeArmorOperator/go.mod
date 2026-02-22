@@ -12,7 +12,7 @@ replace (
 require (
 	github.com/kubearmor/KubeArmor/KubeArmor v0.0.0-20250701060635-600e11526ec1
 	github.com/kubearmor/KubeArmor/deployments v0.0.0-20250701060635-600e11526ec1
-	github.com/kubearmor/KubeArmor/pkg/KubeArmorController v0.0.0-20250701060635-600e11526ec1
+	github.com/kubearmor/KubeArmor/pkg/KubeArmorController v0.0.0-20260222183601-e352caaf6610
 	github.com/opencontainers/runtime-spec v1.2.1
 	github.com/spf13/cobra v1.10.1
 	github.com/stretchr/testify v1.11.1
