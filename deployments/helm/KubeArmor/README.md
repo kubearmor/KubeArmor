@@ -12,6 +12,19 @@ cd deployments/helm/KubeArmor
 helm upgrade --install kubearmor . -n kubearmor --create-namespace
 ```
 
+## k3s / RKE2 notes
+
+When running on k3s-based distributions (including RKE2), the containerd socket is commonly available at `/run/k3s/containerd/containerd.sock`.
+
+If needed, set the environment and CRI socket explicitly:
+
+```bash
+helm upgrade --install kubearmor kubearmor/kubearmor \
+  -n kubearmor --create-namespace \
+  --set environment.name=k3s \
+  --set kubearmor.args[0]=-criSocket=unix:///run/k3s/containerd/containerd.sock
+```
+
 ## Values
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
