@@ -1,0 +1,24 @@
+services:
+  kubearmor-init:
+    image: kubearmor/kubearmor-init:stable
+    volumes:
+      - /tmp/:/opt/kubearmor/BPF
+
+  kubearmor:
+    image: kubearmor/kubearmor:latest
+    depends_on:
+      kubearmor-init:
+        condition: service_completed_successfully
+    privileged: true
+    command: ["-k8s=false", "-enableKubeArmorHostPolicy"]
+    pid: "host"
+    ports:
+      - "32767:32767"
+    volumes:
+      - /tmp/:/opt/kubearmor/BPF
+      - /sys/fs/bpf:/sys/fs/bpf
+      - /sys/kernel/security:/sys/kernel/security
+      - /sys/kernel/debug:/sys/kernel/debug
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /var/lib/docker:/var/lib/docker
+      - /etc/apparmor.d:/etc/apparmor.d
