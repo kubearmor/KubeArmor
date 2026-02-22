@@ -53,6 +53,7 @@
 #include "visibility.h"
 #include "kernel_helpers.h"
 #include "arg_matching_helpers.h"
+#include "fnv1a.h"
 
 #ifdef RHEL_RELEASE_CODE
 #if (RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(8, 0))
@@ -74,6 +75,7 @@
 #define MAX_STRING_SIZE 4096
 #define MAX_STR_ARR_ELEM 20
 #define MAX_LOOP_LIMIT 25
+#define MAX_PATH_LEN 256
 
 #define NONE_T 0UL
 #define INT_T 1UL
@@ -320,9 +322,19 @@ struct exec_pid_map
 
 struct exec_pid_map kubearmor_exec_pids SEC(".maps");
 
+#define BATCH_AUDIT_RULE_EXEC 1 << 0
+#define BATCH_AUDIT_RULE_WRITE 1 << 1
+#define BATCH_AUDIT_RULE_READ 1 << 2
+#define BATCH_AUDIT_RULE_OWNER 1 << 3
+#define BATCH_AUDIT_RULE_DIR 1 << 4
+#define BATCH_AUDIT_RULE_RECURSIVE 1 << 5
+#define MASK_WRITE 0x00000002
+#define MASK_READ 0x00000004
+#define MASK_APPEND 0x00000008
+
 struct pathname_t
 {
-    char path[256];
+    char path[MAX_PATH_LEN];
 };
 
 struct
@@ -333,6 +345,68 @@ struct
     __uint(max_entries, 1024);
     __uint(pinning, LIBBPF_PIN_BY_NAME);
 } proc_file_access SEC(".maps");
+
+struct batch_audit_path_t
+{
+    char path[MAX_PATH_LEN]; // file or exec path
+    char source[MAX_PATH_LEN]; // source exec path
+};
+
+struct batch_audit_policy_key_t
+{
+    struct outer_key okey;
+    struct batch_audit_path_t paths;
+};
+
+struct batch_audit_policy_val_t
+{
+    __u64 policy_hash;
+    __u16 process_mask;
+    __u16 file_mask;
+};
+
+struct batch_audit_aggregation_key_t
+{
+    __u64 policy_hash;
+    __u64 event_hash;
+};
+
+struct batch_audit_aggregation_val_t
+{
+    __u64 count;
+    __u64 last_seen;
+    __u32 entry_sample_size;
+    __u32 ret_sample_size;
+    __u8 sample_data[MAX_BUFFER_SIZE * 2];
+};
+
+struct
+{
+    __uint(type, BPF_MAP_TYPE_HASH);
+    __type(key, struct batch_audit_policy_key_t);
+    __type(value, struct batch_audit_policy_val_t);
+    __uint(max_entries, MAX_ENTRIES);
+    __uint(pinning, LIBBPF_PIN_BY_NAME);
+} batch_audit_policies SEC(".maps");
+
+struct
+{
+    __uint(type, BPF_MAP_TYPE_LRU_HASH);
+    __type(key, struct batch_audit_aggregation_key_t);
+    __type(value, struct batch_audit_aggregation_val_t);
+    __uint(max_entries, MAX_ENTRIES);
+    __uint(pinning, LIBBPF_PIN_BY_NAME);
+} batch_audit_aggregations SEC(".maps");
+
+// scratch maps
+BPF_PERCPU_ARRAY(batch_audit_exec_path_scratch, struct pathname_t, 1);
+BPF_PERCPU_ARRAY(batch_audit_exec_path_source_scratch, struct batch_audit_path_t, 1);
+BPF_PERCPU_ARRAY(batch_audit_policy_key_scratch, struct batch_audit_policy_key_t, 1);
+BPF_PERCPU_ARRAY(batch_audit_aggregation_val_scratch, struct batch_audit_aggregation_val_t, 1);
+
+BPF_LRU_HASH(batch_audit_pid_to_exec_path, u32, struct pathname_t);
+BPF_LRU_HASH(batch_audit_pid_to_exec_size, u32, u32);
+BPF_LRU_HASH(batch_audit_pid_to_exec_data, u32, struct buffers);
 
 // == Pid NS Management == //
 
@@ -1261,6 +1335,447 @@ static __always_inline void save_cmd_args_to_buffer(const char __user *const __u
     }
 }
 
+static __always_inline bool read_file_path(struct file *f, char *dst, u32 dst_size)
+{
+    if (!f)
+    {
+        return false;
+    }
+
+    struct path p = READ_KERN(f->f_path);
+    bufs_t *bufs_p = get_buffer(FILE_BUF_TYPE);
+    if (bufs_p == NULL)
+    {
+        return false;
+    }
+
+    if (!prepend_path(&p, bufs_p, FILE_BUF_TYPE))
+    {
+        return false;
+    }
+
+    u32 *off = get_buffer_offset(FILE_BUF_TYPE);
+    if (off == NULL)
+    {
+        return false;
+    }
+
+    return bpf_probe_read_str(dst, dst_size, (void *)&bufs_p->buf[*off]) > 0;
+}
+
+static __always_inline bool batch_audit_owner_match(__u32 uid, __u32 oid, __u16 mask)
+{
+    if (mask & BATCH_AUDIT_RULE_OWNER)
+    {
+        return uid == oid;
+    }
+    return true;
+}
+
+static __always_inline bool batch_audit_match_process(struct outer_key *okey, const char *path, const char *source, __u32 uid, __u32 oid, __u64 *policy_hash)
+{
+    if (!okey || !path || !policy_hash)
+    {
+        return false;
+    }
+
+    u32 idx = 0;
+    struct batch_audit_policy_key_t *pkey = bpf_map_lookup_elem(&batch_audit_policy_key_scratch, &idx);
+    if (!pkey)
+    {
+        return false;
+    }
+
+    pkey->okey = *okey;
+    struct batch_audit_path_t *paths = &pkey->paths;
+
+#pragma unroll
+    for (int i = 0; i < MAX_PATH_LEN; i++)
+    {
+        paths->path[i] = '\0';
+        paths->source[i] = '\0';
+    }
+    bpf_probe_read_str(paths->path, sizeof(paths->path), path);
+    if (source && source[0])
+    {
+        bpf_probe_read_str(paths->source, sizeof(paths->source), source);
+    }
+
+    struct batch_audit_policy_val_t *val = bpf_map_lookup_elem(&batch_audit_policies, pkey);
+    if (val && (val->process_mask & BATCH_AUDIT_RULE_EXEC))
+    {
+        if (!batch_audit_owner_match(uid, oid, val->process_mask))
+        {
+            return false;
+        }
+        *policy_hash = val->policy_hash;
+        return true;
+    }
+
+    int last_slash = -1;
+#pragma unroll
+    for (int i = 0; i < MAX_PATH_LEN; i++)
+    {
+        if (paths->path[i] == '\0')
+        {
+            break;
+        }
+        if (paths->path[i] == '/')
+        {
+            last_slash = i;
+        }
+    }
+
+    if (last_slash >= 0 && last_slash + 1 < MAX_PATH_LEN)
+    {
+#pragma unroll
+        for (int i = 0; i < MAX_PATH_LEN; i++)
+        {
+            paths->path[i] = '\0';
+        }
+
+        bpf_probe_read_str(paths->path, sizeof(paths->path), &path[last_slash + 1]);
+        val = bpf_map_lookup_elem(&batch_audit_policies, pkey);
+        if (val && (val->process_mask & BATCH_AUDIT_RULE_EXEC))
+        {
+            if (!batch_audit_owner_match(uid, oid, val->process_mask))
+            {
+                return false;
+            }
+            *policy_hash = val->policy_hash;
+            return true;
+        }
+    }
+
+#pragma unroll
+    for (int i = 0; i < MAX_PATH_LEN; i++)
+    {
+        paths->path[i] = '\0';
+    }
+
+#pragma unroll
+    for (int i = 0; i < MAX_PATH_LEN; i++)
+    {
+        char c = path[i];
+        paths->path[i] = c;
+        if (c == '\0')
+        {
+            break;
+        }
+        if (c != '/')
+        {
+            continue;
+        }
+
+        val = bpf_map_lookup_elem(&batch_audit_policies, pkey);
+        if (!val)
+        {
+            continue;
+        }
+
+        if (!(val->process_mask & BATCH_AUDIT_RULE_DIR) || !(val->process_mask & BATCH_AUDIT_RULE_EXEC))
+        {
+            continue;
+        }
+
+        if (!batch_audit_owner_match(uid, oid, val->process_mask))
+        {
+            return false;
+        }
+
+        if (val->process_mask & BATCH_AUDIT_RULE_RECURSIVE)
+        {
+            *policy_hash = val->policy_hash;
+            return true;
+        }
+
+        if (i != last_slash)
+        {
+            continue;
+        }
+
+        *policy_hash = val->policy_hash;
+        return true;
+    }
+
+    return false;
+}
+
+static __always_inline bool batch_audit_match_file(struct outer_key *okey, const char *path, const char *source, __u32 uid, __u32 oid, bool has_flags, bool is_readonly, __u64 *policy_hash)
+{
+    if (!okey || !path || !policy_hash)
+    {
+        return false;
+    }
+
+    u32 idx = 0;
+    struct batch_audit_policy_key_t *pkey = bpf_map_lookup_elem(&batch_audit_policy_key_scratch, &idx);
+    if (!pkey)
+    {
+        return false;
+    }
+
+    pkey->okey = *okey;
+    struct batch_audit_path_t *paths = &pkey->paths;
+
+#pragma unroll
+    for (int i = 0; i < MAX_PATH_LEN; i++)
+    {
+        paths->path[i] = '\0';
+        paths->source[i] = '\0';
+    }
+    bpf_probe_read_str(paths->path, sizeof(paths->path), path);
+    if (source && source[0])
+    {
+        bpf_probe_read_str(paths->source, sizeof(paths->source), source);
+    }
+
+    struct batch_audit_policy_val_t *val = bpf_map_lookup_elem(&batch_audit_policies, pkey);
+    if (val && (val->file_mask & (BATCH_AUDIT_RULE_READ | BATCH_AUDIT_RULE_WRITE)))
+    {
+        if (!batch_audit_owner_match(uid, oid, val->file_mask))
+        {
+            return false;
+        }
+        // TODO: we might want to verify if this behavior is the same as for
+        // Audit actions.
+        if (has_flags && (val->file_mask & BATCH_AUDIT_RULE_READ) && !(val->file_mask & BATCH_AUDIT_RULE_WRITE) && !is_readonly)
+        {
+            return false;
+        }
+        *policy_hash = val->policy_hash;
+        return true;
+    }
+
+#pragma unroll
+    for (int i = 0; i < MAX_PATH_LEN; i++)
+    {
+        paths->path[i] = '\0';
+    }
+
+    int last_slash = -1;
+    int non_recursive_idx = -1;
+    __u64 non_recursive_policy_hash = 0;
+
+#pragma unroll
+    for (int i = 0; i < MAX_PATH_LEN; i++)
+    {
+        char c = path[i];
+        paths->path[i] = c;
+        if (c == '\0')
+        {
+            break;
+        }
+        if (c != '/')
+        {
+            continue;
+        }
+        last_slash = i;
+
+        val = bpf_map_lookup_elem(&batch_audit_policies, pkey);
+        if (!val)
+        {
+            continue;
+        }
+
+        if (!(val->file_mask & BATCH_AUDIT_RULE_DIR))
+        {
+            continue;
+        }
+
+        if (!batch_audit_owner_match(uid, oid, val->file_mask))
+        {
+            return false;
+        }
+
+        // TODO: we might want to verify if this behavior is the same as for
+        // Audit actions.
+        if (has_flags && (val->file_mask & BATCH_AUDIT_RULE_READ) && !(val->file_mask & BATCH_AUDIT_RULE_WRITE) && !is_readonly)
+        {
+            return false;
+        }
+
+        if (val->file_mask & BATCH_AUDIT_RULE_RECURSIVE)
+        {
+            *policy_hash = val->policy_hash;
+            return true;
+        }
+        non_recursive_idx = i;
+        non_recursive_policy_hash = val->policy_hash;
+    }
+
+    if (non_recursive_idx >= 0 && non_recursive_idx == last_slash)
+    {
+        *policy_hash = non_recursive_policy_hash;
+        return true;
+    }
+
+    return false;
+}
+
+static __always_inline void batch_audit_aggregate(__u64 policy_hash, __u64 event_hash, const void *entry_sample, __u32 entry_sample_size, const void *ret_sample, __u32 ret_sample_size)
+{
+    struct batch_audit_aggregation_key_t key = {
+        .policy_hash = policy_hash,
+        .event_hash = event_hash,
+    };
+
+    struct batch_audit_aggregation_val_t *val = bpf_map_lookup_elem(&batch_audit_aggregations, &key);
+    if (!val)
+    {
+        u32 idx = 0;
+        struct batch_audit_aggregation_val_t *new_val = bpf_map_lookup_elem(&batch_audit_aggregation_val_scratch, &idx);
+        if (!new_val)
+        {
+            return;
+        }
+
+        new_val->count = 1;
+        new_val->last_seen = bpf_ktime_get_ns();
+
+        if (entry_sample && entry_sample_size > 0)
+        {
+            new_val->entry_sample_size = entry_sample_size;
+            bpf_probe_read(new_val->sample_data, entry_sample_size, entry_sample);
+            if (ret_sample && ret_sample_size > 0)
+            {
+                new_val->ret_sample_size = ret_sample_size;
+                bpf_probe_read(&new_val->sample_data[entry_sample_size], ret_sample_size, ret_sample);
+            }
+        }
+
+        bpf_map_update_elem(&batch_audit_aggregations, &key, new_val, BPF_ANY);
+        return;
+    }
+
+    val->count += 1;
+    val->last_seen = bpf_ktime_get_ns();
+
+    if (val -> entry_sample_size != 0)
+    {
+        return;
+    }
+
+    if (entry_sample && entry_sample_size > 0)
+    {
+        val->entry_sample_size = entry_sample_size;
+        bpf_probe_read(val->sample_data, entry_sample_size, entry_sample);
+        if (ret_sample && ret_sample_size > 0)
+        {
+            val->ret_sample_size = ret_sample_size;
+            bpf_probe_read(val->sample_data, ret_sample_size, ret_sample);
+        }
+    }
+}
+
+static __always_inline void batch_audit_file_aggregate(u32 id, args_t *args, sys_context_t *context, bufs_t *bufs_p, struct task_struct *t)
+{
+    struct outer_key okey = {};
+    get_outer_key(&okey, t);
+
+    void *path_ptr = NULL;
+    int flags = 0;
+    bool has_flags = false;
+    bool is_readonly = false;
+
+    switch (id) {
+        case _SYS_OPEN:
+            path_ptr = (void *)args->args[0];
+            flags = (int)args->args[1];
+            has_flags = true;
+            break;
+        case _SYS_OPENAT:
+            path_ptr = (void *)args->args[1];
+            flags = (int)args->args[2];
+            has_flags = true;
+            break;
+        case _SYS_UNLINK:
+            path_ptr = (void *)args->args[1];
+            break;
+        case _SYS_UNLINKAT:
+            path_ptr = (void *)args->args[1];
+            break;
+        case _SYS_RMDIR:
+            path_ptr = (void *)args->args[0];
+            break;
+        case _SYS_CHOWN:
+            path_ptr = (void *)args->args[0];
+            break;
+        case _SYS_FCHOWNAT:
+            path_ptr = (void *)args->args[1];
+            break;
+    }
+
+    if (has_flags)
+    {
+        int access = flags & (MASK_WRITE | MASK_READ | MASK_APPEND);
+        if (access == MASK_READ)
+        {
+            is_readonly = true;
+        }
+    }
+
+    u32 idx = 0;
+    struct batch_audit_path_t *paths = bpf_map_lookup_elem(&batch_audit_exec_path_source_scratch, &idx);
+    if (!paths)
+    {
+        return;
+    }
+
+    if (path_ptr && bpf_probe_read_user_str(paths->path, sizeof(paths->path), path_ptr) > 0)
+    {
+        paths->source[0] = '\0';
+        struct file *file_p = get_task_file(t);
+        read_file_path(file_p, paths->source, sizeof(paths->source));
+
+        __u64 policy_hash = 0;
+        bool matched = batch_audit_match_file(
+            &okey,
+            paths->path,
+            paths->source,
+            context->uid,
+            context->oid,
+            has_flags,
+            is_readonly,
+            &policy_hash
+        );
+
+        if (!matched && paths->source[0])
+        {
+            matched = batch_audit_match_file(
+                &okey,
+                paths->path,
+                NULL,
+                context->uid,
+                context->oid,
+                has_flags,
+                is_readonly,
+                &policy_hash
+            );
+        }
+
+        if (matched)
+        {
+            u64 hash = 0;
+            char op = 'F';
+            hash = fnv1a_hash64(&op, sizeof(op), hash);
+            hash = fnv1a_hash64_str(paths->path, sizeof(paths->path), hash);
+            hash = fnv1a_hash64(&okey.pid_ns, sizeof(okey.pid_ns), hash);
+            hash = fnv1a_hash64(&okey.mnt_ns, sizeof(okey.mnt_ns), hash);
+            hash = fnv1a_hash64(&context->uid, sizeof(context->uid), hash);
+            hash = fnv1a_hash64(&context->oid, sizeof(context->oid), hash);
+            hash = fnv1a_hash64(&context->retval, sizeof(context->retval), hash);
+
+            u32 *off = get_buffer_offset(DATA_BUF_TYPE);
+            if (off)
+            {
+                u32 size = *off;
+                batch_audit_aggregate(policy_hash, hash, bufs_p->buf, size, NULL, 0);
+            }
+        }
+    }
+}
+
 // ==== Container Exec Events ====
 
 struct tracepoint_raw_sys_enter
@@ -1520,6 +2035,23 @@ int kprobe__execve(struct pt_regs *ctx)
     save_str_to_buffer(bufs_p, filename);
     save_str_arr_to_buffer(bufs_p, (const char *const *)argv);
 
+    u32 idx = 0;
+    struct pathname_t *p = bpf_map_lookup_elem(&batch_audit_exec_path_scratch, &idx);
+    if (p && bpf_probe_read_user_str(p->path, sizeof(p->path), filename) > 0)
+    {
+        u32 pid = bpf_get_current_pid_tgid() >> 32;
+        bpf_map_update_elem(&batch_audit_pid_to_exec_path, &pid, p, BPF_ANY);
+    }
+
+    u32 *off = get_buffer_offset(DATA_BUF_TYPE);
+    if (off)
+    {
+        u32 size = *off;
+        u32 pid = bpf_get_current_pid_tgid() >> 32;
+        bpf_map_update_elem(&batch_audit_pid_to_exec_size, &pid, &size, BPF_ANY);
+        bpf_map_update_elem(&batch_audit_pid_to_exec_data, &pid, bufs_p, BPF_ANY);
+    }
+
     events_perf_submit(ctx, DATA_BUF_TYPE);
 
     return 0;
@@ -1575,6 +2107,80 @@ int kretprobe__execve(struct pt_regs *ctx)
 
     save_context_to_buffer(bufs_p, (void *)&context);
     save_all_hashes_to_the_buffer(bufs_p, false);
+
+    u32 pid = bpf_get_current_pid_tgid() >> 32;
+    u32 *entry_size = bpf_map_lookup_elem(&batch_audit_pid_to_exec_size, &pid);
+    bufs_t *entry_buf = bpf_map_lookup_elem(&batch_audit_pid_to_exec_data, &pid);
+    if (entry_size && entry_buf)
+    {
+        struct outer_key okey = {};
+        struct task_struct *t = (struct task_struct *)bpf_get_current_task();
+        get_outer_key(&okey, t);
+
+        __u32 oid = 0;
+        struct file *file_p = get_task_file(t);
+        if (file_p)
+        {
+            struct inode *ino = READ_KERN(file_p -> f_inode);
+            kuid_t owner = READ_KERN(ino->i_uid);
+            oid = owner.val;
+        }
+
+        u32 idx = 0;
+        struct batch_audit_path_t *paths = bpf_map_lookup_elem(&batch_audit_exec_path_source_scratch, &idx);
+        if (!paths)
+        {
+            goto cleanup;
+        }
+        paths->path[0] = '\0';
+        paths->source[0] = '\0';
+
+        struct pathname_t *p = bpf_map_lookup_elem(&batch_audit_pid_to_exec_path, &pid);
+        if (!p)
+        {
+            goto cleanup;
+        }
+        bpf_probe_read_str(paths->path, sizeof(paths->path), p->path);
+
+        struct task_struct *parent = READ_KERN(t->real_parent);
+        struct file *parent_file = get_task_file(parent);
+        if (parent_file && !read_file_path(parent_file, paths->source, sizeof(paths->source)))
+        {
+            paths->source[0] = '\0';
+        }
+
+        __u64 policy_hash = 0;
+        bool matched = batch_audit_match_process(&okey, paths->path, paths->source, context.uid, oid, &policy_hash);
+        if (!matched && paths->source[0])
+        {
+            matched = batch_audit_match_process(&okey, paths->path, NULL, context.uid, oid, &policy_hash);
+        }
+        if (matched)
+        {
+            u64 hash = 0;
+            char op = 'P';
+            hash = fnv1a_hash64(&op, sizeof(op), hash);
+            hash = fnv1a_hash64_str(paths->path, sizeof(paths->path), hash);
+            hash = fnv1a_hash64(&okey.pid_ns, sizeof(okey.pid_ns), hash);
+            hash = fnv1a_hash64(&okey.mnt_ns, sizeof(okey.mnt_ns), hash);
+            hash = fnv1a_hash64(&context.uid, sizeof(context.uid), hash);
+            hash = fnv1a_hash64(&oid, sizeof(oid), hash);
+            hash = fnv1a_hash64(&context.retval, sizeof(context.retval), hash);
+
+            u32 *off = get_buffer_offset(DATA_BUF_TYPE);
+            if (off)
+            {
+                u32 size = *off;
+                batch_audit_aggregate(policy_hash, hash, entry_buf->buf, *entry_size, bufs_p->buf, size);
+            }
+        }
+
+    cleanup:
+        bpf_map_delete_elem(&batch_audit_pid_to_exec_path, &pid);
+        bpf_map_delete_elem(&batch_audit_pid_to_exec_size, &pid);
+        bpf_map_delete_elem(&batch_audit_pid_to_exec_data, &pid);
+    }
+
     events_perf_submit(ctx, DATA_BUF_TYPE);
 
     return 0;
@@ -1634,6 +2240,23 @@ int kprobe__execveat(struct pt_regs *ctx)
     save_str_arr_to_buffer(bufs_p, (const char *const *)argv);
     save_to_buffer(bufs_p, DATA_BUF_TYPE, (void *)&flags, sizeof(int), EXEC_FLAGS_T);
 
+    u32 idx = 0;
+    struct pathname_t *p = bpf_map_lookup_elem(&batch_audit_exec_path_scratch, &idx);
+    if (p && bpf_core_read_user(p->path, sizeof(p->path), pathname))
+    {
+        u32 pid = bpf_get_current_pid_tgid() >> 32;
+        bpf_map_update_elem(&batch_audit_pid_to_exec_path, &pid, p, BPF_ANY);
+    }
+
+    u32 *off = get_buffer_offset(DATA_BUF_TYPE);
+    if (off)
+    {
+        u32 size = *off;
+        u32 pid = bpf_get_current_pid_tgid() >> 32;
+        bpf_map_update_elem(&batch_audit_pid_to_exec_size, &pid, &size, BPF_ANY);
+        bpf_map_update_elem(&batch_audit_pid_to_exec_data, &pid, bufs_p, BPF_ANY);
+    }
+
     events_perf_submit(ctx, DATA_BUF_TYPE);
 
     return 0;
@@ -1688,6 +2311,80 @@ int kretprobe__execveat(struct pt_regs *ctx)
 
     save_context_to_buffer(bufs_p, (void *)&context);
     save_all_hashes_to_the_buffer(bufs_p, false);
+
+    u32 pid = bpf_get_current_pid_tgid() >> 32;
+    u32 *entry_size = bpf_map_lookup_elem(&batch_audit_pid_to_exec_size, &pid);
+    bufs_t *entry_buf = bpf_map_lookup_elem(&batch_audit_pid_to_exec_data, &pid);
+    if (entry_size && entry_buf)
+    {
+        struct outer_key okey = {};
+        struct task_struct *t = (struct task_struct *)bpf_get_current_task();
+        get_outer_key(&okey, t);
+
+        __u32 oid = 0;
+        struct file *file_p = get_task_file(t);
+        if (file_p)
+        {
+            struct inode *ino = READ_KERN(file_p -> f_inode);
+            kuid_t owner = READ_KERN(ino->i_uid);
+            oid = owner.val;
+        }
+
+        u32 idx = 0;
+        struct batch_audit_path_t *paths = bpf_map_lookup_elem(&batch_audit_exec_path_source_scratch, &idx);
+        if (!paths)
+        {
+            goto cleanup;
+        }
+        paths->path[0] = '\0';
+        paths->source[0] = '\0';
+
+        struct pathname_t *p = bpf_map_lookup_elem(&batch_audit_pid_to_exec_path, &pid);
+        if (!p)
+        {
+            goto cleanup;
+        }
+        bpf_probe_read_str(paths->path, sizeof(paths->path), p->path);
+
+        struct task_struct *parent = READ_KERN(t->real_parent);
+        struct file *parent_file = get_task_file(parent);
+        if (parent_file && !read_file_path(parent_file, paths->source, sizeof(paths->source)))
+        {
+            paths->source[0] = '\0';
+        }
+
+        __u64 policy_hash = 0;
+        bool matched = batch_audit_match_process(&okey, paths->path, paths->source, context.uid, oid, &policy_hash);
+        if (!matched && paths->source[0])
+        {
+            matched = batch_audit_match_process(&okey, paths->path, NULL, context.uid, oid, &policy_hash);
+        }
+        if (matched)
+        {
+            u64 hash = 0;
+            char op = 'P';
+            hash = fnv1a_hash64(&op, sizeof(op), hash);
+            hash = fnv1a_hash64_str(paths->path, sizeof(paths->path), hash);
+            hash = fnv1a_hash64(&okey.pid_ns, sizeof(okey.pid_ns), hash);
+            hash = fnv1a_hash64(&okey.mnt_ns, sizeof(okey.mnt_ns), hash);
+            hash = fnv1a_hash64(&context.uid, sizeof(context.uid), hash);
+            hash = fnv1a_hash64(&oid, sizeof(oid), hash);
+            hash = fnv1a_hash64(&context.retval, sizeof(context.retval), hash);
+
+            u32 *off = get_buffer_offset(DATA_BUF_TYPE);
+            if (off)
+            {
+                u32 size = *off;
+                batch_audit_aggregate(policy_hash, hash, entry_buf->buf, *entry_size, bufs_p->buf, size);
+            }
+        }
+
+    cleanup:
+        bpf_map_delete_elem(&batch_audit_pid_to_exec_path, &pid);
+        bpf_map_delete_elem(&batch_audit_pid_to_exec_size, &pid);
+        bpf_map_delete_elem(&batch_audit_pid_to_exec_data, &pid);
+    }
+
     events_perf_submit(ctx, DATA_BUF_TYPE);
 
     return 0;
@@ -1880,6 +2577,9 @@ static __always_inline int trace_ret_generic(u32 id, struct pt_regs *ctx, u64 ty
         save_all_hashes_to_the_buffer(bufs_p, true);
         u32 id = context.host_pid | FILE_HASH_MASK;
         bpf_map_delete_elem(&kubearmor_ima_hash_map, &id);
+
+        struct task_struct *t = (struct task_struct *)bpf_get_current_task();
+        batch_audit_file_aggregate(id, &args, &context, bufs_p, t);
     }
     events_perf_submit(ctx, DATA_BUF_TYPE);
     return 0;
