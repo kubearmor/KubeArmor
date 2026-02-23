@@ -45,9 +45,8 @@ type K8sHandler struct {
 	HTTPClient  *http.Client
 	WatchClient *http.Client
 
-	K8sToken string
-	K8sHost  string
-	K8sPort  string
+	K8sHost string
+	K8sPort string
 }
 
 // NewK8sHandler Function
@@ -153,16 +152,15 @@ func (kh *K8sHandler) InitLocalAPIClient() error {
 
 // InitInclusterAPIClient Function
 func (kh *K8sHandler) InitInclusterAPIClient() error {
-	read, err := os.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/token")
-	if err != nil {
-		return fmt.Errorf("failed to read service account token: %w", err)
+
+	if !kl.IsInK8sCluster() {
+		return fmt.Errorf("not running in-cluster")
 	}
-	kh.K8sToken = string(read)
 
 	// create the configuration by token
 	kubeConfig := &rest.Config{
 		Host:        "https://" + kh.K8sHost + ":" + kh.K8sPort,
-		BearerToken: kh.K8sToken,
+		BearerToken: DefaultTokenPath,
 		// #nosec
 		TLSClientConfig: rest.TLSClientConfig{
 			Insecure: true,
@@ -204,7 +202,7 @@ func (kh *K8sHandler) DoRequest(cmd string, data any, path string) ([]byte, erro
 
 	if kl.IsInK8sCluster() {
 		req.Header.Add("Content-Type", "application/json")
-		req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", kh.K8sToken))
+		ReplaceAuthHeader(req, GlobalTokenProvider)
 	}
 
 	resp, err := kh.HTTPClient.Do(req) // #nosec G704 -- safe request sent only to trusted Kubernetes API server
@@ -492,7 +490,7 @@ func (kh *K8sHandler) WatchK8sSecurityPolicies() *http.Response {
 		}
 
 		req.Header.Add("Content-Type", "application/json")
-		req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", kh.K8sToken))
+		ReplaceAuthHeader(req, GlobalTokenProvider)
 
 		resp, err := kh.WatchClient.Do(req) // #nosec G704 -- safe request, sent only to trusted Kubernetes API server
 		if err != nil {
@@ -527,7 +525,7 @@ func (kh *K8sHandler) WatchK8sHostSecurityPolicies() *http.Response {
 		}
 
 		req.Header.Add("Content-Type", "application/json")
-		req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", kh.K8sToken))
+		ReplaceAuthHeader(req, GlobalTokenProvider)
 
 		resp, err := kh.WatchClient.Do(req) // #nosec G704 -- safe request, sent only to trusted Kubernetes API server
 		if err != nil {
