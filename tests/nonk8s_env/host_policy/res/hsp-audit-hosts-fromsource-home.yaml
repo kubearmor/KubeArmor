@@ -1,0 +1,16 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorHostPolicy
+metadata:
+  name: hsp-audit-hosts-fromsource-home
+spec:
+  nodeSelector:
+    matchLabels:
+      kubearmor.io/hostname: "*"
+  file:
+    matchPaths:
+      - path: /etc/hosts
+        fromSource:
+          - path: /home/
+  action: Audit
+  severity: 7
+  message: "Process from /home/ attempted to read /etc/hosts"

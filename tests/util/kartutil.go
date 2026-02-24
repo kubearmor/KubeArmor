@@ -655,11 +655,26 @@ func K8sRuntime() string {
 }
 
 // RunDockerCommand() executes docker commmands
-func RunDockerCommand(cmdstr string) (string, error) {
-	cmdf := strings.Fields(cmdstr)
-	cmd := exec.Command("docker", cmdf...)
-	sout, err := cmd.Output()
-	return string(sout), err
+func RunDockerCommand(cmdParts []string) (string, error) {
+	if len(cmdParts) == 0 {
+		return "", errors.New("empty command")
+	}
+	bin := "docker"
+
+	cmd := exec.Command(bin, cmdParts...)
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	err := cmd.Run()
+	if err != nil {
+		return "", errors.New(stderr.String())
+	}
+
+	return strings.TrimSpace(stdout.String()), nil
 }
 
 func AssertCommand(wp string, namespace string, cmd []string, match gomegaTypes.GomegaMatcher, eventual bool) {
@@ -676,6 +691,48 @@ func AssertCommand(wp string, namespace string, cmd []string, match gomegaTypes.
 		fmt.Printf("---START---\n%s---END---\n", sout)
 		Expect(sout).To(match)
 	}
+}
+
+func AssertHostCommand(cmd []string, match gomegaTypes.GomegaMatcher, eventual bool) {
+	if eventual {
+		Eventually(func() string {
+			output, err := RunHostCommand(cmd)
+			fmt.Printf("---START---\nOUTPUT: %s\nERROR: %v\n---END---\n", output, err)
+			if err != nil {
+				return strings.Join([]string{output, err.Error()}, "\n")
+			}
+			return output
+		}, 10*time.Second, 2*time.Second).Should(match)
+	} else {
+		output, err := RunHostCommand(cmd)
+		fmt.Printf("---START---\nOUTPUT: %s\nERROR: %v\n---END---\n", output, err)
+		var combined string
+		if err != nil {
+			combined = strings.Join([]string{output, err.Error()}, "\n")
+		} else {
+			combined = output
+		}
+		Expect(combined).To(match)
+	}
+}
+
+func RunHostCommand(cmd []string) (string, error) {
+	if len(cmd) == 0 {
+		return "", fmt.Errorf("empty command")
+	}
+
+	args := append([]string{"-c"}, strings.Join(cmd, " "))
+	command := exec.Command("bash", args...)
+	command.Env = []string{}
+
+	output, err := command.CombinedOutput()
+	outStr := strings.TrimSpace(string(output))
+
+	if err != nil {
+		return outStr, fmt.Errorf("cmd %v failed: %w, output: %s", cmd, err, outStr)
+	}
+
+	return outStr, nil
 }
 
 // SendPolicy sends kubearmor policy using grpc client

@@ -1,0 +1,22 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorHostPolicy
+metadata:
+  name: hsp-block-process-dir
+spec:
+  nodeSelector:
+    matchLabels:
+      kubearmor.io/hostname: "*"
+  severity: 5
+  tags:
+    - global-tag
+  message: global-msg
+  action: Block
+
+  process:
+    tags:
+      - process-tag
+    message: process-msg
+    matchDirectories:
+      - dir: /usr/bin
+        recursive: true
+        severity: 3

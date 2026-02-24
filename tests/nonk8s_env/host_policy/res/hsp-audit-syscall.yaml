@@ -1,0 +1,22 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorHostPolicy
+metadata:
+  name: hsp-audit-syscall
+spec:
+  nodeSelector:
+    matchLabels:
+      kubearmor.io/hostname: "*"
+
+  severity: 5
+  tags: [global-tag]
+
+  syscalls:
+    matchPaths:
+    - syscall:
+      - unlink
+      path: /home/
+      recursive: true
+    severity: 7
+    message: "Unlink used"
+
+  action: Audit
