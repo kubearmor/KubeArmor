@@ -251,6 +251,19 @@ func (clusterWatcher *ClusterWatcher) checkJobStatus(job, runtime, nodename stri
 	}
 }
 
+func nodeMatchesGlobalSelector(node *corev1.Node) bool {
+	for k, v := range common.GlobalNodeSelectors {
+		if v == "-" {
+			// skip deleted entries
+			continue
+		}
+		if nodeVal, ok := node.Labels[k]; !ok || nodeVal != v {
+			return false
+		}
+	}
+	return true
+}
+
 func (clusterWatcher *ClusterWatcher) WatchNodes() {
 	log := clusterWatcher.Log
 	nodeInformer := informer.Core().V1().Nodes().Informer()
@@ -259,7 +272,7 @@ func (clusterWatcher *ClusterWatcher) WatchNodes() {
 			if node, ok := obj.(*corev1.Node); ok {
 				runtime := node.Status.NodeInfo.ContainerRuntimeVersion
 				runtime = strings.Split(runtime, ":")[0]
-				if val, ok := node.Labels[common.OsLabel]; ok && val == "linux" {
+				if val, ok := node.Labels[common.OsLabel]; ok && val == "linux" && nodeMatchesGlobalSelector(node) {
 					log.Infof("Installing snitch on node %s", node.Name)
 					snitchJob, err := clusterWatcher.Client.BatchV1().Jobs(common.Namespace).Create(context.Background(), deploySnitch(node.Name, runtime), v1.CreateOptions{})
 					if err != nil {
@@ -283,7 +296,7 @@ func (clusterWatcher *ClusterWatcher) WatchNodes() {
 						runtime := node.Status.NodeInfo.ContainerRuntimeVersion
 						runtime = strings.Split(runtime, ":")[0]
 						clusterWatcher.Log.Infof("Node might have been restarted, redeploying snitch ")
-						if val, ok := node.Labels[common.OsLabel]; ok && val == "linux" {
+						if val, ok := node.Labels[common.OsLabel]; ok && val == "linux" && nodeMatchesGlobalSelector(node) {
 							log.Infof("Installing snitch on node %s", node.Name)
 							snitchJob, err := clusterWatcher.Client.BatchV1().Jobs(common.Namespace).Create(context.Background(), deploySnitch(node.Name, runtime), v1.CreateOptions{})
 							if err != nil {
@@ -295,7 +308,7 @@ func (clusterWatcher *ClusterWatcher) WatchNodes() {
 						}
 					}
 				}
-				if val, ok := node.Labels[common.OsLabel]; ok && val == "linux" && oldRand != node.Labels[common.RandLabel] {
+				if val, ok := node.Labels[common.OsLabel]; ok && val == "linux" && nodeMatchesGlobalSelector(node) && oldRand != node.Labels[common.RandLabel] {
 					newNode := Node{}
 					newNode.Name = node.Name
 					if val, ok := node.Labels[common.EnforcerLabel]; ok {
