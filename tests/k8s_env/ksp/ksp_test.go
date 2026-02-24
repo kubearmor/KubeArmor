@@ -602,9 +602,54 @@ var _ = Describe("Ksp", func() {
 			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
-
-			//ksp-group-1-allow-proc-args
 		})
+		It("it can block process execution with execname and fromSource", func() {
+			if strings.Contains(K8sRuntimeEnforcer(), "apparmor") {
+				Skip("Skipping due to args rule only supported by BPFLSM")
+			}
+
+			// Apply Policy
+			err := K8sApplyFile("multiubuntu/ksp-ubuntu-1-block-proc-execname-from-source.yaml")
+			Expect(err).To(BeNil())
+
+			// Test 2: curl from another source (not bash) should be allowed
+			// Start KubeArmor Logs
+			err = KarmorLogStart("system", "multiubuntu", "Process", ub1)
+			Expect(err).To(BeNil())
+
+			// Execute curl from dash (blocked since fromSource is /bin/dash)
+			AssertCommand(ub1, "multiubuntu", []string{"bash", "-c", "curl --version"},
+				MatchRegexp("curl"), false,
+			)
+			expectLog := protobuf.Log{
+				Resource: "/usr/bin/curl",
+				Result:   "Passed",
+			}
+			res, err := KarmorGetTargetLogs(5*time.Second, &expectLog)
+			Expect(err).To(BeNil())
+			Expect(res.Found).To(BeTrue())
+
+			// Start KubeArmor Logs
+			err = KarmorLogStart("policy", "multiubuntu", "Process", ub1)
+			Expect(err).To(BeNil())
+
+			// Test 1: curl from bash should be blocked (execname + fromSource match)
+
+			AssertCommand(ub1, "multiubuntu", []string{"bash", "-c", "/bin/dash -c 'curl --version'"},
+				MatchRegexp("curl.*Permission denied"), true,
+			)
+			expect := protobuf.Alert{
+				PolicyName: "ksp-ubuntu-1-block-proc-execname-from-source",
+				Severity:   "5",
+				Action:     "Block",
+				Result:     "Permission denied",
+			}
+
+			res, err = KarmorGetTargetAlert(5*time.Second, &expect)
+			Expect(err).To(BeNil())
+			Expect(res.Found).To(BeTrue())
+		})
+
 	})
 
 	Describe("Apply Files Policies", func() {
