@@ -19,6 +19,11 @@ kubectl apply -f https://raw.githubusercontent.com/kubearmor/KubeArmor/main/pkg/
 
 The KubeArmor Operator uses a `kubearmor-snitch` job to detect node information such as the container runtime and its socket.
 
+If the CRI socket cannot be auto-detected (or if a specific socket should be used), configure an explicit socket file for the snitch job.
+
+* Operator flag: `--socket-file`
+* KubeArmor daemon flag: `-criSocket` (must start with `unix://`)
+
 You can find more details about helm related values and configurations [here](https://github.com/kubearmor/KubeArmor/tree/main/deployments/helm/KubeArmorOperator).
 
 ## Install kArmor CLI (Optional)
