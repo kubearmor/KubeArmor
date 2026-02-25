@@ -18,17 +18,13 @@ You can find more details about helm related values and configurations [here](ht
 
 KubeArmorOperator deploys a `kubearmor-snitch` Job to detect node information (including the container runtime). If CRI socket auto-detection does not work in an environment, provide the socket path explicitly via Helm.
 
-Example:
-
-```bash
-helm upgrade --install kubearmor-operator kubearmor/kubearmor-operator \
-  -n kubearmor --create-namespace \
-  --set-string kubearmorOperator.args[0]=--socket-file=/var/run/containerd/containerd.sock
-```
-
 {% hint style="warning" %}
 The `--socket-file` flag is consumed by the `kubearmor-snitch` Job. The exact Helm value key that feeds snitch arguments depends on the chart version. If this flag is not being applied to snitch, use the chart documentation in the KubeArmor repository to find the snitch argument wiring for the chart version in use.
 {% endhint %}
+
+Related:
+
+* [KubeArmorOperator Helm chart (upstream)](https://github.com/kubearmor/KubeArmor/tree/main/deployments/helm/KubeArmorOperator)
 
 ## Install kArmor CLI (Optional)
 
