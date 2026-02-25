@@ -243,6 +243,11 @@ func (mon *SystemMonitor) initBPFMaps() error {
 		}, cle.MapOptions{
 			PinPath: mon.PinPath,
 		})
+	if errviz != nil {
+		mon.Logger.Errf("Error Creating System Monitor Visibility Map : %s", errviz.Error())
+		// returning to avoid updates on nil visibility map
+		return errviz
+	}
 	mon.BpfNsVisibilityMap = visibilityMap
 	mon.UpdateVisibility()
 
@@ -258,6 +263,12 @@ func (mon *SystemMonitor) initBPFMaps() error {
 		}, cle.MapOptions{
 			PinPath: mon.PinPath,
 		})
+	if errconfig != nil {
+		mon.Logger.Errf("Error Creating System Monitor Config Map : %s", errconfig.Error())
+		// returning to avoid updates on nil config map
+		return errconfig
+
+	}
 	mon.BpfConfigMap = bpfConfigMap
 	if cfg.GlobalCfg.HostPolicy {
 		if err := mon.BpfConfigMap.Update(uint32(0), uint32(1), cle.UpdateAny); err != nil {

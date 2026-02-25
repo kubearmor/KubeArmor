@@ -2394,8 +2394,8 @@ int kretprobe__tcp_connect(struct pt_regs *ctx)
         return 0;
     }
 
-    const char* proto_str_p = READ_KERN(conn.skc_prot->name);
-    
+    const char *proto_str_p = READ_KERN(conn.skc_prot->name);
+
     // so far this is the only hack that worked, using a temporary stack variable
     // skc_prot->name is of size 32
     // but it's unclear why extending to 32 leading to issues
@@ -2403,7 +2403,7 @@ int kretprobe__tcp_connect(struct pt_regs *ctx)
     // it's should be safe to use 16 here
     char proto_str[16] = {};
     bpf_probe_read_str(proto_str, sizeof(proto_str), proto_str_p);
-    
+
     args.args[0] = (unsigned long)proto_str;
     if (context->retval < 0 && !get_kubearmor_config(_ENFORCER_BPFLSM) && get_kubearmor_config(_ALERT_THROTTLING) && should_drop_alerts_per_container(context, ctx, types, &args))
     {
@@ -2434,12 +2434,12 @@ int kretprobe__inet_csk_accept(struct pt_regs *ctx)
 
     // Code from https://github.com/iovisor/bcc/blob/master/tools/tcpaccept.py with adaptations
     u16 protocol = 1;
-#ifndef BTF_SUPPORTED    
+#ifndef BTF_SUPPORTED
     int gso_max_segs_offset = offsetof(struct sock, sk_gso_max_segs);
     int sk_lingertime_offset = offsetof(struct sock, sk_lingertime);
     // this is no more a valid assumption for kernel > v6.8
     // since BTF is supported since 5.3 it should not be an issue
-    if (sk_lingertime_offset - gso_max_segs_offset == 2) 
+    if (sk_lingertime_offset - gso_max_segs_offset == 2)
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 6, 0)
         protocol = READ_KERN(newsk->sk_protocol);
 #else
@@ -2462,7 +2462,19 @@ int kretprobe__inet_csk_accept(struct pt_regs *ctx)
 #error "Fix your compiler's __BYTE_ORDER__?!"
 #endif
 #else // <= BTF_SUPPORTED
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 6, 0)
     protocol = READ_KERN(newsk->sk_protocol);
+#else
+    // Pre-5.6 (e.g., 5.4): Bypass the bitfield restriction using a relocatable anchor
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+    protocol = READ_KERN(*(u8 *)((u64)&newsk->sk_gso_max_segs - 3));
+#elif __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+    protocol = READ_KERN(*(u8 *)((u64)&newsk->sk_gso_max_segs - 1));
+#else
+#error "Fix your compiler's __BYTE_ORDER__?!"
+#endif
+#endif
 #endif
 
     if (protocol != IPPROTO_TCP)
@@ -2471,7 +2483,7 @@ int kretprobe__inet_csk_accept(struct pt_regs *ctx)
     struct sock_common conn = READ_KERN(newsk->__sk_common);
     struct sockaddr_in sockv4;
     struct sockaddr_in6 sockv6;
-    
+
     // exceeding stack size limit of 512 bytes on specific environments
     // using perf buffer to optimize it
     bufs_t *bufs_p = get_buffer(DATA_BUF_TYPE);
@@ -2501,7 +2513,7 @@ int kretprobe__inet_csk_accept(struct pt_regs *ctx)
         return 0;
     }
 
-    const char* proto_str_p = READ_KERN(conn.skc_prot->name);
+    const char *proto_str_p = READ_KERN(conn.skc_prot->name);
     // so far this is the only hack that worked, using a temporary stack variable
     // skc_prot->name is of size 32
     // but it's unclear why extending to 32 leading to issues
@@ -2509,7 +2521,7 @@ int kretprobe__inet_csk_accept(struct pt_regs *ctx)
     // it's should be safe to use 16 here
     char proto_str[16] = {};
     bpf_probe_read_str(proto_str, sizeof(proto_str), proto_str_p);
-    
+
     args.args[0] = (unsigned long)proto_str;
 
     if (context->retval < 0 && !get_kubearmor_config(_ENFORCER_BPFLSM) && get_kubearmor_config(_ALERT_THROTTLING) && should_drop_alerts_per_container(context, ctx, types, &args))
