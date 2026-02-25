@@ -23,7 +23,6 @@ helm upgrade --install kubearmor-operator . -n kubearmor --create-namespace
 | kubearmorOperator.image.repository | string | kubearmor/kubearmor-operator | image repository to pull KubeArmorOperator from |
 | kubearmorOperator.image.tag | string | latest | KubeArmorOperator image tag |
 | kubearmorOperator.imagePullPolicy | string | IfNotPresent | pull policy for operator image |
-| kubearmorOperator.socketFile | string | "" | absolute path to the CRI socket file (e.g., /var/run/containerd/containerd.sock). If not set, the operator will auto-detect the CRI socket |
 | kubearmorOperator.podLabels | object | {} | additional pod labels |
 | kubearmorOperator.podAnnotations | object | {} | additional pod annotations |
 | kubearmorOperator.resources | object | {} | operator container resources |
@@ -32,6 +31,42 @@ helm upgrade --install kubearmor-operator . -n kubearmor --create-namespace
 | kubearmorConfig | object | [values.yaml](values.yaml) | KubeArmor default configurations |
 | kubearmorOperator.annotateResource | bool | false | flag to control RBAC permissions conditionally, use `--annotateResource=<value>` arg as well to pass the same value to operator configuration |
 | autoDeploy | bool | false | Auto deploy KubeArmor with default configurations |
+
+### Set the operator image tag
+
+Set the operator image tag with the `kubearmorOperator.image.tag` Helm value.
+
+Example:
+
+```bash
+helm upgrade --install kubearmor-operator kubearmor/kubearmor-operator \
+  -n kubearmor --create-namespace \
+  --set kubearmorOperator.image.tag=latest
+```
+
+### Configure the CRI socket file used by snitch
+
+The operator deploys a `kubearmor-snitch` Job to inspect the node environment. The snitch command supports a `--socket-file` flag.
+
+In the generated Job manifest, this flag is passed as:
+
+```text
+--socket-file=$(SOCKET_FILE)
+```
+
+The `SOCKET_FILE` environment variable is set to the runtime socket path derived from the node label `kubearmor.io/socket`.
+
+### Configure operator container resources
+
+Use `kubearmorOperator.resources` to set Kubernetes resource requests/limits for the operator container.
+
+Example:
+
+```bash
+helm upgrade --install kubearmor-operator kubearmor/kubearmor-operator \
+  -n kubearmor --create-namespace \
+  --set-json kubearmorOperator.resources='{"requests":{"cpu":"100m","memory":"128Mi"},"limits":{"cpu":"500m","memory":"512Mi"}}'
+```
 
 The operator needs a `KubeArmorConfig` object in order to create resources related to KubeArmor. A default config is present in Helm `values.yaml` which can be overridden during Helm install. To install KubeArmor with default configuration use `--set autoDeploy=true` flag with helm install/upgrade command. It is possible to specify configuration even after KubeArmor resources have been installed by directly editing the created `KubeArmorConfig` CR.
 
