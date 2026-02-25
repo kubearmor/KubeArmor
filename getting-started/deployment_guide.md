@@ -14,6 +14,18 @@ kubectl apply -f https://raw.githubusercontent.com/kubearmor/KubeArmor/main/pkg/
 
 You can find more details about helm related values and configurations [here](https://github.com/kubearmor/KubeArmor/tree/main/deployments/helm/KubeArmorOperator).
 
+### (Optional) Set the CRI socket explicitly
+
+KubeArmorOperator deploys a `kubearmor-snitch` Job to detect node information (including the container runtime). If CRI socket auto-detection does not work in an environment, provide the socket path explicitly via Helm.
+
+Example:
+
+```bash
+helm upgrade --install kubearmor-operator kubearmor/kubearmor-operator \
+  -n kubearmor --create-namespace \
+  --set kubearmorOperator.args[0]=--socket-file=/var/run/containerd/containerd.sock
+```
+
 ## Install kArmor CLI (Optional)
 
 ```
