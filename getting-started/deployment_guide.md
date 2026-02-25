@@ -39,6 +39,19 @@ When **OCI hooks** are enabled, snitch writes an OCI hook configuration that inc
 For `cri-o`, snitch passes the runtime socket with a `unix://` prefix. For other runtimes, snitch passes the detected socket path as-is.
 {% endhint %}
 
+### Configure the CRI socket for KubeArmor (daemon)
+
+KubeArmor accepts a `-criSocket` flag (or `CRI_SOCKET` environment variable) to configure the container runtime socket path.
+
+* Use the format `unix:///path/to/file.sock`.
+* If the value does not start with `unix://`, KubeArmor returns an error.
+
+Example:
+
+```bash
+./kubearmor -k8s=false -criSocket=unix:///var/run/docker.sock
+```
+
 ## Install kArmor CLI (Optional)
 
 ```
