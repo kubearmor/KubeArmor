@@ -18,6 +18,7 @@
 | ContainerImage         | shows the image that was used to spin up the container                    | docker.io/accuknox/knoxautopolicy:v0.9@sha256:bb83b5c6d41e0d0aa3b5d6621188c284ea                              |
 | ContainerName          | specifies the Container name where the log got generated                  | discovery-engine                                                                                              |
 | Data                   | shows the system call that was invoked for this operation                 | syscall=SYS_OPENAT fd=-100 flags=O_RDWR\|O_CREAT\|O_NOFOLLOW\|O_CLOEXEC                                       |
+| EventData              | map of parsed key/value pairs derived from structured `Data` and (for `Operation=Network`) `Resource` | {"Fd":"10","Sa_family":"AF_INET","Sin_port":"53","Sin_addr":"10.0.0.10"} |
 | HostName               | shows the node name where the log got generated                           | aks-agentpool-16128849-vmss000001                                                                             |
 | HostPID                | gives the host Process ID                                                 | 967872                                                                                                        |
 | HostPPID               | list the details of host Parent Process ID                                | 967496                                                                                                        |
@@ -33,6 +34,20 @@
 | Result                 | shows whether the event was allowed or denied                             | Passed                                                                                                        |
 | Source                 | lists the source from where the operation request came                    | /knoxAutoPolicy                                                                                               |
 | Type                   | specifies it as container log                                             | ContainerLog                                                                                                  |
+
+### About `EventData`
+
+`EventData` is a `map<string, string>` field present in both **Container Telemetry** (logs) and **Container Alerts**.
+
+KubeArmor populates it by parsing:
+
+* `Data` (space-separated `key=value` pairs)
+* `Resource` only when `Operation` is `Network`
+
+For example, a network telemetry event may include:
+
+* `Resource`: `sa_family=AF_INET sin_port=53 sin_addr=10.0.0.10`
+* `EventData`: `{ "Sa_family": "AF_INET", "Sin_port": "53", "Sin_addr": "10.0.0.10" }`
 
 <details><summary><h4>Process Log</h4></summary>
 
@@ -136,6 +151,7 @@ The primary difference in the container alerts events vs the telemetry events (s
 | ContainerImage         | shows the image that was used to spin up the container                               | docker.io/library/mysql:5.6@sha256:20575ecebe6216036d25dab5903808211f                                |
 | ContainerName          | specifies the Container name where the alert got generated                           | mysql                                                                                                |
 | Data                   | shows the system call that was invoked for this operation                            | syscall=SYS_EXECVE                                                                                   |
+| EventData              | map of parsed key/value pairs derived from structured `Data` and (for `Operation=Network`) `Resource` | {"Syscall":"SYS_EXECVE"} |
 | Enforcer               | it specifies the name of the LSM that has enforced the policy                        | AppArmor/BPFLSM                                                                                      |
 | HostName               | shows the node name where the alert got generated                                    | aks-agentpool-16128849-vmss000001                                                                    |
 | HostPID                | gives the host Process ID                                                            | 3647533                                                                                              |
