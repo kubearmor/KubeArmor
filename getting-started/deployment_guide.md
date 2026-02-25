@@ -23,7 +23,7 @@ Example:
 ```bash
 helm upgrade --install kubearmor-operator kubearmor/kubearmor-operator \
   -n kubearmor --create-namespace \
-  --set kubearmorOperator.args[0]=--socket-file=/var/run/containerd/containerd.sock
+  --set kubearmorConfig.kubearmorSnitchImage.args[0]=--socket-file=/var/run/containerd/containerd.sock
 ```
 
 ## Install kArmor CLI (Optional)
