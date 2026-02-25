@@ -15,21 +15,9 @@ helm upgrade --install kubearmor-operator kubearmor/kubearmor-operator -n kubear
 kubectl apply -f https://raw.githubusercontent.com/kubearmor/KubeArmor/main/pkg/KubeArmorOperator/config/samples/sample-config.yml
 ```
 
-### Configure CRI socket detection (optional)
+### Runtime detection
 
 The KubeArmor Operator uses a `kubearmor-snitch` job to detect node information such as the container runtime and its socket.
-
-If runtime socket detection needs to use a specific path, pass a socket file to the operator by setting a Helm value that adds a `--socket-file` argument.
-
-Example:
-
-```bash
-helm upgrade --install kubearmor-operator kubearmor/kubearmor-operator \
-  -n kubearmor --create-namespace \
-  --set-string kubearmorOperator.args[0]=--socket-file=/var/run/containerd/containerd.sock
-```
-
-The operator forwards this `--socket-file` value to the snitch job.
 
 You can find more details about helm related values and configurations [here](https://github.com/kubearmor/KubeArmor/tree/main/deployments/helm/KubeArmorOperator).
 
