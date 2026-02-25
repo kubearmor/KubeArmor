@@ -12,7 +12,32 @@ helm upgrade --install kubearmor-operator kubearmor/kubearmor-operator -n kubear
 kubectl apply -f https://raw.githubusercontent.com/kubearmor/KubeArmor/main/pkg/KubeArmorOperator/config/samples/sample-config.yml
 ```
 
-You can find more details about helm related values and configurations [here](https://github.com/kubearmor/KubeArmor/tree/main/deployments/helm/KubeArmorOperator).
+You can find more details about helm related values and configurations in the upstream chart sources at [deployments/helm/KubeArmorOperator](https://github.com/kubearmor/KubeArmor/tree/main/deployments/helm/KubeArmorOperator).
+
+### Configure operator Pod resources (optional)
+
+The Helm chart supports setting container resources for the `kubearmor-operator` deployment via `kubearmorOperator.resources`.
+
+1. Create a values override file.
+2. Set `kubearmorOperator.resources`.
+3. Re-run `helm upgrade --install`.
+
+Example:
+
+```yaml
+kubearmorOperator:
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+```
+
+{% hint style="info" %}
+The upstream chart defaults `kubearmorOperator.resources` to `{}`.
+{% endhint %}
 
 ## Install kArmor CLI (Optional)
 
