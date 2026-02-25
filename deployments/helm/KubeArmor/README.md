@@ -56,7 +56,7 @@ Usage of ./kubearmor:
   -coverageTest
         enabling CoverageTest
   -criSocket string
-        path to CRI socket (format: unix:///path/to/file.sock)
+        path to CRI socket (format: unix:////path/to/file.sock)
   -defaultCapabilitiesPosture string
         configuring default enforcement action in global capability context {allow|audit|block} (default "audit")
   -defaultFilePosture string
