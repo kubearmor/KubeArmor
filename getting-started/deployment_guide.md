@@ -51,6 +51,22 @@ curl -sfL http://get.kubearmor.io/ | sudo sh -s -- -b /usr/local/bin
 
 ## Deploy test nginx app
 
+## Verify node runtime detection (optional)
+
+The KubeArmor operator deploys a `kubearmor-snitch` Job that detects node information. The snitch detects the runtime by checking known runtime socket locations under the configured path prefix (default: `/rootfs`) and then patches the node with labels that include the detected runtime and socket.
+
+To see the detection logs:
+
+```bash
+kubectl logs -n kubearmor job/<snitch-job-name>
+```
+
+To see labels patched on a node:
+
+```bash
+kubectl get node <node-name> --show-labels
+```
+
 ```
 kubectl create deployment nginx --image=nginx
 POD=$(kubectl get pod -l app=nginx -o name)
