@@ -23,8 +23,12 @@ Example:
 ```bash
 helm upgrade --install kubearmor-operator kubearmor/kubearmor-operator \
   -n kubearmor --create-namespace \
-  --set kubearmorConfig.kubearmorSnitchImage.args[0]=--socket-file=/var/run/containerd/containerd.sock
+  --set-string kubearmorOperator.args[0]=--socket-file=/var/run/containerd/containerd.sock
 ```
+
+{% hint style="warning" %}
+The `--socket-file` flag is consumed by the `kubearmor-snitch` Job. The exact Helm value key that feeds snitch arguments depends on the chart version. If this flag is not being applied to snitch, use the chart documentation in the KubeArmor repository to find the snitch argument wiring for the chart version in use.
+{% endhint %}
 
 ## Install kArmor CLI (Optional)
 
