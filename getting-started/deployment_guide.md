@@ -12,6 +12,18 @@ helm upgrade --install kubearmor-operator kubearmor/kubearmor-operator -n kubear
 kubectl apply -f https://raw.githubusercontent.com/kubearmor/KubeArmor/main/pkg/KubeArmorOperator/config/samples/sample-config.yml
 ```
 
+### Override the kubearmor-operator image tag (optional)
+
+To override the `kubearmor-operator` image tag during install/upgrade, set the Helm value `kubearmorOperator.image.tag`.
+
+Example:
+
+```bash
+helm upgrade --install kubearmor-operator kubearmor/kubearmor-operator \
+  -n kubearmor --create-namespace \
+  --set kubearmorOperator.image.tag=latest
+```
+
 You can find more details about helm related values and configurations in the upstream chart sources at [deployments/helm/KubeArmorOperator](https://github.com/kubearmor/KubeArmor/tree/main/deployments/helm/KubeArmorOperator).
 
 ### Configure operator Pod resources (optional)
