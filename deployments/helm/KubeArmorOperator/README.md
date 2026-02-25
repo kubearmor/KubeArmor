@@ -23,7 +23,6 @@ helm upgrade --install kubearmor-operator . -n kubearmor --create-namespace
 | kubearmorOperator.image.repository | string | kubearmor/kubearmor-operator | image repository to pull KubeArmorOperator from |
 | kubearmorOperator.image.tag | string | latest | KubeArmorOperator image tag |
 | kubearmorOperator.imagePullPolicy | string | IfNotPresent | pull policy for operator image |
-| kubearmorOperator.socketFile | string | "" | absolute path to the CRI socket file (e.g., /var/run/containerd/containerd.sock). If not set, the operator will auto-detect the CRI socket |
 | kubearmorOperator.podLabels | object | {} | additional pod labels |
 | kubearmorOperator.podAnnotations | object | {} | additional pod annotations |
 | kubearmorOperator.resources | object | {} | operator container resources |
