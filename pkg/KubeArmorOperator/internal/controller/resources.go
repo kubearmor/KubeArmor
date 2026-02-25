@@ -27,6 +27,7 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1errors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
@@ -150,6 +151,10 @@ func generateDaemonset(name, enforcer, runtime, socket, nriSocket, btfPresent, a
 	} else {
 		common.AddOrReplaceArg("-tlsEnabled=false", "-tlsEnabled=true", &daemonset.Spec.Template.Spec.Containers[0].Args)
 	}
+
+	// force socket
+	setCriSocket(socket, &daemonset.Spec.Template.Spec.Containers[0].Args)
+
 	daemonset.Spec.Template.Spec.Volumes = vols
 	daemonset.Spec.Template.Spec.Containers[0].VolumeMounts = volMnts
 
@@ -201,6 +206,28 @@ func generateDaemonset(name, enforcer, runtime, socket, nriSocket, btfPresent, a
 	daemonset = addOwnership(daemonset).(*appsv1.DaemonSet)
 	fmt.Printf("generated daemonset: %v", daemonset)
 	return daemonset
+}
+
+func setCriSocket(socket string, args *[]string) {
+	if args == nil {
+		return
+	}
+	containerArgs := *args
+	socketPath := strings.ReplaceAll(socket, "_", "/")
+	const CriSocketFlag = "-criSocket="
+	criScoketArg := fmt.Sprintf("%sunix://%s", CriSocketFlag, socketPath)
+	found := false
+	for idx := range containerArgs {
+
+		if strings.HasPrefix(containerArgs[idx], CriSocketFlag) {
+			found = true
+			containerArgs[idx] = criScoketArg
+			break
+		}
+	}
+	if !found {
+		containerArgs = append(containerArgs, criScoketArg)
+	}
 }
 
 func genEnforcerVolumes(enforcer string) (vol []corev1.Volume, volMnt []corev1.VolumeMount) {
@@ -318,6 +345,18 @@ func deploySnitch(nodename string, runtime string) *batchv1.Job {
 	job := batchv1.Job{}
 	job = *addOwnership(&job).(*batchv1.Job)
 	ttls := int32(100)
+	resourceLimits := corev1.ResourceList{
+		"cpu":    resource.MustParse("200m"),
+		"memory": resource.MustParse("200Mi"),
+	}
+	resourceRequest := corev1.ResourceList{
+		"cpu":    resource.MustParse("50m"),
+		"memory": resource.MustParse("50Mi"),
+	}
+	resourcesConstraints := corev1.ResourceRequirements{
+		Limits:   resourceLimits,
+		Requests: resourceRequest,
+	}
 	job.GenerateName = "kubearmor-snitch-"
 	var rootUser int64 = 0
 	job.Spec = batchv1.JobSpec{
@@ -408,6 +447,7 @@ func deploySnitch(nodename string, runtime string) *batchv1.Job {
 							},
 							Privileged: &(common.Privileged),
 						},
+						Resources: resourcesConstraints,
 					},
 				},
 				// For Unknown Reasons hostPID will be true if snitch gets deployed on OpenShift

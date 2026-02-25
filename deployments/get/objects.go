@@ -147,6 +147,18 @@ var envVars = []corev1.EnvVar{
 
 // GetRelayDeployment Function
 func GetRelayDeployment(namespace string) *appsv1.Deployment {
+	resourceLimits := corev1.ResourceList{
+		corev1.ResourceCPU:    resource.MustParse("200m"),
+		corev1.ResourceMemory: resource.MustParse("200Mi"),
+	}
+	resourceRequest := corev1.ResourceList{
+		corev1.ResourceCPU:    resource.MustParse("50m"),
+		corev1.ResourceMemory: resource.MustParse("50Mi"),
+	}
+	resourcesConstraints := corev1.ResourceRequirements{
+		Limits:   resourceLimits,
+		Requests: resourceRequest,
+	}
 	return &appsv1.Deployment{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Deployment",
@@ -184,7 +196,8 @@ func GetRelayDeployment(namespace string) *appsv1.Deployment {
 									ContainerPort: port,
 								},
 							},
-							Env: envVars,
+							Env:       envVars,
+							Resources: resourcesConstraints,
 						},
 					},
 				},
@@ -337,6 +350,19 @@ func GenerateDaemonSet(env, namespace string) *appsv1.DaemonSet {
 		},
 	}
 
+	resourceLimits := corev1.ResourceList{
+		corev1.ResourceCPU:    resource.MustParse("400m"),
+		corev1.ResourceMemory: resource.MustParse("600Mi"),
+	}
+	resourceRequest := corev1.ResourceList{
+		corev1.ResourceCPU:    resource.MustParse("50m"),
+		corev1.ResourceMemory: resource.MustParse("50Mi"),
+	}
+	resourcesConstraints := corev1.ResourceRequirements{
+		Limits:   resourceLimits,
+		Requests: resourceRequest,
+	}
+
 	if env == "gke" {
 		containerVolumeMounts = append(containerVolumeMounts, gkeHostUsrVolMnt)
 		volumes = append(volumes, gkeHostUsrVol)
@@ -411,6 +437,7 @@ func GenerateDaemonSet(env, namespace string) *appsv1.DaemonSet {
 								},
 							},
 							VolumeMounts: containerVolumeMounts,
+							Resources:    resourcesConstraints,
 						},
 					},
 					Containers: []corev1.Container{
@@ -446,6 +473,7 @@ func GenerateDaemonSet(env, namespace string) *appsv1.DaemonSet {
 								},
 							},
 							VolumeMounts: volumeMounts,
+							Resources:    resourcesConstraints,
 							LivenessProbe: &corev1.Probe{
 								ProbeHandler: corev1.ProbeHandler{
 									Exec: &corev1.ExecAction{
@@ -491,6 +519,18 @@ var KubeArmorControllerAllowPrivilegeEscalation = false
 
 // GetKubeArmorControllerDeployment Function
 func GetKubeArmorControllerDeployment(namespace string) *appsv1.Deployment {
+	resourceLimits := corev1.ResourceList{
+		corev1.ResourceCPU:    resource.MustParse("200m"),
+		corev1.ResourceMemory: resource.MustParse("200Mi"),
+	}
+	resourceRequest := corev1.ResourceList{
+		corev1.ResourceCPU:    resource.MustParse("50m"),
+		corev1.ResourceMemory: resource.MustParse("50Mi"),
+	}
+	resourcesConstraints := corev1.ResourceRequirements{
+		Limits:   resourceLimits,
+		Requests: resourceRequest,
+	}
 	return &appsv1.Deployment{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Deployment",
@@ -566,12 +606,7 @@ func GetKubeArmorControllerDeployment(namespace string) *appsv1.Deployment {
 								InitialDelaySeconds: int32(5),
 								PeriodSeconds:       int32(10),
 							},
-							Resources: corev1.ResourceRequirements{
-								Requests: corev1.ResourceList{
-									corev1.ResourceCPU:    resource.MustParse("10m"),
-									corev1.ResourceMemory: resource.MustParse("64Mi"),
-								},
-							},
+							Resources: resourcesConstraints,
 						},
 					},
 					TerminationGracePeriodSeconds: &terminationGracePeriodSeconds,
