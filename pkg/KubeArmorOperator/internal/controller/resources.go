@@ -152,9 +152,6 @@ func generateDaemonset(name, enforcer, runtime, socket, nriSocket, btfPresent, a
 		common.AddOrReplaceArg("-tlsEnabled=false", "-tlsEnabled=true", &daemonset.Spec.Template.Spec.Containers[0].Args)
 	}
 
-	// force socket
-	setCriSocket(socket, &daemonset.Spec.Template.Spec.Containers[0].Args)
-
 	daemonset.Spec.Template.Spec.Volumes = vols
 	daemonset.Spec.Template.Spec.Containers[0].VolumeMounts = volMnts
 
@@ -202,6 +199,9 @@ func generateDaemonset(name, enforcer, runtime, socket, nriSocket, btfPresent, a
 	daemonset.Spec.Template.Spec.Containers[0].Args = append(daemonset.Spec.Template.Spec.Containers[0].Args, LsmFlagString)
 	daemonset.Spec.Template.Spec.InitContainers[0].Image = common.GetApplicationImage(common.KubeArmorInitName)
 	daemonset.Spec.Template.Spec.InitContainers[0].ImagePullPolicy = corev1.PullPolicy(common.KubeArmorInitImagePullPolicy)
+
+	// force socket
+	setCriSocket(socket, &daemonset.Spec.Template.Spec.Containers[0].Args)
 
 	daemonset = addOwnership(daemonset).(*appsv1.DaemonSet)
 	fmt.Printf("generated daemonset: %v", daemonset)
