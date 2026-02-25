@@ -212,21 +212,20 @@ func setCriSocket(socket string, args *[]string) {
 	if args == nil {
 		return
 	}
-	containerArgs := *args
 	socketPath := strings.ReplaceAll(socket, "_", "/")
 	const CriSocketFlag = "-criSocket="
-	criScoketArg := fmt.Sprintf("%sunix://%s", CriSocketFlag, socketPath)
+	criScoketArg := fmt.Sprintf("%sunix:///%s", CriSocketFlag, socketPath)
 	found := false
-	for idx := range containerArgs {
+	for idx := range *(args) {
 
-		if strings.HasPrefix(containerArgs[idx], CriSocketFlag) {
+		if strings.HasPrefix((*args)[idx], CriSocketFlag) {
 			found = true
-			containerArgs[idx] = criScoketArg
+			(*args)[idx] = criScoketArg
 			break
 		}
 	}
 	if !found {
-		containerArgs = append(containerArgs, criScoketArg)
+		*args = append(*args, criScoketArg)
 	}
 }
 
