@@ -32,6 +32,30 @@ helm upgrade --install kubearmor-operator . -n kubearmor --create-namespace
 | kubearmorOperator.annotateResource | bool | false | flag to control RBAC permissions conditionally, use `--annotateResource=<value>` arg as well to pass the same value to operator configuration |
 | autoDeploy | bool | false | Auto deploy KubeArmor with default configurations |
 
+### Set the operator image tag
+
+Set the operator image tag with the `kubearmorOperator.image.tag` Helm value.
+
+Example:
+
+```bash
+helm upgrade --install kubearmor-operator kubearmor/kubearmor-operator \
+  -n kubearmor --create-namespace \
+  --set kubearmorOperator.image.tag=latest
+```
+
+### Configure the CRI socket file used by snitch
+
+The operator deploys a `kubearmor-snitch` Job to inspect the node environment. The snitch command supports a `--socket-file` flag.
+
+In the generated Job manifest, this flag is passed as:
+
+```text
+--socket-file=$(SOCKET_FILE)
+```
+
+The `SOCKET_FILE` environment variable is set to the runtime socket path derived from the node label `kubearmor.io/socket`.
+
 ### Configure operator container resources
 
 Use `kubearmorOperator.resources` to set Kubernetes resource requests/limits for the operator container.
