@@ -161,7 +161,7 @@ The primary difference in the container alerts events vs the telemetry events (s
 | cluster_id             | specifies the cluster id where the alert was generated                               | 596                                                                                                  |
 | component_name         | gives the component which generated this log/alert                                   | kubearmor                                                                                            |
 | tenant_id              | specifies the tenant id where this cluster is onboarded in AccuKnox SaaS             | 11                                                                                                   |
-| EventData              | structured key-value data derived from the alert's `Data` field, and for `Network` operations also from the `Resource` field | {"Syscall":"SYS_EXECVE"}                                                                                  |
+| EventData              | structured key-value data derived from the alert's `Data` field, and for `Network` operations also from the `Resource` field | {"Syscall":"SYS_EXECVE"}                                                                                    |
 
 <details><summary><h4>Process Alert</h4></summary>
 
