@@ -568,7 +568,7 @@ func (mon *SystemMonitor) InitBPF() error {
 		bpfModuleSpec,
 		cle.CollectionOptions{
 			Maps: cle.MapOptions{
-				PinPath: PinPath,
+				PinPath: mon.PinPath,
 			},
 		},
 	)
