@@ -15,6 +15,8 @@ type Interface interface {
 	KubeArmorClusterPolicies() KubeArmorClusterPolicyInformer
 	// KubeArmorHostPolicies returns a KubeArmorHostPolicyInformer.
 	KubeArmorHostPolicies() KubeArmorHostPolicyInformer
+	// KubeArmorNetworkPolicies returns a KubeArmorNetworkPolicyInformer.
+	KubeArmorNetworkPolicies() KubeArmorNetworkPolicyInformer
 	// KubeArmorPolicies returns a KubeArmorPolicyInformer.
 	KubeArmorPolicies() KubeArmorPolicyInformer
 }
@@ -38,6 +40,11 @@ func (v *version) KubeArmorClusterPolicies() KubeArmorClusterPolicyInformer {
 // KubeArmorHostPolicies returns a KubeArmorHostPolicyInformer.
 func (v *version) KubeArmorHostPolicies() KubeArmorHostPolicyInformer {
 	return &kubeArmorHostPolicyInformer{factory: v.factory, tweakListOptions: v.tweakListOptions}
+}
+
+// KubeArmorNetworkPolicies returns a KubeArmorNetworkPolicyInformer.
+func (v *version) KubeArmorNetworkPolicies() KubeArmorNetworkPolicyInformer {
+	return &kubeArmorNetworkPolicyInformer{factory: v.factory, tweakListOptions: v.tweakListOptions}
 }
 
 // KubeArmorPolicies returns a KubeArmorPolicyInformer.

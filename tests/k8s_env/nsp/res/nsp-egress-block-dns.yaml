@@ -1,0 +1,17 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorNetworkPolicy
+metadata:
+  name: nsp-egress-block-dns
+spec:
+  nodeSelector:
+    matchLabels:
+      kubernetes.io/hostname: "*"
+  egress:
+  - to:
+    - ipBlock:
+        cidr: "1.1.1.1/32"
+    ports:
+    - port: "dns"
+      protocol: "UDP"
+  severity: 5
+  action: Block

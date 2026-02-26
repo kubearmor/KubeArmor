@@ -1,0 +1,222 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.19.0
+  name: kubearmornetworkpolicies.security.kubearmor.com
+spec:
+  group: security.kubearmor.com
+  names:
+    kind: KubeArmorNetworkPolicy
+    listKind: KubeArmorNetworkPolicyList
+    plural: kubearmornetworkpolicies
+    shortNames:
+    - nsp
+    singular: kubearmornetworkpolicy
+  scope: Cluster
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    - jsonPath: .spec.action
+      name: Action
+      priority: 10
+      type: string
+    - jsonPath: .spec.nodeSelector.matchLabels
+      name: Selector
+      priority: 10
+      type: string
+    name: v1
+    schema:
+      openAPIV3Schema:
+        description: KubeArmorNetworkPolicy is the Schema for the kubearmornetworkpolicies
+          API
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: KubeArmorNetworkPolicySpec defines the desired state of KubeArmorNetworkPolicy
+            properties:
+              action:
+                enum:
+                - Allow
+                - Audit
+                - Block
+                type: string
+              egress:
+                items:
+                  description: EgressType Structure
+                  properties:
+                    action:
+                      enum:
+                      - Allow
+                      - Audit
+                      - Block
+                      type: string
+                    iface:
+                      items:
+                        type: string
+                      type: array
+                    message:
+                      type: string
+                    ports:
+                      items:
+                        description: PortType Structure
+                        properties:
+                          endPort:
+                            format: int32
+                            maximum: 65535
+                            minimum: 1
+                            type: integer
+                          port:
+                            type: string
+                          protocol:
+                            enum:
+                            - TCP
+                            - UDP
+                            - SCTP
+                            - tcp
+                            - udp
+                            - sctp
+                            type: string
+                        required:
+                        - port
+                        type: object
+                      type: array
+                    severity:
+                      type: integer
+                    tags:
+                      items:
+                        type: string
+                      type: array
+                    to:
+                      items:
+                        description: NetworkPeer Structure
+                        properties:
+                          ipBlock:
+                            description: IPBlock Structure
+                            properties:
+                              cidr:
+                                type: string
+                            required:
+                            - cidr
+                            type: object
+                        required:
+                        - ipBlock
+                        type: object
+                      type: array
+                  type: object
+                type: array
+              ingress:
+                items:
+                  description: IngressType Structure
+                  properties:
+                    action:
+                      enum:
+                      - Allow
+                      - Audit
+                      - Block
+                      type: string
+                    from:
+                      items:
+                        description: NetworkPeer Structure
+                        properties:
+                          ipBlock:
+                            description: IPBlock Structure
+                            properties:
+                              cidr:
+                                type: string
+                            required:
+                            - cidr
+                            type: object
+                        required:
+                        - ipBlock
+                        type: object
+                      type: array
+                    iface:
+                      items:
+                        type: string
+                      type: array
+                    message:
+                      type: string
+                    ports:
+                      items:
+                        description: PortType Structure
+                        properties:
+                          endPort:
+                            format: int32
+                            maximum: 65535
+                            minimum: 1
+                            type: integer
+                          port:
+                            type: string
+                          protocol:
+                            enum:
+                            - TCP
+                            - UDP
+                            - SCTP
+                            - tcp
+                            - udp
+                            - sctp
+                            type: string
+                        required:
+                        - port
+                        type: object
+                      type: array
+                    severity:
+                      type: integer
+                    tags:
+                      items:
+                        type: string
+                      type: array
+                  type: object
+                type: array
+              message:
+                type: string
+              nodeSelector:
+                properties:
+                  matchLabels:
+                    additionalProperties:
+                      type: string
+                    type: object
+                type: object
+              severity:
+                maximum: 10
+                minimum: 1
+                type: integer
+              tags:
+                items:
+                  type: string
+                type: array
+            required:
+            - nodeSelector
+            type: object
+          status:
+            description: KubeArmorNetworkPolicyStatus defines the observed state of
+              KubeArmorNetworkPolicy
+            properties:
+              status:
+                type: string
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

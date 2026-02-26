@@ -2556,6 +2556,280 @@ func (dm *KubeArmorDaemon) WatchHostSecurityPolicies(timeout time.Duration) {
 	}
 }
 
+// ==================================== //
+// == Network Security Policy Update == //
+// ==================================== //
+
+// UpdateNetworkSecurityPolicies Function
+func (dm *KubeArmorDaemon) UpdateNetworkSecurityPolicies() {
+	// Copy network security policies under lock to prevent TOCTOU race condition
+	dm.NetworkSecurityPoliciesLock.RLock()
+	networkSecurityPoliciesCopy := make([]tp.NetworkSecurityPolicy, len(dm.NetworkSecurityPolicies))
+	copy(networkSecurityPoliciesCopy, dm.NetworkSecurityPolicies)
+	dm.NetworkSecurityPoliciesLock.RUnlock()
+
+	secPolicies := []tp.NetworkSecurityPolicy{}
+
+	for _, policy := range networkSecurityPoliciesCopy {
+		if kl.MatchIdentities(policy.Spec.NodeSelector.Identities, dm.Node.Identities) {
+			secPolicies = append(secPolicies, policy)
+		}
+	}
+
+	if cfg.GlobalCfg.NetworkPolicyEnforcer {
+		// update network security policies
+		dm.Logger.UpdateNetworkSecurityPolicies("UPDATED", secPolicies)
+
+		// enforce network policies
+		dm.NetworkPolicyEnforcer.UpdateNetworkSecurityPolicies(secPolicies)
+	}
+}
+
+// ParseAndUpdateNetworkSecurityPolicy Function
+func (dm *KubeArmorDaemon) ParseAndUpdateNetworkSecurityPolicy(event tp.K8sKubeArmorNetworkPolicyEvent) pb.PolicyStatus {
+	// create a network security policy
+
+	secPolicy := tp.NetworkSecurityPolicy{}
+
+	secPolicy.Metadata = map[string]string{}
+	secPolicy.Metadata["policyName"] = event.Object.Metadata.Name
+
+	if err := kl.Clone(event.Object.Spec, &secPolicy.Spec); err != nil {
+		dm.Logger.Errf("Failed to clone a spec (%s)", err.Error())
+		return pb.PolicyStatus_Failure
+	}
+
+	if secPolicy.Spec.Severity == 0 {
+		secPolicy.Spec.Severity = 1 // the lowest severity, by default
+	}
+
+	switch secPolicy.Spec.Action {
+	case "allow":
+		secPolicy.Spec.Action = "Allow"
+	case "audit":
+		secPolicy.Spec.Action = "Audit"
+	case "block":
+		secPolicy.Spec.Action = "Block"
+	case "":
+		secPolicy.Spec.Action = "Block" // by default
+	}
+
+	// add identities
+
+	secPolicy.Spec.NodeSelector.Identities = []string{}
+
+	for k, v := range secPolicy.Spec.NodeSelector.MatchLabels {
+		secPolicy.Spec.NodeSelector.Identities = append(secPolicy.Spec.NodeSelector.Identities, k+"="+v)
+	}
+
+	slices.Sort(secPolicy.Spec.NodeSelector.Identities)
+
+	// add severities, tags, messages, and actions
+
+	if len(secPolicy.Spec.Ingress) > 0 {
+		for idx, igr := range secPolicy.Spec.Ingress {
+			if igr.Severity == 0 {
+				if secPolicy.Spec.Severity != 0 {
+					secPolicy.Spec.Ingress[idx].Severity = secPolicy.Spec.Severity
+				} else {
+					secPolicy.Spec.Ingress[idx].Severity = secPolicy.Spec.Severity
+				}
+			}
+
+			if len(igr.Tags) == 0 {
+				if len(secPolicy.Spec.Tags) > 0 {
+					secPolicy.Spec.Ingress[idx].Tags = secPolicy.Spec.Tags
+				} else {
+					secPolicy.Spec.Ingress[idx].Tags = secPolicy.Spec.Tags
+				}
+			}
+
+			if len(igr.Message) == 0 {
+				if len(secPolicy.Spec.Message) > 0 {
+					secPolicy.Spec.Ingress[idx].Message = secPolicy.Spec.Message
+				} else {
+					secPolicy.Spec.Ingress[idx].Message = secPolicy.Spec.Message
+				}
+			}
+
+			if len(igr.Action) == 0 {
+				if len(secPolicy.Spec.Action) > 0 {
+					secPolicy.Spec.Ingress[idx].Action = secPolicy.Spec.Action
+				} else {
+					secPolicy.Spec.Ingress[idx].Action = secPolicy.Spec.Action
+				}
+			}
+		}
+	}
+
+	if len(secPolicy.Spec.Egress) > 0 {
+		for idx, egr := range secPolicy.Spec.Egress {
+			if egr.Severity == 0 {
+				if secPolicy.Spec.Severity != 0 {
+					secPolicy.Spec.Egress[idx].Severity = secPolicy.Spec.Severity
+				} else {
+					secPolicy.Spec.Egress[idx].Severity = secPolicy.Spec.Severity
+				}
+			}
+
+			if len(egr.Tags) == 0 {
+				if len(secPolicy.Spec.Tags) > 0 {
+					secPolicy.Spec.Egress[idx].Tags = secPolicy.Spec.Tags
+				} else {
+					secPolicy.Spec.Egress[idx].Tags = secPolicy.Spec.Tags
+				}
+			}
+
+			if len(egr.Message) == 0 {
+				if len(secPolicy.Spec.Message) > 0 {
+					secPolicy.Spec.Egress[idx].Message = secPolicy.Spec.Message
+				} else {
+					secPolicy.Spec.Egress[idx].Message = secPolicy.Spec.Message
+				}
+			}
+
+			if len(egr.Action) == 0 {
+				if len(secPolicy.Spec.Action) > 0 {
+					secPolicy.Spec.Egress[idx].Action = secPolicy.Spec.Action
+				} else {
+					secPolicy.Spec.Egress[idx].Action = secPolicy.Spec.Action
+				}
+			}
+		}
+	}
+
+	// update a security policy into the policy list
+
+	dm.NetworkSecurityPoliciesLock.Lock()
+
+	if event.Type == addEvent {
+		new := true
+		for idx, policy := range dm.NetworkSecurityPolicies {
+			if policy.Metadata["policyName"] == secPolicy.Metadata["policyName"] {
+				if reflect.DeepEqual(policy, secPolicy) {
+					kg.Debugf("No updates to policy %s", policy.Metadata["policyName"])
+					dm.NetworkSecurityPoliciesLock.Unlock()
+					return pb.PolicyStatus_Applied
+				}
+
+				dm.NetworkSecurityPolicies[idx] = secPolicy
+				event.Type = updateEvent
+				new = false
+				break
+			}
+		}
+		if new {
+			dm.NetworkSecurityPolicies = append(dm.NetworkSecurityPolicies, secPolicy)
+		}
+	} else if event.Type == updateEvent {
+		for idx, policy := range dm.NetworkSecurityPolicies {
+			if policy.Metadata["policyName"] == secPolicy.Metadata["policyName"] {
+				if reflect.DeepEqual(policy, secPolicy) {
+					kg.Debugf("No updates to policy %s", policy.Metadata["policyName"])
+					dm.NetworkSecurityPoliciesLock.Unlock()
+					return pb.PolicyStatus_Applied
+				}
+
+				dm.NetworkSecurityPolicies[idx] = secPolicy
+				break
+			}
+		}
+	} else if event.Type == deleteEvent {
+		// check that a security policy should exist before performing delete operation
+		policymatch := false
+		for idx, policy := range dm.NetworkSecurityPolicies {
+			if policy.Metadata["policyName"] == secPolicy.Metadata["policyName"] {
+				dm.NetworkSecurityPolicies = append(dm.NetworkSecurityPolicies[:idx], dm.NetworkSecurityPolicies[idx+1:]...)
+				policymatch = true
+				break
+			}
+		}
+		if !policymatch {
+			dm.Logger.Warnf("Failed to delete security policy. Policy doesn't exist")
+			dm.NetworkSecurityPoliciesLock.Unlock()
+			return pb.PolicyStatus_NotExist
+		}
+	}
+
+	dm.NetworkSecurityPoliciesLock.Unlock()
+
+	dm.Logger.Printf("Detected a Network Security Policy (%s/%s)", strings.ToLower(event.Type), secPolicy.Metadata["policyName"])
+
+	// apply network security policies to a host
+	dm.UpdateNetworkSecurityPolicies()
+
+	if !cfg.GlobalCfg.K8sEnv && (cfg.GlobalCfg.KVMAgent || cfg.GlobalCfg.NetworkPolicyEnforcer) {
+		switch event.Type {
+		case addEvent, updateEvent:
+			// backup NetworkSecurityPolicy to file
+			dm.backupKubeArmorNetworkPolicy(secPolicy)
+		case deleteEvent:
+			dm.removeBackUpPolicy(secPolicy.Metadata["policyName"])
+		}
+	}
+	switch event.Type {
+	case addEvent:
+		return pb.PolicyStatus_Applied
+	case deleteEvent:
+		return pb.PolicyStatus_Deleted
+	}
+	return pb.PolicyStatus_Modified
+}
+
+// WatchNetworkSecurityPolicies Function
+func (dm *KubeArmorDaemon) WatchNetworkSecurityPolicies(timeout time.Duration) {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	for {
+		select {
+		case <-ctx.Done():
+			dm.Logger.Warn("timeout while monitoring network security policies, kubearmornetworkpolicies CRD not found")
+			return
+		default:
+			if err := K8s.CheckCustomResourceDefinition("kubearmornetworkpolicies"); err != nil {
+				time.Sleep(time.Second * 1)
+				continue
+			}
+		}
+
+		dm.Logger.Print("Started to monitor network security policies")
+
+		if err := K8s.CheckCustomResourceDefinition("kubearmornetworkpolicies"); err != nil {
+			time.Sleep(time.Second * 1)
+			continue
+		}
+
+		if resp := K8s.WatchK8sNetworkSecurityPolicies(); resp != nil {
+			defer func() {
+				if err := resp.Body.Close(); err != nil {
+					kg.Warnf("Error closing http stream %s\n", err)
+				}
+			}()
+
+			decoder := json.NewDecoder(resp.Body)
+			for {
+				event := tp.K8sKubeArmorNetworkPolicyEvent{}
+				if err := decoder.Decode(&event); err == io.EOF {
+					break
+				} else if err != nil {
+					break
+				}
+
+				if event.Object.Status.Status != "" && event.Object.Status.Status != "OK" {
+					continue
+				}
+
+				if event.Type != addEvent && event.Type != updateEvent && event.Type != deleteEvent {
+					continue
+				}
+
+				dm.ParseAndUpdateNetworkSecurityPolicy(event)
+			}
+		}
+	}
+}
+
 // ===================== //
 // == Default Posture == //
 // ===================== //

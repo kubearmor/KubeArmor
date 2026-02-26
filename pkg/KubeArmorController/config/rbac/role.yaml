@@ -20,6 +20,7 @@ rules:
   resources:
   - kubearmorclusterpolicies
   - kubearmorhostpolicies
+  - kubearmornetworkpolicies
   - kubearmorpolicies
   verbs:
   - create
@@ -34,6 +35,7 @@ rules:
   resources:
   - kubearmorclusterpolicies/status
   - kubearmorhostpolicies/status
+  - kubearmornetworkpolicies/status
   - kubearmorpolicies/status
   verbs:
   - get

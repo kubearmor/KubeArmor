@@ -9,4 +9,6 @@ type KubeArmorClusterPolicyExpansion interface{}
 
 type KubeArmorHostPolicyExpansion interface{}
 
+type KubeArmorNetworkPolicyExpansion interface{}
+
 type KubeArmorPolicyExpansion interface{}
