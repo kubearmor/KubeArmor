@@ -116,9 +116,7 @@ func checkOrMountDefaultLocations() error {
 			"inside container and BPFFS is not mounted on the host. ",
 			mapRoot)
 
-		if lockedDown {
-			setMapRoot(mapRoot)
-		}
+		setMapRoot(fallbackBPFFsPath)
 
 		cMounted, cBpffsInstance, err := mountinfo.IsMountFS(mountinfo.FilesystemTypeBPFFS, mapRoot)
 		if err != nil {
@@ -130,7 +128,8 @@ func checkOrMountDefaultLocations() error {
 				return err
 			}
 		} else if !cBpffsInstance {
-			kg.Printf("%s is mounted but has a different filesystem than BPFFS", fallbackBPFFsPath)
+			kg.Warnf("%s is mounted but has a different filesystem than BPFFS", fallbackBPFFsPath)
+
 		}
 	}
 
