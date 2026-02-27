@@ -19,6 +19,16 @@ You can find more details about helm related values and configurations [here](ht
 ```
 curl -sfL http://get.kubearmor.io/ | sudo sh -s -- -b /usr/local/bin
 # sudo access is needed to install it in /usr/local/bin directory. But, if you prefer not to use sudo, you can install it in a different directory which is in your PATH.
+ls -la /usr/local/bin/karmor
+```
+
+### Want to install without sudo?
+
+```
+mkdir -p ~/bin
+curl -sfL http://get.kubearmor.io/ | sh -s -- -b ~/bin
+export PATH="$PATH:~/bin/"
+ls -la ~/bin/karmor
 ```
 
 > [!NOTE] 
