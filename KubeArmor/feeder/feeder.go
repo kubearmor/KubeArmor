@@ -268,7 +268,7 @@ type Feeder struct {
 // NewFeeder Function
 func NewFeeder(node *tp.Node, nodeLock **sync.RWMutex) (feeder *Feeder) {
 	fd := &Feeder{}
-
+	fd.AlertMap = make(map[OuterKey]AlertThrottleState)
 	defer func() {
 		if feeder == nil {
 			if err := fd.DestroyFeeder(); err != nil {
@@ -316,7 +316,7 @@ func NewFeeder(node *tp.Node, nodeLock **sync.RWMutex) (feeder *Feeder) {
 		LogStructs: make(map[string]EventStruct[pb.Log]),
 		LogLock:    sync.RWMutex{},
 	}
-
+	
 	fd.Running = true
 
 	// LogServer //
@@ -932,9 +932,9 @@ func (fd *Feeder) ShouldDropAlertsPerContainer(pidNs, mntNs uint32) (bool, bool)
 	fd.AlertMapLock.Lock()
 	defer fd.AlertMapLock.Unlock()
 
-	if fd.AlertMap == nil {
-		fd.AlertMap = make(map[OuterKey]AlertThrottleState)
-	}
+	// if fd.AlertMap == nil {
+	// 	fd.AlertMap = make(map[OuterKey]AlertThrottleState)
+	// }
 
 	state, ok := fd.AlertMap[key]
 
