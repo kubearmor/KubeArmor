@@ -34,7 +34,7 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const Regex = /^v([0-9]+)\.([0-9]+)\.([0-9]+)$/;
+            const Regex = /^v([0-9]+)\.([0-9]+)\.([0-9]+)(?:-[a-zA-Z0-9.]+)?$/;
             const eventName = '${{ github.event_name }}';
             let version;
 
