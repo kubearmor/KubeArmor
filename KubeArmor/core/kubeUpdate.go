@@ -531,15 +531,15 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 
 			dm.EndPointsLock.Lock()
 
-			idx := 0
-			nidx := 0
-			for nidx < len(endpoints) && idx < len(dm.EndPoints) {
-				if pod.Metadata["namespaceName"] == dm.EndPoints[idx].NamespaceName && pod.Metadata["podName"] == dm.EndPoints[idx].EndPointName && kl.ContainsElement(endpoints, dm.EndPoints[idx].ContainerName) {
-					dm.EndPoints[idx] = endpoints[nidx]
-					nidx++
+			for nidx := 0; nidx < len(endpoints); nidx++ {
+				for idx := 0; idx < len(dm.EndPoints); idx++ {
+					if pod.Metadata["namespaceName"] == dm.EndPoints[idx].NamespaceName && pod.Metadata["podName"] == dm.EndPoints[idx].EndPointName && endpoints[nidx].ContainerName == dm.EndPoints[idx].ContainerName {
+						dm.EndPoints[idx] = endpoints[nidx]
+						break
+					}
 				}
-				idx++
 			}
+
 			dm.EndPointsLock.Unlock()
 			for _, endpoint := range endpoints {
 				if cfg.GlobalCfg.Policy {
