@@ -123,17 +123,18 @@ func (mon *SystemMonitor) UpdateBatchAuditPoliciesForEndpoint(endPoint tp.EndPoi
 	return nil
 }
 
-func (mon *SystemMonitor) HandleBatchAuditHostPolicyDelete(secPolicy tp.HostSecurityPolicy) error {
+func (mon *SystemMonitor) HandleBatchAuditHostPolicyDelete(secPolicy tp.HostSecurityPolicy) {
 	if mon.BatchAuditPolicyMap == nil {
-		return nil
+		return
 	}
 	if secPolicy.Spec.Action != "BatchAudit" {
-		return nil
+		return
 	}
 
 	policyHash, err := batchAuditPolicyHash("host", "", secPolicy.Metadata["policyName"])
 	if err != nil {
-		return fmt.Errorf("failed to calculate policy hash: %w", err)
+		mon.Logger.Errf("failed to calculate policy hash: %v", err)
+		return
 	}
 
 	mon.BpfMapLock.Lock()
@@ -145,21 +146,20 @@ func (mon *SystemMonitor) HandleBatchAuditHostPolicyDelete(secPolicy tp.HostSecu
 	delete(mon.BatchAuditPolicies, policyHash)
 	mon.BatchAuditStateLock.Unlock()
 	mon.notifyBatchAuditRefresh()
-
-	return nil
 }
 
-func (mon *SystemMonitor) HandleBatchAuditPolicyDelete(secPolicy tp.SecurityPolicy) error {
+func (mon *SystemMonitor) HandleBatchAuditPolicyDelete(secPolicy tp.SecurityPolicy) {
 	if mon.BatchAuditPolicyMap == nil {
-		return nil
+		return
 	}
 	if secPolicy.Spec.Action != "BatchAudit" {
-		return nil
+		return
 	}
 
 	policyHash, err := batchAuditPolicyHash("container", secPolicy.Metadata["namespaceName"], secPolicy.Metadata["policyName"])
 	if err != nil {
-		return fmt.Errorf("failed to calculate policy hash: %w", err)
+		mon.Logger.Errf("failed to calculate policy hash: %v", err)
+		return
 	}
 
 	mon.BpfMapLock.Lock()
@@ -171,8 +171,6 @@ func (mon *SystemMonitor) HandleBatchAuditPolicyDelete(secPolicy tp.SecurityPoli
 	delete(mon.BatchAuditPolicies, policyHash)
 	mon.BatchAuditStateLock.Unlock()
 	mon.notifyBatchAuditRefresh()
-
-	return nil
 }
 
 func (mon *SystemMonitor) PollBatchAuditEvents() {
@@ -278,15 +276,16 @@ func (mon *SystemMonitor) deleteBatchAuditPolicyEntriesForNs(ns NsKey) {
 	for _, k := range keys {
 		err := mon.BatchAuditPolicyMap.Delete(k)
 		if err != nil && !errors.Is(err, os.ErrNotExist) {
-			mon.Logger.Warnf("failed to delete batch audit rule map entry: %s", err)
+			mon.Logger.Warnf("failed to delete batch audit rule map entry: %v", err)
 		}
 	}
 }
 
-func (mon *SystemMonitor) applyBatchAuditPolicySpec(ns NsKey, spec batchAuditPolicySpec) error {
+func (mon *SystemMonitor) applyBatchAuditPolicySpec(ns NsKey, spec batchAuditPolicySpec) {
 	policyHash, err := batchAuditPolicyHash(spec.Kind, spec.Namespace, spec.PolicyName)
 	if err != nil {
-		return fmt.Errorf("failed to calculate policy hash: %w", err)
+		mon.Logger.Errf("failed to calculate policy hash: %v", err)
+		return
 	}
 
 	mon.BatchAuditStateLock.Lock()
@@ -354,8 +353,6 @@ func (mon *SystemMonitor) applyBatchAuditPolicySpec(ns NsKey, spec batchAuditPol
 		ruleDir := normalizeBatchAuditDir(dir.Directory)
 		mon.updateBatchAuditPolicyRuleFromSources(ns, ruleDir, dir.FromSource, 0, mask, policyHash)
 	}
-
-	return nil
 }
 
 func batchAuditPolicyHash(kind, namespace, name string) (uint64, error) {
@@ -413,7 +410,7 @@ func (mon *SystemMonitor) updateBatchAuditPolicyRule(ns NsKey, path, source stri
 		FileMask:    fileMask,
 	}
 	if err := mon.BatchAuditPolicyMap.Put(key, val); err != nil {
-		mon.Logger.Warnf("failed to update batch audit rule map for path=%s source=%s: %s", path, source, err)
+		mon.Logger.Warnf("failed to update batch audit rule map for path=%s source=%s: %v", path, source, err)
 	}
 }
 
@@ -460,7 +457,7 @@ func (mon *SystemMonitor) deleteBatchAuditPolicyEntriesForHash(policyHash uint64
 	for _, k := range keys {
 		err := mon.BatchAuditPolicyMap.Delete(k)
 		if err != nil && !errors.Is(err, os.ErrNotExist) {
-			mon.Logger.Warnf("failed to delete batch audit policy map entry by hash: %s", err)
+			mon.Logger.Warnf("failed to delete batch audit policy map entry by hash: %v", err)
 		}
 	}
 }
@@ -484,7 +481,7 @@ func (mon *SystemMonitor) deleteBatchAuditAggregationsForPolicyHash(policyHash u
 	for _, k := range keys {
 		err := mon.BatchAuditAggMap.Delete(k)
 		if err != nil && !errors.Is(err, os.ErrNotExist) {
-			mon.Logger.Warnf("failed to delete batch audit aggregation map entry by hash: %s", err)
+			mon.Logger.Warnf("failed to delete batch audit aggregation map entry by hash: %v", err)
 		}
 	}
 }
@@ -534,7 +531,7 @@ func (mon *SystemMonitor) pollBatchAuditMapOnce() {
 	for _, k := range keys {
 		err := mon.BatchAuditAggMap.Delete(k)
 		if err != nil && !errors.Is(err, os.ErrNotExist) {
-			mon.Logger.Warnf("failed to clear batch audit aggregation entry: %s", err)
+			mon.Logger.Warnf("failed to clear batch audit aggregation entry: %v", err)
 		}
 	}
 	mon.BpfMapLock.Unlock()
@@ -553,7 +550,7 @@ func (mon *SystemMonitor) emitBatchAuditAlert(key batchAuditAggregationKey, val 
 
 	entrySample, err := decodeBatchAuditSample(val.SampleData[:entrySize])
 	if err != nil {
-		mon.Logger.Warnf("failed to decode batch audit entry sample: %s", err)
+		mon.Logger.Warnf("failed to decode batch audit entry sample: %v", err)
 		return
 	}
 
@@ -576,7 +573,7 @@ func (mon *SystemMonitor) emitBatchAuditAlert(key batchAuditAggregationKey, val 
 Flush:
 	log := formatBatchAuditBaseLog(mon, entrySample)
 	if err := formatBatchAuditEvent(&log, entrySample, retSample); err != nil {
-		mon.Logger.Warnf("failed to format batch audit event: %s", err)
+		mon.Logger.Warnf("failed to format batch audit event: %v", err)
 		return
 	}
 	if log.Operation == "File" && retRawPath != "" {
