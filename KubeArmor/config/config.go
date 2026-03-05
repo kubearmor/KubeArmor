@@ -74,6 +74,8 @@ type KubearmorConfig struct {
 
 	MachineIDPath string // path to machine-id
 
+	EnableAPIObserver bool // Enable/Disable API Observer for HTTP/gRPC observability
+
 	USBDeviceHandler bool // enable USB device observability and enforcement
 
 	MatchArgs bool // enable argument rules for policy
@@ -136,6 +138,7 @@ const (
 	ConfigUSBDeviceHandler               string = "enableUSBDeviceHandler"
 	ConfigArgMatching                    string = "matchArgs"
 	ConfigNetworkPolicyEnforcer          string = "enableNetworkPolicyEnforcer"
+	ConfigEnableAPIObserver              string = "enableAPIObserver"
 )
 
 func readCmdLineParams() {
@@ -210,6 +213,8 @@ func readCmdLineParams() {
 	matchArgs := flag.Bool(ConfigArgMatching, true, "enabling Argument matching")
 
 	networkPolicyEnforcer := flag.Bool(ConfigNetworkPolicyEnforcer, true, "Enable network policy enforcement")
+
+	enableAPIObserver := flag.Bool(ConfigEnableAPIObserver, false, "enable eBPF-based API Observer for HTTP/gRPC observability")
 
 	flags := []string{}
 	flag.VisitAll(func(f *flag.Flag) {
@@ -292,6 +297,8 @@ func readCmdLineParams() {
 	viper.SetDefault(ConfigArgMatching, *matchArgs)
 
 	viper.SetDefault(ConfigNetworkPolicyEnforcer, *networkPolicyEnforcer)
+
+	viper.SetDefault(ConfigEnableAPIObserver, *enableAPIObserver)
 }
 
 // LoadConfig Load configuration
@@ -434,6 +441,8 @@ func LoadDynamicConfig() {
 	GlobalCfg.USBDeviceHandler = viper.GetBool(ConfigUSBDeviceHandler)
 
 	GlobalCfg.NetworkPolicyEnforcer = viper.GetBool(ConfigNetworkPolicyEnforcer)
+
+	GlobalCfg.EnableAPIObserver = viper.GetBool(ConfigEnableAPIObserver)
 
 	kg.Printf("Final Configuration [%+v]", GlobalCfg)
 }
