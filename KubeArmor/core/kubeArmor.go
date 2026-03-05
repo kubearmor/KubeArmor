@@ -16,6 +16,7 @@ import (
 	"syscall"
 	"time"
 
+	apiobserver "github.com/kubearmor/KubeArmor/KubeArmor/apiObserver"
 	"github.com/kubearmor/KubeArmor/KubeArmor/common"
 	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
 	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
@@ -114,6 +115,9 @@ type KubeArmorDaemon struct {
 	// state agent
 	StateAgent *state.StateAgent
 
+	// API Observer
+	APIObserver *apiobserver.APIObserver
+
 	// WgDaemon Handler
 	WgDaemon sync.WaitGroup
 
@@ -182,6 +186,15 @@ func NewKubeArmorDaemon() *KubeArmorDaemon {
 // DestroyKubeArmorDaemon Function
 func (dm *KubeArmorDaemon) DestroyKubeArmorDaemon() {
 	close(StopChan)
+
+	// close API Observer (before SystemMonitor since it uses BPF resources)
+	if dm.APIObserver != nil {
+		if err := dm.APIObserver.DestroyAPIObserver(); err != nil {
+			dm.Logger.Errf("Failed to stop API Observer: %s", err.Error())
+		} else {
+			dm.Logger.Print("Stopped API Observer")
+		}
+	}
 
 	if dm.SystemMonitor != nil {
 		// close system monitor
@@ -725,6 +738,19 @@ func KubeArmor() {
 			dm.Logger.Printf("Disabled Presets: %s", err.Error())
 		} else {
 			dm.Logger.Print("Initialized Presets")
+		}
+	}
+
+	// == API Observer == //
+
+	if cfg.GlobalCfg.EnableAPIObserver {
+		dm.Logger.Print("Initializing API Observer")
+		apiObs, err := apiobserver.NewAPIObserver(dm.Node, dm.SystemMonitor.PinPath, *dm.Logger)
+		if err != nil {
+			dm.Logger.Warnf("Failed to initialize API Observer (non-fatal): %v", err)
+		} else {
+			dm.APIObserver = apiObs
+			dm.Logger.Print("API Observer initialized and running")
 		}
 	}
 
