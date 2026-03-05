@@ -37,8 +37,6 @@ kubearmorOperator:
   annotateResource: false
   annotateExisting: false
   name: kubearmor-operator
-  # If not set, the operator will auto-detect the CRI socket
-  socketFile: ""
   image:
     repository: docker.io/kubearmor/kubearmor-operator
     tag: ""
@@ -68,7 +66,14 @@ kubearmorConfig:
   alertThrottling: true
   maxAlertPerSec: 10
   throttleSec: 30
-  matchArgs: true
+  kubearmorImage:
+    imagePullPolicy: IfNotPresent
+  kubearmorInitImage:
+    imagePullPolicy: IfNotPresent
+  kubearmorRelayImage:
+    imagePullPolicy: IfNotPresent
+  kubearmorControllerImage:
+    imagePullPolicy: IfNotPresent
 
 # DO NOT CHANGE THIS VALUES 
 # changing these values will require code changes with the operator
@@ -78,3 +83,12 @@ tlsSecrets:
   kubearmorClient: kubearmor-client-certs
   relayServer: kubearmor-relay-server-certs
   controllerWebhook: kubearmor-controller-webhook-server-cert
+
+
+resources:
+  limits:
+    cpu: 200m
+    memory: 200Mi
+  requests:
+    cpu: 10m
+    memory: 64Mi
