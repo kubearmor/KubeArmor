@@ -63,8 +63,8 @@ spec:
         args:
         - --annotateExisting={{ .Values.kubearmorOperator.annotateExisting }}
         - --annotateResource={{ .Values.kubearmorOperator.annotateResource }}
-        {{- if .Values.kubearmorOperator.socketFile }}
-        - --socket-file={{ .Values.kubearmorOperator.socketFile }}
+        {{- if .Values.global.isRobin }}
+        - --socket-file=/var/run/docker.sock
         {{- end }}
         {{- if .Values.kubearmorOperator.image.imagePullSecrets }}
         - --image-pull-secrets={{ .Values.kubearmorOperator.image.imagePullSecrets | toJson }}
@@ -74,6 +74,10 @@ spec:
         {{- end }}
         {{- if .Values.kubearmorOperator.args -}}
           {{- toYaml .Values.kubearmorOperator.args | trim | nindent 8 }}
+        {{- end }}
+        {{- with .Values.resources }}
+        resources:
+          {{- toYaml . | nindent 12 }}
         {{- end }}
         {{- with .Values.kubearmorOperator.securityContext }}
         securityContext:
