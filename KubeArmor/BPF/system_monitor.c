@@ -1019,7 +1019,7 @@ static __always_inline int save_all_hashes_to_the_buffer(bufs_t *bufs_p, bool ad
     if (num_of_hashes_idx >= MAX_BUFFER_SIZE || num_of_hashes_idx + num_of_hashes >= MAX_BUFFER_SIZE)
         return -1;
 
-    if (bpf_probe_read(&(bufs_p->buf[num_of_hashes_idx]), sizeof(num_of_hashes), &num_of_hashes) != 0)
+    if (bpf_probe_read(&(bufs_p->buf[num_of_hashes_idx]), sizeof(u8), &num_of_hashes) != 0)
     {
         return -1;
     }
