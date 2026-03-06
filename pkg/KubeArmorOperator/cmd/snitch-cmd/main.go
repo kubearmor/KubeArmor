@@ -85,9 +85,9 @@ restricts the behavior (such as process execution, file access, and networking
 operation) of containers at the system level.
 
 Socket Detection:
-- By default, snitch auto-detects CRI sockets using a predefined search order
+- By default, snitch auto-detects CRI sockets by creating client for them and sending a request with snitch's container ID to check if it has the container or not
 - Use --socket-file to explicitly specify the socket path when multiple runtimes are present
-- Example: --socket-file /run/k3s/containerd/containerd. sock
+- Example: --socket-file /run/k3s/containerd/containerd.sock
 
 	`,
 	SilenceUsage:  true,
@@ -146,7 +146,7 @@ func snitch() {
 	}
 
 	// Detecting runtime
-	runtime, socket, nriSocket := runtimepkg.DetectRuntimeViaMap(PathPrefix, o.Runtime, SocketFile, *Logger)
+	runtime, socket, nriSocket := runtimepkg.DetectRuntimeViaMap(PathPrefix, o.Runtime, SocketFile, *Logger, K8sClient)
 	if runtime != "NA" {
 		Logger.Infof("Detected %s as node runtime, runtime socket=%s", runtime, socket)
 	} else {
