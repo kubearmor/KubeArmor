@@ -135,6 +135,7 @@ const (
 	ConfigEnableIma                      string = "enableIMA"
 	ConfigUSBDeviceHandler               string = "enableUSBDeviceHandler"
 	ConfigArgMatching                    string = "matchArgs"
+	ConfigEnableMetrics                  string = "enableMetrics"
 )
 
 func readCmdLineParams() {
@@ -208,7 +209,7 @@ func readCmdLineParams() {
 
 	matchArgs := flag.Bool(ConfigArgMatching, true, "enabling Argument matching")
 
-	enableMetrics := flag.Bool("enable-metrics", false, "Enable Prometheus metrics endpoint on port 8080")
+	enableMetrics := flag.Bool(ConfigEnableMetrics, false, "Enable Prometheus metrics endpoint on port 8080")
 
 	flags := []string{}
 	flag.VisitAll(func(f *flag.Flag) {
@@ -290,7 +291,7 @@ func readCmdLineParams() {
 
 	viper.SetDefault(ConfigArgMatching, *matchArgs)
 
-	viper.SetDefault("enable-metrics", *enableMetrics)
+	viper.SetDefault(ConfigEnableMetrics, *enableMetrics)
 }
 
 // LoadConfig Load configuration
@@ -385,7 +386,7 @@ func LoadConfig() error {
 
 	GlobalCfg.SELinuxProfileDir = viper.GetString(ConfigSELinuxProfileDir)
 
-	GlobalCfg.EnableMetrics = viper.GetBool("enable-metrics")
+	GlobalCfg.EnableMetrics = viper.GetBool(ConfigEnableMetrics)
 
 	LoadDynamicConfig()
 

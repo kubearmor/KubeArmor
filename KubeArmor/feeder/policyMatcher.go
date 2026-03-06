@@ -192,7 +192,7 @@ func getDeviceResource(class string, subClass, protocol *int32, level *int32) st
 }
 
 // newMatchPolicy Function
-func (fd *Feeder) newMatchPolicy(policyEnabled int, policyName, src string, mp interface{}) tp.MatchPolicy {
+func (fd *Feeder) newMatchPolicy(policyEnabled int, policyName, src string, mp any) tp.MatchPolicy {
 	match := tp.MatchPolicy{
 		PolicyName: policyName,
 		Source:     src,
@@ -717,8 +717,10 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, endPoint tp.EndPoint) {
 	fd.SecurityPoliciesLock.Unlock()
 
 	// Update policy metrics - add/update policies for this endpoint
+	currentPolicies := make(map[string]bool)
 	for _, policy := range endPoint.SecurityPolicies {
 		policyName := policy.Metadata["policyName"]
+		currentPolicies[policyName] = true
 
 		// Determine policy type (KubeArmorPolicy or ClusterPolicy)
 		policyType := "KubeArmorPolicy"
@@ -732,6 +734,20 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, endPoint tp.EndPoint) {
 			Type:      policyType,
 			Status:    "active",
 		})
+	}
+
+	// Remove metrics for policies that were previously tracked but are no longer present
+	fd.PolicyMetadataLock.RLock()
+	var stalePolicies []string
+	for trackedName := range fd.PolicyMetadata {
+		if !currentPolicies[trackedName] {
+			stalePolicies = append(stalePolicies, trackedName)
+		}
+	}
+	fd.PolicyMetadataLock.RUnlock()
+
+	for _, name := range stalePolicies {
+		fd.removePolicyMetric(name)
 	}
 }
 
@@ -1078,8 +1094,10 @@ func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.Hos
 	fd.SecurityPoliciesLock.Unlock()
 
 	// Update policy metrics - add/update host policies
+	currentPolicies := make(map[string]bool)
 	for _, policy := range secPolicies {
 		policyName := policy.Metadata["policyName"]
+		currentPolicies[policyName] = true
 
 		fd.updatePolicyMetric(PolicyMetricInfo{
 			Name:      policyName,
@@ -1087,6 +1105,20 @@ func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.Hos
 			Type:      "KubeArmorHostPolicy",
 			Status:    "active",
 		})
+	}
+
+	// Remove metrics for host policies that were previously tracked but are no longer present
+	fd.PolicyMetadataLock.RLock()
+	var stalePolicies []string
+	for trackedName, info := range fd.PolicyMetadata {
+		if info.Type == "KubeArmorHostPolicy" && !currentPolicies[trackedName] {
+			stalePolicies = append(stalePolicies, trackedName)
+		}
+	}
+	fd.PolicyMetadataLock.RUnlock()
+
+	for _, name := range stalePolicies {
+		fd.removePolicyMetric(name)
 	}
 }
 
