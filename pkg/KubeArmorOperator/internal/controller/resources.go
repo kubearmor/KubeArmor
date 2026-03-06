@@ -285,6 +285,7 @@ func genSnitchRole() *rbacv1.ClusterRole {
 				},
 				Resources: []string{
 					"nodes",
+					"pods",
 				},
 			},
 		},
@@ -361,6 +362,18 @@ func deploySnitch(nodename string, runtime string) *batchv1.Job {
 							{
 								Name:  "KUBEARMOR_OCI_HOOKS",
 								Value: strconv.FormatBool(common.EnableOCIHooks),
+							},
+							{
+								Name: "POD_NAME",
+								ValueFrom: &corev1.EnvVarSource{FieldRef: &corev1.ObjectFieldSelector{
+									FieldPath: "metadata.name",
+								}},
+							},
+							{
+								Name: "POD_NAMESPACE",
+								ValueFrom: &corev1.EnvVarSource{FieldRef: &corev1.ObjectFieldSelector{
+									FieldPath: "metadata.namespace",
+								}},
 							},
 						},
 						ImagePullPolicy: corev1.PullIfNotPresent,
