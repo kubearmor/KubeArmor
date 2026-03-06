@@ -391,7 +391,17 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, endPoint tp.EndPoint) {
 	name := endPoint.NamespaceName + "_" + endPoint.EndPointName
 
 	if action == "DELETED" {
-		delete(fd.SecurityPolicies, name)
+		if _, ok := fd.SecurityPolicies[name]; ok {
+			delete(fd.SecurityPolicies, name)
+		}
+
+		// Update policy metrics - remove policies for this endpoint
+		for _, policy := range endPoint.SecurityPolicies {
+			if policyName, ok := policy.Metadata["policyName"]; ok {
+				fd.removePolicyMetric(policyName)
+			}
+		}
+		return
 	}
 
 	// ADDED | MODIFIED
@@ -705,6 +715,40 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, endPoint tp.EndPoint) {
 	fd.SecurityPoliciesLock.Lock()
 	fd.SecurityPolicies[name] = matches
 	fd.SecurityPoliciesLock.Unlock()
+
+	// Update policy metrics - add/update policies for this endpoint
+	currentPolicies := make(map[string]bool)
+	for _, policy := range endPoint.SecurityPolicies {
+		policyName := policy.Metadata["policyName"]
+		currentPolicies[policyName] = true
+
+		// Determine policy type (KubeArmorPolicy or ClusterPolicy)
+		policyType := "KubeArmorPolicy"
+		if policy.Metadata["type"] == "ClusterPolicy" {
+			policyType = "KubeArmorClusterPolicy"
+		}
+
+		fd.updatePolicyMetric(PolicyMetricInfo{
+			Name:      policyName,
+			Namespace: endPoint.NamespaceName,
+			Type:      policyType,
+			Status:    "active",
+		})
+	}
+
+	// Remove metrics for policies that were previously tracked but are no longer present
+	fd.PolicyMetadataLock.RLock()
+	var stalePolicies []string
+	for trackedName := range fd.PolicyMetadata {
+		if !currentPolicies[trackedName] {
+			stalePolicies = append(stalePolicies, trackedName)
+		}
+	}
+	fd.PolicyMetadataLock.RUnlock()
+
+	for _, name := range stalePolicies {
+		fd.removePolicyMetric(name)
+	}
 }
 
 // ============================ //
@@ -715,6 +759,13 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, endPoint tp.EndPoint) {
 func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.HostSecurityPolicy) {
 	if action == "DELETED" {
 		delete(fd.SecurityPolicies, fd.Node.NodeName)
+
+		// Update policy metrics - remove host policies
+		for _, policy := range secPolicies {
+			if policyName, ok := policy.Metadata["policyName"]; ok {
+				fd.removePolicyMetric(policyName)
+			}
+		}
 		return
 	}
 
@@ -1041,6 +1092,34 @@ func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.Hos
 	fd.SecurityPoliciesLock.Lock()
 	fd.SecurityPolicies[fd.Node.NodeName] = matches
 	fd.SecurityPoliciesLock.Unlock()
+
+	// Update policy metrics - add/update host policies
+	currentPolicies := make(map[string]bool)
+	for _, policy := range secPolicies {
+		policyName := policy.Metadata["policyName"]
+		currentPolicies[policyName] = true
+
+		fd.updatePolicyMetric(PolicyMetricInfo{
+			Name:      policyName,
+			Namespace: "", // Host policies are cluster-scoped, no namespace
+			Type:      "KubeArmorHostPolicy",
+			Status:    "active",
+		})
+	}
+
+	// Remove metrics for host policies that were previously tracked but are no longer present
+	fd.PolicyMetadataLock.RLock()
+	var stalePolicies []string
+	for trackedName, info := range fd.PolicyMetadata {
+		if info.Type == "KubeArmorHostPolicy" && !currentPolicies[trackedName] {
+			stalePolicies = append(stalePolicies, trackedName)
+		}
+	}
+	fd.PolicyMetadataLock.RUnlock()
+
+	for _, name := range stalePolicies {
+		fd.removePolicyMetric(name)
+	}
 }
 
 // ===================== //
@@ -1805,7 +1884,7 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 				if (!secPolicy.IsFromSource) || (secPolicy.IsFromSource && (strings.HasPrefix(log.Source, secPolicy.Source+" ") || secPolicy.Source == log.ProcessName)) {
 					skip := false
 
-					for matchCapability := range strings.SplitSeq(secPolicy.Resource, ",") {
+					for _, matchCapability := range strings.Split(secPolicy.Resource, ",") {
 						if skip {
 							break
 						}
