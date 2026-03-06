@@ -7,11 +7,14 @@ replace (
 	github.com/kubearmor/KubeArmor/KubeArmor => ../../KubeArmor
 	github.com/kubearmor/KubeArmor/deployments => ../../deployments
 	github.com/kubearmor/KubeArmor/pkg/KubeArmorController => ../KubeArmorController
+	k8s.io/cri-api => k8s.io/cri-api v0.25.16
 )
 
 require (
+	github.com/containerd/containerd/v2 v2.1.5
+	github.com/docker/docker v28.4.0+incompatible
 	github.com/kubearmor/KubeArmor/KubeArmor v0.0.0-20250701060635-600e11526ec1
-	github.com/kubearmor/KubeArmor/deployments v0.0.0-20250701060635-600e11526ec1
+	github.com/kubearmor/KubeArmor/deployments v0.0.0-00010101000000-000000000000
 	github.com/kubearmor/KubeArmor/pkg/KubeArmorController v0.0.0-20250701060635-600e11526ec1
 	github.com/opencontainers/runtime-spec v1.2.1
 	github.com/spf13/cobra v1.10.1
@@ -75,8 +78,11 @@ require (
 )
 
 require (
+	github.com/containerd/plugin v1.0.0 // indirect
 	github.com/containers/storage v1.59.1 // indirect
 	github.com/cyphar/filepath-securejoin v0.5.1 // indirect
+	github.com/docker/go-connections v0.6.0 // indirect
+	github.com/docker/go-units v0.5.0 // indirect
 	github.com/go-openapi/swag/cmdutils v0.24.0 // indirect
 	github.com/go-openapi/swag/conv v0.24.0 // indirect
 	github.com/go-openapi/swag/fileutils v0.24.0 // indirect
@@ -89,6 +95,9 @@ require (
 	github.com/go-openapi/swag/typeutils v0.24.0 // indirect
 	github.com/go-openapi/swag/yamlutils v0.24.0 // indirect
 	github.com/kubearmor/KubeArmor/protobuf v0.0.0-20250916032022-5864f940ceca // indirect
+	github.com/moby/docker-image-spec v1.3.1 // indirect
+	github.com/moby/sys/atomicwriter v0.1.0 // indirect
+	github.com/morikuni/aec v1.1.0 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	sigs.k8s.io/structured-merge-diff/v6 v6.3.0 // indirect
 )
