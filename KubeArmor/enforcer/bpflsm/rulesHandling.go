@@ -53,7 +53,7 @@ var protocols = map[string]uint16{
 	"ICMP":   1,
 	"TCP":    6,
 	"UDP":    17,
-	"ICMPv6": 58,
+	"ICMPV6": 58,
 	"SCTP":   132,
 }
 
