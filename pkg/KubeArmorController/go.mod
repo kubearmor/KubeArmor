@@ -1,6 +1,6 @@
 module github.com/kubearmor/KubeArmor/pkg/KubeArmorController
 
-go 1.24.13
+go 1.25.8
 
 require (
 	github.com/go-logr/logr v1.4.3
