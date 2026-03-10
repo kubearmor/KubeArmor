@@ -478,6 +478,25 @@ func DeleteAllKsp() error {
 	return nil
 }
 
+func DeleteAllNsp() error {
+	nsp, err := kcClient.KubeArmorNetworkPolicies().List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		if strings.Contains(err.Error(), "No resource found") {
+			return nil
+		}
+		return err
+	}
+	for _, n := range nsp.Items {
+		err = kcClient.KubeArmorNetworkPolicies().Delete(context.TODO(), n.Name, metav1.DeleteOptions{})
+		if err != nil {
+			log.Errorf("error deleting nsp %s", n.Name)
+			return err
+		}
+		log.Printf("deleted nsp %s ", n.Name)
+	}
+	return nil
+}
+
 // K8sApplyFile can apply deployments, services, namespace, and kubearmorhostpolicy
 func K8sApplyFile(fileName string) error {
 	f, err := os.ReadFile(fileName)
@@ -610,6 +629,18 @@ func K8sApplyFile(fileName string) error {
 			if err != nil {
 				if strings.Contains(err.Error(), "already exists") {
 					log.Printf("Policy %s already exists ...", hsp.Name)
+					continue
+				}
+				return err
+			}
+			log.Printf("Created policy %q", result.GetObjectMeta().GetName())
+		case *kcV1.KubeArmorNetworkPolicy:
+			nsp := obj
+
+			result, err := kcClient.KubeArmorNetworkPolicies().Create(context.TODO(), nsp, metav1.CreateOptions{})
+			if err != nil {
+				if strings.Contains(err.Error(), "already exists") {
+					log.Printf("Policy %s already exists ...", nsp.Name)
 					continue
 				}
 				return err

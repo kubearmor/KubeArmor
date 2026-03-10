@@ -77,6 +77,8 @@ type KubearmorConfig struct {
 	USBDeviceHandler bool // enable USB device observability and enforcement
 
 	MatchArgs bool // enable argument rules for policy
+
+	NetworkPolicyEnforcer bool // enable network policy enforcement
 }
 
 // GlobalCfg Global configuration for Kubearmor
@@ -133,6 +135,7 @@ const (
 	ConfigEnableIma                      string = "enableIMA"
 	ConfigUSBDeviceHandler               string = "enableUSBDeviceHandler"
 	ConfigArgMatching                    string = "matchArgs"
+	ConfigNetworkPolicyEnforcer          string = "enableNetworkPolicyEnforcer"
 )
 
 func readCmdLineParams() {
@@ -205,6 +208,8 @@ func readCmdLineParams() {
 	dropResourceFromProcessLogs := flag.Bool(ConfigDropResourceFromProcessLogs, false, "drop resource field from process logs")
 
 	matchArgs := flag.Bool(ConfigArgMatching, true, "enabling Argument matching")
+
+	networkPolicyEnforcer := flag.Bool(ConfigNetworkPolicyEnforcer, true, "Enable network policy enforcement")
 
 	flags := []string{}
 	flag.VisitAll(func(f *flag.Flag) {
@@ -285,6 +290,8 @@ func readCmdLineParams() {
 	viper.SetDefault(ConfigDropResourceFromProcessLogs, *dropResourceFromProcessLogs)
 
 	viper.SetDefault(ConfigArgMatching, *matchArgs)
+
+	viper.SetDefault(ConfigNetworkPolicyEnforcer, *networkPolicyEnforcer)
 }
 
 // LoadConfig Load configuration
@@ -379,6 +386,8 @@ func LoadConfig() error {
 
 	GlobalCfg.SELinuxProfileDir = viper.GetString(ConfigSELinuxProfileDir)
 
+	GlobalCfg.NetworkPolicyEnforcer = viper.GetBool(ConfigNetworkPolicyEnforcer)
+
 	LoadDynamicConfig()
 
 	kg.Printf("Final Configuration [%+v]", GlobalCfg)
@@ -423,6 +432,8 @@ func LoadDynamicConfig() {
 	GlobalCfg.EnableIMA = viper.GetBool(ConfigEnableIma)
 
 	GlobalCfg.USBDeviceHandler = viper.GetBool(ConfigUSBDeviceHandler)
+
+	GlobalCfg.NetworkPolicyEnforcer = viper.GetBool(ConfigNetworkPolicyEnforcer)
 
 	kg.Printf("Final Configuration [%+v]", GlobalCfg)
 }

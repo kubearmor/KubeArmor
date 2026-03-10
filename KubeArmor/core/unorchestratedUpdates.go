@@ -760,12 +760,11 @@ func (dm *KubeArmorDaemon) ParseAndUpdateContainerSecurityPolicy(event tp.K8sKub
 	return pb.PolicyStatus_Modified
 }
 
-// ================================= //
-// == HostPolicy Backup & Restore == //
-// ================================= //
+// ====================== //
+// == Backup & Restore == //
+// ====================== //
 
-// backupKubeArmorHostPolicy Function
-func (dm *KubeArmorDaemon) backupKubeArmorHostPolicy(policy tp.HostSecurityPolicy) {
+func (dm *KubeArmorDaemon) backupPolicy(kind string, metadata map[string]string, spec any) {
 	// Check for "/opt/kubearmor/policies" path. If dir not found, create the same
 	if _, err := os.Stat(cfg.PolicyDir); err != nil {
 		if err = os.MkdirAll(cfg.PolicyDir, 0700); err != nil {
@@ -774,11 +773,21 @@ func (dm *KubeArmorDaemon) backupKubeArmorHostPolicy(policy tp.HostSecurityPolic
 		}
 	}
 
+	backup := struct {
+		Kind     string            `json:"kind"`
+		Metadata map[string]string `json:"metadata"`
+		Spec     interface{}       `json:"spec"`
+	}{
+		Kind:     kind,
+		Metadata: metadata,
+		Spec:     spec,
+	}
+
 	var file *os.File
 	var err error
 
-	if file, err = os.Create(cfg.PolicyDir + policy.Metadata["policyName"] + ".yaml"); err == nil {
-		if policyBytes, err := json.Marshal(policy); err == nil {
+	if file, err = os.Create(cfg.PolicyDir + metadata["policyName"] + ".yaml"); err == nil {
+		if policyBytes, err := json.Marshal(backup); err == nil {
 			if _, err = file.Write(policyBytes); err == nil {
 				if err := file.Close(); err != nil {
 					dm.Logger.Err(err.Error())
@@ -786,30 +795,22 @@ func (dm *KubeArmorDaemon) backupKubeArmorHostPolicy(policy tp.HostSecurityPolic
 			}
 		}
 	}
+
+}
+
+// backupKubeArmorHostPolicy Function
+func (dm *KubeArmorDaemon) backupKubeArmorHostPolicy(policy tp.HostSecurityPolicy) {
+	dm.backupPolicy("KubeArmorHostPolicy", policy.Metadata, policy.Spec)
 }
 
 // Back up KubeArmor container policies in /opt/kubearmor/policies
 func (dm *KubeArmorDaemon) backupKubeArmorContainerPolicy(policy tp.SecurityPolicy) {
-	// Check for "/opt/kubearmor/policies" path. If dir not found, create the same
-	if _, err := os.Stat(cfg.PolicyDir); err != nil {
-		if err = os.MkdirAll(cfg.PolicyDir, 0700); err != nil {
-			kg.Warnf("Dir creation failed for [%v]", cfg.PolicyDir)
-			return
-		}
-	}
+	dm.backupPolicy("KubeArmorPolicy", policy.Metadata, policy.Spec)
+}
 
-	var file *os.File
-	var err error
-
-	if file, err = os.Create(cfg.PolicyDir + policy.Metadata["policyName"] + ".yaml"); err == nil {
-		if policyBytes, err := json.Marshal(policy); err == nil {
-			if _, err = file.Write(policyBytes); err == nil {
-				if err := file.Close(); err != nil {
-					dm.Logger.Err(err.Error())
-				}
-			}
-		}
-	}
+// backupKubeArmorNetworkPolicy Function
+func (dm *KubeArmorDaemon) backupKubeArmorNetworkPolicy(policy tp.NetworkSecurityPolicy) {
+	dm.backupPolicy("KubeArmorNetworkPolicy", policy.Metadata, policy.Spec)
 }
 
 func (dm *KubeArmorDaemon) restoreKubeArmorPolicies() {
@@ -824,6 +825,7 @@ func (dm *KubeArmorDaemon) restoreKubeArmorPolicies() {
 			if data, err := os.ReadFile(cfg.PolicyDir + file.Name()); err == nil {
 
 				var k struct {
+					Kind     string            `json:"kind"`
 					Metadata map[string]string `json:"metadata"`
 				}
 
@@ -843,6 +845,17 @@ func (dm *KubeArmorDaemon) restoreKubeArmorPolicies() {
 						})
 					}
 
+				} else if k.Kind == "KubeArmorNetworkPolicy" {
+					var networkPolicy tp.K8sKubeArmorNetworkPolicy
+					if err := json.Unmarshal(data, &networkPolicy); err == nil {
+						networkPolicy.Metadata.Name = k.Metadata["policyName"]
+						dm.ParseAndUpdateNetworkSecurityPolicy(tp.K8sKubeArmorNetworkPolicyEvent{
+							Type:   "ADDED",
+							Object: networkPolicy,
+						})
+					} else {
+						kg.Errf("Failed to unmarshal network policy: %v", err)
+					}
 				} else { // HostSecurityPolicy
 					var hostPolicy tp.K8sKubeArmorHostPolicy
 					if err := json.Unmarshal(data, &hostPolicy); err == nil {
