@@ -392,3 +392,68 @@ const (
 	// ProtectProc Preset
 	ProtectProc PresetName = "protectProc"
 )
+
+// IPBlock Structure
+type IPBlock struct {
+	// +kubebuilder:validation:Required
+	CIDR string `json:"cidr"`
+}
+
+// NetworkPeer Structure
+type NetworkPeer struct {
+	// +kubebuilder:validation:Required
+	IPBlock *IPBlock `json:"ipBlock,omitempty"`
+}
+
+// PortType Structure
+type PortType struct {
+	// +kubebuilder:validation:Required
+	Port string `json:"port"`
+
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Maximum=65535
+	EndPort *int32 `json:"endPort,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Enum=TCP;UDP;SCTP;tcp;udp;sctp
+	Protocol string `json:"protocol,omitempty"`
+}
+
+// IngressType Structure
+type IngressType struct {
+	From      []NetworkPeer `json:"from,omitempty"`
+	Interface []string      `json:"iface,omitempty"`
+	Ports     []PortType    `json:"ports,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	Severity int `json:"severity,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	Tags []string `json:"tags,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	Message string `json:"message,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	Action ActionType `json:"action,omitempty"`
+}
+
+// EgressType Structure
+type EgressType struct {
+	To        []NetworkPeer `json:"to,omitempty"`
+	Interface []string      `json:"iface,omitempty"`
+	Ports     []PortType    `json:"ports,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	Severity int `json:"severity,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	Tags []string `json:"tags,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	Message string `json:"message,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	Action ActionType `json:"action,omitempty"`
+}

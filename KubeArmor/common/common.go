@@ -522,6 +522,15 @@ func MatchIdentities(identities, superIdentities []string) bool {
 			continue
 		}
 
+		if strings.Contains(identity, "kubernetes.io/hostname") {
+			if !MatchesRegex("kubernetes.io/hostname", identity, superIdentities) {
+				matched = false
+				break
+			}
+
+			continue
+		}
+
 		if !ContainsElement(superIdentities, identity) {
 			matched = false
 			break
