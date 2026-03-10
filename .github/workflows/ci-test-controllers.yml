@@ -74,7 +74,9 @@ jobs:
           docker save kubearmor/kubearmor-snitch:latest | sudo k3s ctr images import -
 
           helm upgrade --install kubearmor-operator ./deployments/helm/KubeArmorOperator -n kubearmor --create-namespace --set kubearmorOperator.image.tag=latest
-          kubectl wait --for=condition=ready --timeout=5m -n kubearmor pod -l kubearmor-app=kubearmor-operator
+          
+          kubectl rollout status --timeout=5m deployment -n kubearmor -l kubearmor-app=kubearmor-operator
+
           kubectl get pods -A
 
           # create kubearmorconfig
