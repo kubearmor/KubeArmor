@@ -24,15 +24,15 @@ import (
 func GetProtocolFromName(proto string) string {
 	switch strings.ToLower(proto) {
 	case "tcp":
-		return "protocol=TCP,type=SOCK_STREAM"
+		return "protocol=TCP type=SOCK_STREAM"
 	case "udp":
-		return "protocol=UDP,type=SOCK_DGRAM"
+		return "protocol=UDP type=SOCK_DGRAM"
 	case "icmp":
-		return "protocol=ICMP,type=SOCK_RAW"
-	case "icmpv6":
-		return "protocol=ICMPv6,type=SOCK_RAW"
+		return "protocol=ICMP type=SOCK_RAW"
+	case "icmpv6", "ipv6-icmp":
+		return "protocol=ICMPV6 type=SOCK_RAW"
 	case "sctp":
-		return "protocol=SCTP,type=SOCK_STREAM|SOCK_SEQPACKET"
+		return "protocol=SCTP type=SOCK_STREAM|SOCK_SEQPACKET"
 	default:
 		return proto
 	}
@@ -64,14 +64,14 @@ func fetchProtocol(resource string) string {
 		return "tcp"
 	} else if strings.Contains(resource, "protocol=UDP") || (strings.Contains(resource, "SOCK_DGRAM") && strings.Contains(resource, "protocol=HOPOPT")) {
 		return "udp"
+	} else if strings.Contains(resource, "protocol=ICMPV6") {
+		return "icmpv6"
 	} else if strings.Contains(resource, "protocol=ICMP") {
 		return "icmp"
-	} else if strings.Contains(resource, "SOCK_RAW") {
-		return "raw"
-	} else if strings.Contains(resource, "protocol=ICMPv6") {
-		return "icmpv6"
 	} else if strings.Contains(resource, "protocol=SCTP") {
 		return "sctp"
+	} else if strings.Contains(resource, "SOCK_RAW") {
+		return "raw"
 	} else if strings.Contains(resource, "SOCK_STREAM") {
 		return "stream"
 	} else if strings.Contains(resource, "SOCK_DGRAM") {
