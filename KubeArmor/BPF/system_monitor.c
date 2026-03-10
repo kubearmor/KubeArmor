@@ -1885,6 +1885,13 @@ static __always_inline int trace_ret_generic(u32 id, struct pt_regs *ctx, u64 ty
     return 0;
 }
 
+static __always_inline bool is_container_context()
+{
+    struct task_struct *task = (struct task_struct *)bpf_get_current_task();
+    u32 pid_ns = get_task_pid_ns_id(task);
+    return pid_ns != PROC_PID_INIT_INO;
+}
+
 #define DIR_PROC "/proc/"
 static __always_inline int isProcDir(char *path)
 {
@@ -1932,7 +1939,15 @@ int kprobe__open(struct pt_regs *ctx)
     char path[8];
     bpf_probe_read(path, 8, pathname);
 
-    if (isProcDir(path) == 0 || isSysDir(path) == 0)
+    if (isProcDir(path) == 0)
+    {
+        return 0;
+    }
+
+    // Only skip /sys/ paths for host processes.
+    // Container processes may access host-mounted /sys/ paths
+    // and need telemetry for policy enforcement.
+    if (isSysDir(path) == 0 && !is_container_context())
     {
         return 0;
     }
@@ -1963,7 +1978,10 @@ int kprobe__openat(struct pt_regs *ctx)
         bpf_map_update_elem(&proc_file_access, &tgid, &path, BPF_ANY);
         return 0;
     }
-    else if (isSysDir(path.path) == 0)
+    // Only skip /sys/ paths for host processes.
+    // Container processes may access host-mounted /sys/ paths
+    // and need telemetry for policy enforcement.
+    else if (isSysDir(path.path) == 0 && !is_container_context())
     {
         return 0;
     }
