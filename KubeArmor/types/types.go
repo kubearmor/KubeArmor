@@ -601,7 +601,11 @@ const (
 	ProtectProc PresetName = "protectProc"
 )
 
+// BatchAuditType defines configuration related to BatchAudit action.
 type BatchAuditType struct {
+	// IntervalSeconds is the interval for which the events are going to be
+	// aggregated for inside the BPF map. If there are multiple policies with
+	// action BatchAudit, the smallest interval takes precedence.
 	IntervalSeconds int32 `json:"intervalSeconds,omitempty"`
 }
 
