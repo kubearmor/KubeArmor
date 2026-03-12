@@ -552,7 +552,14 @@ func (clusterWatcher *ClusterWatcher) AreAllNodesProcessed() bool {
 		clusterWatcher.Log.Warnf("Cannot list nodes, error=%s", err.Error())
 		return false
 	}
-	if !(len(nodes.Items) == processedNodes) {
+	matchingNodes := 0
+	for i := range nodes.Items {
+		node := &nodes.Items[i]
+		if val, ok := node.Labels[common.OsLabel]; ok && val == "linux" && nodeMatchesGlobalSelector(node) {
+			matchingNodes++
+		}
+	}
+	if matchingNodes != processedNodes {
 		return false
 	}
 
