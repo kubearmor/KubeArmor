@@ -1,0 +1,22 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorHostPolicy
+metadata:
+  name: hsp-block-file-pattern
+spec:
+  nodeSelector:
+    matchLabels:
+      kubearmor.io/hostname: "*"
+  severity: 5
+  tags:
+    - host
+    - filesystem
+  message: file access detected
+  action: Block
+
+  file:
+    severity: 4
+    tags:
+      - fs-monitor
+    message: file event
+    matchPatterns:
+      - pattern: /tmp/*

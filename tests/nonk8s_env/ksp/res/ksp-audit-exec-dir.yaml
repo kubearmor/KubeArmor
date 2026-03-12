@@ -1,0 +1,14 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: ksp-block-exec-dir
+spec:
+  severity: 7
+  selector:
+    matchLabels:
+      kubearmor.io/container.name: wordpress-mysql
+  process:
+    matchDirectories:
+    - dir: /usr/bin/
+      recursive: true
+  action: Audit
