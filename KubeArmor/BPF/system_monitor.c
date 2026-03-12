@@ -21,6 +21,12 @@
 #pragma clang diagnostic ignored "-Wunused-label"
 #endif
 
+#ifndef volatile_reg
+/* Prevent 64-bit stack spill of u32 that causes BPF verifier to lose
+ * bounds tracking on kernels 5.4 */
+#define volatile_reg(var) asm volatile("" : "+r"(var))
+#endif
+
 #ifdef BTF_SUPPORTED
 #include "vmlinux.h"
 #include "vmlinux_macro.h"
@@ -1019,7 +1025,10 @@ static __always_inline int save_all_hashes_to_the_buffer(bufs_t *bufs_p, bool ad
     if (num_of_hashes_idx >= MAX_BUFFER_SIZE || num_of_hashes_idx + num_of_hashes >= MAX_BUFFER_SIZE)
         return -1;
 
-    if (bpf_probe_read(&(bufs_p->buf[num_of_hashes_idx]), sizeof(u8), &num_of_hashes) != 0)
+    u32 idx = num_of_hashes_idx & (MAX_BUFFER_SIZE - 1);
+    volatile_reg(idx);
+
+    if (bpf_probe_read(&(bufs_p->buf[idx]), sizeof(u8), &num_of_hashes) != 0)
     {
         return -1;
     }
