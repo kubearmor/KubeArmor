@@ -153,7 +153,9 @@ func (kh *K8sHandler) InitLocalAPIClient() error {
 
 // InitInclusterAPIClient Function
 func (kh *K8sHandler) InitInclusterAPIClient() error {
-	read, err := os.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/token")
+	// #nosec G101 -- K8s service account token file path
+	tokenFile := "/var/run/secrets/kubernetes.io/serviceaccount/token"
+	read, err := os.ReadFile(tokenFile)
 	if err != nil {
 		return fmt.Errorf("failed to read service account token: %w", err)
 	}
@@ -161,8 +163,9 @@ func (kh *K8sHandler) InitInclusterAPIClient() error {
 
 	// create the configuration by token
 	kubeConfig := &rest.Config{
-		Host:        "https://" + kh.K8sHost + ":" + kh.K8sPort,
-		BearerToken: kh.K8sToken,
+		Host:            "https://" + kh.K8sHost + ":" + kh.K8sPort,
+		BearerToken:     kh.K8sToken,
+		BearerTokenFile: tokenFile,
 		// #nosec
 		TLSClientConfig: rest.TLSClientConfig{
 			Insecure: true,
