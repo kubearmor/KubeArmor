@@ -7,11 +7,39 @@ import (
 	"errors"
 	"os"
 	"strings"
+	"syscall"
 
 	"github.com/cilium/ebpf"
 	mon "github.com/kubearmor/KubeArmor/KubeArmor/monitor"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 )
+
+// makeInnerKey builds an InnerKey from path and optional source path.
+// It populates inode and device fields (following symlinks) and also
+// copies the original path strings for directory and alerting support.
+func makeInnerKey(pathStr, srcStr string) InnerKey {
+	var key InnerKey
+	if pathStr != "" {
+		if st, err := os.Stat(pathStr); err == nil {
+			if stat, ok := st.Sys().(*syscall.Stat_t); ok {
+				key.Ino = uint64(stat.Ino)
+				key.Dev = uint64(stat.Dev)
+			}
+		}
+		copy(key.Path[:], []byte(pathStr))
+	}
+	if srcStr != "" {
+		if st, err := os.Stat(srcStr); err == nil {
+			if stat, ok := st.Sys().(*syscall.Stat_t); ok {
+				key.SrcIno = uint64(stat.Ino)
+				key.SrcDev = uint64(stat.Dev)
+			}
+		}
+		copy(key.Source[:], []byte(srcStr))
+	}
+	key.KeyType = 1
+	return key
+}
 
 // Bit Flags for Map Rule Mask
 const (
@@ -130,9 +158,9 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 			if len(path.FromSource) == 0 {
 				var key InnerKey
 				if len(path.ExecName) > 0 {
-					copy(key.Path[:], []byte(path.ExecName))
+					key = makeInnerKey(path.ExecName, "")
 				} else {
-					copy(key.Path[:], []byte(path.Path))
+					key = makeInnerKey(path.Path, "")
 				}
 				if path.Action == "Allow" {
 					newrules.ProcWhiteListPosture = true
@@ -153,11 +181,10 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 				for _, src := range path.FromSource {
 					var key InnerKey
 					if len(path.ExecName) > 0 {
-						copy(key.Path[:], []byte(path.ExecName))
+						key = makeInnerKey(path.ExecName, src.Path)
 					} else {
-						copy(key.Path[:], []byte(path.Path))
+						key = makeInnerKey(path.Path, src.Path)
 					}
-					copy(key.Source[:], []byte(src.Path))
 					if path.Action == "Allow" {
 						newrules.ProcWhiteListPosture = true
 						newrules.ProcessRuleList[key] = val
@@ -218,7 +245,7 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 			}
 			if len(path.FromSource) == 0 {
 				var key InnerKey
-				copy(key.Path[:], []byte(path.Path))
+				key = makeInnerKey(path.Path, "")
 				if path.Action == "Allow" {
 					newrules.FileWhiteListPosture = true
 					newrules.FileRuleList[key] = val
@@ -230,8 +257,7 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 			} else {
 				for _, src := range path.FromSource {
 					var key InnerKey
-					copy(key.Path[:], []byte(path.Path))
-					copy(key.Source[:], []byte(src.Path))
+					key = makeInnerKey(path.Path, src.Path)
 					if path.Action == "Allow" {
 						newrules.FileWhiteListPosture = true
 						newrules.FileRuleList[key] = val
@@ -570,21 +596,14 @@ func (be *BPFEnforcer) resolveConflictsProcessRules(newRuleList, oldRuleList map
 
 // dirtoMap extracts parent directories from the Path Key and adds it as hints in the Container Rule Map
 func dirtoMap(idx int, p, src string, m map[InnerKey][2]uint16, val [2]uint16) {
-	var key InnerKey
-	if src != "" {
-		copy(key.Source[:], []byte(src))
-	}
+	// Build key for the parent directory (kernel will refer to dir as file)
 	paths := strings.Split(p, "/")
-
-	// Add the directory itself but kernel space would refer it as a file so...
-	var pth [200]byte
-	copy(pth[:], []byte(strings.Join(paths[0:len(paths)-1], "/")))
-	key.Path = pth
+	parent := strings.Join(paths[0:len(paths)-1], "/")
+	key := makeInnerKey(parent, src)
 	m[key] = val
 
-	// Add directory for sub file matching
-	copy(key.Path[:], []byte(p))
-
+	// Add directory for sub file matching (exact directory path)
+	key = makeInnerKey(p, src)
 	val[idx] = val[idx] | DIR
 	if oldval, ok := m[key]; ok {
 		if oldval[idx]&HINT != 0 {
@@ -594,19 +613,16 @@ func dirtoMap(idx int, p, src string, m map[InnerKey][2]uint16, val [2]uint16) {
 	m[key] = val
 
 	for i := 1; i < len(paths)-1; i++ {
-		var key InnerKey
+		var k InnerKey
 		val[idx] = val[idx] & ^DIR // reset DIR mask to false
 		val[idx] = val[idx] | HINT
-		var hint = strings.Join(paths[0:i], "/") + "/"
-		copy(key.Path[:], []byte(hint))
-		if src != "" {
-			copy(key.Source[:], []byte(src))
-		}
-		if oldval, ok := m[key]; ok {
+		hint := strings.Join(paths[0:i], "/") + "/"
+		k = makeInnerKey(hint, src)
+		if oldval, ok := m[k]; ok {
 			if oldval[idx]&DIR != 0 {
 				val[idx] = oldval[idx] | HINT
 			}
 		}
-		m[key] = val
+		m[k] = val
 	}
 }

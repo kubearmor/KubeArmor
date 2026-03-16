@@ -80,7 +80,7 @@ func NewBPFEnforcer(node tp.Node, pinpath string, logger *fd.Feeder, monitor *mo
 
 	be.InnerMapSpec = &ebpf.MapSpec{
 		Type:       ebpf.Hash,
-		KeySize:    400,
+		KeySize:    440,
 		ValueSize:  4,
 		MaxEntries: 256,
 	}
