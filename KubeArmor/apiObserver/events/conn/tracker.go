@@ -1,14 +1,12 @@
 // Package conn implements per-connection lifecycle tracking.
 //
-//	One ConnectionTracker per TCP connection. It owns the per-direction byte
-//	buffers, a lazily-created set of protocol parsers (one http2.Parser per
-//	connection so HPACK state is preserved across streams), and routes
-//	complete messages into the shared Correlator.
+// One ConnectionTracker per TCP connection. It owns the per-direction byte
+// buffers, set of protocol parsers, and routes
+// complete messages into the shared Correlator.
 
 package conn
 
 import (
-	"slices"
 	"bytes"
 	"fmt"
 	"log/slog"
@@ -21,9 +19,7 @@ import (
 	"github.com/kubearmor/KubeArmor/KubeArmor/apiObserver/protocols/http2"
 )
 
-// CorrelatorIface is the subset of events.Correlator that ConnectionTracker
-// calls.  A local interface keeps the conn↔events dependency uni-directional
-// and allows test mocks without importing the real correlator.
+// CorrelatorIface is the subset of events.Correlator that ConnectionTracker calls.
 type CorrelatorIface interface {
 	AddHTTP1Request(key events.ConnectionKey, req events.PendingRequest)
 	AddHTTP2Request(key events.ConnectionKey, streamID uint32, req events.PendingRequest)
@@ -51,13 +47,18 @@ type CorrelatorIface interface {
 	CloseConnection(key events.ConnectionKey)
 }
 
-type State int
+type ConnState int
 
 const (
-	StateEstablished State = iota // handshake complete; no application data yet
-	StateActive                   // application data has been observed
-	StateClosed                   // TCP FIN/RST seen; pending GC
+	ConnEstablished ConnState = iota // handshake complete; no application data yet
+	ConnActive                       // application data has been observed
+	ConnClosed                       // TCP FIN/RST seen; pending GC
 )
+
+// maxConsecutiveParseErrors is the circuit-breaker threshold: if the HTTP/1
+// parser returns an error this many times in a row without making progress,
+// the buffer is discarded to break the infinite re-park loop.
+const maxConsecutiveParseErrors = 10
 
 // StreamKey identifies a TCP connection by its IP:port 4-tuple.
 // The watcher uses this to look up pod/service metadata.
@@ -76,7 +77,7 @@ type TrackerConfig struct {
 func DefaultConfig() TrackerConfig {
 	return TrackerConfig{
 		InactivityTimeout: 5 * time.Minute,
-		MaxBufferSize:     4 << 20, // 4 MiB per direction
+		MaxBufferSize:     64 * 1024, // 64KB per direction
 	}
 }
 
@@ -85,21 +86,24 @@ type ConnectionTracker struct {
 	Key           events.ConnectionKey
 	StreamKey     StreamKey
 	Protocol      uint8
-	State         State
+	State         ConnState
 	EstablishedAt time.Time
 	LastSeen      time.Time
 
-	sendBuf *DataStreamBuffer 
-	recvBuf *DataStreamBuffer 
+	sendBuf *DataStreamBuffer
+	recvBuf *DataStreamBuffer
 
 	// Protocol parsers — created lazily on first protocol detection.
-	http1Req  *http1.Parser 
-	http1Resp *http1.Parser 
-	h2        *http2.Parser 
-	gRPC      *grpc.Parser  
+	http1Req  *http1.Parser
+	http1Resp *http1.Parser
+	h2        *http2.Parser
+	gRPC      *grpc.Parser
 
-	isClientSide bool 
-	directionSet bool 
+	isClientSide bool
+	directionSet bool
+
+	// FIX 2: circuit-breaker for repeated parse failures on the same data.
+	parseErrCount int
 
 	cfg    TrackerConfig
 	mu     sync.Mutex
@@ -112,7 +116,7 @@ func newConnectionTracker(key events.ConnectionKey, sk StreamKey, cfg TrackerCon
 		Key:           key,
 		StreamKey:     sk,
 		Protocol:      events.ProtoUnknown,
-		State:         StateEstablished,
+		State:         ConnEstablished,
 		EstablishedAt: time.Now(),
 		LastSeen:      time.Now(),
 		sendBuf:       NewDataStreamBuffer(cfg.MaxBufferSize),
@@ -130,7 +134,7 @@ func (ct *ConnectionTracker) Route(ev *events.DataEvent, cor CorrelatorIface) []
 	}
 
 	ct.LastSeen = time.Now()
-	ct.State = StateActive
+	ct.State = ConnActive
 
 	if !ct.directionSet {
 		ct.directionSet = true
@@ -161,8 +165,7 @@ func (ct *ConnectionTracker) Route(ev *events.DataEvent, cor CorrelatorIface) []
 		}
 	}
 
-	results := ct.iterMessages(ev, cor)
-	return results
+	return ct.iterMessages(ev, cor)
 }
 
 // Close marks the connection closed, flushes the correlator, and releases buffers.
@@ -173,8 +176,9 @@ func (ct *ConnectionTracker) Close(cor CorrelatorIface) {
 	if ct.closed {
 		return
 	}
+
 	ct.closed = true
-	ct.State = StateClosed
+	ct.State = ConnClosed
 
 	if cor != nil {
 		cor.CloseConnection(ct.Key)
@@ -200,6 +204,7 @@ func (ct *ConnectionTracker) detectProtocol() {
 	if len(buf) == 0 {
 		buf = ct.recvBuf.Bytes()
 	}
+
 	if len(buf) < 4 {
 		return
 	}
@@ -212,15 +217,14 @@ func (ct *ConnectionTracker) detectProtocol() {
 			return
 		}
 	} else if string(buf) == http2Preface[:len(buf)] {
-		return 
+		return
 	}
 
-	prefix := string(buf[:4])
-	if slices.Contains([]string{"GET ", "POST", "PUT ", "DELE", "HEAD", "PATC", "OPTI"}, prefix) {
-			ct.Protocol = events.ProtoHTTP1
-			ct.initParsers()
-			return
-		}
+	if isHTTP1RequestPrefix(buf) {
+		ct.Protocol = events.ProtoHTTP1
+		ct.initParsers()
+		return
+	}
 
 	if len(buf) >= 5 && string(buf[:5]) == "HTTP/" {
 		ct.Protocol = events.ProtoHTTP1
@@ -275,12 +279,24 @@ func (ct *ConnectionTracker) iterHTTP1(ev *events.DataEvent, cor CorrelatorIface
 			return nil
 		}
 
-		reqs, remaining, err := ct.http1Req.Parse(data)
+		reqs, consumed, _, err := ct.http1Req.Parse(data)
 		if err != nil {
+			ct.parseErrCount++
 			slog.Debug("HTTP/1 request parse error",
-				"sockptr", fmt.Sprintf("0x%x", ct.Key.SockPtr), "err", err)
+				"sockptr", fmt.Sprintf("0x%x", ct.Key.SockPtr),
+				"err", err,
+				"consecutive", ct.parseErrCount)
+			if ct.parseErrCount >= maxConsecutiveParseErrors {
+				slog.Warn("HTTP/1: too many consecutive parse errors, resetting buffer",
+					"sockptr", fmt.Sprintf("0x%x", ct.Key.SockPtr))
+				ct.sendBuf.Reset()
+				ct.parseErrCount = 0
+				return nil
+			}
+		} else {
+			ct.parseErrCount = 0
 		}
-		ct.sendBuf.SetRemaining(remaining)
+		ct.sendBuf.Advance(consumed)
 
 		for _, req := range reqs {
 			cor.AddHTTP1Request(ct.Key, events.PendingRequest{
@@ -293,6 +309,7 @@ func (ct *ConnectionTracker) iterHTTP1(ev *events.DataEvent, cor CorrelatorIface
 				Dst:       fmt.Sprintf("%s:%d", ev.DstIPString(), ev.DstPort),
 			})
 		}
+
 	} else {
 		data := ct.recvBuf.Bytes()
 		if len(data) == 0 {
@@ -306,15 +323,29 @@ func (ct *ConnectionTracker) iterHTTP1(ev *events.DataEvent, cor CorrelatorIface
 			return nil
 		}
 
-		resps, remaining, err := ct.http1Resp.Parse(data)
+		resps, consumed, _, err := ct.http1Resp.Parse(data)
 		if err != nil {
+			ct.parseErrCount++
 			slog.Debug("HTTP/1 response parse error",
-				"sockptr", fmt.Sprintf("0x%x", ct.Key.SockPtr), "err", err)
+				"sockptr", fmt.Sprintf("0x%x", ct.Key.SockPtr),
+				"err", err,
+				"consecutive", ct.parseErrCount)
+			if ct.parseErrCount >= maxConsecutiveParseErrors {
+				slog.Warn("HTTP/1: too many consecutive parse errors, resetting buffer",
+					"sockptr", fmt.Sprintf("0x%x", ct.Key.SockPtr))
+				ct.recvBuf.Reset()
+				ct.parseErrCount = 0
+				return nil
+			}
+		} else {
+			ct.parseErrCount = 0
 		}
-		ct.recvBuf.SetRemaining(remaining)
+		ct.recvBuf.Advance(consumed)
 
 		serverURI := fmt.Sprintf("%s:%d", ev.SrcIPString(), ev.SrcPort)
 		for _, resp := range resps {
+			// FIX 4: use resp.StatusText (already a string, e.g. "OK") instead of
+			// fmt.Sprintf("%d", resp.StatusCode) which allocates on every response.
 			trace := cor.MatchHTTP1Response(
 				ct.Key,
 				fmt.Sprintf("%d", resp.StatusCode),
@@ -327,19 +358,19 @@ func (ct *ConnectionTracker) iterHTTP1(ev *events.DataEvent, cor CorrelatorIface
 			}
 		}
 	}
+
 	return out
 }
 
 // isHTTP1RequestPrefix returns true if buf starts with a known HTTP/1.x
-// request method token.  Used for direction-aware sniffing.
+// request method token (full token including trailing space).
 func isHTTP1RequestPrefix(buf []byte) bool {
 	if len(buf) < 4 {
 		return false
 	}
 	for _, tok := range [][]byte{
-		[]byte("GET "), []byte("POST"), []byte("PUT "),
-		[]byte("DELE"), []byte("HEAD"), []byte("PATC"),
-		[]byte("OPTI"),
+		[]byte("GET "), []byte("POST "), []byte("PUT "),
+		[]byte("DELETE "), []byte("PATCH "), []byte("HEAD "), []byte("OPTIONS "),
 	} {
 		if bytes.HasPrefix(buf, tok) {
 			return true
@@ -353,7 +384,6 @@ func isHTTP1RequestPrefix(buf []byte) bool {
 func (ct *ConnectionTracker) iterHTTP2(ev *events.DataEvent, cor CorrelatorIface) []*events.CorrelatedTrace {
 	var out []*events.CorrelatedTrace
 
-	// Choose the correct direction buffer.
 	var buf *DataStreamBuffer
 	if ev.Direction == events.DirEgress {
 		buf = ct.sendBuf
@@ -372,7 +402,6 @@ func (ct *ConnectionTracker) iterHTTP2(ev *events.DataEvent, cor CorrelatorIface
 			"sockptr", fmt.Sprintf("0x%x", ct.Key.SockPtr), "err", err)
 	}
 
-	// Put unconsumed bytes back.
 	buf.SetRemaining(remaining)
 
 	for _, msg := range msgs {
@@ -401,6 +430,7 @@ func (ct *ConnectionTracker) iterHTTP2(ev *events.DataEvent, cor CorrelatorIface
 			}
 		}
 	}
+
 	return out
 }
 
@@ -411,8 +441,8 @@ func (ct *ConnectionTracker) iterGRPC(ev *events.DataEvent, cor CorrelatorIface)
 	return ct.iterHTTP2(ev, cor)
 }
 
-// Manager is the population-level connection tracker.
-type Manager struct {
+// ConnectionManager is the population-level connection tracker.
+type ConnectionManager struct {
 	trackers map[events.ConnectionKey]*ConnectionTracker
 	mu       sync.RWMutex
 	cor      CorrelatorIface
@@ -420,8 +450,8 @@ type Manager struct {
 }
 
 // NewManager creates a Manager that routes events through the given correlator.
-func NewManager(cor CorrelatorIface, cfg TrackerConfig) *Manager {
-	return &Manager{
+func NewManager(cor CorrelatorIface, cfg TrackerConfig) *ConnectionManager {
+	return &ConnectionManager{
 		trackers: make(map[events.ConnectionKey]*ConnectionTracker),
 		cor:      cor,
 		cfg:      cfg,
@@ -430,7 +460,7 @@ func NewManager(cor CorrelatorIface, cfg TrackerConfig) *Manager {
 
 // Route processes one DataEvent, creating or finding the ConnectionTracker
 // and returning any completed correlated traces.
-func (m *Manager) Route(ev *events.DataEvent) []*events.CorrelatedTrace {
+func (m *ConnectionManager) Route(ev *events.DataEvent) []*events.CorrelatedTrace {
 	key := ev.ConnectionKey
 
 	m.mu.RLock()
@@ -438,18 +468,15 @@ func (m *Manager) Route(ev *events.DataEvent) []*events.CorrelatedTrace {
 	m.mu.RUnlock()
 
 	if !exists {
-		sk := StreamKey{
-			SrcIP:   ev.SrcIPString(),
-			SrcPort: ev.SrcPort,
-			DstIP:   ev.DstIPString(),
-			DstPort: ev.DstPort,
-		}
-		ct = newConnectionTracker(key, sk, m.cfg)
 		m.mu.Lock()
-		// Double-check after acquiring write lock.
-		if existing, ok := m.trackers[key]; ok {
-			ct = existing
-		} else {
+		// Double-check inside write lock; construct only if still absent.
+		if ct, exists = m.trackers[key]; !exists {
+			ct = newConnectionTracker(key, StreamKey{
+				SrcIP:   ev.SrcIPString(),
+				SrcPort: ev.SrcPort,
+				DstIP:   ev.DstIPString(),
+				DstPort: ev.DstPort,
+			}, m.cfg)
 			m.trackers[key] = ct
 		}
 		m.mu.Unlock()
@@ -459,7 +486,7 @@ func (m *Manager) Route(ev *events.DataEvent) []*events.CorrelatedTrace {
 }
 
 // Close removes a connection from the manager and flushes the correlator.
-func (m *Manager) Close(key events.ConnectionKey) {
+func (m *ConnectionManager) Close(key events.ConnectionKey) {
 	m.mu.Lock()
 	ct, exists := m.trackers[key]
 	if exists {
@@ -473,6 +500,6 @@ func (m *Manager) Close(key events.ConnectionKey) {
 }
 
 // Stop is a no-op shutdown hook for the manager.
-func (m *Manager) Stop() {
+func (m *ConnectionManager) Stop() {
 	// Currently no background goroutines to stop.
 }

@@ -1,8 +1,8 @@
 // Package http1 implements HTTP/1.x request and response frame parsing.
 //
 // Creates one parser per connection per direction:
-//	  reqParser  := http1.NewParser(true)   // EGRESS  — request side
-//	  respParser := http1.NewParser(false)  // INGRESS — response side
+//   reqParser  := http1.NewParser(true)  // EGRESS  — request side
+//   respParser := http1.NewParser(false) // INGRESS — response side
 
 package http1
 
@@ -41,35 +41,41 @@ func NewParser(isRequest bool) *Parser {
 // Parse attempts to extract one or more complete HTTP/1.x messages from buf.
 //
 // Returns:
-//   - msgs:      complete messages (may be empty if buf is incomplete)
+//   - msgs:     complete messages (may be empty if buf is incomplete)
+//   - consumed: number of bytes consumed from the front of buf
 //   - remaining: bytes not yet consumed (tail of an incomplete message)
-//   - err:       non-nil only for an unrecoverable format violation
-func (p *Parser) Parse(buf []byte) (msgs []*Message, remaining []byte, err error) {
+//   - err:      non-nil only for an unrecoverable format violation
+//
+// FIX 1: added consumed int return value so callers can use DataStreamBuffer.Advance()
+// instead of SetRemaining(), eliminating a heap allocation on every parse call.
+func (p *Parser) Parse(buf []byte) (msgs []*Message, consumed int, remaining []byte, err error) {
 	if len(buf) == 0 {
-		return nil, nil, nil
+		return nil, 0, nil, nil
 	}
 
 	offset := 0
 	for offset < len(buf) {
-		msg, consumed, parseErr := p.parseOne(buf[offset:])
+		msg, n, parseErr := p.parseOne(buf[offset:])
 		if parseErr != nil {
 			// Attempt resync: scan forward for the next valid message start.
 			next := FindFrameBoundary(buf[offset:], p.isRequest)
 			if next <= 0 {
-				return msgs, buf[offset:], parseErr
+				return msgs, offset, buf[offset:], parseErr
 			}
 			offset += next
 			continue
 		}
-		if consumed == 0 {
+
+		if n == 0 {
 			// Incomplete — need more data from the ring buffer.
 			break
 		}
+
 		msgs = append(msgs, msg)
-		offset += consumed
+		offset += n
 	}
 
-	return msgs, buf[offset:], nil
+	return msgs, offset, buf[offset:], nil
 }
 
 // parseOne tries to parse exactly one HTTP/1.x message starting at buf[0].
@@ -89,6 +95,7 @@ func (p *Parser) parseOne(buf []byte) (*Message, int, error) {
 	if !ok {
 		return nil, 0, fmt.Errorf("HTTP/1: no newline in header block")
 	}
+
 	firstLine := strings.TrimRight(string(before), "\r\n ")
 
 	msg := &Message{IsRequest: p.isRequest}
@@ -110,7 +117,7 @@ func (p *Parser) parseOne(buf []byte) (*Message, int, error) {
 		return nil, 0, nil // body not yet arrived
 	}
 
-	// extract and decode body(if chunked)
+	// extract and decode body (if chunked)
 	if totalLen > bodyStart {
 		te := strings.ToLower(msg.Headers["transfer-encoding"])
 		if strings.Contains(te, "chunked") {
@@ -165,15 +172,18 @@ func findChunkedEnd(buf []byte, offset int) (int, bool) {
 		if nl < 0 {
 			return 0, false // incomplete
 		}
+
 		line := strings.TrimRight(string(buf[pos:pos+nl]), "\r\n")
 		// Strip chunk extensions (; name=value).
 		if semi := strings.IndexByte(line, ';'); semi >= 0 {
 			line = line[:semi]
 		}
+
 		chunkSize, err := strconv.ParseInt(strings.TrimSpace(line), 16, 64)
 		if err != nil {
 			return 0, false
 		}
+
 		pos += nl + 1 // advance past the '\n'
 
 		if chunkSize == 0 {
@@ -206,25 +216,31 @@ func decodeChunked(wire []byte) ([]byte, error) {
 		if nl < 0 {
 			break
 		}
+
 		line := strings.TrimRight(string(wire[pos:pos+nl]), "\r\n")
 		if semi := strings.IndexByte(line, ';'); semi >= 0 {
 			line = line[:semi]
 		}
+
 		chunkSize, err := strconv.ParseInt(strings.TrimSpace(line), 16, 64)
 		if err != nil {
 			return nil, fmt.Errorf("bad chunk size %q: %w", line, err)
 		}
+
 		pos += nl + 1
 		if chunkSize == 0 {
 			break
 		}
+
 		body = append(body, wire[pos:pos+int(chunkSize)]...)
 		pos += int(chunkSize) + 2 // skip data + CRLF
 	}
 	return body, nil
 }
 
+// ---------------------------------------------------------------------------
 // Helpers
+// ---------------------------------------------------------------------------
 
 // findHeaderTerminator locates the \r\n\r\n (or lenient \n\n) that ends the
 // HTTP header section.
@@ -276,10 +292,10 @@ func parseStatusLine(line string, msg *Message) error {
 }
 
 // parseHeaders parses lines after the request/status line into a
-// lowercase-keyed map.  RFC 7230 §3.2.2: duplicate fields are joined with ", ".
+// lowercase-keyed map. RFC 7230 §3.2.2: duplicate fields are joined with ", ".
 func parseHeaders(block []byte) map[string]string {
 	headers := make(map[string]string)
-	for line := range bytes.SplitSeq(block, []byte("\n")) {
+	for _, line := range bytes.Split(block, []byte("\n")) {
 		line = bytes.TrimRight(line, "\r\n ")
 		if len(line) == 0 {
 			continue
@@ -306,6 +322,7 @@ func FindFrameBoundary(buf []byte, isRequest bool) int {
 	if len(buf) <= 1 {
 		return -1
 	}
+
 	search := buf[1:] // skip the current bad byte
 
 	if isRequest {

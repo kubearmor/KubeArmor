@@ -48,7 +48,7 @@ type APIObserver struct {
 	// Pipeline components.
 	filterer    *filter.Filterer
 	correlator  events.Correlator
-	connManager *conn.Manager
+	connManager *conn.ConnectionManager
 
 	ctx    context.Context
 	cancel context.CancelFunc
