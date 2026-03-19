@@ -399,6 +399,7 @@ type ProcessPathType struct {
 	OwnerOnly   bool              `json:"ownerOnly,omitempty"`
 	FromSource  []MatchSourceType `json:"fromSource,omitempty"`
 	AllowedArgs []string          `json:"allowedArgs,omitempty"`
+	Pts         bool              `json:"pts,omitempty"`
 
 	Severity int      `json:"severity,omitempty"`
 	Tags     []string `json:"tags,omitempty"`
@@ -412,6 +413,7 @@ type ProcessDirectoryType struct {
 	Recursive  bool              `json:"recursive,omitempty"`
 	OwnerOnly  bool              `json:"ownerOnly,omitempty"`
 	FromSource []MatchSourceType `json:"fromSource,omitempty"`
+	Pts        bool              `json:"pts,omitempty"`
 
 	Severity int      `json:"severity,omitempty"`
 	Tags     []string `json:"tags,omitempty"`
@@ -447,6 +449,7 @@ type FilePathType struct {
 	Path       string            `json:"path"`
 	ReadOnly   bool              `json:"readOnly,omitempty"`
 	OwnerOnly  bool              `json:"ownerOnly,omitempty"`
+	Pts        bool              `json:"pts,omitempty"`
 	FromSource []MatchSourceType `json:"fromSource,omitempty"`
 
 	Severity int      `json:"severity,omitempty"`
@@ -461,6 +464,7 @@ type FileDirectoryType struct {
 	ReadOnly   bool              `json:"readOnly,omitempty"`
 	Recursive  bool              `json:"recursive,omitempty"`
 	OwnerOnly  bool              `json:"ownerOnly,omitempty"`
+	Pts        bool              `json:"pts,omitempty"`
 	FromSource []MatchSourceType `json:"fromSource,omitempty"`
 
 	Severity int      `json:"severity,omitempty"`
@@ -497,11 +501,11 @@ type FileType struct {
 type NetworkProtocolType struct {
 	Protocol   string            `json:"protocol"`
 	FromSource []MatchSourceType `json:"fromSource,omitempty"`
-
-	Severity int      `json:"severity,omitempty"`
-	Tags     []string `json:"tags,omitempty"`
-	Message  string   `json:"message,omitempty"`
-	Action   string   `json:"action,omitempty"`
+	Pts        bool              `json:"pts,omitempty"`
+	Severity   int               `json:"severity,omitempty"`
+	Tags       []string          `json:"tags,omitempty"`
+	Message    string            `json:"message,omitempty"`
+	Action     string            `json:"action,omitempty"`
 }
 
 // NetworkType Structure
