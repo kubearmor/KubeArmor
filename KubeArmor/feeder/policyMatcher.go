@@ -29,8 +29,8 @@ func GetProtocolFromName(proto string) string {
 		return "protocol=UDP type=SOCK_DGRAM"
 	case "icmp":
 		return "protocol=ICMP type=SOCK_RAW"
-	case "icmpv6", "ipv6-icmp":
-		return "protocol=ICMPV6 type=SOCK_RAW"
+	case "ipv6-icmp":
+		return "protocol=IPv6-ICMP type=SOCK_RAW"
 	case "sctp":
 		return "protocol=SCTP type=SOCK_STREAM|SOCK_SEQPACKET"
 	default:
@@ -64,7 +64,7 @@ func fetchProtocol(resource string) string {
 		return "tcp"
 	} else if strings.Contains(resource, "protocol=UDP") || (strings.Contains(resource, "SOCK_DGRAM") && strings.Contains(resource, "protocol=HOPOPT")) {
 		return "udp"
-	} else if strings.Contains(resource, "protocol=ICMPV6") {
+	} else if strings.Contains(resource, "protocol=IPv6-ICMP") {
 		return "icmpv6"
 	} else if strings.Contains(resource, "protocol=ICMP") {
 		return "icmp"
