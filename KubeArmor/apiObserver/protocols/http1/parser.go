@@ -9,9 +9,16 @@ package http1
 import (
 	"bytes"
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 )
+
+// maxBodyBytes is the per-message body cap. Bodies exceeding this limit are
+// truncated: the first maxBodyBytes are captured, the rest are drained
+// off the wire via DataStreamBuffer.SkipNextBytes.
+// The limit applies to body bytes only — headers are always fully captured.
+const maxBodyBytes = 124 * 1024 // 124KB
 
 // Message is one complete HTTP/1.x request or response frame.
 type Message struct {
@@ -40,60 +47,55 @@ func NewParser(isRequest bool) *Parser {
 
 // Parse attempts to extract one or more complete HTTP/1.x messages from buf.
 //
-// Returns:
-//   - msgs:     complete messages (may be empty if buf is incomplete)
-//   - consumed: number of bytes consumed from the front of buf
-//   - remaining: bytes not yet consumed (tail of an incomplete message)
-//   - err:      non-nil only for an unrecoverable format violation
+// Parse attempts to extract one or more complete HTTP/1.x messages from buf.
 //
-// FIX 1: added consumed int return value so callers can use DataStreamBuffer.Advance()
-// instead of SetRemaining(), eliminating a heap allocation on every parse call.
-func (p *Parser) Parse(buf []byte) (msgs []*Message, consumed int, remaining []byte, err error) {
+// Returns:
+//   - msgs:      complete messages parsed from buf
+//   - consumed:  bytes consumed from the front of buf (call buf.Advance(consumed))
+//   - skipBytes: bytes to drain from the wire after consumed (call buf.SkipNextBytes(skipBytes))
+//   - remaining: unconsumed bytes (tail of an incomplete message)
+//   - err:       non-nil only for an unrecoverable format violation
+func (p *Parser) Parse(buf []byte) (msgs []*Message, consumed int, skipBytes int, remaining []byte, err error) {
 	if len(buf) == 0 {
-		return nil, 0, nil, nil
+		return nil, 0, 0, nil, nil
 	}
-
 	offset := 0
+	totalSkip := 0
 	for offset < len(buf) {
-		msg, n, parseErr := p.parseOne(buf[offset:])
+		msg, n, skip, parseErr := p.parseOne(buf[offset:])
 		if parseErr != nil {
-			// Attempt resync: scan forward for the next valid message start.
 			next := FindFrameBoundary(buf[offset:], p.isRequest)
 			if next <= 0 {
-				return msgs, offset, buf[offset:], parseErr
+				return msgs, offset, totalSkip, buf[offset:], parseErr
 			}
 			offset += next
 			continue
 		}
-
 		if n == 0 {
-			// Incomplete — need more data from the ring buffer.
 			break
 		}
-
 		msgs = append(msgs, msg)
 		offset += n
+		totalSkip += skip
 	}
-
-	return msgs, offset, buf[offset:], nil
+	return msgs, offset, totalSkip, buf[offset:], nil
 }
 
 // parseOne tries to parse exactly one HTTP/1.x message starting at buf[0].
-// Returns (message, bytesConsumed, error).
-// bytesConsumed == 0 means "incomplete; caller should wait for more data".
-func (p *Parser) parseOne(buf []byte) (*Message, int, error) {
+// Returns (message, bytesConsumed, skipBytes, error).
+// bytesConsumed == 0 means "incomplete; wait for more data".
+// skipBytes > 0 means "body was truncated; drain this many bytes from wire".
+func (p *Parser) parseOne(buf []byte) (*Message, int, int, error) {
 	headerEnd, termLen := findHeaderTerminator(buf)
 	if headerEnd < 0 {
-		return nil, 0, nil // headers not yet complete
+		return nil, 0, 0, nil
 	}
-
 	headerBlock := buf[:headerEnd]
 	bodyStart := headerEnd + termLen
 
-	// parse first line
 	before, after, ok := bytes.Cut(headerBlock, []byte{'\n'})
 	if !ok {
-		return nil, 0, fmt.Errorf("HTTP/1: no newline in header block")
+		return nil, 0, 0, fmt.Errorf("HTTP/1: no newline in header block")
 	}
 
 	firstLine := strings.TrimRight(string(before), "\r\n ")
@@ -101,106 +103,193 @@ func (p *Parser) parseOne(buf []byte) (*Message, int, error) {
 	msg := &Message{IsRequest: p.isRequest}
 	if p.isRequest {
 		if err := parseRequestLine(firstLine, msg); err != nil {
-			return nil, 0, err
+			return nil, 0, 0, err
 		}
 	} else {
 		if err := parseStatusLine(firstLine, msg); err != nil {
-			return nil, 0, err
+			return nil, 0, 0, err
 		}
 	}
 
 	msg.Headers = parseHeaders(after)
 
-	// determine body boundary
-	totalLen, complete := bodyBoundary(msg.Headers, buf, bodyStart, p.isRequest)
+	totalLen, complete, truncated, skipBytes := bodyBoundary(msg.Headers, buf, bodyStart, p.isRequest)
 	if !complete {
-		return nil, 0, nil // body not yet arrived
+		return nil, 0, 0, nil
 	}
 
-	// extract and decode body (if chunked)
 	if totalLen > bodyStart {
 		te := strings.ToLower(msg.Headers["transfer-encoding"])
 		if strings.Contains(te, "chunked") {
 			decoded, err := decodeChunked(buf[bodyStart:totalLen])
-			if err != nil {
-				return nil, 0, fmt.Errorf("chunked decode: %w", err)
+			if err != nil && !truncated {
+				return nil, 0, 0, fmt.Errorf("chunked decode: %w", err)
+			}
+			// Cap decoded body to maxBodyBytes (chunked bodies are decoded
+			// into plain bytes; the cap must be re-applied after decoding).
+			if len(decoded) > maxBodyBytes {
+				decoded = decoded[:maxBodyBytes]
+				truncated = true
 			}
 			msg.Body = decoded
 		} else {
-			msg.Body = make([]byte, totalLen-bodyStart)
-			copy(msg.Body, buf[bodyStart:totalLen])
+			bodyLen := totalLen - bodyStart
+			if truncated && bodyLen > maxBodyBytes {
+				bodyLen = maxBodyBytes
+			}
+			msg.Body = make([]byte, bodyLen)
+			copy(msg.Body, buf[bodyStart:bodyStart+bodyLen])
 		}
 	}
 
-	return msg, totalLen, nil
+	if truncated {
+		contentType := strings.ToLower(msg.Headers["content-type"])
+		isBinary := strings.Contains(contentType, "application/octet-stream") ||
+			strings.Contains(contentType, "application/pdf") ||
+			strings.Contains(contentType, "image/") ||
+			strings.Contains(contentType, "video/") ||
+			strings.Contains(contentType, "audio/")
+		if isBinary {
+			msg.Body = []byte("[binary data omitted]")
+		} else {
+			msg.Body = append(msg.Body, []byte("\n... [truncated]")...)
+		}
+	}
+
+	return msg, totalLen, skipBytes, nil
 }
 
-func bodyBoundary(headers map[string]string, buf []byte, bodyStart int, isRequest bool) (int, bool) {
+// bodyBoundary determines the wire boundary of the HTTP body.
+//
+// Returns (totalLen, complete, truncated, skipBytes):
+//   - totalLen:  byte offset in buf where this message ends (parser should
+//     consume buf[0:totalLen])
+//   - complete:  true when enough data is available to emit the message
+//   - truncated: true when the body was capped at maxBodyBytes
+//   - skipBytes: number of bytes still in-flight on the wire that belong to
+//     this body but were not captured. Caller must drain these via
+//     DataStreamBuffer.SkipNextBytes(skipBytes) to stay aligned
+//     for the next HTTP message.
+//
+// The body cap (maxBodyBytes = 124KB) applies to body bytes ONLY. Headers
+// are never counted toward this limit and are always fully captured.
+func bodyBoundary(headers map[string]string, buf []byte, bodyStart int, isRequest bool) (totalLen int, complete bool, truncated bool, skipBytes int) {
+
 	if te, ok := headers["transfer-encoding"]; ok &&
 		strings.Contains(strings.ToLower(te), "chunked") {
-		end, ok := findChunkedEnd(buf, bodyStart)
-		return end, ok
+		end, ok, trunc := findChunkedEnd(buf, bodyStart)
+		if trunc {
+			// For chunked encoding we cannot know the exact remaining body
+			// byte count (the chunk framing of the unseen bytes is unknown).
+			// Use math.MaxInt32 as a sentinel; DataStreamBuffer.SkipNextBytes
+			// will drain until the skip counter is exhausted. The next valid
+			// HTTP message start will re-synchronise the connection naturally
+			// via the circuit breaker or connection close.
+			return end, ok, trunc, math.MaxInt32
+		}
+		return end, ok, trunc, 0
 	}
 
 	if cl, ok := headers["content-length"]; ok {
 		n, err := strconv.Atoi(strings.TrimSpace(cl))
 		if err != nil || n < 0 {
-			return bodyStart, true // treat as body-less
+			// Malformed Content-Length — treat as body-less and move on.
+			return bodyStart, true, false, 0
 		}
+
+		if n > maxBodyBytes {
+			// Body exceeds the cap. We want to capture exactly maxBodyBytes
+			// of body before emitting. Wait until the buffer holds enough.
+			wantTotal := bodyStart + maxBodyBytes
+			if len(buf) < wantTotal {
+				// Not enough data yet — tell the parser to wait.
+				return 0, false, false, 0
+			}
+			
+			total := bodyStart + n
+			if len(buf) >= total {
+				// Buffer holds the entire message. Consume all of it, no wire skip.
+				return total, true, true, 0
+			}
+			// Buffer holds part of the message. Consume everything currently in the
+			// buffer to prevent leftovers from poisoning the next parse, and tell
+			// the tracker to skip the remainder from the wire.
+			return len(buf), true, true, total - len(buf)
+		}
+
+		// Normal path: body is within cap. Wait for all of it.
 		total := bodyStart + n
 		if len(buf) < total {
-			return 0, false // incomplete body
+			return 0, false, false, 0
 		}
-		return total, true
+		return total, true, false, 0
 	}
 
 	// Requests without Content-Length have no body (GET, HEAD, etc.).
-	if isRequest {
-		return bodyStart, true
-	}
-
-	return bodyStart, true
+	// Responses without Content-Length or Transfer-Encoding are treated as
+	// body-less (connection-close bodies are not common in observed traffic
+	// and cannot be safely truncated without knowing the total length).
+	return bodyStart, true, false, 0
 }
 
 // findChunkedEnd locates the wire end of a chunked body starting at offset.
-// Returns (totalWireBytes, complete).
-func findChunkedEnd(buf []byte, offset int) (int, bool) {
+// Returns (totalWireBytes, complete, truncated).
+//
+// The body cap (maxBodyBytes) is applied to body bytes only. The `offset`
+// parameter is bodyStart — the byte index in buf where the body begins.
+// We measure body consumption as `pos - offset` so headers are never
+// counted toward the cap.
+func findChunkedEnd(buf []byte, offset int) (int, bool, bool) {
 	pos := offset
 	for {
-		// Read the hex chunk-size line.
+		// Truncate when we've consumed more body bytes than the cap allows.
+		// pos - offset = body bytes parsed so far (excludes headers).
+		// Return len(buf) to consume all trailing chunked payload currently in the buffer.
+		if pos-offset > maxBodyBytes {
+			return len(buf), true, true
+		}
+
 		nl := bytes.IndexByte(buf[pos:], '\n')
 		if nl < 0 {
-			return 0, false // incomplete
+			if pos-offset > maxBodyBytes {
+				return len(buf), true, true
+			}
+			return 0, false, false
 		}
 
 		line := strings.TrimRight(string(buf[pos:pos+nl]), "\r\n")
-		// Strip chunk extensions (; name=value).
 		if semi := strings.IndexByte(line, ';'); semi >= 0 {
 			line = line[:semi]
 		}
-
 		chunkSize, err := strconv.ParseInt(strings.TrimSpace(line), 16, 64)
 		if err != nil {
-			return 0, false
+			if pos-offset > maxBodyBytes {
+				return len(buf), true, true
+			}
+			return 0, false, false
 		}
-
-		pos += nl + 1 // advance past the '\n'
+		pos += nl + 1
 
 		if chunkSize == 0 {
-			// Terminal chunk — consume optional trailers up to \r\n\r\n or \n\n.
 			if idx := bytes.Index(buf[pos:], []byte("\r\n\r\n")); idx >= 0 {
-				return pos + idx + 4, true
+				return pos + idx + 4, true, false
 			}
 			if idx := bytes.Index(buf[pos:], []byte("\n\n")); idx >= 0 {
-				return pos + idx + 2, true
+				return pos + idx + 2, true, false
 			}
-			return 0, false // trailers still incomplete
+			if pos-offset > maxBodyBytes {
+				return len(buf), true, true
+			}
+			return 0, false, false
 		}
 
-		// Skip chunk data + trailing CRLF.
 		dataEnd := pos + int(chunkSize) + 2
 		if len(buf) < dataEnd {
-			return 0, false // chunk data not yet arrived
+			// Not enough data yet. Check if we're already over the cap.
+			if pos-offset > maxBodyBytes || dataEnd-offset > maxBodyBytes {
+				return len(buf), true, true
+			}
+			return 0, false, false
 		}
 		pos = dataEnd
 	}
@@ -232,8 +321,17 @@ func decodeChunked(wire []byte) ([]byte, error) {
 			break
 		}
 
-		body = append(body, wire[pos:pos+int(chunkSize)]...)
-		pos += int(chunkSize) + 2 // skip data + CRLF
+		endData := pos + int(chunkSize)
+		if endData > len(wire) {
+			body = append(body, wire[pos:]...)
+			break // Truncated body
+		}
+
+		body = append(body, wire[pos:endData]...)
+		pos = endData + 2 // skip data + CRLF
+		if pos >= len(wire) {
+			break
+		}
 	}
 	return body, nil
 }

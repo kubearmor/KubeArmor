@@ -121,7 +121,7 @@ func (s *APIObserverService) GetAPIMetrics(
 
 	// ✅ Changed: &pb.APIMetrics{} → &pb.APIObserverMetrics{}
 	return &pb.APIObserverMetrics{
-		Timestamp:            kl.GetCurrentTimeStamp(),
+		Timestamp:            fmt.Sprintf("%d", kl.GetCurrentTimeStamp()),
 		TotalEvents:          s.metrics.totalEvents,
 		EventsByProtocol:     cloneMapSU64(s.metrics.eventsByProtocol),
 		EventsByStatus:       cloneMapSU64(s.metrics.eventsByStatus),
@@ -237,11 +237,7 @@ func matchesFilter(event *pb.APIEvent, f *pb.APIEventFilter) bool {
 		}
 	}
 	if f.MinDurationMs > 0 {
-		var d int64
-		if event.LatencyNs > 0 {
-			d = int64(event.LatencyNs / 1_000_000)
-		}
-		if d < f.MinDurationMs {
+		if int64(event.LatencyMs) < f.MinDurationMs {
 			return false
 		}
 	}
@@ -272,8 +268,8 @@ func (s *APIObserverService) updateMetrics(event pb.APIEvent) {
 	endpoint := method + " " + path
 
 	var dur int64
-	if event.LatencyNs > 0 {
-		dur = int64(event.LatencyNs / 1_000_000)
+	if event.LatencyMs > 0 {
+		dur = int64(event.LatencyMs)
 	}
 	s.metrics.endpointCounts[endpoint]++
 	s.metrics.endpointLatencies[endpoint] = append(s.metrics.endpointLatencies[endpoint], dur)

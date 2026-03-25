@@ -16,15 +16,28 @@ package events
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/kubearmor/KubeArmor/KubeArmor/log"
 )
 
 // maxPendingRequestsPerConn is the maximum number of in-flight HTTP/1.x pipelined
 // requests allowed per connection before old ones are dropped.
 const maxPendingRequestsPerConn = 256
+
+type transportHeaderKey struct {
+	PID      uint32
+	StreamID uint32
+}
+
+type transportHeaderEntry struct {
+	Headers   map[string]string
+	CreatedAt time.Time
+}
 
 // Correlator matches HTTP requests to their responses and emits
 // CorrelatedTrace records.  It is safe for concurrent use.
@@ -56,6 +69,35 @@ type Correlator interface {
 		respBody string,
 		serverURI string,
 	) *CorrelatedTrace
+
+	// InjectGoHTTP2Headers merges uprobe-derived headers into an existing
+	// pending HTTP/2 request. If the request doesn't exist yet, it creates
+	// a placeholder. This is the bridge between Go uprobe header data and
+	// the kprobe data pipeline.
+	InjectGoHTTP2Headers(key ConnectionKey, streamID uint32, headers map[string]string)
+
+	// InjectGoHTTP2TransportHeaders stores post-HPACK decoded headers from the
+	// operateHeaders uprobe for later merging when the kprobe path registers the
+	// same stream.  pid+streamID is the correlation key.
+	InjectGoHTTP2TransportHeaders(
+		pid, streamID uint32, hdrs map[string]string,
+	)
+
+	// InjectGoH2SingleHeader accumulates a single header field (from
+	// hpack.WriteField or loopyWriter.writeHeader probes) into the
+	// transport headers staging map. Multiple calls with the same
+	// {pid, streamID} build up the complete header set.
+	InjectGoH2SingleHeader(pid, streamID uint32, name, value string)
+
+	// InjectGRPCCEvent patches the :path for a pending HTTP/2 stream captured
+	// via gRPC-C uprobes (Python, C++, Ruby, PHP, C# services).
+	// Uses pid+fd+streamID as the lookup key; takes the mutex internally.
+	InjectGRPCCEvent(pid uint32, fd uint32, streamID uint32, method string)
+
+	// InjectGoGRPCEvent injects a complete gRPC request event from the
+	// Go uprobe pipeline. Unlike InjectGoHTTP2Headers which provides only
+	// headers, this provides the full path, status, and timing information.
+	InjectGoGRPCEvent(pid uint32, path string, status uint16, startNs, endNs uint64)
 
 	// CloseConnection flushes all pending requests for a connection.
 	// Called when a TCPCLOSE event is received.
@@ -110,6 +152,8 @@ type defaultCorrelator struct {
 	// HTTP/2 / gRPC: per-connection, per-stream-ID pending request map.
 	connToHTTP2Stream   map[ConnectionKey]*HTTP2StreamRequests
 	connToHTTP2StreamMu sync.Mutex
+	transportHeaders    map[transportHeaderKey]transportHeaderEntry
+	transportHeadersMu  sync.Mutex
 
 	timeout time.Duration
 	stats   correlatorStats
@@ -206,14 +250,14 @@ func (c *defaultCorrelator) MatchHTTP1Response(
 	c.connToHTTP1QueueMu.Unlock()
 
 	now := time.Now()
-	durationMs := now.Sub(req.Timestamp).Milliseconds()
+	durationNs := now.Sub(req.Timestamp).Nanoseconds()
 
 	trace := &CorrelatedTrace{
 		Timestamp:       req.Timestamp,
 		Method:          req.Method,
 		URL:             req.URL,
 		Status:          status,
-		DurationMs:      durationMs,
+		DurationNs:      durationNs,
 		Src:             req.Src,
 		Dst:             serverURI,
 		RequestHeaders:  req.Headers,
@@ -232,7 +276,7 @@ func (c *defaultCorrelator) MatchHTTP1Response(
 		"sockptr", key.SockPtr,
 		"method", req.Method,
 		"status", status,
-		"duration_ms", durationMs,
+		"duration_ns", durationNs,
 		"queue_remaining", remaining,
 	)
 	return trace
@@ -245,6 +289,43 @@ func (c *defaultCorrelator) AddHTTP2Request(
 	streamID uint32,
 	req PendingRequest,
 ) {
+	// Check if operateHeaders uprobe already decoded headers for this
+	// (pid, streamID). The uprobe fires first (Go runtime HPACK decode),
+	// the kprobe path fires later (syscall return). Merge here so the stored
+	// request always has a resolved path even for mid-stream connections.
+	tKey := transportHeaderKey{PID: key.PID, StreamID: streamID}
+	c.transportHeadersMu.Lock()
+	if entry, ok := c.transportHeaders[tKey]; ok {
+		hdrs := entry.Headers
+		log.Debug(fmt.Sprint("Transport headers hit in AddHTTP2Request",
+			"pid", key.PID,
+			"stream_id", streamID,
+			"path", hdrs[":path"],
+			"method", hdrs[":method"],
+		))
+		// Pseudo-headers win over HPACK-reconstructed values.
+		if path, ok := hdrs[":path"]; ok && path != "" {
+			req.URL = path
+		}
+		if method, ok := hdrs[":method"]; ok && method != "" {
+			req.Method = method
+		}
+		if ct, ok := hdrs["content-type"]; ok && ct != "" {
+			req.ContentType = ct
+		}
+		// Copy any remaining headers without overwriting existing ones.
+		if req.Headers == nil {
+			req.Headers = make(map[string]string)
+		}
+		for k, v := range hdrs {
+			if _, exists := req.Headers[k]; !exists {
+				req.Headers[k] = v
+			}
+		}
+		delete(c.transportHeaders, tKey)
+	}
+	c.transportHeadersMu.Unlock()
+
 	c.connToHTTP2StreamMu.Lock()
 
 	streams, ok := c.connToHTTP2Stream[key]
@@ -263,14 +344,14 @@ func (c *defaultCorrelator) AddHTTP2Request(
 	c.stats.totalRequests.Add(1)
 	c.stats.http2Streams.Add(1)
 
-	slog.Debug("HTTP/2 request stored",
+	log.Debug(fmt.Sprint("HTTP/2 request stored",
 		"PID", key.PID,
 		"FD", key.FD,
 		"sockptr", key.SockPtr,
 		"stream_id", streamID,
 		"method", req.Method,
 		"url", req.URL,
-	)
+	))
 }
 
 // MatchHTTP2Response looks up the pending request for (key, streamID),
@@ -307,14 +388,14 @@ func (c *defaultCorrelator) MatchHTTP2Response(
 	c.connToHTTP2StreamMu.Unlock()
 
 	now := time.Now()
-	durationMs := now.Sub(req.Timestamp).Milliseconds()
+	durationNs := now.Sub(req.Timestamp).Nanoseconds()
 
 	trace := &CorrelatedTrace{
 		Timestamp:       req.Timestamp,
 		Method:          req.Method,
 		URL:             req.URL,
 		Status:          status,
-		DurationMs:      durationMs,
+		DurationNs:      durationNs,
 		Src:             req.Src,
 		Dst:             serverURI,
 		RequestHeaders:  req.Headers,
@@ -323,21 +404,179 @@ func (c *defaultCorrelator) MatchHTTP2Response(
 		ResponseBody:    respBody,
 		StreamID:        streamID,
 		IsEncrypted:     req.IsEncrypted,
+		GRPCService:     req.GRPCService,
+		GRPCMethod:      req.GRPCMethod,
+		ContentType:     req.ContentType,
 	}
 
 	c.stats.totalResponses.Add(1)
 	c.stats.matchedPairs.Add(1)
 
-	slog.Debug("HTTP/2 request-response matched",
+	log.Debug(fmt.Sprint("HTTP/2 request-response matched",
 		"PID", key.PID,
 		"FD", key.FD,
 		"sockptr", key.SockPtr,
 		"stream_id", streamID,
 		"method", req.Method,
 		"status", status,
-		"duration_ms", durationMs,
-	)
+		"duration_ns", durationNs,
+	))
 	return trace
+}
+
+// InjectGoHTTP2Headers merges Go uprobe-derived headers into existing
+// pending HTTP/2 requests. This is critical for path recovery: kprobe-based
+// tracing often misses :path due to HPACK dynamic table limitations,
+// but the Go uprobe captures headers AFTER HPACK decoding.
+//
+// If a pending request already exists for (key, streamID), the uprobe
+// headers fill in any missing fields (:method, :path, :authority).
+// If no request exists yet, a placeholder is created so the response
+// can still be matched later.
+func (c *defaultCorrelator) InjectGoHTTP2Headers(
+	key ConnectionKey,
+	streamID uint32,
+	headers map[string]string,
+) {
+	c.connToHTTP2StreamMu.Lock()
+	defer c.connToHTTP2StreamMu.Unlock()
+
+	streams, ok := c.connToHTTP2Stream[key]
+	if !ok {
+		streams = &HTTP2StreamRequests{
+			Requests: make(map[uint32]PendingRequest),
+		}
+		c.connToHTTP2Stream[key] = streams
+	}
+
+	req, exists := streams.Requests[streamID]
+	if !exists {
+		// Create a placeholder request from uprobe headers alone.
+		req = PendingRequest{
+			Timestamp: time.Now(),
+			StreamID:  streamID,
+			Headers:   make(map[string]string),
+		}
+	}
+
+	// Merge uprobe headers into the request.
+	// Uprobe headers take precedence for pseudo-headers because they
+	// are guaranteed correct (post-HPACK decoding), while kprobe data
+	// may have null :path from mid-stream HPACK table misses.
+	if path, ok := headers[":path"]; ok && path != "" {
+		if req.URL == "" || req.URL == "null" {
+			req.URL = path
+			slog.Debug("Go uprobe: injected :path into pending request",
+				"PID", key.PID, "FD", key.FD,
+				"stream_id", streamID, "path", path)
+		}
+	}
+	if method, ok := headers[":method"]; ok && method != "" {
+		if req.Method == "" {
+			req.Method = method
+		}
+	}
+	if authority, ok := headers[":authority"]; ok && authority != "" {
+		if req.Headers == nil {
+			req.Headers = make(map[string]string)
+		}
+		if _, has := req.Headers[":authority"]; !has {
+			req.Headers[":authority"] = authority
+		}
+	}
+
+	// Also merge content-type for gRPC detection.
+	if ct, ok := headers["content-type"]; ok && ct != "" {
+		if req.ContentType == "" {
+			req.ContentType = ct
+		}
+	}
+
+	// Copy any remaining headers that the kprobe didn't capture.
+	if req.Headers == nil {
+		req.Headers = make(map[string]string)
+	}
+	for k, v := range headers {
+		if _, has := req.Headers[k]; !has {
+			req.Headers[k] = v
+		}
+	}
+
+	streams.Requests[streamID] = req
+}
+
+// InjectGRPCCEvent is the fix for ":path: *" on non-Go gRPC services.
+//
+// The gRPC-C uprobe fires once per RPC at
+// grpc_chttp2_maybe_complete_recv_initial_metadata, reading
+// grpc_chttp2_stream.method directly from process memory. This bypasses
+// the HPACK dynamic table entirely and provides a ground-truth :path value
+// even when BPF attaches mid-stream.
+//
+// Merge strategy (same as InjectGoHTTP2Headers):
+//   - If a kprobe-created PendingRequest already exists for (key, streamID),
+//     patch its URL only if currently empty or the fallback "*".
+//   - If no request exists yet, create a placeholder so the response can still
+//     be matched when it arrives.
+func (c *defaultCorrelator) InjectGRPCCEvent(pid, fd, streamID uint32, method string) {
+	if method == "" || method == "*" {
+		return
+	}
+	key := ConnectionKey{PID: pid, FD: fd}
+
+	c.connToHTTP2StreamMu.Lock()
+	defer c.connToHTTP2StreamMu.Unlock()
+
+	streams, ok := c.connToHTTP2Stream[key]
+	if !ok {
+		streams = &HTTP2StreamRequests{Requests: make(map[uint32]PendingRequest)}
+		c.connToHTTP2Stream[key] = streams
+	}
+
+	req, exists := streams.Requests[streamID]
+	if !exists {
+		req = PendingRequest{
+			Timestamp: time.Now(),
+			StreamID:  streamID,
+			Headers:   make(map[string]string),
+		}
+	}
+
+	// Patch URL only when the kprobe data is absent or contains the fallback.
+	if req.URL == "" || req.URL == "*" || req.URL == "null" {
+		req.URL = method
+		slog.Debug("gRPC-C uprobe: patched :path",
+			"pid", pid, "fd", fd, "stream_id", streamID, "method", method)
+	}
+	// gRPC is always POST; set if kprobe hasn't populated it yet.
+	if req.Method == "" {
+		req.Method = "POST"
+	}
+	streams.Requests[streamID] = req
+}
+
+// InjectGoGRPCEvent handles a complete gRPC request event from the Go uprobe
+// pipeline. Each event contains the full path, status, and timing.
+// This is a standalone event — no kprobe correlation needed for the path.
+func (c *defaultCorrelator) InjectGoGRPCEvent(
+	pid uint32, path string, status uint16, startNs, endNs uint64,
+) {
+	// Compute latency.
+	var latencyNs uint64
+	if endNs > startNs {
+		latencyNs = endNs - startNs
+	}
+
+	slog.Info("Go uprobe gRPC event",
+		"pid", pid,
+		"path", path,
+		"status", status,
+		"latency_ns", latencyNs,
+	)
+
+	c.stats.totalRequests.Add(1)
+	c.stats.totalResponses.Add(1)
+	c.stats.matchedPairs.Add(1)
 }
 
 // Connection lifecycle
@@ -477,4 +716,39 @@ func (c *defaultCorrelator) GetStats() CorrelatorStats {
 	c.connToHTTP2StreamMu.Unlock()
 
 	return snap
+}
+
+func (c *defaultCorrelator) InjectGoHTTP2TransportHeaders(
+	pid, streamID uint32, hdrs map[string]string,
+) {
+	key := transportHeaderKey{PID: pid, StreamID: streamID}
+	c.transportHeadersMu.Lock()
+	c.transportHeaders[key] = transportHeaderEntry{
+		Headers:   hdrs,
+		CreatedAt: time.Now(),
+	}
+	c.transportHeadersMu.Unlock()
+}
+
+// InjectGoH2SingleHeader accumulates one header field into the transport
+// headers staging map.  Called once per header by the hpack.WriteField
+// and loopyWriter.writeHeader drain loops.
+func (c *defaultCorrelator) InjectGoH2SingleHeader(
+	pid, streamID uint32, name, value string,
+) {
+	if name == "" {
+		return
+	}
+	key := transportHeaderKey{PID: pid, StreamID: streamID}
+	c.transportHeadersMu.Lock()
+	entry, ok := c.transportHeaders[key]
+	if !ok {
+		entry = transportHeaderEntry{
+			Headers:   make(map[string]string),
+			CreatedAt: time.Now(),
+		}
+	}
+	entry.Headers[name] = value
+	c.transportHeaders[key] = entry
+	c.transportHeadersMu.Unlock()
 }

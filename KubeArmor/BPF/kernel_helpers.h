@@ -136,6 +136,10 @@ static struct file *get_task_file(struct task_struct *task)
     return READ_KERN(mm->exe_file);
 }
 
+#ifndef PROC_PID_INIT_INO
+#define PROC_PID_INIT_INO 0xEFFFFFFCU
+#endif
+
 static __always_inline void get_outer_key(struct outer_key *pokey,
                                           struct task_struct *t)
 {
