@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: Apache-2.0
  * Copyright 2026 Authors of KubeArmor
  *
- * sock_trace.h — Shared emit core for the API Observer. 
+ * sock_trace.h — Shared emit core for the API Observer.
  * Core data emission logic for the API observer.
  *
  * Design:
@@ -20,7 +20,7 @@
 #include "filter_helpers.h"
 #include "protocol_inference.h"
 
- /* emit_data_event — shared emit core.
+/* emit_data_event — shared emit core.
  *
  * All callers fill e->payload / e->data_len / e->flags into the per-CPU
  * scratch buffer, then call this.  It handles:
@@ -29,7 +29,8 @@
  *   • health-check suppression
  *   • ring buffer reservation and submission
  *   • stats accounting */
-static __attribute__((always_inline)) int emit_data_event(u64 sock_ptr, u8 direction) {
+static __attribute__((always_inline)) int emit_data_event(u64 sock_ptr,
+                                                          u8 direction) {
   u8 *cached = bpf_map_lookup_elem(&connection_filter_cache, &sock_ptr);
   if (cached && *cached == 0) {
     update_stats(PROTO_UNKNOWN, 1);
@@ -41,7 +42,7 @@ static __attribute__((always_inline)) int emit_data_event(u64 sock_ptr, u8 direc
   if (!conn)
     return 0;
 
-  // first packet port filter 
+  // first packet port filter
   if (!cached) {
     u8 allow =
         (should_trace_port(conn->src_port) && should_trace_port(conn->dst_port))
@@ -99,7 +100,7 @@ static __attribute__((always_inline)) int emit_data_event(u64 sock_ptr, u8 direc
   e->protocol = proto;
   e->sock_ptr = sock_ptr;
 
-  // {PID,FD} keying: look up or lazily populate 
+  // {PID,FD} keying: look up or lazily populate
   struct conn_id *cid = bpf_map_lookup_elem(&sock_to_conn_id, &sock_ptr);
   if (cid) {
     e->fd = cid->fd;

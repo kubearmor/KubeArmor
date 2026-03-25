@@ -71,22 +71,9 @@ static __attribute__((always_inline)) int is_health_check(const char *buf, u32 l
   return 0;
 }
 
-// TODO: replace to a BPF_MAP_TYPE_HASH lookup.
-// allows us to black list ports and make them configurable in the future
+// Port exclusion via BPF map lookup — configurable from userspace.
+// Returns 1 (trace) if port is NOT in the exclusion map, 0 (drop) if excluded.
 static __attribute__((always_inline)) int should_trace_port(u16 port) {
-  switch (port) {
-  case 8443:
-  case 6443:
-  case 2379:
-  case 2380:
-  case 10250:
-  case 10255:
-  case 10256:
-  case 9099:
-  case 9100:
-  case 9091:
-    return 0;
-  default:
-    return 1;
-  }
+  u8 *excluded = bpf_map_lookup_elem(&port_exclusion_map, &port);
+  return excluded == NULL;  // trace if NOT excluded
 }

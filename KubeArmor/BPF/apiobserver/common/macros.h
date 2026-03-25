@@ -34,7 +34,24 @@
 #define FLAG_TRUNCATED 0x02
 
 // Payload size limit, used by the ring buffer
+// Payload size limit per BPF event. Increasing beyond 8192 causes BPF
+// verifier failures on some kernels (map value offset tracking).
+// Userspace truncation in enrichAndEmit provides an additional safety cap.
 #define MAX_DATA_SIZE 8192
+
+// Protocol-specific capture size defaults (compile-time fallbacks).
+// Used when protocol_config_map lookup fails. HTTP/2 and gRPC frames
+// are typically much smaller than HTTP/1 full payloads.
+#define DEFAULT_H1_CAPTURE_SIZE  8192
+#define DEFAULT_H2_CAPTURE_SIZE  4096
+#define DEFAULT_CAPTURE_SIZE     8192
+
+// Protocol config map key indices (protocol IDs).
+// Must match Go-side ProtocolConfigXxx constants in apiObserver.go.
+#define PROTO_CONFIG_HTTP1  0
+#define PROTO_CONFIG_HTTP2  1
+#define PROTO_CONFIG_GRPC   2
+#define PROTO_CONFIG_MAX    3
 
 // BPF loop limits
 #define MAX_IOV_SEGMENTS 8
@@ -52,6 +69,10 @@
 #define HTTP2_FRAME_WINDOW_UPDATE 0x08
 #define HTTP2_FRAME_CONTINUATION 0x09
 #define HTTP2_MAX_FRAME_TYPE 0x09
+
+// Maximum gRPC method string length captured by the BPF uprobe.
+// Must be a power of 2 for the BPF verifier's dynamic-size masking.
+#define GRPCC_MAX_METHOD_SIZE  64
 
 // HTTP method first-4-bytes as uint32
 #define HTTP_GET_INT 0x20544547  /* "GET "  */
