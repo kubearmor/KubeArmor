@@ -871,7 +871,10 @@ func (dm *KubeArmorDaemon) reconnectDocker() bool {
 
 		// Close old client
 		if Docker.DockerClient != nil {
-			Docker.DockerClient.Close()
+			if err := Docker.DockerClient.Close(); err != nil {
+				dm.Logger.Warnf("Failed to close old docker client connection: %v", err)
+			}
+
 		}
 		Docker = newDocker
 

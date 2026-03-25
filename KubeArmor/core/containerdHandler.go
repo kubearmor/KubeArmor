@@ -126,7 +126,9 @@ func NewContainerdHandler() *ContainerdHandler {
 func (ch *ContainerdHandler) Reconnect() error {
 	// Close existing client if present
 	if ch.client != nil {
-		ch.client.Close()
+		if err := ch.client.Close(); err != nil {
+			kg.Warnf("Failed to close old containerd client connection: %v", err)
+		}
 	}
 
 	client, err := v2.New(strings.TrimPrefix(cfg.GlobalCfg.CRISocket, "unix://"))
