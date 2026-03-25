@@ -551,7 +551,7 @@ func (r *Reassembler) extractGRPC(conn *connection) ([]Message, error) {
 					StreamID:    h2msg.StreamID,
 					IsEndStream: true,
 					IsRequest:   false, // trailers are always server-side
-					GRPCStatus:  grpcStatus,
+					GRPCStatus:  fmt.Sprintf("%d", grpcStatus),
 				},
 			})
 			conn.MessageCount++
@@ -575,7 +575,8 @@ func (r *Reassembler) extractGRPC(conn *connection) ([]Message, error) {
 		// Extract trailer status even when END_STREAM is on a DATA frame
 		grpcStatus := ""
 		if h2msg.IsEndStream {
-			grpcStatus, _, _ = conn.grpcParser.ParseTrailers(h2msg.Headers)
+			status, _, _ := conn.grpcParser.ParseTrailers(h2msg.Headers)
+			grpcStatus = fmt.Sprintf("%d", status)
 		}
 
 		messages = append(messages, Message{
