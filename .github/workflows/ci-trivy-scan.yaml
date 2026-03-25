@@ -94,7 +94,7 @@ jobs:
           
       - name: Run Trivy vulnerability scanner on kubearmor-init
         id: scan_init
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@0.35.0
         with:
           input: kubearmor-init.tar
           format: 'table'
@@ -106,7 +106,7 @@ jobs:
 
       - name: Run Trivy vulnerability scanner on kubearmor-ubi
         id: scan_ubi
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@0.35.0
         with:
           input: kubearmor-ubi.tar
           format: 'table'
@@ -118,7 +118,7 @@ jobs:
 
       - name: Run Trivy vulnerability scanner on kubearmor
         id: scan_main
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@0.35.0
         with:
           input: kubearmor.tar
           format: 'table'
@@ -131,7 +131,7 @@ jobs:
       - name: Run Trivy vulnerability scanner on kubearmor-controller
         if: steps.filter.outputs.controller == 'true'
         id: scan_controller
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@0.35.0
         with:
           input: kubearmor-controller.tar
           format: 'table'
@@ -144,7 +144,7 @@ jobs:
       - name: Run Trivy vulnerability scanner on kubearmor-operator
         if: steps.filter.outputs.operator == 'true'
         id: scan_operator
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@0.35.0
         with:
           input: kubearmor-operator.tar
           format: 'table'
