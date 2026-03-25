@@ -13,6 +13,28 @@
 #include "common/structs.h"
 #include "conn_tracker.h"
 
+// get_protocol_max_capture returns the configured max capture size for
+// a given protocol (from protocol_config_map). Falls back to MAX_DATA_SIZE
+// if the map entry is missing or zero.
+static __always_inline u32 get_protocol_max_capture(u8 protocol) {
+  __u32 key;
+  switch (protocol) {
+  case PROTO_HTTP1:
+    key = PROTO_CONFIG_HTTP1;
+    break;
+  case PROTO_HTTP2:
+  case PROTO_GRPC:
+    key = PROTO_CONFIG_HTTP2;
+    break;
+  default:
+    return MAX_DATA_SIZE;
+  }
+  struct protocol_config *cfg = bpf_map_lookup_elem(&protocol_config_map, &key);
+  if (cfg && cfg->max_capture_size > 0 && cfg->max_capture_size <= MAX_DATA_SIZE)
+    return cfg->max_capture_size;
+  return MAX_DATA_SIZE;
+}
+
 static __always_inline struct pt_regs *get_syscall_regs(struct pt_regs *ctx) {
   return (struct pt_regs *)PT_REGS_PARM1(ctx);
 }
@@ -74,6 +96,27 @@ static __always_inline void *read_msghdr_iov(const void *msg_ptr) {
 }
 
 /* 
+ * propagate_fd_to_user_space_call — Nested syscall FD capture.
+ *
+ * When SSL_write/SSL_read is on the stack, it sets ssl_user_space_call_map[pid_tgid].
+ * The inner syscall (write/read/sendto/etc) then calls this to propagate the
+ * socket FD back. This is how we learn which FD the SSL connection uses.
+ *
+ * From Pixie socket_trace.c:188-203.
+ */
+static __always_inline void propagate_fd_to_user_space_call(u64 pid_tgid, s32 fd) {
+  struct nested_syscall_fd_t *nsc =
+      bpf_map_lookup_elem(&ssl_user_space_call_map, &pid_tgid);
+  if (nsc) {
+    if (nsc->fd < 0) {
+      nsc->fd = fd;  // First FD seen — capture it
+    } else if (nsc->fd != fd) {
+      nsc->mismatched_fds = 1;  // Multiple FDs — flag mismatch
+    }
+  }
+}
+
+/* 
  * Common egress helper — used by write, writev, sendto, sendmsg
  *
  * All egress handlers resolve FD, read payload from user buffer, and emit.
@@ -81,6 +124,10 @@ static __always_inline void *read_msghdr_iov(const void *msg_ptr) {
 static __always_inline int egress_submit(u32 fd, const void *buf, u32 count) {
   if (!buf || count == 0)
     return 0;
+
+  // Propagate FD to any active SSL call on this thread.
+  u64 pid_tgid = bpf_get_current_pid_tgid();
+  propagate_fd_to_user_space_call(pid_tgid, (s32)fd);
 
   u64 sock_ptr = resolve_fd_to_sock_ptr(fd);
   if (sock_ptr == 0)
@@ -95,16 +142,21 @@ static __always_inline int egress_submit(u32 fd, const void *buf, u32 count) {
   if (!e)
     return 0;
 
+  // Protocol-aware capture limit: use smaller buffer for HTTP/2/gRPC.
+  u32 max_capture = MAX_DATA_SIZE;
+  if (ci)
+    max_capture = get_protocol_max_capture(ci->protocol);
+
   u32 to_copy = count;
-  if (to_copy > MAX_DATA_SIZE)
-    to_copy = MAX_DATA_SIZE;
+  if (to_copy > max_capture)
+    to_copy = max_capture;
 
   e->flags = 0;
   if (bpf_probe_read_user(e->payload, to_copy & (MAX_DATA_SIZE - 1), buf) < 0)
     return 0;
   e->data_len = to_copy;
 
-  if (count > MAX_DATA_SIZE)
+  if (count > max_capture)
     e->flags |= FLAG_TRUNCATED;
 
   return emit_data_event(sock_ptr, DIR_EGRESS);
@@ -118,6 +170,10 @@ static __always_inline int egress_submit(u32 fd, const void *buf, u32 count) {
 static __always_inline int ingress_entry(u32 fd, const void *buf) {
   if (!buf)
     return 0;
+
+  // Propagate FD to any active SSL call on this thread.
+  u64 pid_tgid_prop = bpf_get_current_pid_tgid();
+  propagate_fd_to_user_space_call(pid_tgid_prop, (s32)fd);
 
   u64 sock_ptr = resolve_fd_to_sock_ptr(fd);
   if (sock_ptr == 0)
@@ -155,9 +211,14 @@ static __always_inline int ingress_return(struct pt_regs *ctx) {
   if (ci && ci->is_ssl)
     return 0;
 
+  // Protocol-aware capture limit.
+  u32 max_capture = MAX_DATA_SIZE;
+  if (ci)
+    max_capture = get_protocol_max_capture(ci->protocol);
+
   u32 bytes_read = (u32)ret;
-  if (bytes_read > MAX_DATA_SIZE)
-    bytes_read = MAX_DATA_SIZE;
+  if (bytes_read > max_capture)
+    bytes_read = max_capture;
 
   u32 zero = 0;
   struct data_event *e = bpf_map_lookup_elem(&event_scratch, &zero);
@@ -170,7 +231,7 @@ static __always_inline int ingress_return(struct pt_regs *ctx) {
     return 0;
   e->data_len = bytes_read;
 
-  if ((u32)ret > MAX_DATA_SIZE)
+  if ((u32)ret > max_capture)
     e->flags |= FLAG_TRUNCATED;
 
   return emit_data_event(sock_ptr, DIR_INGRESS);

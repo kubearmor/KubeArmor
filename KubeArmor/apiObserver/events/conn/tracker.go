@@ -17,6 +17,7 @@ import (
 	"github.com/kubearmor/KubeArmor/KubeArmor/apiObserver/protocols/grpc"
 	"github.com/kubearmor/KubeArmor/KubeArmor/apiObserver/protocols/http1"
 	"github.com/kubearmor/KubeArmor/KubeArmor/apiObserver/protocols/http2"
+	"github.com/kubearmor/KubeArmor/KubeArmor/log"
 )
 
 // CorrelatorIface is the subset of events.Correlator that ConnectionTracker calls.
@@ -77,7 +78,7 @@ type TrackerConfig struct {
 func DefaultConfig() TrackerConfig {
 	return TrackerConfig{
 		InactivityTimeout: 5 * time.Minute,
-		MaxBufferSize:     64 * 1024, // 64KB per direction
+		MaxBufferSize:     192 * 1024, // 192KB per direction
 	}
 }
 
@@ -96,11 +97,20 @@ type ConnectionTracker struct {
 	// Protocol parsers — created lazily on first protocol detection.
 	http1Req  *http1.Parser
 	http1Resp *http1.Parser
-	h2        *http2.Parser
-	gRPC      *grpc.Parser
+	// Two HTTP/2 parsers: one per direction, each with its own HPACK
+	// dynamic table as required by RFC 7541 §2.2.
+	h2Send *http2.Parser // egress (send) direction
+	h2Recv *http2.Parser // ingress (recv) direction
+	gRPC   *grpc.Parser
 
 	isClientSide bool
 	directionSet bool
+
+	// Per-connection gRPC protocol memory (OpenTelemetry pattern).
+	// Once any stream on this connection is identified as gRPC
+	// (via content-type header or grpc-status trailer), all
+	// subsequent streams inherit the gRPC classification.
+	detectedGRPC bool
 
 	// FIX 2: circuit-breaker for repeated parse failures on the same data.
 	parseErrCount int
@@ -163,6 +173,12 @@ func (ct *ConnectionTracker) Route(ev *events.DataEvent, cor CorrelatorIface) []
 		if ct.Protocol == events.ProtoUnknown {
 			return nil
 		}
+	}
+
+	// Propagate detected protocol back to the DataEvent so downstream
+	// consumers (enrichAndEmit) see the correct protocol string.
+	if ev.Protocol == events.ProtoUnknown {
+		ev.Protocol = ct.Protocol
 	}
 
 	return ct.iterMessages(ev, cor)
@@ -240,8 +256,9 @@ func (ct *ConnectionTracker) initParsers() {
 			ct.http1Resp = http1.NewParser(false) // response side
 		}
 	case events.ProtoHTTP2, events.ProtoGRPC:
-		if ct.h2 == nil {
-			ct.h2 = http2.NewParser()
+		if ct.h2Send == nil {
+			ct.h2Send = http2.NewParser()
+			ct.h2Recv = http2.NewParser()
 		}
 		if ct.gRPC == nil {
 			ct.gRPC = grpc.NewParser()
@@ -266,81 +283,108 @@ func (ct *ConnectionTracker) iterMessages(ev *events.DataEvent, cor CorrelatorIf
 func (ct *ConnectionTracker) iterHTTP1(ev *events.DataEvent, cor CorrelatorIface) []*events.CorrelatedTrace {
 	var out []*events.CorrelatedTrace
 
-	if ev.Direction == events.DirEgress {
-		data := ct.sendBuf.Bytes()
+	// Determine if this event carries request or response data.
+	// Client-side: egress = request, ingress = response.
+	// Server-side: ingress = request, egress = response.
+	var isRequest bool
+	if ct.isClientSide {
+		isRequest = (ev.Direction == events.DirEgress)
+	} else {
+		isRequest = (ev.Direction == events.DirIngress)
+	}
+
+	// Select the correct buffers based on perspective.
+	// Client: sendBuf = requests, recvBuf = responses.
+	// Server: recvBuf = requests, sendBuf = responses.
+	var reqBuf, respBuf *DataStreamBuffer
+	if ct.isClientSide {
+		reqBuf = ct.sendBuf
+		respBuf = ct.recvBuf
+	} else {
+		reqBuf = ct.recvBuf
+		respBuf = ct.sendBuf
+	}
+
+	if isRequest {
+		data := reqBuf.Bytes()
 		if len(data) == 0 {
 			return nil
 		}
 
 		if bytes.HasPrefix(data, []byte("HTTP/")) {
-			slog.Debug("Response data on egress stream, discarding",
+			slog.Debug("Response data in request buffer, discarding",
 				"sockptr", fmt.Sprintf("0x%x", ct.Key.SockPtr))
-			ct.sendBuf.Reset()
+			reqBuf.Reset()
 			return nil
 		}
 
-		reqs, consumed, _, err := ct.http1Req.Parse(data)
-		if err != nil {
-			ct.parseErrCount++
-			slog.Debug("HTTP/1 request parse error",
-				"sockptr", fmt.Sprintf("0x%x", ct.Key.SockPtr),
-				"err", err,
-				"consecutive", ct.parseErrCount)
-			if ct.parseErrCount >= maxConsecutiveParseErrors {
-				slog.Warn("HTTP/1: too many consecutive parse errors, resetting buffer",
-					"sockptr", fmt.Sprintf("0x%x", ct.Key.SockPtr))
-				ct.sendBuf.Reset()
-				ct.parseErrCount = 0
-				return nil
-			}
-		} else {
+		// capture skipBytes (was discarded with _)
+		reqs, consumed, skipBytes, _, err := ct.http1Req.Parse(data)
+
+		if consumed > 0 {
 			ct.parseErrCount = 0
+			reqBuf.Advance(consumed)
 		}
-		ct.sendBuf.Advance(consumed)
+		// drain remaining request body bytes off the wire
+		if skipBytes > 0 {
+			reqBuf.SkipNextBytes(skipBytes)
+		}
 
 		for _, req := range reqs {
 			cor.AddHTTP1Request(ct.Key, events.PendingRequest{
-				Timestamp: time.Now(),
-				Method:    req.Method,
-				URL:       req.Path,
-				Headers:   req.Headers,
-				Body:      string(req.Body),
-				Src:       fmt.Sprintf("%s:%d", ev.SrcIPString(), ev.SrcPort),
-				Dst:       fmt.Sprintf("%s:%d", ev.DstIPString(), ev.DstPort),
+				Timestamp:   time.Now(),
+				Method:      req.Method,
+				URL:         req.Path,
+				Headers:     req.Headers,
+				Body:        string(req.Body),
+				Src:         fmt.Sprintf("%s:%d", ev.SrcIPString(), ev.SrcPort),
+				Dst:         fmt.Sprintf("%s:%d", ev.DstIPString(), ev.DstPort),
+				IsEncrypted: ev.IsSSL(),
 			})
 		}
 
+		if err != nil {
+			ct.parseErrCount++
+			// BUG 2 fix: rate-limit parse error logs — emit on 1st
+			// and every 10th consecutive error to reduce flooding.
+			if ct.parseErrCount == 1 || ct.parseErrCount%10 == 0 {
+				slog.Debug("HTTP/1 request parse error",
+					"sockptr", fmt.Sprintf("0x%x", ct.Key.SockPtr),
+					"err", err,
+					"consecutive", ct.parseErrCount)
+			}
+			if ct.parseErrCount >= maxConsecutiveParseErrors {
+				log.Warnf("HTTP/1: too many consecutive parse errors, resetting buffer, sockptr: %s, protocol: %d",
+					fmt.Sprintf("0x%x", ct.Key.SockPtr), ct.Protocol)
+				reqBuf.Reset()
+				ct.parseErrCount = 0
+			}
+			return nil
+		}
 	} else {
-		data := ct.recvBuf.Bytes()
+		data := respBuf.Bytes()
 		if len(data) == 0 {
 			return nil
 		}
 
 		if isHTTP1RequestPrefix(data) {
-			slog.Debug("Request data on ingress stream, discarding",
+			slog.Debug("Request data in response buffer, discarding",
 				"sockptr", fmt.Sprintf("0x%x", ct.Key.SockPtr))
-			ct.recvBuf.Reset()
+			respBuf.Reset()
 			return nil
 		}
 
-		resps, consumed, _, err := ct.http1Resp.Parse(data)
-		if err != nil {
-			ct.parseErrCount++
-			slog.Debug("HTTP/1 response parse error",
-				"sockptr", fmt.Sprintf("0x%x", ct.Key.SockPtr),
-				"err", err,
-				"consecutive", ct.parseErrCount)
-			if ct.parseErrCount >= maxConsecutiveParseErrors {
-				slog.Warn("HTTP/1: too many consecutive parse errors, resetting buffer",
-					"sockptr", fmt.Sprintf("0x%x", ct.Key.SockPtr))
-				ct.recvBuf.Reset()
-				ct.parseErrCount = 0
-				return nil
-			}
-		} else {
+		// capture skipBytes (was discarded with _)
+		resps, consumed, skipBytes, _, err := ct.http1Resp.Parse(data)
+
+		if consumed > 0 {
 			ct.parseErrCount = 0
+			respBuf.Advance(consumed)
 		}
-		ct.recvBuf.Advance(consumed)
+		// drain remaining response body bytes off the wire
+		if skipBytes > 0 {
+			respBuf.SkipNextBytes(skipBytes)
+		}
 
 		serverURI := fmt.Sprintf("%s:%d", ev.SrcIPString(), ev.SrcPort)
 		for _, resp := range resps {
@@ -357,10 +401,29 @@ func (ct *ConnectionTracker) iterHTTP1(ev *events.DataEvent, cor CorrelatorIface
 				out = append(out, trace)
 			}
 		}
+
+		if err != nil {
+			ct.parseErrCount++
+			// BUG 2 fix: rate-limit parse error logs.
+			if ct.parseErrCount == 1 || ct.parseErrCount%10 == 0 {
+				slog.Debug("HTTP/1 response parse error",
+					"sockptr", fmt.Sprintf("0x%x", ct.Key.SockPtr),
+					"err", err,
+					"consecutive", ct.parseErrCount)
+			}
+			if ct.parseErrCount >= maxConsecutiveParseErrors {
+				log.Warnf("HTTP/1: too many consecutive parse errors, resetting buffer, sockptr: %s, protocol: %d",
+					fmt.Sprintf("0x%x", ct.Key.SockPtr), ct.Protocol)
+				respBuf.Reset()
+				ct.parseErrCount = 0
+			}
+			return out
+		}
 	}
 
 	return out
 }
+
 
 // isHTTP1RequestPrefix returns true if buf starts with a known HTTP/1.x
 // request method token (full token including trailing space).
@@ -384,11 +447,16 @@ func isHTTP1RequestPrefix(buf []byte) bool {
 func (ct *ConnectionTracker) iterHTTP2(ev *events.DataEvent, cor CorrelatorIface) []*events.CorrelatedTrace {
 	var out []*events.CorrelatedTrace
 
+	// Select the buffer AND parser for this direction.
+	// Each direction has its own HPACK dynamic table (RFC 7541 §2.2).
 	var buf *DataStreamBuffer
+	var parser *http2.Parser
 	if ev.Direction == events.DirEgress {
 		buf = ct.sendBuf
+		parser = ct.h2Send
 	} else {
 		buf = ct.recvBuf
+		parser = ct.h2Recv
 	}
 
 	data := buf.Bytes()
@@ -396,7 +464,7 @@ func (ct *ConnectionTracker) iterHTTP2(ev *events.DataEvent, cor CorrelatorIface
 		return nil
 	}
 
-	msgs, remaining, err := ct.h2.ParseFrames(data)
+	msgs, remaining, err := parser.ParseFrames(data)
 	if err != nil {
 		slog.Debug("HTTP/2 parse error",
 			"sockptr", fmt.Sprintf("0x%x", ct.Key.SockPtr), "err", err)
@@ -404,28 +472,125 @@ func (ct *ConnectionTracker) iterHTTP2(ev *events.DataEvent, cor CorrelatorIface
 
 	buf.SetRemaining(remaining)
 
+	// Use BPF direction as ground truth for request vs response.
+	// For server-side tracing: ingress = request, egress = response.
+	// For client-side tracing: egress = request, ingress = response.
+	var isRequest bool
+	if ct.isClientSide {
+		isRequest = (ev.Direction == events.DirEgress)
+	} else {
+		isRequest = (ev.Direction == events.DirIngress)
+	}
+
 	for _, msg := range msgs {
-		if msg.IsRequest {
+		// Detect gRPC content-type for body decoding.
+		contentType := ""
+		if ctHeader, ok := msg.Headers["content-type"]; ok {
+			contentType = ctHeader
+		}
+		isGRPCContent := grpc.IsGRPCContentType(contentType)
+
+		if !isGRPCContent {
+			if ct.detectedGRPC {
+				isGRPCContent = true
+				contentType = "application/grpc"
+			} else if grpc.IsGRPCBody(msg.Body) {
+				isGRPCContent = true
+				contentType = "application/grpc"
+				ct.detectedGRPC = true
+				log.Debug(fmt.Sprint("gRPC detected by body heuristic",
+					"sockptr", fmt.Sprintf("0x%x", ct.Key.SockPtr)))
+			}
+		} else {
+			ct.detectedGRPC = true
+		}
+
+		if isRequest {
+			// Decode gRPC body through LPM/protobuf parser if applicable.
+			body := string(msg.Body)
+			if isGRPCContent && len(msg.Body) > 0 {
+				grpcMsg, _, parseErr := ct.gRPC.ParseMessage(msg.Body, msg.Headers)
+				if parseErr == nil && grpcMsg != nil {
+					body = grpcMsg.Body
+				}
+			}
+			if msg.BodyTruncated {
+				body += fmt.Sprintf(" ... [truncated, original=%dB]", msg.OriginalBodySize)
+			}
+
+			var grpcService, grpcMethod string
+			if isGRPCContent && msg.Path != "" {
+				grpcService, grpcMethod = grpc.ExtractServiceMethod(msg.Path)
+			}
+
 			cor.AddHTTP2Request(ct.Key, msg.StreamID, events.PendingRequest{
-				Timestamp: time.Now(),
-				Method:    msg.Method,
-				URL:       msg.Path,
-				Headers:   msg.Headers,
-				Body:      string(msg.Body),
-				Src:       fmt.Sprintf("%s:%d", ev.SrcIPString(), ev.SrcPort),
-				Dst:       fmt.Sprintf("%s:%d", ev.DstIPString(), ev.DstPort),
-				StreamID:  msg.StreamID,
+				Timestamp:   time.Now(),
+				Method:      msg.Method,
+				URL:         msg.Path,
+				Headers:     msg.Headers,
+				Body:        body,
+				Src:         fmt.Sprintf("%s:%d", ev.SrcIPString(), ev.SrcPort),
+				Dst:         fmt.Sprintf("%s:%d", ev.DstIPString(), ev.DstPort),
+				StreamID:    msg.StreamID,
+				IsEncrypted: ev.IsSSL(),
+				GRPCService: grpcService,
+				GRPCMethod:  grpcMethod,
+				ContentType: contentType,
 			})
 		} else {
+			// Decode gRPC body through LPM/protobuf parser if applicable.
+			body := string(msg.Body)
+			if isGRPCContent && len(msg.Body) > 0 {
+				grpcMsg, _, parseErr := ct.gRPC.ParseMessage(msg.Body, msg.Headers)
+				if parseErr == nil && grpcMsg != nil {
+					body = grpcMsg.Body
+				}
+			}
+			if msg.BodyTruncated {
+				body += fmt.Sprintf(" ... [truncated, original=%dB]", msg.OriginalBodySize)
+			}
+
+			// Extract gRPC status from trailers if present.
+			status := msg.Status
+			var grpcStatusCode int32
+			var grpcMessage string
+			if isGRPCContent {
+				grpcStatusCode, grpcMessage, _ = ct.gRPC.ParseTrailers(msg.Headers)
+				if status == "" {
+					status = fmt.Sprintf("%d", grpcStatusCode)
+				}
+			} else if _, hasGRPCStatus := msg.Headers["grpc-status"]; hasGRPCStatus {
+				// grpc-status in trailers but content-type was missed.
+				ct.detectedGRPC = true
+				isGRPCContent = true
+				contentType = "application/grpc"
+				grpcStatusCode, grpcMessage, _ = ct.gRPC.ParseTrailers(msg.Headers)
+				if status == "" {
+					status = fmt.Sprintf("%d", grpcStatusCode)
+				}
+			}
+
 			trace := cor.MatchHTTP2Response(
 				ct.Key,
 				msg.StreamID,
-				msg.Status,
+				status,
 				msg.Headers,
-				string(msg.Body),
+				body,
 				fmt.Sprintf("%s:%d", ev.SrcIPString(), ev.SrcPort),
 			)
 			if trace != nil {
+				if isGRPCContent {
+					trace.GRPCStatus = grpcStatusCode
+					trace.GRPCMessage = grpcMessage
+					trace.ContentType = contentType
+					// BUG 4 fix: If grpc-status was not in the message
+					// headers (trailing HEADERS segment missed by BPF),
+					// default to 0 (OK) for responses that have body data.
+					if _, hasStatus := msg.Headers["grpc-status"]; !hasStatus && len(msg.Body) > 0 {
+						trace.GRPCStatus = 0
+						trace.GRPCMessage = "OK"
+					}
+				}
 				out = append(out, trace)
 			}
 		}
@@ -434,11 +599,161 @@ func (ct *ConnectionTracker) iterHTTP2(ev *events.DataEvent, cor CorrelatorIface
 	return out
 }
 
-// iterGRPC extracts gRPC messages via the HTTP/2 frame parser + LPM parser.
+// iterGRPC extracts gRPC messages via the HTTP/2 frame parser + gRPC LPM parser.
+// It handles gRPC-specific features: LPM body framing, protobuf decoding,
+// trailer-based status codes, and service/method extraction.
+//
+// Reference: Pixie's grpc.cc:ParseReqRespBody + http2_streams_container.cc
 func (ct *ConnectionTracker) iterGRPC(ev *events.DataEvent, cor CorrelatorIface) []*events.CorrelatedTrace {
-	// gRPC runs over HTTP/2; delegate to iterHTTP2 for now.
-	// TODO: add gRPC-specific LPM framing and trailer extraction.
-	return ct.iterHTTP2(ev, cor)
+	var out []*events.CorrelatedTrace
+
+	// Select the buffer AND parser for this direction.
+	var buf *DataStreamBuffer
+	var parser *http2.Parser
+	if ev.Direction == events.DirEgress {
+		buf = ct.sendBuf
+		parser = ct.h2Send
+	} else {
+		buf = ct.recvBuf
+		parser = ct.h2Recv
+	}
+
+	data := buf.Bytes()
+	if len(data) == 0 {
+		return nil
+	}
+
+	msgs, remaining, err := parser.ParseFrames(data)
+	if err != nil {
+		slog.Debug("gRPC/HTTP2 parse error",
+			"sockptr", fmt.Sprintf("0x%x", ct.Key.SockPtr), "err", err)
+	}
+
+	buf.SetRemaining(remaining)
+
+	// Use BPF direction as ground truth for request vs response.
+	var isRequest bool
+	if ct.isClientSide {
+		isRequest = (ev.Direction == events.DirEgress)
+	} else {
+		isRequest = (ev.Direction == events.DirIngress)
+	}
+
+	for _, msg := range msgs {
+		// Detect content type for gRPC classification
+		contentType := ""
+		if ctHeader, ok := msg.Headers["content-type"]; ok {
+			contentType = ctHeader
+		}
+		isGRPC := grpc.IsGRPCContentType(contentType)
+
+		// Heuristic gRPC detection (same as iterHTTP2).
+		if !isGRPC {
+			if ct.detectedGRPC {
+				isGRPC = true
+				contentType = "application/grpc"
+			} else if grpc.IsGRPCBody(msg.Body) {
+				isGRPC = true
+				contentType = "application/grpc"
+				ct.detectedGRPC = true
+			}
+		} else {
+			ct.detectedGRPC = true
+		}
+
+		if isRequest {
+			// Extract service/method from :path for gRPC
+			var grpcService, grpcMethod string
+			if isGRPC && msg.Path != "" {
+				grpcService, grpcMethod = grpc.ExtractServiceMethod(msg.Path)
+			}
+
+			// Parse body through gRPC LPM parser if available
+			body := string(msg.Body)
+			if isGRPC && len(msg.Body) > 0 {
+				grpcMsg, _, parseErr := ct.gRPC.ParseMessage(msg.Body, msg.Headers)
+				if parseErr == nil && grpcMsg != nil {
+					body = grpcMsg.Body
+				}
+			}
+			if msg.BodyTruncated {
+				body += fmt.Sprintf(" ... [truncated, original=%dB]", msg.OriginalBodySize)
+			}
+
+			cor.AddHTTP2Request(ct.Key, msg.StreamID, events.PendingRequest{
+				Timestamp:   time.Now(),
+				Method:      msg.Method,
+				URL:         msg.Path,
+				Headers:     msg.Headers,
+				Body:        body,
+				Src:         fmt.Sprintf("%s:%d", ev.SrcIPString(), ev.SrcPort),
+				Dst:         fmt.Sprintf("%s:%d", ev.DstIPString(), ev.DstPort),
+				StreamID:    msg.StreamID,
+				GRPCService: grpcService,
+				GRPCMethod:  grpcMethod,
+				ContentType: contentType,
+			})
+		} else {
+			// Response: extract grpc-status from trailers and decode body
+			status := msg.Status
+			var grpcStatusCode int32
+			var grpcMessage string
+
+			if isGRPC {
+				// gRPC status comes from trailers (grpc-status header)
+				grpcStatusCode, grpcMessage, _ = ct.gRPC.ParseTrailers(msg.Headers)
+				// Use grpc-status as the status string for gRPC
+				if status == "" {
+					status = fmt.Sprintf("%d", grpcStatusCode)
+				}
+			} else if _, hasGRPCStatus := msg.Headers["grpc-status"]; hasGRPCStatus {
+				// grpc-status in trailers but content-type was missed.
+				ct.detectedGRPC = true
+				isGRPC = true
+				contentType = "application/grpc"
+				grpcStatusCode, grpcMessage, _ = ct.gRPC.ParseTrailers(msg.Headers)
+				if status == "" {
+					status = fmt.Sprintf("%d", grpcStatusCode)
+				}
+			}
+
+			body := string(msg.Body)
+			if isGRPC && len(msg.Body) > 0 {
+				grpcMsg, _, parseErr := ct.gRPC.ParseMessage(msg.Body, msg.Headers)
+				if parseErr == nil && grpcMsg != nil {
+					body = grpcMsg.Body
+				}
+			}
+			if msg.BodyTruncated {
+				body += fmt.Sprintf(" ... [truncated, original=%dB]", msg.OriginalBodySize)
+			}
+
+			trace := cor.MatchHTTP2Response(
+				ct.Key,
+				msg.StreamID,
+				status,
+				msg.Headers,
+				body,
+				fmt.Sprintf("%s:%d", ev.SrcIPString(), ev.SrcPort),
+			)
+			if trace != nil {
+				// Populate gRPC-specific fields on the trace
+				trace.GRPCStatus = grpcStatusCode
+				trace.GRPCMessage = grpcMessage
+				trace.ContentType = contentType
+				// BUG 4 fix: If grpc-status was not in the message
+				// headers (trailing HEADERS segment missed by BPF),
+				// default to 0 (OK) for responses that have body data.
+				if _, hasStatus := msg.Headers["grpc-status"]; !hasStatus && len(msg.Body) > 0 {
+					trace.GRPCStatus = 0
+					trace.GRPCMessage = "OK"
+				}
+				out = append(out, trace)
+			}
+		}
+	}
+
+	return out
 }
 
 // ConnectionManager is the population-level connection tracker.

@@ -116,6 +116,10 @@ type KubeArmorDaemon struct {
 	// API Observer
 	APIObserver *apiobserver.APIObserver
 
+	// Service ClusterIP → FQDN for API Observer :authority resolution
+	ServiceIPMap     map[string]string // e.g. "10.43.29.63" → "cartservice.online-boutique.svc.cluster.local"
+	ServiceIPMapLock *sync.RWMutex
+
 	// WgDaemon Handler
 	WgDaemon sync.WaitGroup
 
@@ -177,6 +181,9 @@ func NewKubeArmorDaemon() *KubeArmorDaemon {
 
 	dm.OwnerInfo = map[string]tp.PodOwner{}
 	dm.OwnerInfoLock = new(sync.RWMutex)
+
+	dm.ServiceIPMap = map[string]string{}
+	dm.ServiceIPMapLock = new(sync.RWMutex)
 
 	return dm
 }
@@ -733,7 +740,18 @@ func KubeArmor() {
 
 	if cfg.GlobalCfg.EnableAPIObserver {
 		dm.Logger.Print("Initializing API Observer")
-		apiObs, err := apiobserver.NewAPIObserver(dm.Node, dm.SystemMonitor.PinPath, *dm.Logger)
+
+		// Start K8s Service watcher to populate ServiceIPMap before
+		// building the resolver, so initial services are available.
+		if dm.K8sEnabled {
+			go dm.WatchK8sServices()
+			time.Sleep(500 * time.Millisecond) // let initial services sync
+		}
+
+		// Build ClusterIP→FQDN resolver for :authority enrichment.
+		resolver := dm.buildServiceResolver()
+
+		apiObs, err := apiobserver.NewAPIObserver(dm.Node, dm.SystemMonitor.PinPath, *dm.Logger, resolver)
 		if err != nil {
 			dm.Logger.Warnf("Failed to initialize API Observer (non-fatal): %v", err)
 		} else {
@@ -1102,6 +1120,21 @@ func KubeArmor() {
 
 	// destroy the daemon
 	dm.DestroyKubeArmorDaemon()
+}
+
+// buildServiceResolver returns a closure that resolves a K8s Service
+// ClusterIP to its FQDN (e.g. "cartservice.online-boutique.svc.cluster.local").
+// Returns "" when no match found.
+func (dm *KubeArmorDaemon) buildServiceResolver() apiobserver.ServiceResolver {
+	return func(ip string) string {
+		dm.ServiceIPMapLock.RLock()
+		fqdn, ok := dm.ServiceIPMap[ip]
+		dm.ServiceIPMapLock.RUnlock()
+		if ok {
+			return fqdn
+		}
+		return ""
+	}
 }
 
 func (dm *KubeArmorDaemon) checkNRIAvailability() error {

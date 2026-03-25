@@ -100,6 +100,52 @@ type apiObserverDataEvent struct {
 	Payload   [8192]uint8
 }
 
+type apiObserverGoAddrKey struct {
+	_    structs.HostLayout
+	Addr uint64
+	Pid  uint32
+	Pad  uint32
+}
+
+type apiObserverGoGrpcClientInvocation struct {
+	_         structs.HostLayout
+	StartNs   uint64
+	MethodPtr uint64
+	MethodLen uint64
+}
+
+type apiObserverGoGrpcServerInvocation struct {
+	_         structs.HostLayout
+	StartNs   uint64
+	StreamPtr uint64
+}
+
+type apiObserverGoH2TransportEvent struct {
+	_          structs.HostLayout
+	Pid        uint32
+	StreamId   uint32
+	IsServer   uint8
+	FieldCount uint8
+	Pad        uint16
+	Fields     [8]struct {
+		_     structs.HostLayout
+		Name  [32]int8
+		Value [128]int8
+	}
+}
+
+type apiObserverGoOffsetTable struct {
+	_       structs.HostLayout
+	Offsets [17]int64
+}
+
+type apiObserverGrpccSymaddrs struct {
+	_                  structs.HostLayout
+	StreamMethodOffset int32
+	StreamIdOffset     int32
+	TransportFdOffset  int32
+}
+
 type apiObserverSslReadArgs struct {
 	_      structs.HostLayout
 	SslPtr uint64
@@ -165,57 +211,78 @@ type apiObserverSpecs struct {
 //
 // It can be passed ebpf.CollectionSpec.Assign.
 type apiObserverProgramSpecs struct {
-	KprobeSysClose             *ebpf.ProgramSpec `ebpf:"kprobe_sys_close"`
-	KprobeSysConnect           *ebpf.ProgramSpec `ebpf:"kprobe_sys_connect"`
-	KprobeSysRead              *ebpf.ProgramSpec `ebpf:"kprobe_sys_read"`
-	KprobeSysReadv             *ebpf.ProgramSpec `ebpf:"kprobe_sys_readv"`
-	KprobeSysRecvfrom          *ebpf.ProgramSpec `ebpf:"kprobe_sys_recvfrom"`
-	KprobeSysRecvmsg           *ebpf.ProgramSpec `ebpf:"kprobe_sys_recvmsg"`
-	KprobeSysSendmsg           *ebpf.ProgramSpec `ebpf:"kprobe_sys_sendmsg"`
-	KprobeSysSendto            *ebpf.ProgramSpec `ebpf:"kprobe_sys_sendto"`
-	KprobeSysWrite             *ebpf.ProgramSpec `ebpf:"kprobe_sys_write"`
-	KprobeSysWritev            *ebpf.ProgramSpec `ebpf:"kprobe_sys_writev"`
-	KretprobeSysAccept         *ebpf.ProgramSpec `ebpf:"kretprobe_sys_accept"`
-	KretprobeSysAccept4        *ebpf.ProgramSpec `ebpf:"kretprobe_sys_accept4"`
-	KretprobeSysConnect        *ebpf.ProgramSpec `ebpf:"kretprobe_sys_connect"`
-	KretprobeSysRead           *ebpf.ProgramSpec `ebpf:"kretprobe_sys_read"`
-	KretprobeSysReadv          *ebpf.ProgramSpec `ebpf:"kretprobe_sys_readv"`
-	KretprobeSysRecvfrom       *ebpf.ProgramSpec `ebpf:"kretprobe_sys_recvfrom"`
-	KretprobeSysRecvmsg        *ebpf.ProgramSpec `ebpf:"kretprobe_sys_recvmsg"`
-	TracepointInetSockSetState *ebpf.ProgramSpec `ebpf:"tracepoint_inet_sock_set_state"`
-	UprobeSslRead              *ebpf.ProgramSpec `ebpf:"uprobe_ssl_read"`
-	UprobeSslWrite             *ebpf.ProgramSpec `ebpf:"uprobe_ssl_write"`
-	UretprobeSslRead           *ebpf.ProgramSpec `ebpf:"uretprobe_ssl_read"`
+	KaUprobeClientConnInvoke               *ebpf.ProgramSpec `ebpf:"ka_uprobe_ClientConn_Invoke"`
+	KaUprobeClientConnNewStream            *ebpf.ProgramSpec `ebpf:"ka_uprobe_ClientConn_NewStream"`
+	KaUprobeGrpcC_recvInitialMetadataEntry *ebpf.ProgramSpec `ebpf:"ka_uprobe_grpc_c_recv_initial_metadata_entry"`
+	KaUprobeOperateHeadersClient           *ebpf.ProgramSpec `ebpf:"ka_uprobe_operate_headers_client"`
+	KaUprobeOperateHeadersClientEntry      *ebpf.ProgramSpec `ebpf:"ka_uprobe_operate_headers_client_entry"`
+	KaUprobeOperateHeadersServer           *ebpf.ProgramSpec `ebpf:"ka_uprobe_operate_headers_server"`
+	KaUprobeOperateHeadersServerEntry      *ebpf.ProgramSpec `ebpf:"ka_uprobe_operate_headers_server_entry"`
+	KaUprobeServerHandleStream             *ebpf.ProgramSpec `ebpf:"ka_uprobe_server_handleStream"`
+	KaUprobeTransportWriteStatus           *ebpf.ProgramSpec `ebpf:"ka_uprobe_transport_writeStatus"`
+	KaUretprobeClientConnInvoke            *ebpf.ProgramSpec `ebpf:"ka_uretprobe_ClientConn_Invoke"`
+	KaUretprobeClientStreamRecvMsg         *ebpf.ProgramSpec `ebpf:"ka_uretprobe_clientStream_RecvMsg"`
+	KaUretprobeServerHandleStream          *ebpf.ProgramSpec `ebpf:"ka_uretprobe_server_handleStream"`
+	KprobeSysClose                         *ebpf.ProgramSpec `ebpf:"kprobe_sys_close"`
+	KprobeSysConnect                       *ebpf.ProgramSpec `ebpf:"kprobe_sys_connect"`
+	KprobeSysRead                          *ebpf.ProgramSpec `ebpf:"kprobe_sys_read"`
+	KprobeSysReadv                         *ebpf.ProgramSpec `ebpf:"kprobe_sys_readv"`
+	KprobeSysRecvfrom                      *ebpf.ProgramSpec `ebpf:"kprobe_sys_recvfrom"`
+	KprobeSysRecvmsg                       *ebpf.ProgramSpec `ebpf:"kprobe_sys_recvmsg"`
+	KprobeSysSendmsg                       *ebpf.ProgramSpec `ebpf:"kprobe_sys_sendmsg"`
+	KprobeSysSendto                        *ebpf.ProgramSpec `ebpf:"kprobe_sys_sendto"`
+	KprobeSysWrite                         *ebpf.ProgramSpec `ebpf:"kprobe_sys_write"`
+	KprobeSysWritev                        *ebpf.ProgramSpec `ebpf:"kprobe_sys_writev"`
+	KretprobeSysAccept                     *ebpf.ProgramSpec `ebpf:"kretprobe_sys_accept"`
+	KretprobeSysAccept4                    *ebpf.ProgramSpec `ebpf:"kretprobe_sys_accept4"`
+	KretprobeSysConnect                    *ebpf.ProgramSpec `ebpf:"kretprobe_sys_connect"`
+	KretprobeSysRead                       *ebpf.ProgramSpec `ebpf:"kretprobe_sys_read"`
+	KretprobeSysReadv                      *ebpf.ProgramSpec `ebpf:"kretprobe_sys_readv"`
+	KretprobeSysRecvfrom                   *ebpf.ProgramSpec `ebpf:"kretprobe_sys_recvfrom"`
+	KretprobeSysRecvmsg                    *ebpf.ProgramSpec `ebpf:"kretprobe_sys_recvmsg"`
+	TracepointInetSockSetState             *ebpf.ProgramSpec `ebpf:"tracepoint_inet_sock_set_state"`
+	UprobeSslRead                          *ebpf.ProgramSpec `ebpf:"uprobe_ssl_read"`
+	UprobeSslWrite                         *ebpf.ProgramSpec `ebpf:"uprobe_ssl_write"`
+	UretprobeSslRead                       *ebpf.ProgramSpec `ebpf:"uretprobe_ssl_read"`
 }
 
 // apiObserverMapSpecs contains maps before they are loaded into the kernel.
 //
 // It can be passed ebpf.CollectionSpec.Assign.
 type apiObserverMapSpecs struct {
-	ActiveAcceptArgs       *ebpf.MapSpec `ebpf:"active_accept_args"`
-	ActiveConnectArgs      *ebpf.MapSpec `ebpf:"active_connect_args"`
-	ActiveDataArgs         *ebpf.MapSpec `ebpf:"active_data_args"`
-	ActiveSslReadArgs      *ebpf.MapSpec `ebpf:"active_ssl_read_args"`
-	ApiobserverEvents      *ebpf.MapSpec `ebpf:"apiobserver_events"`
-	ArgsBufk               *ebpf.MapSpec `ebpf:"args_bufk"`
-	Bufk                   *ebpf.MapSpec `ebpf:"bufk"`
-	Bufs                   *ebpf.MapSpec `ebpf:"bufs"`
-	BufsOff                *ebpf.MapSpec `ebpf:"bufs_off"`
-	CmdArgsBuf             *ebpf.MapSpec `ebpf:"cmd_args_buf"`
-	ConnectionFilterCache  *ebpf.MapSpec `ebpf:"connection_filter_cache"`
-	Connections            *ebpf.MapSpec `ebpf:"connections"`
-	EventScratch           *ebpf.MapSpec `ebpf:"event_scratch"`
-	KubearmorAlertThrottle *ebpf.MapSpec `ebpf:"kubearmor_alert_throttle"`
-	KubearmorArgsStore     *ebpf.MapSpec `ebpf:"kubearmor_args_store"`
-	KubearmorArguments     *ebpf.MapSpec `ebpf:"kubearmor_arguments"`
-	KubearmorConfig        *ebpf.MapSpec `ebpf:"kubearmor_config"`
-	KubearmorContainers    *ebpf.MapSpec `ebpf:"kubearmor_containers"`
-	KubearmorEvents        *ebpf.MapSpec `ebpf:"kubearmor_events"`
-	KubearmorExecPids      *ebpf.MapSpec `ebpf:"kubearmor_exec_pids"`
-	PidFdToSock            *ebpf.MapSpec `ebpf:"pid_fd_to_sock"`
-	SockToConnId           *ebpf.MapSpec `ebpf:"sock_to_conn_id"`
-	SslSymaddrs            *ebpf.MapSpec `ebpf:"ssl_symaddrs"`
-	StatsMap               *ebpf.MapSpec `ebpf:"stats_map"`
+	ActiveAcceptArgs          *ebpf.MapSpec `ebpf:"active_accept_args"`
+	ActiveConnectArgs         *ebpf.MapSpec `ebpf:"active_connect_args"`
+	ActiveDataArgs            *ebpf.MapSpec `ebpf:"active_data_args"`
+	ActiveSslReadArgs         *ebpf.MapSpec `ebpf:"active_ssl_read_args"`
+	ApiobserverEvents         *ebpf.MapSpec `ebpf:"apiobserver_events"`
+	ArgsBufk                  *ebpf.MapSpec `ebpf:"args_bufk"`
+	Bufk                      *ebpf.MapSpec `ebpf:"bufk"`
+	Bufs                      *ebpf.MapSpec `ebpf:"bufs"`
+	BufsOff                   *ebpf.MapSpec `ebpf:"bufs_off"`
+	CmdArgsBuf                *ebpf.MapSpec `ebpf:"cmd_args_buf"`
+	ConnectionFilterCache     *ebpf.MapSpec `ebpf:"connection_filter_cache"`
+	Connections               *ebpf.MapSpec `ebpf:"connections"`
+	EventScratch              *ebpf.MapSpec `ebpf:"event_scratch"`
+	GoH2TransportEvents       *ebpf.MapSpec `ebpf:"go_h2_transport_events"`
+	GoH2TransportScratch      *ebpf.MapSpec `ebpf:"go_h2_transport_scratch"`
+	GoHttp2Events             *ebpf.MapSpec `ebpf:"go_http2_events"`
+	GoOffsetsMap              *ebpf.MapSpec `ebpf:"go_offsets_map"`
+	GrpccEvents               *ebpf.MapSpec `ebpf:"grpcc_events"`
+	GrpccSymaddrsMap          *ebpf.MapSpec `ebpf:"grpcc_symaddrs_map"`
+	KubearmorAlertThrottle    *ebpf.MapSpec `ebpf:"kubearmor_alert_throttle"`
+	KubearmorArgsStore        *ebpf.MapSpec `ebpf:"kubearmor_args_store"`
+	KubearmorArguments        *ebpf.MapSpec `ebpf:"kubearmor_arguments"`
+	KubearmorConfig           *ebpf.MapSpec `ebpf:"kubearmor_config"`
+	KubearmorContainers       *ebpf.MapSpec `ebpf:"kubearmor_containers"`
+	KubearmorEvents           *ebpf.MapSpec `ebpf:"kubearmor_events"`
+	KubearmorExecPids         *ebpf.MapSpec `ebpf:"kubearmor_exec_pids"`
+	OngoingGrpcClientRequests *ebpf.MapSpec `ebpf:"ongoing_grpc_client_requests"`
+	OngoingGrpcRequestStatus  *ebpf.MapSpec `ebpf:"ongoing_grpc_request_status"`
+	OngoingGrpcServerRequests *ebpf.MapSpec `ebpf:"ongoing_grpc_server_requests"`
+	PidFdToSock               *ebpf.MapSpec `ebpf:"pid_fd_to_sock"`
+	SockToConnId              *ebpf.MapSpec `ebpf:"sock_to_conn_id"`
+	SslSymaddrs               *ebpf.MapSpec `ebpf:"ssl_symaddrs"`
+	StatsMap                  *ebpf.MapSpec `ebpf:"stats_map"`
 }
 
 // apiObserverVariableSpecs contains global variables before they are loaded into the kernel.
@@ -244,30 +311,39 @@ func (o *apiObserverObjects) Close() error {
 //
 // It can be passed to loadApiObserverObjects or ebpf.CollectionSpec.LoadAndAssign.
 type apiObserverMaps struct {
-	ActiveAcceptArgs       *ebpf.Map `ebpf:"active_accept_args"`
-	ActiveConnectArgs      *ebpf.Map `ebpf:"active_connect_args"`
-	ActiveDataArgs         *ebpf.Map `ebpf:"active_data_args"`
-	ActiveSslReadArgs      *ebpf.Map `ebpf:"active_ssl_read_args"`
-	ApiobserverEvents      *ebpf.Map `ebpf:"apiobserver_events"`
-	ArgsBufk               *ebpf.Map `ebpf:"args_bufk"`
-	Bufk                   *ebpf.Map `ebpf:"bufk"`
-	Bufs                   *ebpf.Map `ebpf:"bufs"`
-	BufsOff                *ebpf.Map `ebpf:"bufs_off"`
-	CmdArgsBuf             *ebpf.Map `ebpf:"cmd_args_buf"`
-	ConnectionFilterCache  *ebpf.Map `ebpf:"connection_filter_cache"`
-	Connections            *ebpf.Map `ebpf:"connections"`
-	EventScratch           *ebpf.Map `ebpf:"event_scratch"`
-	KubearmorAlertThrottle *ebpf.Map `ebpf:"kubearmor_alert_throttle"`
-	KubearmorArgsStore     *ebpf.Map `ebpf:"kubearmor_args_store"`
-	KubearmorArguments     *ebpf.Map `ebpf:"kubearmor_arguments"`
-	KubearmorConfig        *ebpf.Map `ebpf:"kubearmor_config"`
-	KubearmorContainers    *ebpf.Map `ebpf:"kubearmor_containers"`
-	KubearmorEvents        *ebpf.Map `ebpf:"kubearmor_events"`
-	KubearmorExecPids      *ebpf.Map `ebpf:"kubearmor_exec_pids"`
-	PidFdToSock            *ebpf.Map `ebpf:"pid_fd_to_sock"`
-	SockToConnId           *ebpf.Map `ebpf:"sock_to_conn_id"`
-	SslSymaddrs            *ebpf.Map `ebpf:"ssl_symaddrs"`
-	StatsMap               *ebpf.Map `ebpf:"stats_map"`
+	ActiveAcceptArgs          *ebpf.Map `ebpf:"active_accept_args"`
+	ActiveConnectArgs         *ebpf.Map `ebpf:"active_connect_args"`
+	ActiveDataArgs            *ebpf.Map `ebpf:"active_data_args"`
+	ActiveSslReadArgs         *ebpf.Map `ebpf:"active_ssl_read_args"`
+	ApiobserverEvents         *ebpf.Map `ebpf:"apiobserver_events"`
+	ArgsBufk                  *ebpf.Map `ebpf:"args_bufk"`
+	Bufk                      *ebpf.Map `ebpf:"bufk"`
+	Bufs                      *ebpf.Map `ebpf:"bufs"`
+	BufsOff                   *ebpf.Map `ebpf:"bufs_off"`
+	CmdArgsBuf                *ebpf.Map `ebpf:"cmd_args_buf"`
+	ConnectionFilterCache     *ebpf.Map `ebpf:"connection_filter_cache"`
+	Connections               *ebpf.Map `ebpf:"connections"`
+	EventScratch              *ebpf.Map `ebpf:"event_scratch"`
+	GoH2TransportEvents       *ebpf.Map `ebpf:"go_h2_transport_events"`
+	GoH2TransportScratch      *ebpf.Map `ebpf:"go_h2_transport_scratch"`
+	GoHttp2Events             *ebpf.Map `ebpf:"go_http2_events"`
+	GoOffsetsMap              *ebpf.Map `ebpf:"go_offsets_map"`
+	GrpccEvents               *ebpf.Map `ebpf:"grpcc_events"`
+	GrpccSymaddrsMap          *ebpf.Map `ebpf:"grpcc_symaddrs_map"`
+	KubearmorAlertThrottle    *ebpf.Map `ebpf:"kubearmor_alert_throttle"`
+	KubearmorArgsStore        *ebpf.Map `ebpf:"kubearmor_args_store"`
+	KubearmorArguments        *ebpf.Map `ebpf:"kubearmor_arguments"`
+	KubearmorConfig           *ebpf.Map `ebpf:"kubearmor_config"`
+	KubearmorContainers       *ebpf.Map `ebpf:"kubearmor_containers"`
+	KubearmorEvents           *ebpf.Map `ebpf:"kubearmor_events"`
+	KubearmorExecPids         *ebpf.Map `ebpf:"kubearmor_exec_pids"`
+	OngoingGrpcClientRequests *ebpf.Map `ebpf:"ongoing_grpc_client_requests"`
+	OngoingGrpcRequestStatus  *ebpf.Map `ebpf:"ongoing_grpc_request_status"`
+	OngoingGrpcServerRequests *ebpf.Map `ebpf:"ongoing_grpc_server_requests"`
+	PidFdToSock               *ebpf.Map `ebpf:"pid_fd_to_sock"`
+	SockToConnId              *ebpf.Map `ebpf:"sock_to_conn_id"`
+	SslSymaddrs               *ebpf.Map `ebpf:"ssl_symaddrs"`
+	StatsMap                  *ebpf.Map `ebpf:"stats_map"`
 }
 
 func (m *apiObserverMaps) Close() error {
@@ -285,6 +361,12 @@ func (m *apiObserverMaps) Close() error {
 		m.ConnectionFilterCache,
 		m.Connections,
 		m.EventScratch,
+		m.GoH2TransportEvents,
+		m.GoH2TransportScratch,
+		m.GoHttp2Events,
+		m.GoOffsetsMap,
+		m.GrpccEvents,
+		m.GrpccSymaddrsMap,
 		m.KubearmorAlertThrottle,
 		m.KubearmorArgsStore,
 		m.KubearmorArguments,
@@ -292,6 +374,9 @@ func (m *apiObserverMaps) Close() error {
 		m.KubearmorContainers,
 		m.KubearmorEvents,
 		m.KubearmorExecPids,
+		m.OngoingGrpcClientRequests,
+		m.OngoingGrpcRequestStatus,
+		m.OngoingGrpcServerRequests,
 		m.PidFdToSock,
 		m.SockToConnId,
 		m.SslSymaddrs,
@@ -309,31 +394,55 @@ type apiObserverVariables struct {
 //
 // It can be passed to loadApiObserverObjects or ebpf.CollectionSpec.LoadAndAssign.
 type apiObserverPrograms struct {
-	KprobeSysClose             *ebpf.Program `ebpf:"kprobe_sys_close"`
-	KprobeSysConnect           *ebpf.Program `ebpf:"kprobe_sys_connect"`
-	KprobeSysRead              *ebpf.Program `ebpf:"kprobe_sys_read"`
-	KprobeSysReadv             *ebpf.Program `ebpf:"kprobe_sys_readv"`
-	KprobeSysRecvfrom          *ebpf.Program `ebpf:"kprobe_sys_recvfrom"`
-	KprobeSysRecvmsg           *ebpf.Program `ebpf:"kprobe_sys_recvmsg"`
-	KprobeSysSendmsg           *ebpf.Program `ebpf:"kprobe_sys_sendmsg"`
-	KprobeSysSendto            *ebpf.Program `ebpf:"kprobe_sys_sendto"`
-	KprobeSysWrite             *ebpf.Program `ebpf:"kprobe_sys_write"`
-	KprobeSysWritev            *ebpf.Program `ebpf:"kprobe_sys_writev"`
-	KretprobeSysAccept         *ebpf.Program `ebpf:"kretprobe_sys_accept"`
-	KretprobeSysAccept4        *ebpf.Program `ebpf:"kretprobe_sys_accept4"`
-	KretprobeSysConnect        *ebpf.Program `ebpf:"kretprobe_sys_connect"`
-	KretprobeSysRead           *ebpf.Program `ebpf:"kretprobe_sys_read"`
-	KretprobeSysReadv          *ebpf.Program `ebpf:"kretprobe_sys_readv"`
-	KretprobeSysRecvfrom       *ebpf.Program `ebpf:"kretprobe_sys_recvfrom"`
-	KretprobeSysRecvmsg        *ebpf.Program `ebpf:"kretprobe_sys_recvmsg"`
-	TracepointInetSockSetState *ebpf.Program `ebpf:"tracepoint_inet_sock_set_state"`
-	UprobeSslRead              *ebpf.Program `ebpf:"uprobe_ssl_read"`
-	UprobeSslWrite             *ebpf.Program `ebpf:"uprobe_ssl_write"`
-	UretprobeSslRead           *ebpf.Program `ebpf:"uretprobe_ssl_read"`
+	KaUprobeClientConnInvoke               *ebpf.Program `ebpf:"ka_uprobe_ClientConn_Invoke"`
+	KaUprobeClientConnNewStream            *ebpf.Program `ebpf:"ka_uprobe_ClientConn_NewStream"`
+	KaUprobeGrpcC_recvInitialMetadataEntry *ebpf.Program `ebpf:"ka_uprobe_grpc_c_recv_initial_metadata_entry"`
+	KaUprobeOperateHeadersClient           *ebpf.Program `ebpf:"ka_uprobe_operate_headers_client"`
+	KaUprobeOperateHeadersClientEntry      *ebpf.Program `ebpf:"ka_uprobe_operate_headers_client_entry"`
+	KaUprobeOperateHeadersServer           *ebpf.Program `ebpf:"ka_uprobe_operate_headers_server"`
+	KaUprobeOperateHeadersServerEntry      *ebpf.Program `ebpf:"ka_uprobe_operate_headers_server_entry"`
+	KaUprobeServerHandleStream             *ebpf.Program `ebpf:"ka_uprobe_server_handleStream"`
+	KaUprobeTransportWriteStatus           *ebpf.Program `ebpf:"ka_uprobe_transport_writeStatus"`
+	KaUretprobeClientConnInvoke            *ebpf.Program `ebpf:"ka_uretprobe_ClientConn_Invoke"`
+	KaUretprobeClientStreamRecvMsg         *ebpf.Program `ebpf:"ka_uretprobe_clientStream_RecvMsg"`
+	KaUretprobeServerHandleStream          *ebpf.Program `ebpf:"ka_uretprobe_server_handleStream"`
+	KprobeSysClose                         *ebpf.Program `ebpf:"kprobe_sys_close"`
+	KprobeSysConnect                       *ebpf.Program `ebpf:"kprobe_sys_connect"`
+	KprobeSysRead                          *ebpf.Program `ebpf:"kprobe_sys_read"`
+	KprobeSysReadv                         *ebpf.Program `ebpf:"kprobe_sys_readv"`
+	KprobeSysRecvfrom                      *ebpf.Program `ebpf:"kprobe_sys_recvfrom"`
+	KprobeSysRecvmsg                       *ebpf.Program `ebpf:"kprobe_sys_recvmsg"`
+	KprobeSysSendmsg                       *ebpf.Program `ebpf:"kprobe_sys_sendmsg"`
+	KprobeSysSendto                        *ebpf.Program `ebpf:"kprobe_sys_sendto"`
+	KprobeSysWrite                         *ebpf.Program `ebpf:"kprobe_sys_write"`
+	KprobeSysWritev                        *ebpf.Program `ebpf:"kprobe_sys_writev"`
+	KretprobeSysAccept                     *ebpf.Program `ebpf:"kretprobe_sys_accept"`
+	KretprobeSysAccept4                    *ebpf.Program `ebpf:"kretprobe_sys_accept4"`
+	KretprobeSysConnect                    *ebpf.Program `ebpf:"kretprobe_sys_connect"`
+	KretprobeSysRead                       *ebpf.Program `ebpf:"kretprobe_sys_read"`
+	KretprobeSysReadv                      *ebpf.Program `ebpf:"kretprobe_sys_readv"`
+	KretprobeSysRecvfrom                   *ebpf.Program `ebpf:"kretprobe_sys_recvfrom"`
+	KretprobeSysRecvmsg                    *ebpf.Program `ebpf:"kretprobe_sys_recvmsg"`
+	TracepointInetSockSetState             *ebpf.Program `ebpf:"tracepoint_inet_sock_set_state"`
+	UprobeSslRead                          *ebpf.Program `ebpf:"uprobe_ssl_read"`
+	UprobeSslWrite                         *ebpf.Program `ebpf:"uprobe_ssl_write"`
+	UretprobeSslRead                       *ebpf.Program `ebpf:"uretprobe_ssl_read"`
 }
 
 func (p *apiObserverPrograms) Close() error {
 	return _ApiObserverClose(
+		p.KaUprobeClientConnInvoke,
+		p.KaUprobeClientConnNewStream,
+		p.KaUprobeGrpcC_recvInitialMetadataEntry,
+		p.KaUprobeOperateHeadersClient,
+		p.KaUprobeOperateHeadersClientEntry,
+		p.KaUprobeOperateHeadersServer,
+		p.KaUprobeOperateHeadersServerEntry,
+		p.KaUprobeServerHandleStream,
+		p.KaUprobeTransportWriteStatus,
+		p.KaUretprobeClientConnInvoke,
+		p.KaUretprobeClientStreamRecvMsg,
+		p.KaUretprobeServerHandleStream,
 		p.KprobeSysClose,
 		p.KprobeSysConnect,
 		p.KprobeSysRead,
