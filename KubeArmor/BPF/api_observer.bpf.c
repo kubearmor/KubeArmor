@@ -15,6 +15,12 @@
 #include "apiobserver/conn_tracker.h"
 #include "apiobserver/sock_trace.h"
 #include "apiobserver/openssl_trace.h"
+#include "apiobserver/go_http2_trace.h"
+
+// Go gRPC uprobes — attached to Go gRPC binaries at runtime.
+// Probe implementations are defined inline in go_http2_trace.h using
+// goroutine-based correlation (OTel-style). They capture the gRPC
+// method/path from transport.Stream.Method after HPACK decoding.
 
 SEC("uprobe/SSL_write")
 int uprobe_ssl_write(struct pt_regs *ctx) {

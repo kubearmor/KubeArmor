@@ -200,6 +200,14 @@ func (p *Parser) handleFrame(fh *FrameHeader, payload []byte) (*Message, error) 
 func (p *Parser) handleHeaders(fh *FrameHeader, payload []byte) (*Message, error) {
 	headerData := payload
 
+	slog.Debug("HTTP/2 HEADERS frame",
+		"stream_id", fh.StreamID,
+		"flags", fmt.Sprintf("0x%02x", fh.Flags),
+		"end_stream", fh.IsEndStream(),
+		"end_headers", fh.IsEndHeaders(),
+		"payload_len", len(payload),
+	)
+
 	if fh.Flags&FlagHeadersPadded != 0 {
 		if len(payload) == 0 {
 			return nil, fmt.Errorf("HEADERS with PADDED flag but empty payload")
@@ -304,7 +312,7 @@ func (p *Parser) handleSettings(fh *FrameHeader, payload []byte) (*Message, erro
 			p.maxHeaderListSize = val
 		case 1: // SETTINGS_HEADER_TABLE_SIZE
 			// Update HPACK decoder table size.
-			p.hpackDecoder.decoder.SetMaxDynamicTableSize(val)
+			p.hpackDecoder.SetMaxDynamicTableSize(val)
 		}
 	}
 	return nil, nil
@@ -343,17 +351,51 @@ func (p *Parser) deleteStream(streamID uint32) {
 func (p *Parser) decodeAndFinishHeaders(stream *StreamState, hpackData []byte, endStream bool) (*Message, error) {
 	fields, err := p.hpackDecoder.DecodeHeaders(hpackData)
 	if err != nil {
+		slog.Debug("HPACK decode error",
+			"stream_id", stream.StreamID,
+			"hpack_len", len(hpackData),
+			"error", err,
+		)
 		p.deleteStream(stream.StreamID)
 		return nil, fmt.Errorf("HPACK decode: %w", err)
 	}
 	method, path, scheme, authority, status := ExtractPseudoHeaders(fields)
-	stream.Message.Method = method
-	stream.Message.Path = path
-	stream.Message.Scheme = scheme
-	stream.Message.Authority = authority
-	stream.Message.Status = status
-	stream.Message.IsRequest = method != ""
-	stream.Message.Headers = HeadersToMap(fields)
+
+	slog.Debug("HTTP/2 HEADERS decoded",
+		"stream_id", stream.StreamID,
+		"method", method,
+		"path", path,
+		"status", status,
+		"scheme", scheme,
+		"authority", authority,
+		"num_fields", len(fields),
+		"end_stream", endStream,
+	)
+
+	if method != "" {
+		stream.Message.Method = method
+		stream.Message.IsRequest = true
+	}
+	if path != "" {
+		stream.Message.Path = path
+	}
+	if scheme != "" {
+		stream.Message.Scheme = scheme
+	}
+	if authority != "" {
+		stream.Message.Authority = authority
+	}
+	if status != "" {
+		stream.Message.Status = status
+	}
+
+	if stream.Message.Headers == nil {
+		stream.Message.Headers = make(map[string]string)
+	}
+	for k, v := range HeadersToMap(fields) {
+		stream.Message.Headers[k] = v
+	}
+
 	if ct, ok := stream.Message.Headers["content-type"]; ok {
 		stream.Message.ContentType = ct
 	}

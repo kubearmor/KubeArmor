@@ -121,7 +121,7 @@ func (s *APIObserverService) GetAPIMetrics(
 
 	// ✅ Changed: &pb.APIMetrics{} → &pb.APIObserverMetrics{}
 	return &pb.APIObserverMetrics{
-		Timestamp:            kl.GetCurrentTimeStamp(),
+		Timestamp:            fmt.Sprintf("%d", kl.GetCurrentTimeStamp()),
 		TotalEvents:          s.metrics.totalEvents,
 		EventsByProtocol:     cloneMapSU64(s.metrics.eventsByProtocol),
 		EventsByStatus:       cloneMapSU64(s.metrics.eventsByStatus),

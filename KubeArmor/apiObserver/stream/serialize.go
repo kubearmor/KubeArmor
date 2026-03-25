@@ -53,7 +53,7 @@ func serializeGRPCMessage(grpcMsg *grpc.Message) []byte {
 	}
 
 	fmt.Fprintf(&buf, "\r\n[gRPC %s: %d bytes]",
-	grpcMsg.MethodName, len(grpcMsg.RawMessage))
+	grpcMsg.MethodName, len(grpcMsg.RawBody))
 
 	return buf.Bytes()
 }

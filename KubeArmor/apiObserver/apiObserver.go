@@ -22,6 +22,7 @@ import (
 	"github.com/kubearmor/KubeArmor/KubeArmor/apiObserver/events"
 	"github.com/kubearmor/KubeArmor/KubeArmor/apiObserver/events/conn"
 	"github.com/kubearmor/KubeArmor/KubeArmor/apiObserver/filter"
+	"github.com/kubearmor/KubeArmor/KubeArmor/apiObserver/goprobe"
 	"github.com/kubearmor/KubeArmor/KubeArmor/apiObserver/ssl"
 	fd "github.com/kubearmor/KubeArmor/KubeArmor/feeder"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
@@ -45,10 +46,18 @@ type APIObserver struct {
 	Events        *ringbuf.Reader
 	EventsChannel chan []byte
 
+	// Go HTTP/2 header events ring buffer.
+	goHeaderEvents  *ringbuf.Reader
+	goHeaderChannel chan []byte
+
 	// Pipeline components.
 	filterer    *filter.Filterer
 	correlator  events.Correlator
 	connManager *conn.ConnectionManager
+
+	// Event buffer: batches events and flushes periodically.
+	eventBuf   []*pb.APIEvent
+	eventBufMu sync.Mutex
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -95,9 +104,11 @@ func NewAPIObserver(node tp.Node, pinpath string, logger fd.Feeder) (*APIObserve
 	}
 
 	if err = ao.attachKprobes(); err != nil {
-		ao.Logger.Errf("Failed to attach kprobes: %v", err)
+		ao.Logger.Warnf("Failed to initialize system api observer: %s", err.Error())
 		return nil, err
 	}
+
+
 
 	ao.Events, err = ringbuf.NewReader(ao.objs.ApiobserverEvents)
 	if err != nil {
@@ -113,7 +124,23 @@ func NewAPIObserver(node tp.Node, pinpath string, logger fd.Feeder) (*APIObserve
 	ao.correlator = cor
 	ao.connManager = conn.NewManager(cor, conn.DefaultConfig())
 	ao.Logger.Print("API Observer processing components initialized")
+
+
+	// Start the Go HTTP/2 header events ring buffer.
+	ao.goHeaderEvents, err = ringbuf.NewReader(ao.objs.GoHttp2Events)
+	if err != nil {
+		ao.Logger.Warnf("Go HTTP/2 header events ring buffer not available (uprobe headers disabled): %v", err)
+	} else {
+		ao.goHeaderChannel = make(chan []byte, 2048)
+		ao.Logger.Print("Go HTTP/2 header events ring buffer created")
+	}
+
 	go ao.TraceEvents()
+	go ao.flushLoop()
+
+	// Start background Go HTTP/2 uprobe scanner.
+	go ao.attachGoHTTP2Uprobes()
+
 	return ao, nil
 }
 
@@ -228,6 +255,77 @@ func (ao *APIObserver) TraceEvents() {
 	}
 }
 
+// drainGoHeaderEvents reads from the Go HTTP/2 header events ring buffer
+// and processes completed header blocks into the correlator.
+func (ao *APIObserver) drainGoHeaderEvents() {
+	ao.wg.Add(1)
+	defer ao.wg.Done()
+
+	if ao.goHeaderEvents == nil {
+		return
+	}
+
+	ao.Logger.Print("Starting Go HTTP/2 header events reader")
+
+	// Ring buffer reader goroutine.
+	go func() {
+		for {
+			record, err := ao.goHeaderEvents.Read()
+			if err != nil {
+				if errors.Is(err, ringbuf.ErrClosed) {
+					return
+				}
+				ao.Logger.Warnf("Go header ringbuf read error: %v", err)
+				continue
+			}
+			select {
+			case ao.goHeaderChannel <- record.RawSample:
+			case <-ao.ctx.Done():
+				return
+			default:
+				slog.Debug("Dropping Go header event due to load")
+			}
+		}
+	}()
+
+	// Processing loop.
+	for {
+		select {
+		case <-ao.ctx.Done():
+			return
+		case raw := <-ao.goHeaderChannel:
+			ev, err := events.ParseGoGRPCRequestEvent(raw)
+			if err != nil {
+				ao.Logger.Debugf("ParseGoGRPCRequestEvent error: %v", err)
+				continue
+			}
+			ao.processGoGRPCEvent(ev)
+		}
+	}
+}
+
+// processGoGRPCEvent handles a complete gRPC request event from the BPF uprobe.
+// Each event contains a full path and latency — no accumulation needed.
+func (ao *APIObserver) processGoGRPCEvent(ev *events.GoGRPCRequestEvent) {
+	if ev.Path == "" {
+		slog.Debug("Go uprobe: ignoring event with empty path",
+			"pid", ev.PID, "type", ev.EventType)
+		return
+	}
+
+	direction := "server"
+	if ev.EventType == events.GoGRPCEventClientRequest {
+		direction = "client"
+	}
+
+	ao.Logger.Printf("Go uprobe: gRPC %s event pid=%d path=%s status=%d latency=%dns",
+		direction, ev.PID, ev.Path, ev.Status, ev.LatencyNs())
+
+	// Inject into correlator so future kprobe events for this PID
+	// can match the path.
+	ao.correlator.InjectGoGRPCEvent(ev.PID, ev.Path, ev.Status, ev.StartNs, ev.EndNs)
+}
+
 func (ao *APIObserver) processEvent(ev events.DataEvent) {
 	traces := ao.connManager.Route(&ev)
 	for _, trace := range traces {
@@ -253,15 +351,17 @@ func sanitizeHeaders(m map[string]string) map[string]string {
 }
 
 func (ao *APIObserver) enrichAndEmit(trace *events.CorrelatedTrace, ev *events.DataEvent) {
-	// Request filter.
+	// Non-routable IP filter (loopback, multicast, broadcast).
+	if ao.filterer.IsLoopbackTraffic(ev.SrcIPString(), ev.DstIPString()) {
+		return
+	}
+
+	// Request-level filters.
 	ua := trace.RequestHeaders["user-agent"]
 	if !ao.filterer.ShouldTraceRequest(trace.URL, ua) {
 		return
 	}
 	if ao.filterer.IsHealthProbe(trace.URL, ua, trace.ResponseBody) {
-		return
-	}
-	if ao.filterer.IsLoopbackTraffic(ev.SrcIPString(), ev.DstIPString()) {
 		return
 	}
 
@@ -272,20 +372,16 @@ func (ao *APIObserver) enrichAndEmit(trace *events.CorrelatedTrace, ev *events.D
 		return
 	}
 	if ao.filterer.IsInternalHop(srcName, dstName, srcNS, dstNS) {
-		slog.Debug("Filtered internal cross-namespace hop",
-			"src", srcName, "srcNS", srcNS,
-			"dst", dstName, "dstNS", dstNS,
-			"method", trace.Method, "url", trace.URL)
 		return
 	}
-
-	// Build pb.APIEvent.
-	latencyNs := uint64(trace.DurationMs) * uint64(time.Millisecond)
 
 	var statusCode int32
 	if n, err := fmt.Sscanf(trace.Status, "%d", &statusCode); n == 0 || err != nil {
 		statusCode = 0
 	}
+
+	// Build pb.APIEvent.
+	latencyNs := uint64(trace.DurationNs)
 
 	apiEvent := pb.APIEvent{
 		Metadata: &pb.Metadata{
@@ -306,24 +402,70 @@ func (ao *APIObserver) enrichAndEmit(trace *events.CorrelatedTrace, ev *events.D
 			Port:      int32(ev.DstPort),
 		},
 		Request: &pb.Request{
-			Method:  sanitizeUTF8(trace.Method),
-			Path:    sanitizeUTF8(trace.URL),
-			Headers: sanitizeHeaders(trace.RequestHeaders),
-			Body:    sanitizeUTF8(trace.RequestBody),
+			Method:      sanitizeUTF8(trace.Method),
+			Path:        sanitizeUTF8(trace.URL),
+			Headers:     sanitizeHeaders(trace.RequestHeaders),
+			Body:        sanitizeUTF8(trace.RequestBody),
+			GrpcService: sanitizeUTF8(trace.GRPCService),
+			GrpcMethod:  sanitizeUTF8(trace.GRPCMethod),
+			ContentType: sanitizeUTF8(trace.ContentType),
 		},
 		Response: &pb.Response{
-			StatusCode: statusCode,
-			Headers:    sanitizeHeaders(trace.ResponseHeaders),
-			Body:       sanitizeUTF8(trace.ResponseBody),
+			StatusCode:        statusCode,
+			Headers:           sanitizeHeaders(trace.ResponseHeaders),
+			Body:              sanitizeUTF8(trace.ResponseBody),
+			GrpcStatusCode:    trace.GRPCStatus,
+			GrpcStatusMessage: sanitizeUTF8(trace.GRPCMessage),
 		},
 		Protocol:  ev.ProtocolString(),
 		LatencyNs: latencyNs,
 	}
 
-	// Push to feeder → gRPC subscribers.
-	ao.Logger.PushAPIEvent(apiEvent)
-	ao.Logger.Printf("API Event: %s %s -> %s/%s %s (%dms)",
-		sanitizeUTF8(trace.Method), sanitizeUTF8(trace.URL), dstNS, dstName, trace.Status, trace.DurationMs)
+	// Buffer the event for batched flushing.
+	ao.bufferEvent(&apiEvent)
+}
+
+const eventBufCap = 500
+
+// bufferEvent appends an event to the buffer and triggers a flush if full.
+func (ao *APIObserver) bufferEvent(ev *pb.APIEvent) {
+	ao.eventBufMu.Lock()
+	ao.eventBuf = append(ao.eventBuf, ev)
+	flush := len(ao.eventBuf) >= eventBufCap
+	ao.eventBufMu.Unlock()
+	if flush {
+		ao.flushEvents()
+	}
+}
+
+// flushEvents drains the buffer and pushes all events to the feeder.
+func (ao *APIObserver) flushEvents() {
+	ao.eventBufMu.Lock()
+	batch := ao.eventBuf
+	ao.eventBuf = nil
+	ao.eventBufMu.Unlock()
+
+	for _, ev := range batch {
+		ao.Logger.PushAPIEvent(*ev)
+	}
+}
+
+// flushLoop periodically flushes buffered events every 5 seconds.
+func (ao *APIObserver) flushLoop() {
+	ao.wg.Add(1)
+	defer ao.wg.Done()
+
+	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ticker.C:
+			ao.flushEvents()
+		case <-ao.ctx.Done():
+			ao.flushEvents() // Final drain.
+			return
+		}
+	}
 }
 
 // K8s metadata resolution
@@ -344,7 +486,7 @@ func (ao *APIObserver) resolveWorkload(ip string) (name, namespace string) {
 	return ip, ""
 }
 
-// SSL uprobes -> currently not being called. In Progress 
+// SSL uprobes -> currently not being called. In Progress
 func (ao *APIObserver) attachSSLUprobes() error {
 	libPaths, err := ssl.LibSSLPaths()
 	if err != nil {
@@ -379,6 +521,134 @@ func (ao *APIObserver) attachSSLUprobes() error {
 	return nil
 }
 
+// attachGoHTTP2Uprobes scans for Go HTTP/2 binaries and attaches uprobes.
+// Runs as a background goroutine, rescanning periodically for new processes.
+func (ao *APIObserver) attachGoHTTP2Uprobes() {
+	ao.wg.Add(1)
+	defer ao.wg.Done()
+
+	// Map of uprobe short IDs → BPF programs.
+	// For uretprobes, the key gets a "_ret" suffix.
+	probeMap := map[string]*ebpf.Program{
+		"server_handleStream":      ao.objs.KaUprobeServerHandleStream,
+		"server_handleStream_ret":  ao.objs.KaUretprobeServerHandleStream,
+		"transport_writeStatus":    ao.objs.KaUprobeTransportWriteStatus,
+		"ClientConn_Invoke":        ao.objs.KaUprobeClientConnInvoke,
+		"ClientConn_Invoke_ret":    ao.objs.KaUretprobeClientConnInvoke,
+		"ClientConn_NewStream":     ao.objs.KaUprobeClientConnNewStream,
+		"clientStream_RecvMsg_ret": ao.objs.KaUretprobeClientStreamRecvMsg,
+	}
+
+	// Track attached binaries to avoid re-probing.
+	attached := make(map[string]bool)
+
+	scanAndAttach := func() {
+		targets, err := goprobe.ScanProc()
+		if err != nil {
+			ao.Logger.Warnf("Go HTTP/2 binary scan error: %v", err)
+			return
+		}
+
+		for _, target := range targets {
+			if attached[target.BinaryPath] {
+				// Already probed this binary — just ensure BPF maps are populated.
+				ao.populateGoBPFMaps(target)
+				continue
+			}
+
+			ao.Logger.Printf("Attaching Go HTTP/2 uprobes to %s (PID %d, %d symbols)",
+				target.BinaryPath, target.PID, len(target.Symbols))
+
+			// Populate BPF maps with offsets for this PID.
+			ao.populateGoBPFMaps(target)
+
+			// Open the executable for uprobe attachment.
+			ex, err := link.OpenExecutable(target.BinaryPath)
+			if err != nil {
+				ao.Logger.Warnf("Failed to open Go binary %s: %v", target.BinaryPath, err)
+				continue
+			}
+
+			probeCount := 0
+			for shortID, addr := range target.Symbols {
+				// Attach entry uprobe.
+				if prog, ok := probeMap[shortID]; ok {
+					l, err := ex.Uprobe("", prog, &link.UprobeOptions{
+						Address: addr,
+					})
+					if err != nil {
+						ao.Logger.Warnf("Failed to attach uprobe %s at 0x%x on %s: %v",
+							shortID, addr, target.BinaryPath, err)
+					} else {
+						ao.links = append(ao.links, l)
+						probeCount++
+						ao.Logger.Printf("  uprobe/%s attached at 0x%x", shortID, addr)
+					}
+				}
+
+				// Attach return uprobe (uretprobe) if it exists.
+				retKey := shortID + "_ret"
+				if retProg, ok := probeMap[retKey]; ok {
+					l, err := ex.Uprobe("", retProg, &link.UprobeOptions{
+						Address: addr,
+					})
+					if err != nil {
+						ao.Logger.Warnf("Failed to attach uretprobe %s at 0x%x on %s: %v",
+							retKey, addr, target.BinaryPath, err)
+					} else {
+						ao.links = append(ao.links, l)
+						probeCount++
+						ao.Logger.Printf("  uretprobe/%s attached at 0x%x", retKey, addr)
+					}
+				}
+			}
+
+			if probeCount > 0 {
+				attached[target.BinaryPath] = true
+				ao.Logger.Printf("Attached %d Go HTTP/2 uprobes on %s",
+					probeCount, target.BinaryPath)
+			}
+		}
+	}
+
+	// Initial scan.
+	scanAndAttach()
+
+	// Start the Go header events reader after initial scan.
+	go ao.drainGoHeaderEvents()
+
+	// Periodic rescan for new Go binaries (every 30 seconds).
+	ticker := time.NewTicker(30 * time.Second)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ao.ctx.Done():
+			return
+		case <-ticker.C:
+			scanAndAttach()
+		}
+	}
+}
+
+// populateGoBPFMaps writes the offset table into the BPF map for a given target.
+func (ao *APIObserver) populateGoBPFMaps(target goprobe.GoUProbeTarget) {
+	if target.Inode == 0 {
+		ao.Logger.Warnf("populateGoBPFMaps: no inode for %s, skipping", target.BinaryPath)
+		return
+	}
+
+	ao.Logger.Printf("populateGoBPFMaps: pushing offset table for inode %d (binary %s)",
+		target.Inode, target.BinaryPath)
+
+	// Push offset table keyed by inode (matches BPF go_offsets_map).
+	// NOTE: GoOffsetsMap field will exist on apiObserverObjects after BPF
+	// recompilation with bpf2go. If it doesn't compile, regenerate with:
+	//   cd KubeArmor/BPF && make
+	if err := ao.objs.GoOffsetsMap.Put(target.Inode, target.OffsetTable); err != nil {
+		ao.Logger.Warnf("Failed to update go_offsets_map for inode %d: %v", target.Inode, err)
+	}
+}
+
 // Lifecycle
 func (ao *APIObserver) DestroyAPIObserver() error {
 	if ao == nil {
@@ -390,6 +660,12 @@ func (ao *APIObserver) DestroyAPIObserver() error {
 	}
 	if ao.Events != nil {
 		if err := ao.Events.Close(); err != nil {
+			ao.Logger.Err(err.Error())
+			cleanupErr = errors.Join(cleanupErr, err)
+		}
+	}
+	if ao.goHeaderEvents != nil {
+		if err := ao.goHeaderEvents.Close(); err != nil {
 			ao.Logger.Err(err.Error())
 			cleanupErr = errors.Join(cleanupErr, err)
 		}
