@@ -42,6 +42,10 @@ type ProcessPathType struct {
 	// +kubebuilder:validation:Optional
 	OwnerOnly bool `json:"ownerOnly,omitempty"`
 
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default:=true
+	Pts bool `json:"pts,omitempty"`
+
 	// +kubebuilder:validation:optional
 	FromSource []MatchSourceType `json:"fromSource,omitempty"`
 
@@ -62,6 +66,10 @@ type ProcessDirectoryType struct {
 	Recursive bool `json:"recursive,omitempty"`
 	// +kubebuilder:validation:Optional
 	OwnerOnly bool `json:"ownerOnly,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default:=true
+	Pts bool `json:"pts,omitempty"`
 
 	// +kubebuilder:validation:optional
 	FromSource []MatchSourceType `json:"fromSource,omitempty"`
@@ -114,7 +122,9 @@ type FilePathType struct {
 	ReadOnly bool `json:"readOnly,omitempty"`
 	// +kubebuilder:validation:Optional
 	OwnerOnly bool `json:"ownerOnly,omitempty"`
-
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default:=true
+	Pts bool `json:"pts,omitempty"`
 	// +kubebuilder:validation:optional
 	FromSource []MatchSourceType `json:"fromSource,omitempty"`
 
@@ -137,7 +147,9 @@ type FileDirectoryType struct {
 	ReadOnly bool `json:"readOnly,omitempty"`
 	// +kubebuilder:validation:Optional
 	OwnerOnly bool `json:"ownerOnly,omitempty"`
-
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default:=true
+	Pts bool `json:"pts,omitempty"`
 	// +kubebuilder:validation:optional
 	FromSource []MatchSourceType `json:"fromSource,omitempty"`
 
@@ -189,7 +201,9 @@ type MatchNetworkProtocolStringType string
 
 type MatchNetworkProtocolType struct {
 	Protocol MatchNetworkProtocolStringType `json:"protocol"`
-
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default:=true
+	Pts bool `json:"pts,omitempty"`
 	// +kubebuilder:validation:optional
 	FromSource []MatchSourceType `json:"fromSource,omitempty"`
 

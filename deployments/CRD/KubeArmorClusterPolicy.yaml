@@ -3,7 +3,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.19.0
+    controller-gen.kubebuilder.io/version: v0.16.5
   name: kubearmorclusterpolicies.security.kubearmor.com
 spec:
   group: security.kubearmor.com
@@ -149,6 +149,9 @@ spec:
                           type: string
                         ownerOnly:
                           type: boolean
+                        pts:
+                          default: true
+                          type: boolean
                         readOnly:
                           type: boolean
                         recursive:
@@ -191,6 +194,9 @@ spec:
                           maxLength: 200
                           pattern: ^\/+.*[^\/]$
                           type: string
+                        pts:
+                          default: true
+                          type: boolean
                         readOnly:
                           type: boolean
                         severity:
@@ -278,6 +284,9 @@ spec:
                         protocol:
                           pattern: (tcp|TCP|udp|UDP|raw|RAW|icmp|ICMP|icmpv6|ICMPV6|sctp|SCTP|stream|STREAM|dgram|DGRAM|rdm|RDM|seqpacket|SEQPACKET|dccp|DCCP|packet|PACKET|all|ALL)$
                           type: string
+                        pts:
+                          default: true
+                          type: boolean
                         severity:
                           maximum: 10
                           minimum: 1
@@ -347,6 +356,9 @@ spec:
                           type: string
                         ownerOnly:
                           type: boolean
+                        pts:
+                          default: true
+                          type: boolean
                         recursive:
                           type: boolean
                         severity:
@@ -395,6 +407,9 @@ spec:
                           maxLength: 200
                           pattern: ^\/+.*[^\/]$
                           type: string
+                        pts:
+                          default: true
+                          type: boolean
                         severity:
                           maximum: 10
                           minimum: 1
