@@ -12,6 +12,16 @@ helm upgrade --install kubearmor-operator kubearmor/kubearmor-operator -n kubear
 kubectl apply -f https://raw.githubusercontent.com/kubearmor/KubeArmor/main/pkg/KubeArmorOperator/config/samples/sample-config.yml
 ```
 
+### Note on CRI socket URL format
+
+When configuring the KubeArmor Operator to pass a CRI socket to a component via container args, use the `unix:///...` URL form (three slashes) for Unix domain sockets.
+
+Example:
+
+```text
+unix:///var/run/containerd/containerd.sock
+```
+
 You can find more details about helm related values and configurations [here](https://github.com/kubearmor/KubeArmor/tree/main/deployments/helm/KubeArmorOperator).
 
 ## Install kArmor CLI (Optional)
