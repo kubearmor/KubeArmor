@@ -100,6 +100,7 @@ message Alert {
   string Operation = 19; // e.g., Process, File, Network
   string Resource = 20; // e.g., /etc/passwd, tcp://1.2.3.4:80
   string Data = 21; // Additional data if any
+  map<string, string> EventData = 43; // Parsed key/value data from `Data` and (for Network) `Resource`
   string Enforcer = 28; // e.g., BPFLSM, AppArmor, eBPF Monitor
   string Action = 22; // e.g., Allow, Audit, Block
   string Result = 23; // e.g., Failed, Passed, Error
@@ -127,6 +128,7 @@ message Log {
   string Operation = 15;
   string Resource = 16;
   string Data = 17;
+  map<string, string> EventData = 33; // Parsed key/value data from `Data` and (for Network) `Resource`
   string Result = 18; // e.g., Success, Failed
 
   string Cwd = 25;
@@ -147,6 +149,19 @@ message ExecEvent {
   string ExecutableName = 2;
 }
 ```
+
+### `EventData`: structured key/value fields
+
+The gRPC `Alert` and `Log` payloads include an `EventData` map.
+
+* `EventData` is derived by parsing space-separated `key=value` pairs.
+* KubeArmor parses `Data` for all operations.
+* KubeArmor also parses `Resource` when `Operation` is `Network`.
+
+Example:
+
+* `Resource`: `sa_family=AF_INET sin_port=53 sin_addr=10.0.0.10`
+* `EventData`: `{ "Sa_family": "AF_INET", "Sin_port": "53", "Sin_addr": "10.0.0.10" }`
 
 These Protobuf definitions specify the exact structure and data types for the messages KubeArmor will send, ensuring that clients know exactly what data to expect. The `.pb.go` and `_grpc.pb.go` files are automatically generated from this `.proto` file and provide the Go code for serializing/deserializing these messages and implementing the gRPC service.
 
