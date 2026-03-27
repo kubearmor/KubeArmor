@@ -12,7 +12,44 @@ helm upgrade --install kubearmor-operator kubearmor/kubearmor-operator -n kubear
 kubectl apply -f https://raw.githubusercontent.com/kubearmor/KubeArmor/main/pkg/KubeArmorOperator/config/samples/sample-config.yml
 ```
 
-You can find more details about helm related values and configurations [here](https://github.com/kubearmor/KubeArmor/tree/main/deployments/helm/KubeArmorOperator).
+### Override the kubearmor-operator image tag (optional)
+
+To override the `kubearmor-operator` image tag during install/upgrade, set the Helm value `kubearmorOperator.image.tag`.
+
+Example:
+
+```bash
+helm upgrade --install kubearmor-operator kubearmor/kubearmor-operator \
+  -n kubearmor --create-namespace \
+  --set kubearmorOperator.image.tag=latest
+```
+
+You can find more details about helm related values and configurations in the upstream chart sources at [deployments/helm/KubeArmorOperator](https://github.com/kubearmor/KubeArmor/tree/main/deployments/helm/KubeArmorOperator).
+
+### Configure operator Pod resources (optional)
+
+The Helm chart supports setting container resources for the `kubearmor-operator` deployment via `kubearmorOperator.resources`.
+
+1. Create a values override file.
+2. Set `kubearmorOperator.resources`.
+3. Re-run `helm upgrade --install`.
+
+Example:
+
+```yaml
+kubearmorOperator:
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+```
+
+{% hint style="info" %}
+The upstream chart defaults `kubearmorOperator.resources` to `{}`.
+{% endhint %}
 
 ## Install kArmor CLI (Optional)
 
@@ -25,6 +62,22 @@ curl -sfL http://get.kubearmor.io/ | sudo sh -s -- -b /usr/local/bin
 > kArmor CLI provides a Developer Friendly way to interact with KubeArmor Telemetry. You can stream KubeArmor telemetry independently of kArmor CLI tool and integrate it with your chosen SIEM (Security Information and Event Management) solutions. [Here's a guide](https://github.com/kubearmor/kubearmor-relay-server/blob/main/README.md#streaming-kubearmor-telemetry-to-external-siem-tools) on how to achieve this integration. This guide assumes you have kArmor CLI to access KubeArmor Telemetry but you can view it on your SIEM tool once integrated.
 
 ## Deploy test nginx app
+
+## Verify node runtime detection (optional)
+
+The KubeArmor operator deploys a `kubearmor-snitch` Job that detects node information. The snitch detects the runtime by checking known runtime socket locations under the configured path prefix (default: `/rootfs`) and then patches the node with labels that include the detected runtime and socket.
+
+To see the detection logs:
+
+```bash
+kubectl logs -n kubearmor job/<snitch-job-name>
+```
+
+To see labels patched on a node:
+
+```bash
+kubectl get node <node-name> --show-labels
+```
 
 ```
 kubectl create deployment nginx --image=nginx
