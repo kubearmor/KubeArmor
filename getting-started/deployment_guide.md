@@ -14,6 +14,44 @@ kubectl apply -f https://raw.githubusercontent.com/kubearmor/KubeArmor/main/pkg/
 
 You can find more details about helm related values and configurations [here](https://github.com/kubearmor/KubeArmor/tree/main/deployments/helm/KubeArmorOperator).
 
+## Configure CRI socket detection (operator)
+
+KubeArmorOperator deploys a per-node **snitch** Job to detect node settings (for example, the container runtime and socket). The operator then uses those values to generate the KubeArmor DaemonSet for that node.
+
+### Understand what snitch detects
+
+Snitch checks for known container runtime socket files under a host filesystem prefix (default: `/rootfs`).
+
+* If a Kubernetes runtime hint is available, snitch checks known socket paths for that runtime first.
+* If no runtime hint is available or no matching socket is found, snitch searches for other known runtime sockets.
+
+Snitch logs the detected runtime and socket path:
+
+```text
+Detected <runtime> as node runtime, runtime socket=<socket>
+```
+
+### OCI hooks and CRI socket formatting
+
+When **OCI hooks** are enabled, snitch writes an OCI hook configuration that includes the `--runtime-socket` argument.
+
+{% hint style="info" %}
+For `cri-o`, snitch passes the runtime socket with a `unix://` prefix. For other runtimes, snitch passes the detected socket path as-is.
+{% endhint %}
+
+### Configure the CRI socket for KubeArmor (daemon)
+
+KubeArmor accepts a `-criSocket` flag (or `CRI_SOCKET` environment variable) to configure the container runtime socket path.
+
+* Use the format `unix:///path/to/file.sock`.
+* If the value does not start with `unix://`, KubeArmor returns an error.
+
+Example:
+
+```bash
+./kubearmor -k8s=false -criSocket=unix:///var/run/docker.sock
+```
+
 ## Install kArmor CLI (Optional)
 
 ```
