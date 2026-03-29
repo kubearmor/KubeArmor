@@ -29,8 +29,14 @@ type NsKey struct {
 
 // InnerKey Structure contains Map Rule Identifier
 type InnerKey struct {
-	Path   [200]byte
-	Source [200]byte
+	KeyType uint8
+	_pad    [7]byte
+	Ino     uint64
+	Dev     uint64
+	SrcIno  uint64
+	SrcDev  uint64
+	Path    [200]byte
+	Source  [200]byte
 }
 type ArgumentsKey struct {
 	NsKey
