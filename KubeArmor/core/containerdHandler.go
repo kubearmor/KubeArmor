@@ -138,11 +138,13 @@ func (ch *ContainerdHandler) Reconnect() error {
 	ch.client = client
 
 	// Resubscribe to docker namespace events
+	ch.docker = namespaces.WithNamespace(context.Background(), "moby")
 	dockerEventsCh, dockerErrCh := client.EventService().Subscribe(ch.docker, "")
 	ch.dockerEventsCh = dockerEventsCh
 	ch.dockerErrCh = dockerErrCh
 
 	// Resubscribe to k8s namespace events
+	ch.containerd = namespaces.WithNamespace(context.Background(), "k8s.io")
 	k8sEventsCh, k8sErrCh := client.EventService().Subscribe(ch.containerd, "")
 	ch.k8sEventsCh = k8sEventsCh
 	ch.k8sErrCh = k8sErrCh
