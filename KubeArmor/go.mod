@@ -24,6 +24,7 @@ replace (
 
 require (
 	github.com/Masterminds/sprig/v3 v3.3.0
+	github.com/accuknox/SentryFlow/protobuf/golang v0.0.0-20260301133930-7ac9c6659ed3
 	github.com/cilium/cilium v1.18.4
 	github.com/cilium/ebpf v0.19.1-0.20251013125301-c27ff922fc6a
 	github.com/containerd/containerd/api v1.9.0
@@ -44,7 +45,7 @@ require (
 	golang.org/x/exp v0.0.0-20250911091902-df9299821621
 	golang.org/x/sys v0.37.0
 	google.golang.org/grpc v1.75.1
-	google.golang.org/protobuf v1.36.9
+	google.golang.org/protobuf v1.36.11
 	k8s.io/api v0.34.1
 	k8s.io/apimachinery v0.34.1
 	k8s.io/client-go v0.34.1
