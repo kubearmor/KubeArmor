@@ -94,11 +94,11 @@ Let's break down the three types:
 
 These policies become Kubernetes Custom Resources when KubeArmor is installed. You can see their definitions in the KubeArmor source code under the `deployments/CRD` directory:
 
-- [KubeArmorPolicy CRD](deployments/CRD/KubeArmorPolicy.yaml) (KSP)
-- [KubeArmorHostPolicy CRD](deployments/CRD/KubeArmorHostPolicy.yaml) (HSP)
-- [KubeArmorClusterPolicy CRD](deployments/CRD/KubeArmorClusterPolicy.yaml) (CSP)
+- [KubeArmorPolicy CRD](https://github.com/kubearmor/KubeArmor/blob/main/deployments/CRD/KubeArmorPolicy.yaml) (KSP)
+- [KubeArmorHostPolicy CRD](https://github.com/kubearmor/KubeArmor/blob/main/deployments/CRD/KubeArmorHostPolicy.yaml) (HSP)
+- [KubeArmorClusterPolicy CRD](https://github.com/kubearmor/KubeArmor/blob/main/deployments/CRD/KubeArmorClusterPolicy.yaml) (CSP)
 
-And their corresponding Go type definitions are in [types/types.go](KubeArmor/types/types.go). You don't need to understand Go or CRD internals right now, just know that these files formally define the structure and rules for creating KubeArmor policies that Kubernetes understands.
+And their corresponding Go type definitions are in [types/types.go](https://github.com/kubearmor/KubeArmor/blob/main/KubeArmor/types/types.go). You don't need to understand Go or CRD internals right now, just know that these files formally define the structure and rules for creating KubeArmor policies that Kubernetes understands.
 
 ## How KubeArmor Uses Policies (Under the Hood)
 
