@@ -685,6 +685,11 @@ func (fd *Feeder) PushLog(log tp.Log) {
 		}
 	}
 
+	if log.Action == "BatchAudit" {
+		log.Action = "Audit"
+		log.Enforcer = "eBPF Monitor"
+	}
+
 	// change enforcer and format log Resource
 	if log.Operation == "Device" {
 		log.Enforcer = "USBDeviceHandler"

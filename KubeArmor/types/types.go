@@ -619,6 +619,14 @@ const (
 	ProtectProc PresetName = "protectProc"
 )
 
+// BatchAuditType defines configuration related to BatchAudit action.
+type BatchAuditType struct {
+	// IntervalSeconds is the interval for which the events are going to be
+	// aggregated for inside the BPF map. If there are multiple policies with
+	// action BatchAudit, the smallest interval takes precedence.
+	IntervalSeconds int32 `json:"intervalSeconds,omitempty"`
+}
+
 // SecuritySpec Structure
 type SecuritySpec struct {
 	Selector SelectorType `json:"selector"`
@@ -630,7 +638,8 @@ type SecuritySpec struct {
 	Syscalls     SyscallsType     `json:"syscalls,omitempty"`
 	Presets      []PresetType     `json:"presets,omitempty"`
 
-	AppArmor string `json:"apparmor,omitempty"`
+	AppArmor   string         `json:"apparmor,omitempty"`
+	BatchAudit BatchAuditType `json:"batchAudit"`
 
 	Severity int      `json:"severity,omitempty"`
 	Tags     []string `json:"tags,omitempty"`
@@ -665,7 +674,8 @@ type HostSecuritySpec struct {
 	Syscalls     SyscallsType     `json:"syscalls,omitempty"`
 	Device       DeviceType       `json:"device,omitempty"`
 
-	AppArmor string `json:"apparmor,omitempty"`
+	AppArmor   string         `json:"apparmor,omitempty"`
+	BatchAudit BatchAuditType `json:"batchAudit"`
 
 	Severity int      `json:"severity,omitempty"`
 	Tags     []string `json:"tags,omitempty"`
