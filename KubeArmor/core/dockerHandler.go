@@ -222,18 +222,33 @@ func (dh *DockerHandler) GetEventChannel(ctx context.Context, StopChan <-chan st
 
 		go func() {
 
-			eventStream, _ := dh.DockerClient.Events(ctx, events.ListOptions{})
+			eventStream, errCh := dh.DockerClient.Events(ctx, events.ListOptions{})
 			defer close(eventBuffer)
 
-			for event := range eventStream {
+			for {
 				select {
-				case eventBuffer <- event:
+				case event, ok := <-eventStream:
+					if !ok {
+						return
+					}
+					select {
+					case eventBuffer <- event:
+					case <-ctx.Done():
+						return
+					case <-StopChan:
+						return
+					default:
+						kg.Warnf("Docker channel full.")
+					}
+				case err, ok := <-errCh:
+					if ok && err != nil {
+						kg.Warnf("Docker event stream error: %v", err)
+					}
+					return
 				case <-ctx.Done():
 					return
 				case <-StopChan:
 					return
-				default:
-					kg.Warnf("Docker channel full.")
 				}
 			}
 		}()
@@ -807,6 +822,17 @@ func (dm *KubeArmorDaemon) MonitorDockerEvents() {
 
 		case msg, valid := <-EventChan:
 			if !valid {
+				kg.Warn("Docker event channel closed")
+				cancel()
+
+				if !dm.reconnectDocker() {
+					return
+				}
+
+				// create new context and event channel after reconnection
+				ctx, cancel = context.WithCancel(context.Background())
+				defer cancel()
+				EventChan = Docker.GetEventChannel(ctx, StopChan)
 				continue
 			}
 
@@ -815,5 +841,44 @@ func (dm *KubeArmorDaemon) MonitorDockerEvents() {
 				dm.UpdateDockerContainer(msg.ID, string(msg.Action))
 			}
 		}
+	}
+}
+
+// reconnectDocker attempts to reconnect to Docker with backoff.
+// Returns true on success, false if StopChan is signaled during retry.
+func (dm *KubeArmorDaemon) reconnectDocker() bool {
+	const maxRetryInterval = 60 * time.Second
+	retryInterval := 5 * time.Second
+
+	for {
+		dm.Logger.Printf("Attempting to reconnect to Docker in %v...", retryInterval)
+
+		select {
+		case <-StopChan:
+			return false
+		case <-time.After(retryInterval):
+		}
+
+		newDocker, err := NewDockerHandler()
+		if err != nil {
+			kg.Warnf("Failed to reconnect to Docker: %v", err)
+			retryInterval *= 2
+			if retryInterval > maxRetryInterval {
+				retryInterval = maxRetryInterval
+			}
+			continue
+		}
+
+		// Close old client
+		if Docker.DockerClient != nil {
+			if err := Docker.DockerClient.Close(); err != nil {
+				dm.Logger.Warnf("Failed to close old docker client connection: %v", err)
+			}
+
+		}
+		Docker = newDocker
+
+		dm.Logger.Print("Successfully reconnected to Docker")
+		return true
 	}
 }
