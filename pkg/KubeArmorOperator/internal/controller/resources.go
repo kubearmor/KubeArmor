@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"path/filepath"
 	"reflect"
 	"regexp"
 	"strconv"
@@ -218,20 +219,24 @@ func genRuntimeVolumes(runtime, runtimeSocket, nriSocket string) (vol []corev1.V
 	// lookup socket
 	for _, socket := range common.ContainerRuntimeSocketMap[runtime] {
 		if strings.ReplaceAll(socket[1:], "/", "_") == runtimeSocket {
+			// Mount the socket's parent directory instead of the file.
+			// Socket files are recreated on runtime restart (new inode),
+			// so file mounts can become stale, while directory mounts stay valid.
+			socketDir := filepath.Dir(socket)
 			vol = append(vol, corev1.Volume{
 				Name: runtime + "-socket",
 				VolumeSource: corev1.VolumeSource{
 					HostPath: &corev1.HostPathVolumeSource{
-						Path: socket,
-						Type: &common.HostPathSocket,
+						Path: socketDir,
+						Type: &common.HostPathDirectory,
 					},
 				},
 			})
 
-			socket = common.RuntimeSocketLocation[runtime]
+			mountDir := filepath.Dir(common.RuntimeSocketLocation[runtime])
 			volMnt = append(volMnt, corev1.VolumeMount{
 				Name:      runtime + "-socket",
-				MountPath: socket,
+				MountPath: mountDir,
 				ReadOnly:  true,
 			})
 			break
@@ -241,20 +246,21 @@ func genRuntimeVolumes(runtime, runtimeSocket, nriSocket string) (vol []corev1.V
 		runtime = "nri"
 		for _, socket := range common.ContainerRuntimeSocketMap[runtime] {
 			if strings.ReplaceAll(socket[1:], "/", "_") == nriSocket {
+				socketDir := filepath.Dir(socket)
 				vol = append(vol, corev1.Volume{
 					Name: runtime + "-socket",
 					VolumeSource: corev1.VolumeSource{
 						HostPath: &corev1.HostPathVolumeSource{
-							Path: socket,
-							Type: &common.HostPathSocket,
+							Path: socketDir,
+							Type: &common.HostPathDirectory,
 						},
 					},
 				})
 
-				socket = common.RuntimeSocketLocation[runtime]
+				mountDir := filepath.Dir(common.RuntimeSocketLocation[runtime])
 				volMnt = append(volMnt, corev1.VolumeMount{
 					Name:      runtime + "-socket",
-					MountPath: socket,
+					MountPath: mountDir,
 					ReadOnly:  true,
 				})
 				break
