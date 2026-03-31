@@ -380,7 +380,11 @@ func (dm *KubeArmorDaemon) MonitorCrioEvents() {
 		default:
 			containers, err := Crio.GetCrioContainers()
 			if err != nil {
-				return
+				kg.Warnf("Failed to list CRI-O containers: %v", err)
+				if !dm.reconnectCrio() {
+					return
+				}
+				continue
 			}
 
 			invalidContainers := []string{}
@@ -411,5 +415,41 @@ func (dm *KubeArmorDaemon) MonitorCrioEvents() {
 		}
 
 		time.Sleep(time.Millisecond * 50)
+	}
+}
+
+// reconnectCrio attempts to reconnect to CRI-O with backoff.
+// Returns true on success, false if StopChan is signaled during retry.
+func (dm *KubeArmorDaemon) reconnectCrio() bool {
+	const maxRetryInterval = 60 * time.Second
+	retryInterval := 5 * time.Second
+
+	for {
+		dm.Logger.Printf("Attempting to reconnect to CRI-O in %v...", retryInterval)
+
+		select {
+		case <-StopChan:
+			return false
+		case <-time.After(retryInterval):
+		}
+
+		newCrio := NewCrioHandler()
+		if newCrio == nil {
+			kg.Warn("Failed to reconnect to CRI-O")
+			retryInterval *= 2
+			if retryInterval > maxRetryInterval {
+				retryInterval = maxRetryInterval
+			}
+			continue
+		}
+
+		// Close old connection and replace handler
+		Crio.Close()
+		// Preserve the existing container map so we can diff correctly
+		newCrio.containers = Crio.containers
+		Crio = newCrio
+
+		dm.Logger.Print("Successfully reconnected to CRI-O")
+		return true
 	}
 }
