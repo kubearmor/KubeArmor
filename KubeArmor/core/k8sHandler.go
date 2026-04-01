@@ -6,13 +6,10 @@ package core
 import (
 	"bytes"
 	"context"
-	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
-	"os"
-	"path/filepath"
 	"time"
 
 	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
@@ -22,7 +19,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/clientcmd"
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
@@ -45,44 +41,13 @@ type K8sHandler struct {
 	HTTPClient  *http.Client
 	WatchClient *http.Client
 
-	K8sToken string
-	K8sHost  string
-	K8sPort  string
+	K8sHost string
 }
 
 // NewK8sHandler Function
 func NewK8sHandler() *K8sHandler {
 	kh := &K8sHandler{}
 
-	if val, ok := os.LookupEnv("KUBERNETES_SERVICE_HOST"); ok {
-		kh.K8sHost = kl.NormalizeIP(val)
-		if kh.K8sHost == "" {
-			kg.Errf("Invalid IP for KUBERNETES_SERVICE_HOST: %s", val)
-		}
-	} else {
-		kh.K8sHost = "127.0.0.1"
-	}
-
-	if val, ok := os.LookupEnv("KUBERNETES_PORT_443_TCP_PORT"); ok {
-		kh.K8sPort = val
-	} else {
-		kh.K8sPort = "8001" // kube-proxy
-	}
-
-	kh.HTTPClient = &http.Client{
-		Timeout: time.Second * 5,
-		// #nosec
-		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-		},
-	}
-
-	kh.WatchClient = &http.Client{
-		// #nosec
-		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-		},
-	}
 	config, err := ctrl.GetConfig()
 	if err != nil {
 		kg.Warnf("Error creating kubernetes config, %s", err)
@@ -109,71 +74,28 @@ func (kh *K8sHandler) InitK8sClient() error {
 	}
 
 	if kh.K8sClient == nil {
-		if kl.IsInK8sCluster() {
-			if err := kh.InitInclusterAPIClient(); err != nil {
-				return fmt.Errorf("failed to initialize in-cluster API client: %w", err)
-			}
-		} else if kl.IsK8sLocal() {
-			if err := kh.InitLocalAPIClient(); err != nil {
-				return fmt.Errorf("failed to initialize local API client: %w", err)
-			}
-		} else {
-			return fmt.Errorf("unable to determine kubernetes client configuration")
+		config := ctrl.GetConfigOrDie()
+		kh.K8sHost = config.Host
+
+		var err error
+		kh.K8sClient, err = kubernetes.NewForConfig(config)
+		if err != nil {
+			return fmt.Errorf("failed to create kubernetes client: %w", err)
+		}
+
+		kh.WatchClient, err = rest.HTTPClientFor(config)
+		if err != nil {
+			return fmt.Errorf("failed to create watch client: %w", err)
+		}
+
+		configWithTimeout := rest.CopyConfig(config)
+		configWithTimeout.Timeout = time.Second * 5
+
+		kh.HTTPClient, err = rest.HTTPClientFor(configWithTimeout)
+		if err != nil {
+			return fmt.Errorf("failed to create http client: %w", err)
 		}
 	}
-
-	return nil
-}
-
-// InitLocalAPIClient Function
-func (kh *K8sHandler) InitLocalAPIClient() error {
-	kubeconfig := os.Getenv("KUBECONFIG")
-	if kubeconfig == "" {
-		kubeconfig = os.Getenv("HOME") + "/.kube/config"
-		if _, err := os.Stat(filepath.Clean(kubeconfig)); err != nil { //#nosec G703
-			return fmt.Errorf("kubeconfig file not found at %s: %w", kubeconfig, err)
-		}
-	}
-
-	// use the current context in kubeconfig
-	config, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
-	if err != nil {
-		return fmt.Errorf("failed to build config from kubeconfig %s: %w", kubeconfig, err)
-	}
-
-	// creates the clientset
-	client, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		return fmt.Errorf("failed to create kubernetes client: %w", err)
-	}
-	kh.K8sClient = client
-
-	return nil
-}
-
-// InitInclusterAPIClient Function
-func (kh *K8sHandler) InitInclusterAPIClient() error {
-	read, err := os.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/token")
-	if err != nil {
-		return fmt.Errorf("failed to read service account token: %w", err)
-	}
-	kh.K8sToken = string(read)
-
-	// create the configuration by token
-	kubeConfig := &rest.Config{
-		Host:        "https://" + kh.K8sHost + ":" + kh.K8sPort,
-		BearerToken: kh.K8sToken,
-		// #nosec
-		TLSClientConfig: rest.TLSClientConfig{
-			Insecure: true,
-		},
-	}
-
-	client, err := kubernetes.NewForConfig(kubeConfig)
-	if err != nil {
-		return fmt.Errorf("failed to create kubernetes client with in-cluster config: %w", err)
-	}
-	kh.K8sClient = client
 
 	return nil
 }
@@ -184,28 +106,19 @@ func (kh *K8sHandler) InitInclusterAPIClient() error {
 
 // DoRequest Function
 func (kh *K8sHandler) DoRequest(cmd string, data any, path string) ([]byte, error) {
-	URL := ""
-
-	if kl.IsInK8sCluster() {
-		URL = "https://" + kh.K8sHost + ":" + kh.K8sPort
-	} else {
-		URL = "http://" + kh.K8sHost + ":" + kh.K8sPort
-	}
+	URL := kh.K8sHost + path
 
 	pbytes, err := json.Marshal(data)
 	if err != nil {
 		return nil, err
 	}
 
-	req, err := http.NewRequest(cmd, URL+path, bytes.NewBuffer(pbytes))
+	req, err := http.NewRequest(cmd, URL, bytes.NewBuffer(pbytes))
 	if err != nil {
 		return nil, err
 	}
 
-	if kl.IsInK8sCluster() {
-		req.Header.Add("Content-Type", "application/json")
-		req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", kh.K8sToken))
-	}
+	req.Header.Add("Content-Type", "application/json")
 
 	resp, err := kh.HTTPClient.Do(req) // #nosec G704 -- safe request sent only to trusted Kubernetes API server
 	if err != nil {
@@ -483,33 +396,21 @@ func (kh *K8sHandler) WatchK8sSecurityPolicies() *http.Response {
 		return nil
 	}
 
-	if kl.IsInK8sCluster() {
-		URL := "https://" + kh.K8sHost + ":" + kh.K8sPort + "/apis/security.kubearmor.com/v1/kubearmorpolicies?watch=true"
+	URL := kh.K8sHost + "/apis/security.kubearmor.com/v1/kubearmorpolicies?watch=true"
 
-		req, err := http.NewRequest("GET", URL, nil)
-		if err != nil {
-			return nil
-		}
-
-		req.Header.Add("Content-Type", "application/json")
-		req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", kh.K8sToken))
-
-		resp, err := kh.WatchClient.Do(req) // #nosec G704 -- safe request, sent only to trusted Kubernetes API server
-		if err != nil {
-			return nil
-		}
-
-		return resp
+	req, err := http.NewRequest("GET", URL, nil)
+	if err != nil {
+		return nil
 	}
 
-	// kube-proxy (local)
-	URL := "http://" + kh.K8sHost + ":" + kh.K8sPort + "/apis/security.kubearmor.com/v1/kubearmorpolicies?watch=true"
+	req.Header.Add("Content-Type", "application/json")
 
-	if resp, err := http.Get(URL); err == nil /* #nosec */ {
-		return resp
+	resp, err := kh.WatchClient.Do(req) // #nosec G704 -- safe request, sent only to trusted Kubernetes API server
+	if err != nil {
+		return nil
 	}
 
-	return nil
+	return resp
 }
 
 // WatchK8sHostSecurityPolicies Function
@@ -518,33 +419,21 @@ func (kh *K8sHandler) WatchK8sHostSecurityPolicies() *http.Response {
 		return nil
 	}
 
-	if kl.IsInK8sCluster() {
-		URL := "https://" + kh.K8sHost + ":" + kh.K8sPort + "/apis/security.kubearmor.com/v1/kubearmorhostpolicies?watch=true"
+	URL := kh.K8sHost + "/apis/security.kubearmor.com/v1/kubearmorhostpolicies?watch=true"
 
-		req, err := http.NewRequest("GET", URL, nil)
-		if err != nil {
-			return nil
-		}
-
-		req.Header.Add("Content-Type", "application/json")
-		req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", kh.K8sToken))
-
-		resp, err := kh.WatchClient.Do(req) // #nosec G704 -- safe request, sent only to trusted Kubernetes API server
-		if err != nil {
-			return nil
-		}
-
-		return resp
+	req, err := http.NewRequest("GET", URL, nil)
+	if err != nil {
+		return nil
 	}
 
-	// kube-proxy (local)
-	URL := "http://" + kh.K8sHost + ":" + kh.K8sPort + "/apis/security.kubearmor.com/v1/kubearmorhostpolicies?watch=true"
+	req.Header.Add("Content-Type", "application/json")
 
-	if resp, err := http.Get(URL); err == nil /* #nosec */ {
-		return resp
+	resp, err := kh.WatchClient.Do(req) // #nosec G704 -- safe request, sent only to trusted Kubernetes API server
+	if err != nil {
+		return nil
 	}
 
-	return nil
+	return resp
 }
 
 // WatchK8sNetworkSecurityPolicies Function
@@ -553,33 +442,21 @@ func (kh *K8sHandler) WatchK8sNetworkSecurityPolicies() *http.Response {
 		return nil
 	}
 
-	if kl.IsInK8sCluster() {
-		URL := "https://" + kh.K8sHost + ":" + kh.K8sPort + "/apis/security.kubearmor.com/v1/kubearmornetworkpolicies?watch=true"
+	URL := kh.K8sHost + "/apis/security.kubearmor.com/v1/kubearmornetworkpolicies?watch=true"
 
-		req, err := http.NewRequest("GET", URL, nil)
-		if err != nil {
-			return nil
-		}
-
-		req.Header.Add("Content-Type", "application/json")
-		req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", kh.K8sToken))
-
-		resp, err := kh.WatchClient.Do(req) // #nosec G704
-		if err != nil {
-			return nil
-		}
-
-		return resp
+	req, err := http.NewRequest("GET", URL, nil)
+	if err != nil {
+		return nil
 	}
 
-	// kube-proxy (local)
-	URL := "http://" + kh.K8sHost + ":" + kh.K8sPort + "/apis/security.kubearmor.com/v1/kubearmornetworkpolicies?watch=true"
+	req.Header.Add("Content-Type", "application/json")
 
-	if resp, err := http.Get(URL); err == nil /* #nosec */ {
-		return resp
+	resp, err := kh.WatchClient.Do(req) // #nosec G704
+	if err != nil {
+		return nil
 	}
 
-	return nil
+	return resp
 }
 
 // this function get the owner details of a pod
