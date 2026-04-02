@@ -107,7 +107,7 @@ jobs:
           password: ${{ secrets.DOCKER_AUTHTOK }}  
 
       - name: Set up AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v2
+        uses: aws-actions/configure-aws-credentials@v6
         with:
           aws-access-key-id: ${{ secrets.AWS_ECR_ACCESS_ID }}
           aws-secret-access-key: ${{ secrets.AWS_ECR_SECRET_ID }}
@@ -203,7 +203,7 @@ jobs:
               
       - name: Set up AWS Credentials
         if: steps.match.outputs.tag == 'true'
-        uses: aws-actions/configure-aws-credentials@v2
+        uses: aws-actions/configure-aws-credentials@v6
         with:
           aws-access-key-id: ${{ secrets.AWS_ECR_ACCESS_ID }}
           aws-secret-access-key: ${{ secrets.AWS_ECR_SECRET_ID }}
@@ -280,7 +280,7 @@ jobs:
           password: ${{ secrets.DOCKER_AUTHTOK }}
 
       - name: Set up AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v2
+        uses: aws-actions/configure-aws-credentials@v6
         with:
           aws-access-key-id: ${{ secrets.AWS_ECR_ACCESS_ID }}
           aws-secret-access-key: ${{ secrets.AWS_ECR_SECRET_ID }}
