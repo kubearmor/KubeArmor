@@ -60,7 +60,7 @@ int BPF_PROG(enforce_proc, struct linux_binprm *bprm, int ret)
   void *path_ptr = &path_buf->buf[*path_offset];
   bpf_probe_read_str(store->path, MAX_STRING_SIZE, path_ptr);
   // Fill inode and device for exact (inode-based) lookup
-  struct dentry *dentry_path = BPF_CORE_READ(f_path, dentry);
+  struct dentry *dentry_path = BPF_CORE_READ(&f_path, dentry);
   if (dentry_path) {
     store->ino = BPF_CORE_READ(dentry_path, d_inode, i_ino);
     store->dev = BPF_CORE_READ(dentry_path, d_inode, i_sb, s_dev);
@@ -102,7 +102,7 @@ int BPF_PROG(enforce_proc, struct linux_binprm *bprm, int ret)
     bpf_probe_read_str(store->source, MAX_STRING_SIZE, src_ptr);
 
     // Fill source inode/device for exact match
-    struct dentry *dentry_src = BPF_CORE_READ(f_src, dentry);
+    struct dentry *dentry_src = BPF_CORE_READ(&f_src, dentry);
     if (dentry_src) {
       store->src_ino = BPF_CORE_READ(dentry_src, d_inode, i_ino);
       store->src_dev = BPF_CORE_READ(dentry_src, d_inode, i_sb, s_dev);
