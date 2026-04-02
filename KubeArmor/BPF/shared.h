@@ -632,11 +632,11 @@ static bool is_pts(struct task_struct *task)
   signal = BPF_CORE_READ(task, signal);
   if (signal != NULL)
   {
-      struct tty_struct *tty = BPF_CORE_READ(signal, tty);
-      if (tty != NULL)
-      {
-          return true;
-      }
+    struct tty_struct *tty = BPF_CORE_READ(signal, tty);
+    if (tty != NULL)
+    {
+      return true;
+    }
   }
   return false;
 }
@@ -918,12 +918,12 @@ decision:
       {
         if (val && (val->filemask & RULE_PTS))
         {
-          if(is_pts(t))
+          if (is_pts(t))
           {
             retval = -EPERM;
           }
         }
-        else 
+        else
         {
           retval = -EPERM;
         }
@@ -953,7 +953,7 @@ decision:
       {
         if (val && (val->filemask & RULE_PTS))
         {
-          if(is_pts(t))
+          if (is_pts(t))
           {
             retval = -EPERM;
           }
@@ -987,7 +987,7 @@ decision:
       {
         if (val && (val->filemask & RULE_PTS))
         {
-          if(is_pts(t))
+          if (is_pts(t))
           {
             retval = -EPERM;
           }
@@ -1017,12 +1017,12 @@ decision:
           retval = -EPERM;
         }
         goto ringbuf;
-      } 
+      }
       else
       {
         if (val && (val->filemask & RULE_PTS))
         {
-          if(is_pts(t))
+          if (is_pts(t))
           {
             retval = -EPERM;
           }
@@ -1068,7 +1068,7 @@ decision:
       {
         if (val && (val->filemask & RULE_PTS))
         {
-          if(is_pts(t))
+          if (is_pts(t))
           {
             retval = -EPERM;
           }
