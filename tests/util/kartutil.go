@@ -323,7 +323,7 @@ func K8sExecInPod(pod string, ns string, cmd []string) (string, string, error) {
 	}
 	buf := &bytes.Buffer{}
 	errBuf := &bytes.Buffer{}
-	exec.Stream(remotecommand.StreamOptions{
+	exec.StreamWithContext(context.TODO(), remotecommand.StreamOptions{
 		Stdout: buf,
 		Stderr: errBuf,
 	})
@@ -350,7 +350,7 @@ func K8sExecInPodWithContainer(pod string, ns string, container string, cmd []st
 	}
 	buf := &bytes.Buffer{}
 	errBuf := &bytes.Buffer{}
-	exec.Stream(remotecommand.StreamOptions{
+	exec.StreamWithContext(context.TODO(), remotecommand.StreamOptions{
 		Stdout: buf,
 		Stderr: errBuf,
 	})
