@@ -1432,6 +1432,12 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 							} else if log.UID != log.OID {
 								matchedFlags = true
 							}
+						} else if !*secPolicy.Pts {
+							if log.TTY == "" {
+								matchedFlags = false
+							} else {
+								matchedFlags = true
+							}
 						} else {
 							// ! read only && ! owner only
 							matchedFlags = true
@@ -1622,6 +1628,13 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 					protocol := fetchProtocol(log.Resource)
 					if protocol == secPolicy.Resource || secPolicy.Resource == "all" {
 						matchedFlags = true
+					}
+					if !*secPolicy.Pts {
+						if log.TTY == "" {
+							matchedFlags = false
+						} else {
+							matchedFlags = true
+						}
 					}
 
 					if matchedFlags {

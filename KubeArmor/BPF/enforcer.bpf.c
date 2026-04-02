@@ -277,7 +277,7 @@ decision:
     }
     if (val && (val->processmask & RULE_PTS))
     {
-      if(is_pts(t))
+      if (is_pts(t))
       {
         retval = -EPERM;
       }
@@ -348,11 +348,11 @@ decision:
     {
       if (val && (val->processmask & RULE_PTS))
       {
-        if(is_pts(t))
+        if (is_pts(t))
         {
           retval = -EPERM;
         }
-      } 
+      }
       else
       {
         retval = -EPERM;
@@ -549,12 +549,14 @@ decision:
     {
       if (val && (val->processmask & RULE_PTS))
       {
-        if(is_pts(t))
+        if (is_pts(t))
         {
           retval = -EPERM;
           goto ringbuf;
         }
-      } else {
+      }
+      else
+      {
         retval = -EPERM;
         goto ringbuf;
       }
@@ -575,14 +577,15 @@ decision:
         retval = -EPERM;
       }
       goto ringbuf;
-    } 
-    else 
+    }
+    else
     {
       if (allow && allow->processmask == BLOCK_POSTURE)
       {
-        if(val && (val->processmask & RULE_PTS))
+        if (val && (val->processmask & RULE_PTS))
         {
-          if (is_pts(t)){
+          if (is_pts(t))
+          {
             retval = -EPERM;
           }
         }
