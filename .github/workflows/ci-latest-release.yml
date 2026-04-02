@@ -106,16 +106,16 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_AUTHTOK }}  
 
-      - name: Set up AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v6
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ECR_ACCESS_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_ECR_SECRET_ID }}
-          aws-region: us-east-1
+      # - name: Set up AWS Credentials
+      #   uses: aws-actions/configure-aws-credentials@v6
+      #   with:
+      #     aws-access-key-id: ${{ secrets.AWS_ECR_ACCESS_ID }}
+      #     aws-secret-access-key: ${{ secrets.AWS_ECR_SECRET_ID }}
+      #     aws-region: us-east-1
   
-      - name: Login to AWS ECR
-        run: |
-          aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws/k9v9d5v2
+      # - name: Login to AWS ECR
+      #   run: |
+      #     aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws/k9v9d5v2
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v2
@@ -137,11 +137,11 @@ jobs:
       - name: Build KubeArmor images to Docker
         run: GITHUB_SHA=$GITHUB_SHA ./KubeArmor/build/push_kubearmor.sh ${{ steps.vars.outputs.tag }} --push
 
-      - name: Generate the TAG of KubeArmor in ECR
-        run: |
-          regctl image copy kubearmor/kubearmor:${{ steps.vars.outputs.tag }} public.ecr.aws/k9v9d5v2/kubearmor/kubearmor:${{ steps.vars.outputs.tag }} --digest-tags
-          regctl image copy kubearmor/kubearmor-ubi:${{ steps.vars.outputs.tag }} public.ecr.aws/k9v9d5v2/kubearmor/kubearmor-ubi:${{ steps.vars.outputs.tag }} --digest-tags
-          regctl image copy kubearmor/kubearmor-init:${{ steps.vars.outputs.tag }} public.ecr.aws/k9v9d5v2/kubearmor/kubearmor-init:${{ steps.vars.outputs.tag }} --digest-tags
+      # - name: Generate the TAG of KubeArmor in ECR
+      #   run: |
+      #     regctl image copy kubearmor/kubearmor:${{ steps.vars.outputs.tag }} public.ecr.aws/k9v9d5v2/kubearmor/kubearmor:${{ steps.vars.outputs.tag }} --digest-tags
+      #     regctl image copy kubearmor/kubearmor-ubi:${{ steps.vars.outputs.tag }} public.ecr.aws/k9v9d5v2/kubearmor/kubearmor-ubi:${{ steps.vars.outputs.tag }} --digest-tags
+      #     regctl image copy kubearmor/kubearmor-init:${{ steps.vars.outputs.tag }} public.ecr.aws/k9v9d5v2/kubearmor/kubearmor-init:${{ steps.vars.outputs.tag }} --digest-tags
         
       - name: Install Cosign
         uses: sigstore/cosign-installer@main
@@ -201,18 +201,18 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_AUTHTOK }}
               
-      - name: Set up AWS Credentials
-        if: steps.match.outputs.tag == 'true'
-        uses: aws-actions/configure-aws-credentials@v6
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ECR_ACCESS_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_ECR_SECRET_ID }}
-          aws-region: us-east-1
+      # - name: Set up AWS Credentials
+      #   if: steps.match.outputs.tag == 'true'
+      #   uses: aws-actions/configure-aws-credentials@v6
+      #   with:
+      #     aws-access-key-id: ${{ secrets.AWS_ECR_ACCESS_ID }}
+      #     aws-secret-access-key: ${{ secrets.AWS_ECR_SECRET_ID }}
+      #     aws-region: us-east-1
   
-      - name: Login to AWS ECR
-        if: steps.match.outputs.tag == 'true'
-        run: |
-          aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws/k9v9d5v2
+      # - name: Login to AWS ECR
+      #   if: steps.match.outputs.tag == 'true'
+      #   run: |
+      #     aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws/k9v9d5v2
             
       - name: Generate the stable version of KubeArmor in Docker Hub
         if: steps.match.outputs.tag == 'true'
@@ -222,13 +222,13 @@ jobs:
           regctl image copy kubearmor/kubearmor-ubi:$STABLE_VERSION kubearmor/kubearmor-ubi:stable --digest-tags
           regctl image copy kubearmor/kubearmor-init:$STABLE_VERSION kubearmor/kubearmor-init:stable --digest-tags
 
-      - name: Generate the stable version of KubeArmor in ECR
-        if: steps.match.outputs.tag == 'true'
-        run: |
-          STABLE_VERSION=`cat STABLE-RELEASE`
-          regctl image copy kubearmor/kubearmor:$STABLE_VERSION public.ecr.aws/k9v9d5v2/kubearmor/kubearmor:stable --digest-tags
-          regctl image copy kubearmor/kubearmor-ubi:$STABLE_VERSION public.ecr.aws/k9v9d5v2/kubearmor/kubearmor-ubi:stable --digest-tags
-          regctl image copy kubearmor/kubearmor-init:$STABLE_VERSION public.ecr.aws/k9v9d5v2/kubearmor/kubearmor-init:stable --digest-tags
+      # - name: Generate the stable version of KubeArmor in ECR
+      #   if: steps.match.outputs.tag == 'true'
+      #   run: |
+      #     STABLE_VERSION=`cat STABLE-RELEASE`
+      #     regctl image copy kubearmor/kubearmor:$STABLE_VERSION public.ecr.aws/k9v9d5v2/kubearmor/kubearmor:stable --digest-tags
+      #     regctl image copy kubearmor/kubearmor-ubi:$STABLE_VERSION public.ecr.aws/k9v9d5v2/kubearmor/kubearmor-ubi:stable --digest-tags
+      #     regctl image copy kubearmor/kubearmor-init:$STABLE_VERSION public.ecr.aws/k9v9d5v2/kubearmor/kubearmor-init:stable --digest-tags
 
   kubearmor-controller-release:
     name: Build & Push KubeArmorController
@@ -279,16 +279,16 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_AUTHTOK }}
 
-      - name: Set up AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v6
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ECR_ACCESS_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_ECR_SECRET_ID }}
-          aws-region: us-east-1
+      # - name: Set up AWS Credentials
+      #   uses: aws-actions/configure-aws-credentials@v6
+      #   with:
+      #     aws-access-key-id: ${{ secrets.AWS_ECR_ACCESS_ID }}
+      #     aws-secret-access-key: ${{ secrets.AWS_ECR_SECRET_ID }}
+      #     aws-region: us-east-1
   
-      - name: Login to AWS ECR
-        run: |
-          aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws/k9v9d5v2
+      # - name: Login to AWS ECR
+      #   run: |
+      #     aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws/k9v9d5v2
 
       - name: Get tag
         id: tag
@@ -316,9 +316,9 @@ jobs:
       - name: Build & Push KubeArmorController
         run: make docker-buildx TAG=${{ steps.tag.outputs.tag }} BUILD_MODE=--push
 
-      - name: Push KubeArmor controller to ECR
-        run: |
-          regctl image copy kubearmor/kubearmor-controller:${{ steps.tag.outputs.tag }} public.ecr.aws/k9v9d5v2/kubearmor/kubearmor-controller:${{ steps.tag.outputs.tag }}--digest-tags
+      # - name: Push KubeArmor controller to ECR
+      #   run: |
+      #     regctl image copy kubearmor/kubearmor-controller:${{ steps.tag.outputs.tag }} public.ecr.aws/k9v9d5v2/kubearmor/kubearmor-controller:${{ steps.tag.outputs.tag }}--digest-tags
 
       - name: Install Cosign
         uses: sigstore/cosign-installer@main
