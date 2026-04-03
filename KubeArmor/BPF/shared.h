@@ -214,6 +214,7 @@ struct
 #define RULE_HINT 1 << 6
 #define RULE_DENY 1 << 7
 #define RULE_ARGSET 1 << 8
+#define RULE_PTS 1 << 9
 
 #define MASK_WRITE 0x00000002
 #define MASK_READ 0x00000004
@@ -625,6 +626,21 @@ static __always_inline bool should_drop_alerts_per_container(struct outer_key ok
   return false;
 }
 
+static bool is_pts(struct task_struct *task)
+{
+  struct signal_struct *signal;
+  signal = BPF_CORE_READ(task, signal);
+  if (signal != NULL)
+  {
+    struct tty_struct *tty = BPF_CORE_READ(signal, tty);
+    if (tty != NULL)
+    {
+      return true;
+    }
+  }
+  return false;
+}
+
 static bool is_owner(struct file *file_p)
 {
   kuid_t owner = BPF_CORE_READ(file_p, f_inode, i_uid);
@@ -900,7 +916,17 @@ decision:
       }
       if (val && (val->filemask & RULE_DENY))
       {
-        retval = -EPERM;
+        if (val && (val->filemask & RULE_PTS))
+        {
+          if (is_pts(t))
+          {
+            retval = -EPERM;
+          }
+        }
+        else
+        {
+          retval = -EPERM;
+        }
       }
     }
 
@@ -922,6 +948,17 @@ decision:
           retval = -EPERM;
         }
         goto ringbuf;
+      }
+      else
+      {
+        if (val && (val->filemask & RULE_PTS))
+        {
+          if (is_pts(t))
+          {
+            retval = -EPERM;
+          }
+          goto ringbuf;
+        }
       }
     }
   }
@@ -948,7 +985,17 @@ decision:
       }
       if (val && (val->filemask & RULE_DENY))
       {
-        retval = -EPERM;
+        if (val && (val->filemask & RULE_PTS))
+        {
+          if (is_pts(t))
+          {
+            retval = -EPERM;
+          }
+        }
+        else
+        {
+          retval = -EPERM;
+        }
       }
     }
 
@@ -970,6 +1017,17 @@ decision:
           retval = -EPERM;
         }
         goto ringbuf;
+      }
+      else
+      {
+        if (val && (val->filemask & RULE_PTS))
+        {
+          if (is_pts(t))
+          {
+            retval = -EPERM;
+          }
+          goto ringbuf;
+        }
       }
     }
   }
@@ -1005,6 +1063,17 @@ decision:
           retval = -EPERM;
         }
         goto ringbuf;
+      }
+      else
+      {
+        if (val && (val->filemask & RULE_PTS))
+        {
+          if (is_pts(t))
+          {
+            retval = -EPERM;
+          }
+          goto ringbuf;
+        }
       }
     }
   }

@@ -605,9 +605,102 @@ var _ = Describe("Ksp", func() {
 
 			//ksp-group-1-allow-proc-args
 		})
+
+		It("it can block and allow process execution based on pts", func() {
+			if !strings.Contains(K8sRuntimeEnforcer(), "bpf") {
+				Skip("Skipping due to pts rule only supported by BPFLSM")
+			}
+			err := K8sApplyFile("multiubuntu/ksp-group-1-block-proc-pts.yaml")
+			Expect(err).To(BeNil())
+
+			// Test 1: Block process execution from pts
+			// Start KubeArmor Logs
+			err = KarmorLogStart("policy", "multiubuntu", "Process", ub1)
+			Expect(err).To(BeNil())
+
+			AssertCommand(ub1, "multiubuntu", []string{"bash", "-c", "sleep 1"},
+				MatchRegexp("sleep.*Permission denied"), true,
+			)
+
+			expectAlert := protobuf.Alert{
+				PolicyName: "ksp-group-1-block-proc-pts",
+				Action:     "Block",
+				Result:     "Permission denied",
+			}
+
+			resAlert, err := KarmorGetTargetAlert(5*time.Second, &expectAlert)
+			Expect(err).To(BeNil())
+			Expect(resAlert.Found).To(BeTrue())
+
+			// Test 2: Allow process execution when not spawned from pts
+			// Start KubeArmor Logs for system events (Passed executions)
+			err = KarmorLogStart("system", "multiubuntu", "Process", ub1)
+			Expect(err).To(BeNil())
+
+			AssertCommandWithoutTTY(ub1, "multiubuntu", []string{"bash", "-c", "sleep 1"},
+				MatchRegexp(".*"), false,
+			)
+
+			expectLog := protobuf.Log{
+				Resource: "/bin/sleep",
+				Result:   "Passed",
+			}
+
+			resLog, err := KarmorGetTargetLogs(5*time.Second, &expectLog)
+			Expect(err).To(BeNil())
+			Expect(resLog.Found).To(BeTrue())
+		})
 	})
 
 	Describe("Apply Files Policies", func() {
+
+		It("it can block and allow file read based on pts", func() {
+			if !strings.Contains(K8sRuntimeEnforcer(), "bpf") {
+				Skip("Skipping due to pts rule only supported by BPFLSM")
+			}
+
+			// Apply Policy
+			err := K8sApplyFile("multiubuntu/ksp-group-1-block-file-pts.yaml")
+			Expect(err).To(BeNil())
+
+			// Test 1: Block file read from pts
+			// Start KubeArmor Logs
+			err = KarmorLogStart("policy", "multiubuntu", "File", ub1)
+			Expect(err).To(BeNil())
+
+			AssertCommand(ub1, "multiubuntu", []string{"bash", "-c", "cat /etc/hostname"},
+				MatchRegexp("hostname.*Permission denied"), true,
+			)
+
+			expectAlert := protobuf.Alert{
+				PolicyName: "ksp-group-1-block-file-pts",
+				Action:     "Block",
+				Result:     "Permission denied",
+			}
+
+			resAlert, err := KarmorGetTargetAlert(5*time.Second, &expectAlert)
+			Expect(err).To(BeNil())
+			Expect(resAlert.Found).To(BeTrue())
+
+			// Test 2: Allow file read when not spawned from pts
+			// Start KubeArmor Logs
+			err = KarmorLogStart("system", "multiubuntu", "File", ub1)
+			Expect(err).To(BeNil())
+
+			AssertCommandWithoutTTY(ub1, "multiubuntu", []string{"bash", "-c", "cat /etc/hostname"},
+				MatchRegexp(".*"), false,
+			)
+
+			// verify allowed logs
+			expectLog := protobuf.Log{
+				Resource: "/etc/hostname",
+				Result:   "Passed",
+			}
+
+			resLog, err := KarmorGetTargetLogs(5*time.Second, &expectLog)
+			Expect(err).To(BeNil())
+			Expect(resLog.Found).To(BeTrue())
+		})
 
 		It("it can allow accessing a file from source path", func() {
 			// multiubuntu_test_17, github_test_05

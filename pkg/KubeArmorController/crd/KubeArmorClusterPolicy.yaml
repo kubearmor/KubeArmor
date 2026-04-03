@@ -149,6 +149,8 @@ spec:
                           type: string
                         ownerOnly:
                           type: boolean
+                        pts:
+                          type: boolean
                         readOnly:
                           type: boolean
                         recursive:
@@ -191,6 +193,8 @@ spec:
                           maxLength: 200
                           pattern: ^\/+.*[^\/]$
                           type: string
+                        pts:
+                          type: boolean
                         readOnly:
                           type: boolean
                         severity:
@@ -278,6 +282,8 @@ spec:
                         protocol:
                           pattern: (tcp|TCP|udp|UDP|raw|RAW|icmp|ICMP|icmpv6|ICMPV6|sctp|SCTP|stream|STREAM|dgram|DGRAM|rdm|RDM|seqpacket|SEQPACKET|dccp|DCCP|packet|PACKET|all|ALL)$
                           type: string
+                        pts:
+                          type: boolean
                         severity:
                           maximum: 10
                           minimum: 1
@@ -347,6 +353,8 @@ spec:
                           type: string
                         ownerOnly:
                           type: boolean
+                        pts:
+                          type: boolean
                         recursive:
                           type: boolean
                         severity:
@@ -395,6 +403,8 @@ spec:
                           maxLength: 200
                           pattern: ^\/+.*[^\/]$
                           type: string
+                        pts:
+                          type: boolean
                         severity:
                           maximum: 10
                           minimum: 1

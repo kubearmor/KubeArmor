@@ -95,11 +95,21 @@ func (ch *CrioHandler) GetContainerInfo(ctx context.Context, containerID, nodeID
 
 	container := tp.Container{}
 
+	if res == nil {
+		return tp.Container{}, fmt.Errorf("container status response is nil")
+	}
+
 	// == container base == //
 	resContainerStatus := res.Status
+	if resContainerStatus == nil {
+		return tp.Container{}, fmt.Errorf("container status is nil")
+	}
 
 	container.ContainerID = resContainerStatus.Id
-	container.ContainerName = resContainerStatus.Metadata.Name
+
+	if resContainerStatus.Metadata != nil {
+		container.ContainerName = resContainerStatus.Metadata.Name
+	}
 
 	container.NamespaceName = "Unknown"
 	container.EndPointName = "Unknown"
@@ -132,7 +142,9 @@ func (ch *CrioHandler) GetContainerInfo(ctx context.Context, containerID, nodeID
 	}
 
 	// path to container's root storage
-	container.AppArmorProfile = containerInfo.RuntimeSpec.Process.ApparmorProfile
+	if containerInfo.RuntimeSpec.Process != nil {
+		container.AppArmorProfile = containerInfo.RuntimeSpec.Process.ApparmorProfile
+	}
 	container.Privileged = containerInfo.Privileged
 
 	pid := strconv.Itoa(containerInfo.Pid)
@@ -168,8 +180,10 @@ func (ch *CrioHandler) GetCrioContainers() (map[string]struct{}, error) {
 	req := pb.ListContainersRequest{}
 
 	if containerList, err := ch.client.ListContainers(context.Background(), &req, grpc.MaxCallRecvMsgSize(kl.DefaultMaxRecvMaxSize)); err == nil {
-		for _, container := range containerList.Containers {
-			containers[container.Id] = struct{}{}
+		if containerList != nil {
+			for _, container := range containerList.Containers {
+				containers[container.Id] = struct{}{}
+			}
 		}
 
 		return containers, nil
@@ -284,7 +298,9 @@ func (dm *KubeArmorDaemon) UpdateCrioContainer(ctx context.Context, containerID,
 
 			// update NsMap
 			dm.SystemMonitor.AddContainerIDToNsMap(containerID, container.NamespaceName, container.PidNS, container.MntNS)
-			dm.RuntimeEnforcer.RegisterContainer(containerID, container.PidNS, container.MntNS)
+			if dm.RuntimeEnforcer != nil {
+				dm.RuntimeEnforcer.RegisterContainer(containerID, container.PidNS, container.MntNS)
+			}
 			if dm.Presets != nil {
 				dm.Presets.RegisterContainer(containerID, container.PidNS, container.MntNS)
 			}
@@ -349,7 +365,9 @@ func (dm *KubeArmorDaemon) UpdateCrioContainer(ctx context.Context, containerID,
 			delete(dm.SystemMonitor.Logger.ContainerNsKey, containerID)
 			// update NsMap
 			dm.SystemMonitor.DeleteContainerIDFromNsMap(containerID, container.NamespaceName, container.PidNS, container.MntNS)
-			dm.RuntimeEnforcer.UnregisterContainer(containerID)
+			if dm.RuntimeEnforcer != nil {
+				dm.RuntimeEnforcer.UnregisterContainer(containerID)
+			}
 		}
 
 		dm.Logger.Printf("Detected a container (removed/%.12s)", containerID)
@@ -395,7 +413,7 @@ func (dm *KubeArmorDaemon) MonitorCrioEvents() {
 			if len(newContainers) > 0 {
 				for containerID := range newContainers {
 					if err := dm.UpdateCrioContainer(context.Background(), containerID, "start"); err != nil {
-					kg.Warnf("Failed to update CRIO container %s: %s", containerID, err.Error())
+						kg.Warnf("Failed to update CRIO container %s: %s", containerID, err.Error())
 						invalidContainers = append(invalidContainers, containerID)
 					}
 				}
