@@ -330,6 +330,32 @@ func K8sExecInPod(pod string, ns string, cmd []string) (string, string, error) {
 	return buf.String(), errBuf.String(), nil
 }
 
+// K8sExecInPodWithoutTTY Exec into the pod without allocating a TTY. Output: stdout, stderr, err
+func K8sExecInPodWithoutTTY(pod string, ns string, cmd []string) (string, string, error) {
+	req := k8sClient.K8sClientset.CoreV1().RESTClient().Post().Resource("pods").Name(pod).Namespace(ns).SubResource("exec")
+	option := &corev1.PodExecOptions{
+		Command: cmd,
+		Stdout:  true,
+		Stderr:  true,
+		TTY:     false,
+	}
+	req.VersionedParams(
+		option,
+		scheme.ParameterCodec,
+	)
+	exec, err := remotecommand.NewSPDYExecutor(k8sClient.Config, "POST", req.URL())
+	if err != nil {
+		return "", "", err
+	}
+	buf := &bytes.Buffer{}
+	errBuf := &bytes.Buffer{}
+	exec.StreamWithContext(context.TODO(), remotecommand.StreamOptions{
+		Stdout: buf,
+		Stderr: errBuf,
+	})
+	return buf.String(), errBuf.String(), nil
+}
+
 // K8sExecInPodWithContainer Exec into the pod. Output: stdout, stderr, err
 func K8sExecInPodWithContainer(pod string, ns string, container string, cmd []string) (string, string, error) {
 	req := k8sClient.K8sClientset.CoreV1().RESTClient().Post().Resource("pods").Name(pod).Namespace(ns).SubResource("exec")
@@ -718,6 +744,22 @@ func AssertCommand(wp string, namespace string, cmd []string, match gomegaTypes.
 		}, 10*time.Second, 2*time.Second).Should(match)
 	} else {
 		sout, _, err := K8sExecInPod(wp, namespace, cmd)
+		Expect(err).To(BeNil())
+		fmt.Printf("---START---\n%s---END---\n", sout)
+		Expect(sout).To(match)
+	}
+}
+
+func AssertCommandWithoutTTY(wp string, namespace string, cmd []string, match gomegaTypes.GomegaMatcher, eventual bool) {
+	if eventual {
+		Eventually(func() string {
+			sout, _, err := K8sExecInPodWithoutTTY(wp, namespace, cmd)
+			Expect(err).To(BeNil())
+			fmt.Printf("---START---\n%s---END---\n", sout)
+			return sout
+		}, 10*time.Second, 2*time.Second).Should(match)
+	} else {
+		sout, _, err := K8sExecInPodWithoutTTY(wp, namespace, cmd)
 		Expect(err).To(BeNil())
 		fmt.Printf("---START---\n%s---END---\n", sout)
 		Expect(sout).To(match)
