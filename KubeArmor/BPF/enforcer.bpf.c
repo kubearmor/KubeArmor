@@ -59,6 +59,13 @@ int BPF_PROG(enforce_proc, struct linux_binprm *bprm, int ret)
 
   void *path_ptr = &path_buf->buf[*path_offset];
   bpf_probe_read_str(store->path, MAX_STRING_SIZE, path_ptr);
+  // Fill inode and device for exact (inode-based) lookup
+  struct dentry *dentry_path = BPF_CORE_READ(&f_path, dentry);
+  if (dentry_path) {
+    store->ino = BPF_CORE_READ(dentry_path, d_inode, i_ino);
+    store->dev = BPF_CORE_READ(dentry_path, d_inode, i_sb, s_dev);
+    store->key_type = 1;
+  }
 
   struct data_t *val = bpf_map_lookup_elem(inner, store);
   struct data_t *dirval;
@@ -94,6 +101,14 @@ int BPF_PROG(enforce_proc, struct linux_binprm *bprm, int ret)
   {
     bpf_probe_read_str(store->source, MAX_STRING_SIZE, src_ptr);
 
+    // Fill source inode/device for exact match
+    struct dentry *dentry_src = BPF_CORE_READ(&f_src, dentry);
+    if (dentry_src) {
+      store->src_ino = BPF_CORE_READ(dentry_src, d_inode, i_ino);
+      store->src_dev = BPF_CORE_READ(dentry_src, d_inode, i_sb, s_dev);
+      store->key_type = 1;
+    }
+
     val = bpf_map_lookup_elem(inner, store);
     if (val && (val->processmask & RULE_EXEC))
     {
@@ -112,6 +127,11 @@ int BPF_PROG(enforce_proc, struct linux_binprm *bprm, int ret)
         bpf_map_update_elem(&bufk, &two, z, BPF_ANY);
 
         match = false;
+        // clear inode parts for string based directory lookup
+        pk->ino = 0;
+        pk->dev = 0;
+        pk->src_ino = 0;
+        pk->src_dev = 0;
 
         bpf_probe_read_str(pk->path, i + 2, store->path);
         // Check Subdir with From Source
@@ -171,6 +191,11 @@ int BPF_PROG(enforce_proc, struct linux_binprm *bprm, int ret)
     }
   }
   bpf_map_update_elem(&bufk, &two, z, BPF_ANY);
+  // clear inode parts for string based full-path lookup
+  pk->ino = 0;
+  pk->dev = 0;
+  pk->src_ino = 0;
+  pk->src_dev = 0;
   bpf_probe_read_str(pk->path, MAX_STRING_SIZE, store->path);
 
   val = bpf_map_lookup_elem(inner, pk);
@@ -185,6 +210,11 @@ int BPF_PROG(enforce_proc, struct linux_binprm *bprm, int ret)
   struct qstr d_name;
   d_name = BPF_CORE_READ(f_path.dentry, d_name);
   bpf_map_update_elem(&bufk, &two, z, BPF_ANY);
+  // clear inode parts for string based name lookup
+  pk->ino = 0;
+  pk->dev = 0;
+  pk->src_ino = 0;
+  pk->src_dev = 0;
   bpf_probe_read_str(pk->path, MAX_STRING_SIZE, d_name.name);
 
   val = bpf_map_lookup_elem(inner, pk);
@@ -208,6 +238,12 @@ int BPF_PROG(enforce_proc, struct linux_binprm *bprm, int ret)
       bpf_map_update_elem(&bufk, &two, z, BPF_ANY);
 
       match = false;
+
+      // clear inode parts for string based directory lookup
+      pk->ino = 0;
+      pk->dev = 0;
+      pk->src_ino = 0;
+      pk->src_dev = 0;
 
       bpf_probe_read_str(pk->path, i + 2, store->path);
       dirval = bpf_map_lookup_elem(inner, pk);
@@ -466,6 +502,11 @@ static inline int match_net_rules(int type, int protocol, u32 eventID)
   {
     void *ptr = &src_buf->buf[*src_offset];
     bpf_probe_read_str(p->source, MAX_STRING_SIZE, ptr);
+    // ensure inode parts are cleared for numeric/protocol based lookups
+    p->ino = 0;
+    p->dev = 0;
+    p->src_ino = 0;
+    p->src_dev = 0;
     p->path[0] = p0_t;
     p->path[1] = p1_t;
     bpf_probe_read_str(store->source, MAX_STRING_SIZE, p->source);
@@ -482,6 +523,11 @@ static inline int match_net_rules(int type, int protocol, u32 eventID)
   {
     void *ptr = &src_buf->buf[*src_offset];
     bpf_probe_read_str(p->source, MAX_STRING_SIZE, ptr);
+    // ensure inode parts are cleared for numeric/protocol based lookups
+    p->ino = 0;
+    p->dev = 0;
+    p->src_ino = 0;
+    p->src_dev = 0;
     p->path[0] = p0_p;
     p->path[1] = p1_p;
     bpf_probe_read_str(store->source, MAX_STRING_SIZE, p->source);
@@ -495,6 +541,11 @@ static inline int match_net_rules(int type, int protocol, u32 eventID)
 
   // check for type rules without fromSource
   bpf_map_update_elem(&bufk, &one, z, BPF_ANY);
+  // numeric lookups shouldn't consider inode fields
+  p->ino = 0;
+  p->dev = 0;
+  p->src_ino = 0;
+  p->src_dev = 0;
   p->path[0] = p0_t;
   p->path[1] = p1_t;
 
@@ -508,8 +559,13 @@ static inline int match_net_rules(int type, int protocol, u32 eventID)
 
   // check for protocol rules without fromSource
   bpf_map_update_elem(&bufk, &one, z, BPF_ANY);
-  p->path[0] = p0_p;
-  p->path[1] = p1_p;
+  // numeric lookups shouldn't consider inode fields
+  p->ino = 0;
+  p->dev = 0;
+  p->src_ino = 0;
+  p->src_dev = 0;
+  p->path[0] = p0_t;
+  p->path[1] = p1_t;
 
   val = bpf_map_lookup_elem(inner, p);
 
@@ -684,6 +740,11 @@ int BPF_PROG(enforce_cap, const struct cred *cred, struct user_namespace *ns,
   {
     bpf_probe_read_str(p->source, MAX_STRING_SIZE, ptr);
     bpf_probe_read_str(store->source, MAX_STRING_SIZE, p->source);
+    // ensure inode parts are cleared for numeric/capable lookups
+    p->ino = 0;
+    p->dev = 0;
+    p->src_ino = 0;
+    p->src_dev = 0;
     p->path[0] = p0;
     p->path[1] = p1;
     val = bpf_map_lookup_elem(inner, p);
@@ -697,6 +758,10 @@ int BPF_PROG(enforce_cap, const struct cred *cred, struct user_namespace *ns,
 
   bpf_map_update_elem(&bufk, &one, z, BPF_ANY);
   // check for rules without fromsource
+  p->ino = 0;
+  p->dev = 0;
+  p->src_ino = 0;
+  p->src_dev = 0;
   p->path[0] = p0;
   p->path[1] = p1;
 
