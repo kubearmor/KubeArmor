@@ -1432,7 +1432,7 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 							} else if log.UID != log.OID {
 								matchedFlags = true
 							}
-						} else if !*secPolicy.Pts {
+						} else if secPolicy.Pts != nil && !*secPolicy.Pts {
 							if log.TTY == "" {
 								matchedFlags = false
 							} else {
@@ -1629,7 +1629,7 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 					if protocol == secPolicy.Resource || secPolicy.Resource == "all" {
 						matchedFlags = true
 					}
-					if !*secPolicy.Pts {
+					if secPolicy.Pts != nil && !*secPolicy.Pts {
 						if log.TTY == "" {
 							matchedFlags = false
 						} else {
