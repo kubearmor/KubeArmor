@@ -3270,7 +3270,6 @@ func (dm *KubeArmorDaemon) WatchConfigMap() cache.InformerSynced {
 				dm.SystemMonitor.UpdateThrottlingConfig()
 				if _, ok := cm.Data[cfg.ConfigArgMatching]; ok {
 					cfg.GlobalCfg.MatchArgs, _ = strconv.ParseBool(cm.Data[cfg.ConfigArgMatching])
-					fmt.Println("Updated Match argr in configmap ", cfg.GlobalCfg.MatchArgs)
 				}
 				dm.SystemMonitor.UpdateMatchArgsConfig()
 				dm.UpdateIMA(cfg.GlobalCfg.EnableIMA)
@@ -3347,7 +3346,6 @@ func (dm *KubeArmorDaemon) WatchConfigMap() cache.InformerSynced {
 				}
 				if _, ok := cm.Data[cfg.ConfigArgMatching]; ok {
 					cfg.GlobalCfg.MatchArgs, _ = strconv.ParseBool(cm.Data[cfg.ConfigArgMatching])
-					fmt.Println("Updated Match argr in configmap ", cfg.GlobalCfg.MatchArgs)
 				}
 				dm.SystemMonitor.UpdateMatchArgsConfig()
 				dm.UpdateIMA(cfg.GlobalCfg.EnableIMA)
