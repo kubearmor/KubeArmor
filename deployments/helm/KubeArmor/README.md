@@ -57,6 +57,10 @@ Usage of ./kubearmor:
         enabling CoverageTest
   -criSocket string
         path to CRI socket (format: unix:///path/to/file.sock)
+
+{% hint style="info" %}
+Use the `unix:///...` URI form (three slashes after `unix:`) when providing a CRI socket path.
+{% endhint %}
   -defaultCapabilitiesPosture string
         configuring default enforcement action in global capability context {allow|audit|block} (default "audit")
   -defaultFilePosture string
