@@ -30,6 +30,8 @@ type ImageSpec struct {
 	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
 
 	Tolerations []corev1.Toleration `json:"tolerations,omitempty"`
+
+	PriorityClassName string `json:"priorityClassName,omitempty"`
 }
 
 type Tls struct {
@@ -92,6 +94,8 @@ type KubeArmorConfigSpec struct {
 	GlobalNodeSelector map[string]string `json:"globalNodeSelector,omitempty"`
 
 	GlobalEnv []corev1.EnvVar `json:"globalEnv,omitempty"`
+
+	GlobalPriorityClassName string `json:"globalPriorityClassName,omitempty"`
 
 	KubeArmorImage ImageSpec `json:"kubearmorImage,omitempty"`
 

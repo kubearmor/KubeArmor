@@ -65,6 +65,7 @@ var (
 
 	// if any node with securityfs/lsm present
 	IfNodeWithSecurtiyFs bool = false
+	BpflsmOnlyMode       bool = false
 
 	DeleteAction            string = "DELETE"
 	AddAction               string = "ADD"
@@ -101,6 +102,7 @@ var (
 	GlobalTolerations      []corev1.Toleration           = []corev1.Toleration{}
 	GlobalNodeSelectors                                  = map[string]string{}
 	GlobalEnv                                            = []corev1.EnvVar{}
+	GlobalPriorityClassName                              = ""
 	//KubearmorRelayEnvVariables
 
 	EnableStdOutAlerts string = "enableStdOutAlerts"
@@ -120,6 +122,7 @@ var (
 	KubeArmorTolerations      []corev1.Toleration           = []corev1.Toleration{}
 	KubeArmorNodeSelector                                   = map[string]string{}
 	KubeArmorEnv                                            = []corev1.EnvVar{}
+	KubeArmorPriorityClassName                              = ""
 
 	KubeArmorInitName             string                        = "kubearmor-init"
 	KubeArmorInitArgs             []string                      = []string{}
@@ -128,6 +131,7 @@ var (
 	KubeArmorInitImagePullSecrets []corev1.LocalObjectReference = []corev1.LocalObjectReference{}
 	KubeArmorInitTolerations      []corev1.Toleration           = []corev1.Toleration{}
 	KubeArmorInitEnv                                            = []corev1.EnvVar{}
+	KubeArmorInitPriorityClassName                              = ""
 
 	KubeArmorRelayName string   = "kubearmor-relay"
 	KubeArmorRelayArgs []string = []string{
@@ -139,6 +143,7 @@ var (
 	KubeArmorRelayTolerations      []corev1.Toleration           = []corev1.Toleration{}
 	KubeArmorRelayNodeSelector                                   = map[string]string{}
 	KubeArmorRelayEnv                                            = []corev1.EnvVar{}
+	KubeArmorRelayPriorityClassName                              = ""
 
 	KubeArmorControllerName string   = "kubearmor-controller"
 	KubeArmorControllerArgs []string = []string{
@@ -153,6 +158,7 @@ var (
 	KubeArmorControllerWebhookServiceName                               = "kubearmor-controller-webhook-service"
 	KubeArmorControllerNodeSelector                                     = map[string]string{}
 	KubeArmorControllerEnv                                              = []corev1.EnvVar{}
+	KubeArmorControllerPriorityClassName                                = ""
 
 	SeccompProfile     = "kubearmor-seccomp.json"
 	SeccompInitProfile = "kubearmor-init-seccomp.json"
