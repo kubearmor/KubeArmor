@@ -194,6 +194,11 @@ func generateDaemonset(name, enforcer, runtime, socket, nriSocket, btfPresent, a
 	if len(daemonset.Spec.Template.Spec.Tolerations) < 1 {
 		utils.UpdateTolerationFromGlobal(common.GlobalTolerations, &daemonset.Spec.Template.Spec.Tolerations)
 	}
+	if common.KubeArmorPriorityClassName != "" {
+		daemonset.Spec.Template.Spec.PriorityClassName = common.KubeArmorPriorityClassName
+	} else if common.GlobalPriorityClassName != "" {
+		daemonset.Spec.Template.Spec.PriorityClassName = common.GlobalPriorityClassName
+	}
 	daemonset.Spec.Template.Spec.Containers[0].Args = append(daemonset.Spec.Template.Spec.Containers[0].Args, ociArgs...)
 	daemonset.Spec.Template.Spec.Containers[0].Args = append(daemonset.Spec.Template.Spec.Containers[0].Args, LsmFlagString)
 	daemonset.Spec.Template.Spec.InitContainers[0].Image = common.GetApplicationImage(common.KubeArmorInitName)
@@ -564,12 +569,26 @@ func (clusterWatcher *ClusterWatcher) AreAllNodesProcessed() bool {
 
 	// check if there's any node with securityfs/lsm exists
 	common.IfNodeWithSecurtiyFs = false
+	// check if all nodes are BPFLSM-only (no apparmor, selinux, or other LSM)
+	common.BpflsmOnlyMode = true
 	for _, node := range nodes.Items {
 		if val, ok := node.Labels[common.SecurityFsLabel]; ok {
 			switch val {
 			case "yes":
 				common.IfNodeWithSecurtiyFs = true
+				// if any node has securityfs, not BPFLSM-only
+				common.BpflsmOnlyMode = false
 			}
+		}
+		// Check enforcer label to detect if node uses AppArmor or SELinux
+		if val, ok := node.Labels[common.EnforcerLabel]; ok {
+			if val != "bpf"{
+				// if any node uses non-BPFLSM enforcer, not BPFLSM-only
+				common.BpflsmOnlyMode = false
+			}
+		} else {
+			// if enforcer label is missing, assume not BPFLSM-only
+			common.BpflsmOnlyMode = false
 		}
 	}
 
@@ -581,6 +600,16 @@ func (clusterWatcher *ClusterWatcher) AreAllNodesProcessed() bool {
 }
 
 func (clusterWatcher *ClusterWatcher) deployControllerDeployment(deployment *appsv1.Deployment) error {
+	// Skip controller deployment if cluster is BPFLSM-only
+	if common.BpflsmOnlyMode {
+		clusterWatcher.Log.Infof("Skipping controller deployment in BPFLSM-only mode")
+		// Delete existing controller deployment if in BPFLSM-only mode
+		err := clusterWatcher.Client.AppsV1().Deployments(common.Namespace).Delete(context.Background(), deployment.Name, metav1.DeleteOptions{})
+		if err != nil && !metav1errors.IsNotFound(err) {
+			clusterWatcher.Log.Warnf("Cannot delete controller deployment %s, error=%s", deployment.Name, err.Error())
+		}
+		return nil
+	}
 	deployment = addOwnership(deployment).(*appsv1.Deployment)
 
 	// add port to controller deployment
@@ -902,6 +931,11 @@ func (clusterWatcher *ClusterWatcher) WatchRequiredResources() {
 	if len(controller.Spec.Template.Spec.Tolerations) < 1 {
 		utils.UpdateTolerationFromGlobal(common.GlobalTolerations, &controller.Spec.Template.Spec.Tolerations)
 	}
+	if common.KubeArmorControllerPriorityClassName != "" {
+		controller.Spec.Template.Spec.PriorityClassName = common.KubeArmorControllerPriorityClassName
+	} else if common.GlobalPriorityClassName != "" {
+		controller.Spec.Template.Spec.PriorityClassName = common.GlobalPriorityClassName
+	}
 	UpdateArgsIfDefinedAndUpdated(&relayServer.Spec.Template.Spec.Containers[0].Args, common.KubeArmorRelayArgs)
 	UpdateImagePullSecretsIfDefinedAndUpdated(&relayServer.Spec.Template.Spec.ImagePullSecrets, common.KubeArmorControllerImagePullSecrets)
 	if len(relayServer.Spec.Template.Spec.ImagePullSecrets) == 0 && len(ImagePullSecrets) > 0 {
@@ -914,6 +948,11 @@ func (clusterWatcher *ClusterWatcher) WatchRequiredResources() {
 	}
 	if len(relayServer.Spec.Template.Spec.Tolerations) < 1 {
 		utils.UpdateTolerationFromGlobal(common.GlobalTolerations, &relayServer.Spec.Template.Spec.Tolerations)
+	}
+	if common.KubeArmorRelayPriorityClassName != "" {
+		relayServer.Spec.Template.Spec.PriorityClassName = common.KubeArmorRelayPriorityClassName
+	} else if common.GlobalPriorityClassName != "" {
+		relayServer.Spec.Template.Spec.PriorityClassName = common.GlobalPriorityClassName
 	}
 	// update relay env vars
 	relayServer.Spec.Template.Spec.Containers[0].Env = []corev1.EnvVar{

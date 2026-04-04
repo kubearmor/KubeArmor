@@ -1123,7 +1123,8 @@ func UpdateImages(config *opv1.KubeArmorConfigSpec) []string {
 		UpdateTolerationsIfDefinedAndUpdated(&common.KubeArmorTolerations, config.KubeArmorImage.Tolerations) ||
 		UpdateNRIAvailabilityIfDefinedAndUpdated(&common.NRIEnabled, config.EnableNRI) ||
 		UpdateNodeSelectorIfDefinedAndUpdated(common.KubeArmorNodeSelector, config.KubeArmorImage.NodeSelector) ||
-		UpdateEnvIfDefinedAndUpdated(&common.KubeArmorEnv, config.KubeArmorImage.Env) {
+		UpdateEnvIfDefinedAndUpdated(&common.KubeArmorEnv, config.KubeArmorImage.Env) ||
+		UpdateIfDefinedAndUpdated(&common.KubeArmorPriorityClassName, config.KubeArmorImage.PriorityClassName) {
 		updatedImages = append(updatedImages, "kubearmor")
 	}
 	// if kubearmor-init image or imagePullPolicy got updated
@@ -1132,7 +1133,8 @@ func UpdateImages(config *opv1.KubeArmorConfigSpec) []string {
 		UpdateArgsIfDefinedAndUpdated(&common.KubeArmorInitArgs, config.KubeArmorInitImage.Args) ||
 		UpdateImagePullSecretsIfDefinedAndUpdated(&common.KubeArmorInitImagePullSecrets, config.KubeArmorInitImage.ImagePullSecrets) ||
 		UpdateTolerationsIfDefinedAndUpdated(&common.KubeArmorInitTolerations, config.KubeArmorInitImage.Tolerations) ||
-		UpdateEnvIfDefinedAndUpdated(&common.KubeArmorInitEnv, config.KubeArmorInitImage.Env) {
+		UpdateEnvIfDefinedAndUpdated(&common.KubeArmorInitEnv, config.KubeArmorInitImage.Env) ||
+		UpdateIfDefinedAndUpdated(&common.KubeArmorInitPriorityClassName, config.KubeArmorInitImage.PriorityClassName) {
 		updatedImages = append(updatedImages, "init")
 	}
 	// kubearmor-relay image or imagePullPolicy got updated
@@ -1142,7 +1144,8 @@ func UpdateImages(config *opv1.KubeArmorConfigSpec) []string {
 		UpdateImagePullSecretsIfDefinedAndUpdated(&common.KubeArmorRelayImagePullSecrets, config.KubeArmorRelayImage.ImagePullSecrets) ||
 		UpdateTolerationsIfDefinedAndUpdated(&common.KubeArmorRelayTolerations, config.KubeArmorRelayImage.Tolerations) ||
 		UpdateNodeSelectorIfDefinedAndUpdated(common.KubeArmorRelayNodeSelector, config.KubeArmorRelayImage.NodeSelector) ||
-		UpdateEnvIfDefinedAndUpdated(&common.KubeArmorRelayEnv, config.KubeArmorRelayImage.Env) {
+		UpdateEnvIfDefinedAndUpdated(&common.KubeArmorRelayEnv, config.KubeArmorRelayImage.Env) ||
+		UpdateIfDefinedAndUpdated(&common.KubeArmorRelayPriorityClassName, config.KubeArmorRelayImage.PriorityClassName) {
 		updatedImages = append(updatedImages, "relay")
 	}
 	// if kubearmor-controller image or imagePullPolicy got updated
@@ -1152,7 +1155,8 @@ func UpdateImages(config *opv1.KubeArmorConfigSpec) []string {
 		UpdateImagePullSecretsIfDefinedAndUpdated(&common.KubeArmorControllerImagePullSecrets, config.KubeArmorControllerImage.ImagePullSecrets) ||
 		UpdateTolerationsIfDefinedAndUpdated(&common.KubeArmorControllerTolerations, config.KubeArmorControllerImage.Tolerations) ||
 		UpdateNodeSelectorIfDefinedAndUpdated(common.KubeArmorControllerNodeSelector, config.KubeArmorControllerImage.NodeSelector) ||
-		UpdateEnvIfDefinedAndUpdated(&common.KubeArmorControllerEnv, config.KubeArmorControllerImage.Env) {
+		UpdateEnvIfDefinedAndUpdated(&common.KubeArmorControllerEnv, config.KubeArmorControllerImage.Env) ||
+		UpdateIfDefinedAndUpdated(&common.KubeArmorControllerPriorityClassName, config.KubeArmorControllerImage.PriorityClassName) {
 		updatedImages = append(updatedImages, "controller")
 	}
 
@@ -1160,7 +1164,8 @@ func UpdateImages(config *opv1.KubeArmorConfigSpec) []string {
 	if UpdateImagePullSecretsIfDefinedAndUpdated(&common.GlobalImagePullSecrets, config.GloabalImagePullSecrets) ||
 		UpdateTolerationsIfDefinedAndUpdated(&common.GlobalTolerations, config.GlobalTolerations) ||
 		UpdateNodeSelectorIfDefinedAndUpdated(common.GlobalNodeSelectors, config.GlobalNodeSelector) ||
-		UpdateEnvIfDefinedAndUpdated(&common.GlobalEnv, config.GlobalEnv) {
+		UpdateEnvIfDefinedAndUpdated(&common.GlobalEnv, config.GlobalEnv) ||
+		UpdateIfDefinedAndUpdated(&common.GlobalPriorityClassName, config.GlobalPriorityClassName) {
 		updatedImages = []string{"kubearmor", "init", "relay", "controller"}
 	}
 	return updatedImages
