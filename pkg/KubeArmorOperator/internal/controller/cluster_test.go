@@ -5,7 +5,7 @@ package controller
 
 import (
 	"testing"
-
+	"reflect"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 )
@@ -183,4 +183,41 @@ func TestAddorUpdateNodeSelector(t *testing.T) {
 			"env": "test",
 		})
 	})
+}
+
+func TestRemoveDeletedEntriesForNodeSelector(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    map[string]string
+		expected map[string]string
+	}{
+		{
+			name: "remove single deleted entry",
+			input: map[string]string{
+				"hostname": "worker1",
+				"env":      "-",
+			},
+			expected: map[string]string{
+				"hostname": "worker1",
+			},
+		},
+		{
+			name: "no entries to remove",
+			input: map[string]string{
+				"app": "nginx",
+			},
+			expected: map[string]string{
+				"app": "nginx",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			RemoveDeletedEntriesForNodeSelector(tt.input)
+			if !reflect.DeepEqual(tt.input, tt.expected) {
+				t.Errorf("Test '%s' failed: got %v, want %v", tt.name, tt.input, tt.expected)
+			}
+		})
+	}
 }
