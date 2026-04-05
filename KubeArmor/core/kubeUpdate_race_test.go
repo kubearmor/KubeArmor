@@ -10,8 +10,25 @@ import (
 	"testing"
 	"time"
 
+	fd "github.com/kubearmor/KubeArmor/KubeArmor/feeder"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
+	pb "github.com/kubearmor/KubeArmor/protobuf"
 )
+
+func newTestFeeder() *fd.Feeder {
+	return &fd.Feeder{
+		BaseFeeder: fd.BaseFeeder{
+			Node: &tp.Node{},
+			EventStructs: &fd.EventStructs{
+				MsgStructs:   map[string]fd.EventStruct[pb.Message]{},
+				AlertStructs: map[string]fd.EventStruct[pb.Alert]{},
+				LogStructs:   map[string]fd.EventStruct[pb.Log]{},
+			},
+		},
+		DefaultPostures:     map[string]tp.DefaultPosture{},
+		DefaultPosturesLock: &sync.Mutex{},
+	}
+}
 
 // TestUpdateSecurityPolicyRaceCondition tests that UpdateSecurityPolicy doesn't panic
 // when endpoints are concurrently added/removed during policy updates
@@ -200,14 +217,12 @@ func TestUpdateHostSecurityPoliciesRaceCondition(t *testing.T) {
 
 // TestUpdateDefaultPostureRaceCondition tests race conditions in UpdateDefaultPosture
 func TestUpdateDefaultPostureRaceCondition(t *testing.T) {
-	// Skip this test for now due to external dependencies (Logger)
-	t.Skip("Skipping UpdateDefaultPosture test due to external dependencies")
-
 	dm := &KubeArmorDaemon{
 		EndPoints:           []tp.EndPoint{},
 		EndPointsLock:       &sync.RWMutex{},
 		DefaultPostures:     map[string]tp.DefaultPosture{},
 		DefaultPosturesLock: &sync.Mutex{},
+		Logger:              newTestFeeder(),
 	}
 
 	// Initialize with test endpoints
@@ -276,6 +291,95 @@ func TestUpdateDefaultPostureRaceCondition(t *testing.T) {
 	wg.Wait()
 
 	t.Log("UpdateDefaultPosture race condition test completed without panics")
+}
+
+func TestDefaultPostureUpdatePathsRaceCondition(t *testing.T) {
+	dm := &KubeArmorDaemon{
+		EndPoints:           []tp.EndPoint{},
+		EndPointsLock:       &sync.RWMutex{},
+		DefaultPostures:     map[string]tp.DefaultPosture{},
+		DefaultPosturesLock: &sync.Mutex{},
+		Logger:              newTestFeeder(),
+	}
+
+	for i := 0; i < 40; i++ {
+		namespace := "test-namespace"
+		if i%2 == 1 {
+			namespace = "other-namespace"
+		}
+
+		dm.EndPoints = append(dm.EndPoints, tp.EndPoint{
+			NamespaceName:  namespace,
+			EndPointName:   fmt.Sprintf("endpoint-%d", i),
+			ContainerName:  fmt.Sprintf("container-%d", i),
+			DefaultPosture: tp.DefaultPosture{FileAction: "allow"},
+		})
+	}
+
+	namespaceUpdates := map[string]defaultPostureUpdate{
+		"test-namespace": {
+			DefaultPosture: tp.DefaultPosture{
+				FileAction:         "block",
+				NetworkAction:      "audit",
+				CapabilitiesAction: "block",
+			},
+			Annotated: true,
+		},
+		"other-namespace": {
+			DefaultPosture: tp.DefaultPosture{
+				FileAction:         "audit",
+				NetworkAction:      "block",
+				CapabilitiesAction: "audit",
+			},
+			Annotated: false,
+		},
+	}
+
+	var wg sync.WaitGroup
+	stopCh := make(chan struct{})
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for {
+			select {
+			case <-stopCh:
+				return
+			default:
+				dm.UpdateDefaultPosture(updateEvent, "test-namespace", namespaceUpdates["test-namespace"].DefaultPosture, true)
+				time.Sleep(1 * time.Millisecond)
+			}
+		}
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for {
+			select {
+			case <-stopCh:
+				return
+			default:
+				dm.applyDefaultPostureUpdates(updateEvent, namespaceUpdates)
+				time.Sleep(1 * time.Millisecond)
+			}
+		}
+	}()
+
+	time.Sleep(50 * time.Millisecond)
+	close(stopCh)
+
+	done := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("default posture update paths deadlocked")
+	}
 }
 
 // TestConcurrentEndpointAccess tests general concurrent access patterns
