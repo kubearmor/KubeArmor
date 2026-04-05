@@ -2827,18 +2827,14 @@ func (dm *KubeArmorDaemon) WatchNetworkSecurityPolicies(timeout time.Duration) {
 // ===================== //
 
 func (dm *KubeArmorDaemon) updatEndpointsWithCM(cm *corev1.ConfigMap, action string) {
-	dm.EndPointsLock.Lock()
-	defer dm.EndPointsLock.Unlock()
-
-	dm.DefaultPosturesLock.Lock()
-	defer dm.DefaultPosturesLock.Unlock()
-
 	// get all namespaces
 	nsList, err := K8s.K8sClient.CoreV1().Namespaces().List(context.Background(), metav1.ListOptions{})
 	if err != nil {
 		kg.Err("unable to fetch namespace list")
 		return
 	}
+
+	namespaceUpdates := make(map[string]defaultPostureUpdate, len(nsList.Items))
 
 	// for each namespace if needed change endpoint depfault posture
 	for _, ns := range nsList.Items {
@@ -2858,48 +2854,94 @@ func (dm *KubeArmorDaemon) updatEndpointsWithCM(cm *corev1.ConfigMap, action str
 			continue
 		}
 
-		for idx, endpoint := range dm.EndPoints {
-			// skip all endpoints not in current namespace
-			if endpoint.NamespaceName != ns.Name {
-				continue
-			}
+		namespaceUpdates[ns.Name] = defaultPostureUpdate{
+			DefaultPosture: posture,
+			Annotated:      annotated,
+		}
+	}
 
-			if endpoint.DefaultPosture != posture { // optimization, only if its needed to update the posture
-				dm.Logger.Printf("updating default posture for %s in %s", ns.Name, endpoint.EndPointName)
-				dm.UpdateDefaultPostureWithCM(&dm.EndPoints[idx], action, ns.Name, posture, annotated)
-			}
+	dm.applyDefaultPostureUpdates(action, namespaceUpdates)
+}
+
+type defaultPostureUpdate struct {
+	DefaultPosture tp.DefaultPosture
+	Annotated      bool
+}
+
+type endpointDefaultPostureUpdate struct {
+	EndPoint        tp.EndPoint
+	PreviousPosture tp.DefaultPosture
+	DefaultPosture  tp.DefaultPosture
+}
+
+func (dm *KubeArmorDaemon) applyDefaultPostureUpdates(action string, namespaceUpdates map[string]defaultPostureUpdate) {
+	if len(namespaceUpdates) == 0 {
+		return
+	}
+
+	dm.DefaultPosturesLock.Lock()
+	for namespace, update := range namespaceUpdates {
+		if action == deleteEvent {
+			delete(dm.DefaultPostures, namespace)
+		}
+		if update.Annotated {
+			dm.DefaultPostures[namespace] = update.DefaultPosture
+		}
+	}
+	dm.DefaultPosturesLock.Unlock()
+
+	for namespace, update := range namespaceUpdates {
+		dm.Logger.UpdateDefaultPosture(action, namespace, update.DefaultPosture)
+	}
+
+	endpointUpdates := dm.updateEndpointsDefaultPosture(namespaceUpdates)
+	for _, endpointUpdate := range endpointUpdates {
+		dm.Logger.Printf(
+			"Updating default posture for %s with %v namespace default %v",
+			endpointUpdate.EndPoint.EndPointName,
+			endpointUpdate.PreviousPosture,
+			endpointUpdate.DefaultPosture,
+		)
+
+		if !cfg.GlobalCfg.Policy || dm.RuntimeEnforcer == nil {
+			continue
 		}
 
+		if endpointUpdate.EndPoint.PolicyEnabled != tp.KubeArmorPolicyEnabled {
+			continue
+		}
+
+		if kl.ContainsElement(cfg.GlobalCfg.ConfigUntrackedNs.Load().([]string), endpointUpdate.EndPoint.NamespaceName) {
+			dm.Logger.Warnf("Policy cannot be enforced in untracked namespace %s", endpointUpdate.EndPoint.NamespaceName)
+			continue
+		}
+
+		dm.RuntimeEnforcer.UpdateSecurityPolicies(endpointUpdate.EndPoint)
 	}
 }
 
-// UpdateDefaultPostureWithCM Function
-func (dm *KubeArmorDaemon) UpdateDefaultPostureWithCM(endPoint *tp.EndPoint, action string, namespace string, defaultPosture tp.DefaultPosture, annotated bool) {
+func (dm *KubeArmorDaemon) updateEndpointsDefaultPosture(namespaceUpdates map[string]defaultPostureUpdate) []endpointDefaultPostureUpdate {
+	dm.EndPointsLock.Lock()
+	defer dm.EndPointsLock.Unlock()
 
-	// namespace is (partialy) annotated with posture annotation(s)
-	if annotated {
-		// update the dm.DefaultPosture[namespace]
-		dm.DefaultPostures[namespace] = defaultPosture
-	}
-	dm.Logger.UpdateDefaultPosture(action, namespace, defaultPosture)
-
-	// update the endpoint with updated default posture
-	endPoint.DefaultPosture = defaultPosture
-	dm.Logger.Printf("Updated default posture for %s with %v", endPoint.EndPointName, endPoint.DefaultPosture)
-	if cfg.GlobalCfg.Policy {
-		// update security policies
-		if dm.RuntimeEnforcer != nil {
-			if endPoint.PolicyEnabled == tp.KubeArmorPolicyEnabled {
-				// enforce security policies
-				if !kl.ContainsElement(cfg.GlobalCfg.ConfigUntrackedNs.Load().([]string), endPoint.NamespaceName) {
-					dm.RuntimeEnforcer.UpdateSecurityPolicies(*endPoint)
-				} else {
-					dm.Logger.Warnf("Policy cannot be enforced in untracked namespace %s", endPoint.NamespaceName)
-				}
-			}
+	endpointUpdates := make([]endpointDefaultPostureUpdate, 0)
+	for idx := range dm.EndPoints {
+		update, ok := namespaceUpdates[dm.EndPoints[idx].NamespaceName]
+		if !ok || dm.EndPoints[idx].DefaultPosture == update.DefaultPosture {
+			continue
 		}
+
+		previousPosture := dm.EndPoints[idx].DefaultPosture
+		dm.EndPoints[idx].DefaultPosture = update.DefaultPosture
+
+		endpointUpdates = append(endpointUpdates, endpointDefaultPostureUpdate{
+			EndPoint:        dm.EndPoints[idx],
+			PreviousPosture: previousPosture,
+			DefaultPosture:  update.DefaultPosture,
+		})
 	}
 
+	return endpointUpdates
 }
 
 // returns default posture and a boolean value states, if annotation is set or not
@@ -2923,67 +2965,12 @@ func validateDefaultPosture(key string, ns *corev1.Namespace, defaultPosture str
 
 // UpdateDefaultPosture Function
 func (dm *KubeArmorDaemon) UpdateDefaultPosture(action string, namespace string, defaultPosture tp.DefaultPosture, annotated bool) {
-	dm.DefaultPosturesLock.Lock()
-	defer dm.DefaultPosturesLock.Unlock()
-
-	// namespace deleted
-	if action == deleteEvent {
-		_, ok := dm.DefaultPostures[namespace]
-		if ok {
-			delete(dm.DefaultPostures, namespace)
-		}
-	}
-
-	// namespace is annotated with posture annotation(s)
-	if annotated {
-		dm.DefaultPostures[namespace] = defaultPosture
-	}
-	dm.Logger.UpdateDefaultPosture(action, namespace, defaultPosture)
-
-	// Copy endpoints under lock to prevent TOCTOU race condition
-	dm.EndPointsLock.RLock()
-	endPointsCopy := make([]tp.EndPoint, len(dm.EndPoints))
-	copy(endPointsCopy, dm.EndPoints)
-	dm.EndPointsLock.RUnlock()
-
-	for _, endPoint := range endPointsCopy {
-		// update a security policy
-		if namespace == endPoint.NamespaceName {
-			if endPoint.DefaultPosture == defaultPosture {
-				continue
-			}
-
-			dm.Logger.Printf("Updating default posture for %s with %v namespace default %v", endPoint.EndPointName, endPoint.DefaultPosture, defaultPosture)
-			endPoint.DefaultPosture = defaultPosture
-
-			// Find and update the original endpoint in the array by matching unique identifiers
-			dm.EndPointsLock.Lock()
-			for idx := range dm.EndPoints {
-				if dm.EndPoints[idx].NamespaceName == endPoint.NamespaceName &&
-					dm.EndPoints[idx].EndPointName == endPoint.EndPointName &&
-					dm.EndPoints[idx].ContainerName == endPoint.ContainerName {
-					dm.EndPoints[idx] = endPoint
-					break
-				}
-			}
-			dm.EndPointsLock.Unlock()
-
-			if cfg.GlobalCfg.Policy {
-				// update security policies
-				if dm.RuntimeEnforcer != nil {
-					if endPoint.PolicyEnabled == tp.KubeArmorPolicyEnabled {
-						// enforce security policies
-						if !kl.ContainsElement(cfg.GlobalCfg.ConfigUntrackedNs.Load().([]string), endPoint.NamespaceName) {
-							dm.RuntimeEnforcer.UpdateSecurityPolicies(endPoint)
-						} else {
-							dm.Logger.Warnf("Policy cannot be enforced in untracked namespace %s", endPoint.NamespaceName)
-						}
-
-					}
-				}
-			}
-		}
-	}
+	dm.applyDefaultPostureUpdates(action, map[string]defaultPostureUpdate{
+		namespace: {
+			DefaultPosture: defaultPosture,
+			Annotated:      annotated,
+		},
+	})
 }
 
 func validateGlobalDefaultPosture(posture string) string {
@@ -3085,12 +3072,6 @@ func (dm *KubeArmorDaemon) updateVisibilityWithCM(cm *corev1.ConfigMap, _ string
 
 // UpdateGlobalPosture Function
 func (dm *KubeArmorDaemon) UpdateGlobalPosture(posture tp.DefaultPosture) {
-	dm.EndPointsLock.Lock()
-	defer dm.EndPointsLock.Unlock()
-
-	dm.DefaultPosturesLock.Lock()
-	defer dm.DefaultPosturesLock.Unlock()
-
 	cfg.GlobalCfg.DefaultFilePosture = validateGlobalDefaultPosture(posture.FileAction)
 	cfg.GlobalCfg.DefaultNetworkPosture = validateGlobalDefaultPosture(posture.NetworkAction)
 	cfg.GlobalCfg.DefaultCapabilitiesPosture = validateGlobalDefaultPosture(posture.CapabilitiesAction)
