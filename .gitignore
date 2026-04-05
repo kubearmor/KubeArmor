@@ -41,4 +41,4 @@ go.work.sum
 
 # ignore hook and related binaries
 hook
-deployHook
+deployHookcoverage.out

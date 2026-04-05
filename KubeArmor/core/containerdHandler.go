@@ -752,7 +752,7 @@ func (dm *KubeArmorDaemon) handleContainerdEvent(envelope *events.Envelope, cont
 		}
 
 	case "/tasks/exit":
-		exitTask := &apievents.TaskStart{}
+		exitTask := &apievents.TaskExit{}
 
 		err := proto.Unmarshal(envelope.Event.GetValue(), exitTask)
 		if err != nil {
