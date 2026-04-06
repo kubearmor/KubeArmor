@@ -14,22 +14,22 @@ global:
     images:
       kubearmor:
         image: kubearmor
-        tag: stable
+        tag: v1.6.16
       kubearmorInit:
         image: kubearmor-init
-        tag: stable
+        tag: v1.6.16
       kubearmorRelay:
         image: kubearmor-relay-server
-        tag: latest
+        tag: v1.6.16
       kubearmorController:
         image: kubearmor-controller
-        tag: latest
+        tag: v1.6.16
       kubearmorSnitch:
         image: kubearmor-snitch
-        tag: latest
+        tag: v1.6.16
       kubearmorOperator:
         image: kubearmor-operator
-        tag: latest
+        tag: v1.6.16
 
 # in case if image pinning is disabled
 kubearmorOperator:
