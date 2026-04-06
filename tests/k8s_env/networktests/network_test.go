@@ -295,4 +295,48 @@ var _ = Describe("Network Tests", func() {
 		})
 	})
 
+	Describe("Network ingress tcp_accept events", func() {
+		var ub1 string
+		var ub2 string
+		BeforeEach(func() {
+			ub1 = getUbuntuPod("ubuntu-1", "kubearmor-policy: enabled")
+			ub2 = getUbuntuPod("ubuntu-2", "kubearmor-policy: enabled")
+		})
+
+		AfterEach(func() {
+			KarmorLogStop()
+		})
+
+		Describe("TCP accept event for ingress connections", func() {
+			It("should emit tcp_accept event on ingress connection from another pod", func() {
+				go AssertCommand(
+					ub2, "multiubuntu", []string{"bash", "-c", "echo 'test' | nc -l -p 9999"},
+					MatchRegexp(""), false,
+				)
+
+				time.Sleep(2 * time.Second)
+
+				err := KarmorLogStart("system", "multiubuntu", "Network", ub2)
+				Expect(err).To(BeNil())
+
+				ub2IP := GetPodIP("ubuntu-2", "multiubuntu")
+				Expect(ub2IP).NotTo(Equal(""))
+
+				AssertCommand(
+					ub1, "multiubuntu", []string{"bash", "-c", "timeout 2 curl -v http://" + ub2IP + ":80 2>&1 || true"},
+					MatchRegexp(""), true,
+				)
+
+				expectLog := protobuf.Log{
+					Source:    "curl",
+					Operation: "Network",
+				}
+
+				res, err := KarmorGetTargetLogs(5*time.Second, &expectLog)
+				Expect(err).To(BeNil())
+				Expect(len(res.Logs)).To(BeGreaterThan(0))
+			})
+		})
+	})
+
 })
