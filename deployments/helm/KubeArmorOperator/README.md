@@ -33,6 +33,18 @@ helm upgrade --install kubearmor-operator . -n kubearmor --create-namespace
 | kubearmorOperator.annotateResource | bool | false | flag to control RBAC permissions conditionally, use `--annotateResource=<value>` arg as well to pass the same value to operator configuration |
 | autoDeploy | bool | false | Auto deploy KubeArmor with default configurations |
 
+## CRI socket URL format
+
+When the operator converts a CRI socket file path into a socket URL, it uses the `unix:///...` format.
+
+For example, this `socketFile` value:
+
+`/var/run/containerd/containerd.sock`
+
+results in this socket URL:
+
+`unix:////var/run/containerd/containerd.sock`
+
 The operator needs a `KubeArmorConfig` object in order to create resources related to KubeArmor. A default config is present in Helm `values.yaml` which can be overridden during Helm install. To install KubeArmor with default configuration use `--set autoDeploy=true` flag with helm install/upgrade command. It is possible to specify configuration even after KubeArmor resources have been installed by directly editing the created `KubeArmorConfig` CR.
 
 By Default the helm does not deploys the default KubeArmor Configurations (KubeArmorConfig CR) and once installed, the operator waits for the user to create a `KubeArmorConfig` object.
