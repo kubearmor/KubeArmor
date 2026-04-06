@@ -4,7 +4,7 @@ KubeArmor supports configurable default security posture. The security posture c
 
 There are two default mode of operations available `block` and `audit`. `block` mode blocks all the operations that are not allowed in the policy. `audit` generates telemetry events for operations that would have been blocked otherwise.
 
-KubeArmor has 4 types of resources: Process, File, Network and Capabilities. Default Posture is configurable for each of the resources seperately except Process. Process based operations are treated under File resource only.
+KubeArmor has 4 types of resources: Process, File, Network and Capabilities. Default Posture is configurable for each of the resources separately except Process. Process based operations are treated under File resource only.
 ## Configuring Default Posture
 
 ### Global Default Posture
