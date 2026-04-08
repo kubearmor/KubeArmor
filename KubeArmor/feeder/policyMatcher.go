@@ -238,9 +238,9 @@ func (fd *Feeder) newMatchPolicy(policyEnabled int, policyName, src string, mp a
 		match.OwnerOnly = pdt.OwnerOnly
 		match.Recursive = pdt.Recursive
 
-		if ppt.Pts != nil {
+		if pdt.Pts != nil {
 			match.Pts = new(bool)
-			*match.Pts = *ppt.Pts
+			*match.Pts = *pdt.Pts
 		}
 
 		if policyEnabled == tp.KubeArmorPolicyAudited && pdt.Action == "Allow" {
