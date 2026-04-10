@@ -3,13 +3,14 @@ module github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator
 go 1.25.8
 
 replace (
-	github.com/go-jose/go-jose/v4 => github.com/go-jose/go-jose/v4 v4.0.5
+	github.com/go-jose/go-jose/v4 => github.com/go-jose/go-jose/v4 v4.1.4
 	github.com/kubearmor/KubeArmor/KubeArmor => ../../KubeArmor
 	github.com/kubearmor/KubeArmor/deployments => ../../deployments
 	github.com/kubearmor/KubeArmor/pkg/KubeArmorController => ../KubeArmorController
 )
 
 require (
+	github.com/containerd/containerd/v2 v2.2.2
 	github.com/kubearmor/KubeArmor/KubeArmor v0.0.0-20260406102335-87edc770f8bf
 	github.com/kubearmor/KubeArmor/deployments v0.0.0-20260406102335-87edc770f8bf
 	github.com/kubearmor/KubeArmor/pkg/KubeArmorController v0.0.0-20260406102335-87edc770f8bf
@@ -29,14 +30,12 @@ require (
 )
 
 require (
-	github.com/AdaLogics/go-fuzz-headers v0.0.0-20240806141605-e8a1dd7889d6 // indirect
-	github.com/AdamKorcz/go-118-fuzz-build v0.0.0-20250520111509-a70c2aa677fa // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/Microsoft/hcsshim v0.14.1 // indirect
 	github.com/containerd/cgroups/v3 v3.1.3 // indirect
 	github.com/containerd/containerd/api v1.10.0 // indirect
 	github.com/containerd/continuity v0.4.5 // indirect
-	github.com/containerd/errdefs v1.0.0 // indirect
+	github.com/containerd/errdefs v1.0.0
 	github.com/containerd/errdefs/pkg v0.3.0 // indirect
 	github.com/containerd/fifo v1.1.0 // indirect
 	github.com/containerd/log v0.1.0 // indirect
@@ -44,7 +43,6 @@ require (
 	github.com/containerd/ttrpc v1.2.8 // indirect
 	github.com/containerd/typeurl/v2 v2.2.3 // indirect
 	github.com/distribution/reference v0.6.0 // indirect
-	github.com/docker/go-events v0.0.0-20250808211157-605354379745 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/golang/groupcache v0.0.0-20241129210726-2c02b8208cf8 // indirect
@@ -70,15 +68,14 @@ require (
 	golang.org/x/sync v0.20.0 // indirect
 	golang.org/x/sys v0.43.0 // indirect
 	golang.org/x/term v0.41.0 // indirect
-	google.golang.org/genproto v0.0.0-20260406210006-6f92a3bedf2d // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260406210006-6f92a3bedf2d // indirect
 )
 
 require (
-	cyphar.com/go-pathrs v0.2.4 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
+	github.com/containerd/plugin v1.0.0 // indirect
 	github.com/containers/storage v1.59.1 // indirect
-	github.com/cyphar/filepath-securejoin v0.6.1 // indirect
+	github.com/cyphar/filepath-securejoin v0.5.1 // indirect
 	github.com/go-openapi/swag/cmdutils v0.25.5 // indirect
 	github.com/go-openapi/swag/conv v0.25.5 // indirect
 	github.com/go-openapi/swag/fileutils v0.25.5 // indirect
@@ -98,7 +95,6 @@ require (
 
 require (
 	github.com/cilium/ebpf v0.21.0 // indirect
-	github.com/containerd/containerd v1.7.30
 	github.com/containers/common v0.64.2
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/emicklei/go-restful/v3 v3.13.0 // indirect

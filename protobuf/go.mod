@@ -3,7 +3,7 @@ module github.com/kubearmor/KubeArmor/protobuf
 go 1.25.8
 
 replace (
-	github.com/go-jose/go-jose/v4 => github.com/go-jose/go-jose/v4 v4.0.5
+	github.com/go-jose/go-jose/v4 => github.com/go-jose/go-jose/v4 v4.1.4
 	github.com/kubearmor/KubeArmor => ../
 	github.com/kubearmor/KubeArmor/protobuf => ./
 	github.com/mattn/go-sqlite3 => github.com/mattn/go-sqlite3 v1.14.18
@@ -18,6 +18,7 @@ require (
 )
 
 require (
+	go.opentelemetry.io/otel v1.43.0 // indirect
 	golang.org/x/net v0.52.0 // indirect
 	golang.org/x/sys v0.43.0 // indirect
 	golang.org/x/text v0.35.0 // indirect
