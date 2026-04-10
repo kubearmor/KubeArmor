@@ -18,8 +18,9 @@ import (
 // a TaskExit payload is wrong.
 //
 // Proto field numbers:
-//   TaskStart: ContainerID=1, Pid=2
-//   TaskExit:  ContainerID=1, ID=2, Pid=3, ExitStatus=4, ExitedAt=5
+//
+//	TaskStart: ContainerID=1, Pid=2
+//	TaskExit:  ContainerID=1, ID=2, Pid=3, ExitStatus=4, ExitedAt=5
 //
 // When a TaskExit payload is unmarshaled into TaskStart:
 //   - Field 1 (ContainerID) matches correctly
