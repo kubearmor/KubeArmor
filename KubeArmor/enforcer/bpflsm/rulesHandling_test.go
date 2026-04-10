@@ -114,8 +114,8 @@ func TestMakeInnerKeyPathTruncation(t *testing.T) {
 
 	key := makeInnerKey(longPath, "")
 
-	if len(key.Path) != 200 {
-		t.Errorf("Expected Path array to be 200 bytes, got %d", len(key.Path))
+	if len(key.Path) != 128 {
+		t.Errorf("Expected Path array to be 128 bytes, got %d", len(key.Path))
 	}
 
 	pathField := string(key.Path[:])

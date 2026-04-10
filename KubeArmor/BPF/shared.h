@@ -17,7 +17,7 @@ char LICENSE[] SEC("license") = "Dual BSD/GPL";
 #define EPERM 13
 
 #define MAX_BUFFER_SIZE 32768
-#define MAX_STRING_SIZE 200
+#define MAX_STRING_SIZE 128
 #define MAX_COMBINED_LENGTH 4096
 #define MAX_BUFFERS 1
 #define PATH_BUFFER 0

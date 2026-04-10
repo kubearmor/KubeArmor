@@ -28,6 +28,8 @@ type NsKey struct {
 }
 
 // InnerKey Structure contains Map Rule Identifier
+// Note: Path and Source reduced to 128 bytes to keep InnerKey at 296 bytes total,
+// ensuring ArgumentsKey stays within 512-byte BPF stack limit on kernel ≤ 5.10.
 type InnerKey struct {
 	KeyType uint8
 	_pad    [7]byte
@@ -35,8 +37,8 @@ type InnerKey struct {
 	Dev     uint64
 	SrcIno  uint64
 	SrcDev  uint64
-	Path    [200]byte
-	Source  [200]byte
+	Path    [128]byte
+	Source  [128]byte
 }
 type ArgumentsKey struct {
 	NsKey
