@@ -7,7 +7,6 @@ import (
 	"errors"
 	"os"
 	"strings"
-	"syscall"
 
 	"github.com/cilium/ebpf"
 	mon "github.com/kubearmor/KubeArmor/KubeArmor/monitor"
@@ -15,26 +14,17 @@ import (
 )
 
 // makeInnerKey builds an InnerKey from path and optional source path.
-// It populates inode and device fields (following symlinks) and also
-// copies the original path strings for directory and alerting support.
+// Copies the original path strings for directory and alerting support.
+// Inode and device fields are populated by BPF code in kernel space,
+// which has direct access to the host filesystem and can follow symlinks.
+// This userspace function only copies the path strings and sets KeyType=1
+// to indicate inode-based key matching should be used.
 func makeInnerKey(pathStr, srcStr string) InnerKey {
 	var key InnerKey
 	if pathStr != "" {
-		if st, err := os.Stat(pathStr); err == nil {
-			if stat, ok := st.Sys().(*syscall.Stat_t); ok {
-				key.Ino = uint64(stat.Ino)
-				key.Dev = uint64(stat.Dev)
-			}
-		}
 		copy(key.Path[:], []byte(pathStr))
 	}
 	if srcStr != "" {
-		if st, err := os.Stat(srcStr); err == nil {
-			if stat, ok := st.Sys().(*syscall.Stat_t); ok {
-				key.SrcIno = uint64(stat.Ino)
-				key.SrcDev = uint64(stat.Dev)
-			}
-		}
 		copy(key.Source[:], []byte(srcStr))
 	}
 	key.KeyType = 1

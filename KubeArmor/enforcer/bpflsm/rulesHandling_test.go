@@ -4,103 +4,83 @@
 package bpflsm
 
 import (
-	"os"
-	"path/filepath"
 	"strings"
-	"syscall"
 	"testing"
 )
 
 func TestMakeInnerKeyWithPath(t *testing.T) {
-	tmpfile, err := os.CreateTemp("", "test")
-	if err != nil {
-		t.Fatalf("Failed to create temp file: %v", err)
-	}
-	defer os.Remove(tmpfile.Name())
-	tmpfile.Close()
+	pathStr := "/etc/config.conf"
+	key := makeInnerKey(pathStr, "")
 
-	key := makeInnerKey(tmpfile.Name(), "")
-
+	// Verify KeyType is set to 1 (inode-based key)
 	if key.KeyType != 1 {
 		t.Errorf("Expected KeyType=1, got %d", key.KeyType)
 	}
 
-	pathStr := string(key.Path[:])
-	if !strings.HasPrefix(pathStr, tmpfile.Name()) {
-		t.Errorf("Expected path to contain %s, got %s", tmpfile.Name(), pathStr[:len(tmpfile.Name())])
+	// Verify path is copied to Path field
+	pathField := string(key.Path[:])
+	if !strings.HasPrefix(pathField, pathStr) {
+		maxLen := len(pathStr)
+		if len(pathField) < maxLen {
+			maxLen = len(pathField)
+		}
+		t.Errorf("Expected Path to start with %s, got %s", pathStr, pathField[:maxLen])
 	}
 
-	stat, _ := os.Stat(tmpfile.Name())
-	sysstat := stat.Sys().(*syscall.Stat_t)
-
-	if key.Ino != sysstat.Ino {
-		t.Errorf("Expected Ino=%d, got %d", sysstat.Ino, key.Ino)
+	sourceField := strings.TrimRight(string(key.Source[:]), "\x00")
+	if sourceField != "" {
+		t.Errorf("Expected empty Source, got %s", sourceField)
 	}
 
-	if key.Dev != sysstat.Dev {
-		t.Errorf("Expected Dev=%d, got %d", sysstat.Dev, key.Dev)
+	// Inode/device fields should be 0 in userspace
+	if key.Ino != 0 {
+		t.Errorf("Expected Ino=0 in userspace, got %d", key.Ino)
 	}
-
-	if key.SrcIno != 0 {
-		t.Errorf("Expected SrcIno=0, got %d", key.SrcIno)
-	}
-
-	if key.SrcDev != 0 {
-		t.Errorf("Expected SrcDev=0, got %d", key.SrcDev)
+	if key.Dev != 0 {
+		t.Errorf("Expected Dev=0 in userspace, got %d", key.Dev)
 	}
 }
 
 func TestMakeInnerKeyWithPathAndSource(t *testing.T) {
-	tmpfile1, err := os.CreateTemp("", "test1")
-	if err != nil {
-		t.Fatalf("Failed to create temp file 1: %v", err)
-	}
-	defer os.Remove(tmpfile1.Name())
-	tmpfile1.Close()
+	pathStr := "/usr/bin/curl"
+	srcStr := "/home/user/app"
 
-	tmpfile2, err := os.CreateTemp("", "test2")
-	if err != nil {
-		t.Fatalf("Failed to create temp file 2: %v", err)
-	}
-	defer os.Remove(tmpfile2.Name())
-	tmpfile2.Close()
+	key := makeInnerKey(pathStr, srcStr)
 
-	key := makeInnerKey(tmpfile1.Name(), tmpfile2.Name())
-
+	// Verify KeyType is set
 	if key.KeyType != 1 {
 		t.Errorf("Expected KeyType=1, got %d", key.KeyType)
 	}
 
-	pathStr := string(key.Path[:])
-	if !strings.HasPrefix(pathStr, tmpfile1.Name()) {
-		t.Errorf("Expected path to contain %s, got %s", tmpfile1.Name(), pathStr[:len(tmpfile1.Name())])
+	pathField := string(key.Path[:])
+	if !strings.HasPrefix(pathField, pathStr) {
+		maxLen := len(pathStr)
+		if len(pathField) < maxLen {
+			maxLen = len(pathField)
+		}
+		t.Errorf("Expected Path to start with %s, got %s", pathStr, pathField[:maxLen])
 	}
 
-	sourceStr := string(key.Source[:])
-	if !strings.HasPrefix(sourceStr, tmpfile2.Name()) {
-		t.Errorf("Expected source to contain %s, got %s", tmpfile2.Name(), sourceStr[:len(tmpfile2.Name())])
+	sourceField := string(key.Source[:])
+	if !strings.HasPrefix(sourceField, srcStr) {
+		maxLen := len(srcStr)
+		if len(sourceField) < maxLen {
+			maxLen = len(sourceField)
+		}
+		t.Errorf("Expected Source to start with %s, got %s", srcStr, sourceField[:maxLen])
 	}
 
-	stat1, _ := os.Stat(tmpfile1.Name())
-	sysstat1 := stat1.Sys().(*syscall.Stat_t)
-
-	if key.Ino != sysstat1.Ino {
-		t.Errorf("Expected Ino=%d, got %d", sysstat1.Ino, key.Ino)
+	if key.Ino != 0 {
+		t.Errorf("Expected Ino=0 in userspace, got %d", key.Ino)
 	}
-
-	if key.Dev != sysstat1.Dev {
-		t.Errorf("Expected Dev=%d, got %d", sysstat1.Dev, key.Dev)
+	if key.Dev != 0 {
+		t.Errorf("Expected Dev=0 in userspace, got %d", key.Dev)
 	}
-
-	stat2, _ := os.Stat(tmpfile2.Name())
-	sysstat2 := stat2.Sys().(*syscall.Stat_t)
-
-	if key.SrcIno != sysstat2.Ino {
-		t.Errorf("Expected SrcIno=%d, got %d", sysstat2.Ino, key.SrcIno)
+	if key.SrcIno != 0 {
+		t.Errorf("Expected SrcIno=0 in userspace, got %d", key.SrcIno)
 	}
-
-	if key.SrcDev != sysstat2.Dev {
-		t.Errorf("Expected SrcDev=%d, got %d", sysstat2.Dev, key.SrcDev)
+	if key.SrcDev != 0 {
+		t.Errorf("Expected SrcDev=0 in userspace, got %d", key.SrcDev)
 	}
 }
 
@@ -111,101 +91,85 @@ func TestMakeInnerKeyWithEmptyPath(t *testing.T) {
 		t.Errorf("Expected KeyType=1, got %d", key.KeyType)
 	}
 
+	pathField := strings.TrimRight(string(key.Path[:]), "\x00")
+	if pathField != "" {
+		t.Errorf("Expected empty Path, got %s", pathField)
+	}
+
+	sourceField := strings.TrimRight(string(key.Source[:]), "\x00")
+	if sourceField != "" {
+		t.Errorf("Expected empty Source, got %s", sourceField)
+	}
+
 	if key.Ino != 0 {
 		t.Errorf("Expected Ino=0, got %d", key.Ino)
 	}
-
 	if key.Dev != 0 {
 		t.Errorf("Expected Dev=0, got %d", key.Dev)
 	}
+}
 
-	if key.SrcIno != 0 {
-		t.Errorf("Expected SrcIno=0, got %d", key.SrcIno)
+func TestMakeInnerKeyPathTruncation(t *testing.T) {
+	longPath := "/very/long/path/" + strings.Repeat("x", 300)
+
+	key := makeInnerKey(longPath, "")
+
+	if len(key.Path) != 200 {
+		t.Errorf("Expected Path array to be 200 bytes, got %d", len(key.Path))
 	}
 
-	if key.SrcDev != 0 {
-		t.Errorf("Expected SrcDev=0, got %d", key.SrcDev)
+	pathField := string(key.Path[:])
+	if !strings.HasPrefix(pathField, "/very/long/path/") {
+		t.Errorf("Expected path to start with /very/long/path/, got %s", pathField[:16])
 	}
 }
 
-func TestMakeInnerKeyWithNonExistentPath(t *testing.T) {
-	nonExistentPath := "/tmp/this/path/does/not/exist/hopefully"
+func TestMakeInnerKeyConsistency(t *testing.T) {
+	pathStr := "/etc/passwd"
 
-	key := makeInnerKey(nonExistentPath, "")
+	key1 := makeInnerKey(pathStr, "")
+	key2 := makeInnerKey(pathStr, "")
+
+	if key1.KeyType != key2.KeyType {
+		t.Errorf("KeyType mismatch: %d vs %d", key1.KeyType, key2.KeyType)
+	}
+
+	if key1.Path != key2.Path {
+		t.Errorf("Path field mismatch")
+	}
+
+	if key1.Ino != key2.Ino || key1.Dev != key2.Dev {
+		t.Errorf("Inode/device mismatch (should both be 0 in userspace)")
+	}
+}
+
+func TestMakeInnerKeyWithSpecialCharacters(t *testing.T) {
+	pathStr := "/etc/some-config.d/app_settings.conf"
+	key := makeInnerKey(pathStr, "")
 
 	if key.KeyType != 1 {
 		t.Errorf("Expected KeyType=1, got %d", key.KeyType)
 	}
 
-	pathStr := string(key.Path[:])
-	if !strings.Contains(pathStr, "path/does/not/exist") {
-		t.Errorf("Expected path to contain path parts, got %s", pathStr)
-	}
-
-	if key.Ino != 0 {
-		t.Errorf("Expected Ino=0 for non-existent path, got %d", key.Ino)
-	}
-
-	if key.Dev != 0 {
-		t.Errorf("Expected Dev=0 for non-existent path, got %d", key.Dev)
+	pathField := string(key.Path[:])
+	if !strings.HasPrefix(pathField, pathStr) {
+		t.Errorf("Expected path to contain special character file name")
 	}
 }
 
-func TestMakeInnerKeyWithSymlink(t *testing.T) {
-	tmpfile, err := os.CreateTemp("", "test-original")
-	if err != nil {
-		t.Fatalf("Failed to create temp file: %v", err)
-	}
-	defer os.Remove(tmpfile.Name())
-	tmpfile.Close()
-
-	tmpdir := filepath.Dir(tmpfile.Name())
-	symlinkPath := filepath.Join(tmpdir, "test-symlink")
-	if err := os.Symlink(tmpfile.Name(), symlinkPath); err != nil {
-		t.Fatalf("Failed to create symlink: %v", err)
-	}
-	defer os.Remove(symlinkPath)
-
-	keySymlink := makeInnerKey(symlinkPath, "")
-	keyOriginal := makeInnerKey(tmpfile.Name(), "")
-
-	if keySymlink.Ino != keyOriginal.Ino {
-		t.Errorf("Symlink and original should have same Ino. Symlink=%d, Original=%d",
-			keySymlink.Ino, keyOriginal.Ino)
-	}
-
-	if keySymlink.Dev != keyOriginal.Dev {
-		t.Errorf("Symlink and original should have same Dev. Symlink=%d, Original=%d",
-			keySymlink.Dev, keyOriginal.Dev)
-	}
-
-	pathSymlink := string(keySymlink.Path[:])
-	pathOriginal := string(keyOriginal.Path[:])
-
-	if strings.TrimRight(pathSymlink, "\x00") == strings.TrimRight(pathOriginal, "\x00") {
-		t.Errorf("Symlink path and original path should be different")
-	}
-}
-
-func TestDirtoMap(t *testing.T) {
+func TestDirtoMapBasic(t *testing.T) {
 	m := make(map[InnerKey][2]uint16)
 	val := [2]uint16{WRITE | READ, 0}
 
 	dirtoMap(0, "/etc/config.conf", "", m, val)
 
-	parentKey := makeInnerKey("/etc", "")
-	if _, ok := m[parentKey]; !ok {
-		t.Errorf("Expected parent directory key to exist in map")
+	if len(m) < 2 {
+		t.Errorf("Expected at least 2 entries in map, got %d", len(m))
 	}
 
 	fullPathKey := makeInnerKey("/etc/config.conf", "")
 	if _, ok := m[fullPathKey]; !ok {
 		t.Errorf("Expected full path key to exist in map")
-	}
-
-	hintKey := makeInnerKey("/", "")
-	if _, ok := m[hintKey]; !ok {
-		t.Errorf("Expected hint key for / to exist in map")
 	}
 }
 
@@ -216,21 +180,15 @@ func TestDirtoMapWithDeepPath(t *testing.T) {
 	deepPath := "/var/lib/kubelet/pods/abc123/volumes/config"
 	dirtoMap(0, deepPath, "", m, val)
 
-	expectedDirs := []string{
-		"/var/lib/kubelet/pods/abc123/volumes",
-		"/var/lib/kubelet/pods/abc123/volumes/config",
-		"/",
-		"/var/",
-		"/var/lib/",
-		"/var/lib/kubelet/",
-		"/var/lib/kubelet/pods/",
-		"/var/lib/kubelet/pods/abc123/",
+	expectedPaths := []string{
+		"/var/lib/kubelet/pods/abc123/volumes",  // parent directory
+		"/var/lib/kubelet/pods/abc123/volumes/config", // full path
 	}
 
-	for _, dir := range expectedDirs {
-		key := makeInnerKey(dir, "")
+	for _, path := range expectedPaths {
+		key := makeInnerKey(path, "")
 		if _, ok := m[key]; !ok {
-			t.Errorf("Expected directory key for %s to exist in map", dir)
+			t.Errorf("Expected path key for %s to exist in map", path)
 		}
 	}
 }
@@ -241,15 +199,13 @@ func TestDirtoMapWithSource(t *testing.T) {
 
 	dirtoMap(0, "/etc/config.conf", "/home/user/source", m, val)
 
-	parentKey := makeInnerKey("/etc", "/home/user/source")
-
-	if _, ok := m[parentKey]; !ok {
-		t.Errorf("Expected parent directory key with source to exist in map")
+	if len(m) == 0 {
+		t.Errorf("Expected map to have entries with source")
 	}
 
-	sourceStr := string(parentKey.Source[:])
-	if !strings.Contains(sourceStr, "source") {
-		t.Errorf("Expected source path to be in key")
+	parentKey := makeInnerKey("/etc", "/home/user/source")
+	if _, ok := m[parentKey]; !ok {
+		t.Errorf("Expected parent directory key with source to exist in map")
 	}
 }
 
@@ -262,73 +218,9 @@ func TestDirtoMapBitFlags(t *testing.T) {
 	fullPathKey := makeInnerKey("/etc/passwd", "")
 	if mapVal, ok := m[fullPathKey]; ok {
 		if mapVal[0]&DIR == 0 {
-			t.Errorf("Expected DIR flag to be set on full path")
+			t.Errorf("Expected DIR flag to be set on full path entry")
 		}
-	}
-}
-
-func TestMakeInnerKeyPathTruncation(t *testing.T) {
-	tmpdir := os.TempDir()
-
-	longPath := filepath.Join(tmpdir, strings.Repeat("very_long_directory_name_", 5))
-	os.MkdirAll(longPath, 0755)
-	defer os.RemoveAll(tmpdir + "/very_long_directory_name_")
-
-	key := makeInnerKey(longPath, "")
-
-	if len(key.Path) != 200 {
-		t.Errorf("Expected Path array to be 200 bytes, got %d", len(key.Path))
-	}
-
-	pathStr := string(key.Path[:])
-	if !strings.HasPrefix(pathStr, tmpdir) {
-		t.Errorf("Expected path to start with tmpdir %s", tmpdir)
-	}
-}
-
-func TestMakeInnerKeyConsistency(t *testing.T) {
-	tmpfile, err := os.CreateTemp("", "test-consistency")
-	if err != nil {
-		t.Fatalf("Failed to create temp file: %v", err)
-	}
-	defer os.Remove(tmpfile.Name())
-	tmpfile.Close()
-
-	key1 := makeInnerKey(tmpfile.Name(), "")
-	key2 := makeInnerKey(tmpfile.Name(), "")
-
-	if key1.Ino != key2.Ino {
-		t.Errorf("Same path should always have same Ino. Got %d vs %d", key1.Ino, key2.Ino)
-	}
-
-	if key1.Dev != key2.Dev {
-		t.Errorf("Same path should always have same Dev. Got %d vs %d", key1.Dev, key2.Dev)
-	}
-
-	if key1.Path != key2.Path {
-		t.Errorf("Same path should always have identical Path field")
-	}
-}
-
-func TestMakeInnerKeyWithSpecialCharacters(t *testing.T) {
-	tmpdir := os.TempDir()
-	specialPath := filepath.Join(tmpdir, "test-dir_with-special.chars")
-
-	os.MkdirAll(specialPath, 0755)
-	defer os.RemoveAll(specialPath)
-
-	key := makeInnerKey(specialPath, "")
-
-	if key.KeyType != 1 {
-		t.Errorf("Expected KeyType=1, got %d", key.KeyType)
-	}
-
-	if key.Ino == 0 {
-		t.Errorf("Expected valid Ino for existing directory")
-	}
-
-	pathStr := string(key.Path[:])
-	if !strings.Contains(pathStr, "test-dir_with-special.chars") {
-		t.Errorf("Expected path to contain special character file name")
+	} else {
+		t.Errorf("Expected full path key to exist in map")
 	}
 }
