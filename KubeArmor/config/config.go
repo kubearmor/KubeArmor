@@ -79,6 +79,8 @@ type KubearmorConfig struct {
 	MatchArgs bool // enable argument rules for policy
 
 	NetworkPolicyEnforcer bool // enable network policy enforcement
+
+	EnableMonitor bool // Enable/Disable eBPF system monitor
 }
 
 // GlobalCfg Global configuration for Kubearmor
@@ -136,6 +138,7 @@ const (
 	ConfigUSBDeviceHandler               string = "enableUSBDeviceHandler"
 	ConfigArgMatching                    string = "matchArgs"
 	ConfigNetworkPolicyEnforcer          string = "enableNetworkPolicyEnforcer"
+	ConfigEnableMonitor                  string = "enableMonitor"
 )
 
 func readCmdLineParams() {
@@ -210,6 +213,8 @@ func readCmdLineParams() {
 	matchArgs := flag.Bool(ConfigArgMatching, true, "enabling Argument matching")
 
 	networkPolicyEnforcer := flag.Bool(ConfigNetworkPolicyEnforcer, true, "Enable network policy enforcement")
+
+	enableMonitor := flag.Bool(ConfigEnableMonitor, true, "Enable/Disable eBPF system monitor")
 
 	flags := []string{}
 	flag.VisitAll(func(f *flag.Flag) {
@@ -292,6 +297,8 @@ func readCmdLineParams() {
 	viper.SetDefault(ConfigArgMatching, *matchArgs)
 
 	viper.SetDefault(ConfigNetworkPolicyEnforcer, *networkPolicyEnforcer)
+
+	viper.SetDefault(ConfigEnableMonitor, *enableMonitor)
 }
 
 // LoadConfig Load configuration
@@ -387,6 +394,8 @@ func LoadConfig() error {
 	GlobalCfg.SELinuxProfileDir = viper.GetString(ConfigSELinuxProfileDir)
 
 	GlobalCfg.NetworkPolicyEnforcer = viper.GetBool(ConfigNetworkPolicyEnforcer)
+
+	GlobalCfg.EnableMonitor = viper.GetBool(ConfigEnableMonitor)
 
 	LoadDynamicConfig()
 

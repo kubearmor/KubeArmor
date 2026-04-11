@@ -32,6 +32,7 @@ spec:
         - {{ printf "--tlsCertPath=%s" .Values.kubearmor.tls.tlsCertPath | quote }}
         - {{ printf "--tlsCertProvider=%s" .Values.kubearmor.tls.tlsCertProvider | quote }}
         {{- end }}
+        - {{ printf "--enableMonitor=%t" .Values.kubearmorConfigMap.enableMonitor | quote }}
 
         {{- with .Values.kubearmor.args }}
         {{- toYaml . | nindent 8 }}

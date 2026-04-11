@@ -301,6 +301,11 @@ func (dm *KubeArmorDaemon) CloseLogger() error {
 
 // InitSystemMonitor Function
 func (dm *KubeArmorDaemon) InitSystemMonitor() error {
+	if !cfg.GlobalCfg.EnableMonitor {
+		dm.Logger.Print("System monitor disabled (enableMonitor=false) — syscall tracing will not run; BPFLSM enforcer alerts only")
+		return nil
+	}
+
 	dm.SystemMonitor = mon.NewSystemMonitor(&dm.Node, &dm.NodeLock, dm.Logger, &dm.Containers, &dm.ContainersLock, &dm.ActiveHostPidMap, &dm.ActivePidMapLock, &dm.MonitorLock)
 	if dm.SystemMonitor == nil {
 		return fmt.Errorf("failed to create new system monitor")
@@ -317,6 +322,10 @@ func (dm *KubeArmorDaemon) InitSystemMonitor() error {
 func (dm *KubeArmorDaemon) MonitorSystemEvents() {
 	dm.WgDaemon.Add(1)
 	defer dm.WgDaemon.Done()
+
+	if dm.SystemMonitor == nil {
+		return
+	}
 
 	if cfg.GlobalCfg.Policy || cfg.GlobalCfg.HostPolicy {
 		go dm.SystemMonitor.TraceSyscall()
@@ -693,7 +702,14 @@ func KubeArmor() {
 		if cfg.GlobalCfg.LsmOrder[0] == "" || cfg.GlobalCfg.LsmOrder[0] == "none" {
 			dm.Logger.Printf("Disabled KubeArmor Enforcer: No LSM specified")
 		} else {
-			if err := dm.InitRuntimeEnforcer(dm.SystemMonitor.PinPath); err != nil {
+			pinPath := ""
+			if dm.SystemMonitor != nil {
+				pinPath = dm.SystemMonitor.PinPath
+			} else {
+				pinPath = kl.GetMapRoot()
+			}
+
+			if err := dm.InitRuntimeEnforcer(pinPath); err != nil {
 				dm.Logger.Printf("Disabled KubeArmor Enforcer: %s", err.Error())
 			} else {
 				dm.Logger.Print("Initialized KubeArmor Enforcer")
@@ -709,10 +725,14 @@ func KubeArmor() {
 		}
 
 		// initialize presets
-		if err := dm.InitPresets(dm.Logger, dm.SystemMonitor); err != nil {
-			dm.Logger.Printf("Disabled Presets: %s", err.Error())
+		if dm.SystemMonitor != nil {
+			if err := dm.InitPresets(dm.Logger, dm.SystemMonitor); err != nil {
+				dm.Logger.Printf("Disabled Presets: %s", err.Error())
+			} else {
+				dm.Logger.Print("Initialized Presets")
+			}
 		} else {
-			dm.Logger.Print("Initialized Presets")
+			dm.Logger.Print("Skipped Presets initialization as system monitor is disabled")
 		}
 	}
 

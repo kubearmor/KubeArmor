@@ -130,6 +130,8 @@ type KubeArmorConfigSpec struct {
 	DropResourceFromProcessLogs bool `json:"dropResourceFromProcessLogs,omitempty"`
 
 	MatchArgs bool `json:"matchArgs,omitempty"`
+
+	EnableMonitor bool `json:"enableMonitor,omitempty"`
 }
 
 // KubeArmorConfigStatus defines the observed state of KubeArmorConfig
