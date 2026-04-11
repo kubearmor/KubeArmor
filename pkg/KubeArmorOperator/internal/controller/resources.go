@@ -1264,6 +1264,7 @@ func (clusterWatcher *ClusterWatcher) RotateTlsCerts() {
 		context.Background(), deployments.KubeArmorControllerDeploymentName, metav1.GetOptions{})
 	if err != nil {
 		clusterWatcher.Log.Warnf("cannot get controller deployment, error=%s", err.Error())
+		return
 	}
 	replicas := origdeploy.Spec.Replicas
 
