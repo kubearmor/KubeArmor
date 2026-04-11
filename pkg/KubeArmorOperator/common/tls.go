@@ -19,47 +19,39 @@ import (
 func GeneratePki(namespace string, serviceName string) (*bytes.Buffer, *bytes.Buffer, *bytes.Buffer, *bytes.Buffer, error) {
 	ca, cakey, err := GenerateCA()
 	if err != nil {
-		empty := bytes.NewBuffer([]byte{})
-		return empty, empty, empty, empty, err
+		return bytes.NewBuffer([]byte{}), bytes.NewBuffer([]byte{}), bytes.NewBuffer([]byte{}), bytes.NewBuffer([]byte{}), err
 	}
 	csr, csrkey, err := GenerateCSR(namespace, serviceName)
 	if err != nil {
-		empty := bytes.NewBuffer([]byte{})
-		return empty, empty, empty, empty, err
+		return bytes.NewBuffer([]byte{}), bytes.NewBuffer([]byte{}), bytes.NewBuffer([]byte{}), bytes.NewBuffer([]byte{}), err
 	}
 	crt, err := SignCSR(ca, cakey, csr, csrkey)
 	if err != nil {
-		empty := bytes.NewBuffer([]byte{})
-		return empty, empty, empty, empty, err
+		return bytes.NewBuffer([]byte{}), bytes.NewBuffer([]byte{}), bytes.NewBuffer([]byte{}), bytes.NewBuffer([]byte{}), err
 	}
 
 	caBytes, err := x509.CreateCertificate(rand.Reader, ca, ca, &cakey.PublicKey, cakey)
 	if err != nil {
-		empty := bytes.NewBuffer([]byte{})
-		return empty, empty, empty, empty, err
+		return bytes.NewBuffer([]byte{}), bytes.NewBuffer([]byte{}), bytes.NewBuffer([]byte{}), bytes.NewBuffer([]byte{}), err
 	}
 	caPEM := new(bytes.Buffer)
 	if err = pem.Encode(caPEM, &pem.Block{Type: "CERTIFICATE", Bytes: caBytes}); err != nil {
-		empty := bytes.NewBuffer([]byte{})
-		return empty, empty, empty, empty, err
+		return bytes.NewBuffer([]byte{}), bytes.NewBuffer([]byte{}), bytes.NewBuffer([]byte{}), bytes.NewBuffer([]byte{}), err
 	}
 
 	caKeyPEM := new(bytes.Buffer)
 	if err = pem.Encode(caKeyPEM, &pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(cakey)}); err != nil {
-		empty := bytes.NewBuffer([]byte{})
-		return empty, empty, empty, empty, err
+		return bytes.NewBuffer([]byte{}), bytes.NewBuffer([]byte{}), bytes.NewBuffer([]byte{}), bytes.NewBuffer([]byte{}), err
 	}
 
 	crtPEM := new(bytes.Buffer)
 	if err = pem.Encode(crtPEM, &pem.Block{Type: "CERTIFICATE", Bytes: crt}); err != nil {
-		empty := bytes.NewBuffer([]byte{})
-		return empty, empty, empty, empty, err
+		return bytes.NewBuffer([]byte{}), bytes.NewBuffer([]byte{}), bytes.NewBuffer([]byte{}), bytes.NewBuffer([]byte{}), err
 	}
 
 	crtKeyPEM := new(bytes.Buffer)
 	if err = pem.Encode(crtKeyPEM, &pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(csrkey)}); err != nil {
-		empty := bytes.NewBuffer([]byte{})
-		return empty, empty, empty, empty, err
+		return bytes.NewBuffer([]byte{}), bytes.NewBuffer([]byte{}), bytes.NewBuffer([]byte{}), bytes.NewBuffer([]byte{}), err
 	}
 
 	return caPEM, caKeyPEM, crtPEM, crtKeyPEM, nil
@@ -149,6 +141,15 @@ func GeneratePkiWithExistingCA(namespace string, serviceName string, caCertPEM [
 	caKey, err := x509.ParsePKCS1PrivateKey(caKeyBlock.Bytes)
 	if err != nil {
 		return bytes.NewBuffer([]byte{}), bytes.NewBuffer([]byte{}), bytes.NewBuffer([]byte{}), err
+	}
+
+	// Verify the cert is actually a CA and the key matches the cert's public key
+	if !ca.IsCA {
+		return bytes.NewBuffer([]byte{}), bytes.NewBuffer([]byte{}), bytes.NewBuffer([]byte{}), errors.New("provided certificate is not a CA")
+	}
+	caRSAPub, ok := ca.PublicKey.(*rsa.PublicKey)
+	if !ok || caRSAPub.N.Cmp(caKey.PublicKey.N) != 0 {
+		return bytes.NewBuffer([]byte{}), bytes.NewBuffer([]byte{}), bytes.NewBuffer([]byte{}), errors.New("CA private key does not match CA certificate public key")
 	}
 
 	// Generate a new leaf cert signed by the existing CA
