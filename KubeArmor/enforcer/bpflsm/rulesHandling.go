@@ -383,6 +383,11 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 		return
 	}
 
+	if be.ContainerMap[id].Map == nil {
+		be.Logger.Errf("Inner map for container %s is nil, aborting rule update", id)
+		return
+	}
+
 	// Check for differences in Fresh Rules Set and Existing Ruleset
 	be.resolveConflictsProcessRules(newrules.ProcessRuleList, be.ContainerMap[id].Rules.ProcessRuleList, be.ContainerMap[id].Map, id, be.ContainerMap[id].Rules.ArgumentsList)
 	be.resolveConflicts(newrules.FileWhiteListPosture, be.ContainerMap[id].Rules.FileWhiteListPosture, newrules.FileRuleList, be.ContainerMap[id].Rules.FileRuleList, be.ContainerMap[id].Map)
