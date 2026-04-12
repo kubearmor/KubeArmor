@@ -759,7 +759,7 @@ func (clusterWatcher *ClusterWatcher) fetchClusterNameFromAWS(providerHostname, 
 		return match[1], nil
 	}
 
-	return "", err
+	return "", fmt.Errorf("cluster name not found in EKS metadata response")
 }
 
 func (clusterWatcher *ClusterWatcher) GetClusterName(providerHostname, providerEndpoint string) string {
