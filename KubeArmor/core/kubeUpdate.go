@@ -379,17 +379,17 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 
 	} else if action == updateEvent {
 		newEndPoint := tp.EndPoint{}
-		endpoints := []tp.EndPoint{}
+		endPointExists := false
 
 		dm.EndPointsLock.RLock()
 		for _, endPoint := range dm.EndPoints {
 			if pod.Metadata["namespaceName"] == endPoint.NamespaceName && pod.Metadata["podName"] == endPoint.EndPointName {
-				endpoints = append(endpoints, endPoint)
+				endPointExists = true
 				break
 			}
 		}
 		dm.EndPointsLock.RUnlock()
-		if len(endpoints) == 0 {
+		if !endPointExists {
 			// No endpoints were added as containers ID have been just added
 			// Same logic as ADDED
 			dm.UpdateEndPointWithPod(addEvent, pod)
@@ -447,11 +447,18 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 			}
 
 			containersAppArmorProfiles := map[string]string{}
+			activeContainers := make([]string, 0, len(newEndPoint.Containers))
 
 			dm.ContainersLock.Lock()
 			// update containers and apparmors
 			for _, containerID := range newEndPoint.Containers {
-				container := dm.Containers[containerID]
+				container, ok := dm.Containers[containerID]
+				if !ok {
+					// Skip terminated containers that were already removed by the runtime handler.
+					continue
+				}
+
+				activeContainers = append(activeContainers, containerID)
 				container.NamespaceName = newEndPoint.NamespaceName
 				container.EndPointName = newEndPoint.EndPointName
 				if (container.Owner == tp.PodOwner{}) && (len(dm.OwnerInfo) > 0) {
@@ -493,6 +500,7 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 				dm.HandleUnknownNamespaceNsMap(&container)
 			}
 			dm.ContainersLock.Unlock()
+			newEndPoint.Containers = activeContainers
 
 			dm.DefaultPosturesLock.Lock()
 			if val, ok := dm.DefaultPostures[newEndPoint.NamespaceName]; ok {
@@ -510,38 +518,38 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 			// get security policies according to the updated identities
 			newEndPoint.SecurityPolicies = dm.GetSecurityPolicies(newEndPoint)
 
-			newendpoints := []tp.EndPoint{}
-			for k, v := range pod.Containers {
+			updatedEndpoints := make([]tp.EndPoint, 0, len(newEndPoint.Containers))
+			for _, containerID := range newEndPoint.Containers {
 				endpoint := newEndPoint
 				endpoint.Containers = []string{}
 				endpoint.AppArmorProfiles = []string{}
 				endpoint.SecurityPolicies = []tp.SecurityPolicy{}
-				endpoint.AppArmorProfiles = append(endpoint.AppArmorProfiles, containersAppArmorProfiles[k])
-				endpoint.Containers = append(endpoint.Containers, k)
-				endpoint.ContainerName = v
+				endpoint.AppArmorProfiles = append(endpoint.AppArmorProfiles, containersAppArmorProfiles[containerID])
+				endpoint.Containers = append(endpoint.Containers, containerID)
+				endpoint.ContainerName = pod.Containers[containerID]
 
 				for _, secPolicy := range newEndPoint.SecurityPolicies {
-					if len(secPolicy.Spec.Selector.Containers) == 0 || kl.ContainsElement(secPolicy.Spec.Selector.Containers, v) {
+					if len(secPolicy.Spec.Selector.Containers) == 0 || kl.ContainsElement(secPolicy.Spec.Selector.Containers, endpoint.ContainerName) {
 						endpoint.SecurityPolicies = append(endpoint.SecurityPolicies, secPolicy)
 					}
 				}
 
-				endpoints = append(newendpoints, endpoint)
+				updatedEndpoints = append(updatedEndpoints, endpoint)
 			}
 
 			dm.EndPointsLock.Lock()
 
-			for nidx := 0; nidx < len(endpoints); nidx++ {
+			for nidx := 0; nidx < len(updatedEndpoints); nidx++ {
 				for idx := 0; idx < len(dm.EndPoints); idx++ {
-					if pod.Metadata["namespaceName"] == dm.EndPoints[idx].NamespaceName && pod.Metadata["podName"] == dm.EndPoints[idx].EndPointName && endpoints[nidx].ContainerName == dm.EndPoints[idx].ContainerName {
-						dm.EndPoints[idx] = endpoints[nidx]
+					if pod.Metadata["namespaceName"] == dm.EndPoints[idx].NamespaceName && pod.Metadata["podName"] == dm.EndPoints[idx].EndPointName && updatedEndpoints[nidx].ContainerName == dm.EndPoints[idx].ContainerName {
+						dm.EndPoints[idx] = updatedEndpoints[nidx]
 						break
 					}
 				}
 			}
 
 			dm.EndPointsLock.Unlock()
-			for _, endpoint := range endpoints {
+			for _, endpoint := range updatedEndpoints {
 				if cfg.GlobalCfg.Policy {
 					// update security policies
 					dm.Logger.UpdateSecurityPolicies(action, endpoint)
@@ -583,6 +591,10 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 
 // HandleUnknownNamespaceNsMap Function
 func (dm *KubeArmorDaemon) HandleUnknownNamespaceNsMap(container *tp.Container) {
+	if dm.SystemMonitor == nil || !cfg.GlobalCfg.Policy {
+		return
+	}
+
 	dm.SystemMonitor.AddContainerIDToNsMap(container.ContainerID, container.NamespaceName, container.PidNS, container.MntNS)
 	dm.SystemMonitor.NsMapLock.Lock()
 	if val, ok := dm.SystemMonitor.NamespacePidsMap["Unknown"]; ok {
