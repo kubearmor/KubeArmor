@@ -439,12 +439,12 @@ static __always_inline long strtol(const char *buf, size_t buf_len, long *res)
 
 static __always_inline u32 get_task_pid_ns_id(struct task_struct *task)
 {
-  return BPF_CORE_READ(task, nsproxy, pid_ns_for_children, ns).inum;
+  return BPF_CORE_READ(task, nsproxy, pid_ns_for_children, ns.inum);
 }
 
 static __always_inline u32 get_task_mnt_ns_id(struct task_struct *task)
 {
-  return BPF_CORE_READ(task, nsproxy, mnt_ns, ns).inum;
+  return BPF_CORE_READ(task, nsproxy, mnt_ns, ns.inum);
 }
 
 static __always_inline u32 get_task_pid_vnr(struct task_struct *task)
