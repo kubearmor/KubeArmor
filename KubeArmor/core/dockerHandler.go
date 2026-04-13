@@ -109,7 +109,7 @@ func (dh *DockerHandler) GetContainerInfo(containerID, nodeID string, OwnerInfo 
 	// == container base == //
 
 	container.ContainerID = inspect.ID
-	container.ContainerName = strings.TrimLeft(inspect.Name, "/")
+	container.ContainerName = resolveContainerName(inspect.Name, inspect.Config.Labels)
 
 	container.NamespaceName = "Unknown"
 	container.EndPointName = "Unknown"

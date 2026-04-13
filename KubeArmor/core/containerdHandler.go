@@ -182,7 +182,7 @@ func (ch *ContainerdHandler) GetContainerInfo(ctx context.Context, containerID, 
 	// == container base == //
 
 	container.ContainerID = res.ID
-	container.ContainerName = res.ID
+	container.ContainerName = resolveContainerName(res.ID, res.Labels)
 	container.NamespaceName = "Unknown"
 	container.EndPointName = "Unknown"
 
