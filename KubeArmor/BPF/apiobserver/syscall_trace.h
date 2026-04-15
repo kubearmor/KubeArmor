@@ -41,25 +41,25 @@ static __always_inline struct pt_regs *get_syscall_regs(struct pt_regs *ctx) {
 
 static __always_inline u64 syscall_arg1(struct pt_regs *regs) {
   u64 val = 0;
-  bpf_probe_read_kernel(&val, sizeof(val), &regs->di);
+  bpf_probe_read_kernel(&val, sizeof(val), &SYSCALL_ARG1(regs));
   return val;
 }
 
 static __always_inline u64 syscall_arg2(struct pt_regs *regs) {
   u64 val = 0;
-  bpf_probe_read_kernel(&val, sizeof(val), &regs->si);
+  bpf_probe_read_kernel(&val, sizeof(val), &SYSCALL_ARG2(regs));
   return val;
 }
 
 static __always_inline u64 syscall_arg3(struct pt_regs *regs) {
   u64 val = 0;
-  bpf_probe_read_kernel(&val, sizeof(val), &regs->dx);
+  bpf_probe_read_kernel(&val, sizeof(val), &SYSCALL_ARG3(regs));
   return val;
 }
 
 static __always_inline u64 syscall_arg4(struct pt_regs *regs) {
   u64 val = 0;
-  bpf_probe_read_kernel(&val, sizeof(val), &regs->r10);
+  bpf_probe_read_kernel(&val, sizeof(val), &SYSCALL_ARG4(regs));
   return val;
 }
 
@@ -67,10 +67,8 @@ static __always_inline u64 syscall_arg4(struct pt_regs *regs) {
 // iovec / msghdr helpers — extract first buffer from vectored I/O structs.
 //
 // These are USERSPACE pointers, so we use bpf_probe_read_user.
-//
-// struct iovec { void *iov_base; size_t iov_len; };   // 16 bytes on x86_64
-// struct msghdr { ...; struct iovec *msg_iov; size_t msg_iovlen; ... };
-// msg_iov is at offset 16 (after msg_name:8 + msg_namelen:4 + pad:4)
+// Offsets are POSIX-standard (stable on all LP64 architectures and kernel versions).
+// See UAPI_IOVEC_LEN_OFF and UAPI_MSGHDR_IOV_OFF in common/macros.h.
 
 
 /* Read iov[0].iov_base from a userspace struct iovec array pointer */
@@ -83,15 +81,14 @@ static __always_inline void *read_iov_base(const void *iov_ptr) {
 /* Read iov[0].iov_len from a userspace struct iovec array pointer */
 static __always_inline u64 read_iov_len(const void *iov_ptr) {
   u64 len = 0;
-  bpf_probe_read_user(&len, sizeof(len), (const void *)((u64)iov_ptr + 8));
+  bpf_probe_read_user(&len, sizeof(len), (const void *)((u64)iov_ptr + UAPI_IOVEC_LEN_OFF));
   return len;
 }
 
 /* Read msg_iov pointer from a userspace struct msghdr */
 static __always_inline void *read_msghdr_iov(const void *msg_ptr) {
   void *iov = NULL;
-  /* msg_iov is at offset 16 in struct msghdr on x86_64 */
-  bpf_probe_read_user(&iov, sizeof(iov), (const void *)((u64)msg_ptr + 16));
+  bpf_probe_read_user(&iov, sizeof(iov), (const void *)((u64)msg_ptr + UAPI_MSGHDR_IOV_OFF));
   return iov;
 }
 

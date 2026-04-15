@@ -43,14 +43,14 @@ type CorrelatedTrace struct {
 
 	Method string
 	URL    string
-	Status string 
+	Status string
 
 	// observer latency (nanoseconds)
 	DurationNs int64
 
 	// ip:port
-	Src string 
-	Dst string 
+	Src string
+	Dst string
 
 	RequestHeaders  map[string]string
 	ResponseHeaders map[string]string
@@ -58,15 +58,15 @@ type CorrelatedTrace struct {
 	ResponseBody    string
 
 	// HTTP/2 / gRPC stream identifier; 0 for HTTP/1.
-	StreamID uint32
+	StreamID    uint32
 	IsEncrypted bool
 
 	// gRPC-specific
-	GRPCService string  // e.g. "helloworld.Greeter"
-	GRPCMethod  string  // e.g. "SayHello"
-	GRPCStatus  int32   // grpc-status code (0=OK, 1=CANCELLED, etc.)
-	GRPCMessage string  // grpc-message (human-readable error)
-	ContentType string  // protocol content type
+	GRPCService string // e.g. "helloworld.Greeter"
+	GRPCMethod  string // e.g. "SayHello"
+	GRPCStatus  int32  // grpc-status code (0=OK, 1=CANCELLED, etc.)
+	GRPCMessage string // grpc-message (human-readable error)
+	ContentType string // protocol content type
 }
 
 // RequestQueue is the per-connection state for HTTP/1.x correlation.

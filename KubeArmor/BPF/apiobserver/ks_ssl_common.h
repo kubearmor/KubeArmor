@@ -19,8 +19,8 @@
 
 static __always_inline struct ks_ssl_info ks_new_ssl_info(void) {
   struct ks_ssl_info info = {
-    .fd = ks_invalid_fd,
-    .created_at_nano = bpf_ktime_get_ns(),
+      .fd = ks_invalid_fd,
+      .created_at_nano = bpf_ktime_get_ns(),
   };
   return info;
 }
@@ -53,20 +53,21 @@ ks_lookup_ssl_info(struct pt_regs *ctx, void *map_fd, __u64 pid_tgid) {
 
 /* ---- Chunk assembly and emission ---- */
 
-static __always_inline int
-ks_add_address_to_chunk(struct pt_regs *ctx, struct ks_tls_chunk *chunk,
-                        __u64 id, __u32 fd, struct ks_ssl_info *info) {
+static __always_inline int ks_add_address_to_chunk(struct pt_regs *ctx,
+                                                   struct ks_tls_chunk *chunk,
+                                                   __u64 id, __u32 fd,
+                                                   struct ks_ssl_info *info) {
   __u32 pid = id >> 32;
   __u64 key = (__u64)pid << 32 | fd;
 
   ks_conn_flags *flags = bpf_map_lookup_elem(&ks_connection_context, &key);
-  if (flags == NULL) {
-    /* No connect/accept seen — can't determine client/server side.
-     * Unlike kubeshark we continue anyway to avoid dropping data. */
-    return 1;
+  if (flags != NULL) {
+    chunk->flags |= (*flags & TLS_FLAGS_IS_CLIENT_BIT);
   }
-
-  chunk->flags |= (*flags & TLS_FLAGS_IS_CLIENT_BIT);
+  /* If no connect/accept was seen, we still copy address info below.
+   * The client/server flag won't be set, but the addresses from
+   * the user_kernel map (populated by tcp_sendmsg/tcp_recvmsg) are
+   * still valid and needed for event correlation. */
 
   if (info->address_info.family == AF_INET) {
     chunk->address_info.family = AF_INET;
@@ -86,9 +87,10 @@ ks_add_address_to_chunk(struct pt_regs *ctx, struct ks_tls_chunk *chunk,
   return 1;
 }
 
-static __always_inline int
-ks_send_chunk_part(struct pt_regs *ctx, uintptr_t buffer, __u64 id,
-                   struct ks_tls_chunk *chunk, int start, int end) {
+static __always_inline int ks_send_chunk_part(struct pt_regs *ctx,
+                                              uintptr_t buffer, __u64 id,
+                                              struct ks_tls_chunk *chunk,
+                                              int start, int end) {
   int recorded = end - start;
   if (recorded <= 0)
     return 1;
@@ -112,20 +114,19 @@ ks_send_chunk_part(struct pt_regs *ctx, uintptr_t buffer, __u64 id,
   if (err != 0)
     return 2;
 
-  return bpf_perf_event_output(ctx, &ks_chunks_buffer, BPF_F_CURRENT_CPU,
-                               chunk, sizeof(struct ks_tls_chunk));
+  return bpf_perf_event_output(ctx, &ks_chunks_buffer, BPF_F_CURRENT_CPU, chunk,
+                               sizeof(struct ks_tls_chunk));
 }
 
-static __always_inline int
-ks_send_chunk(struct pt_regs *ctx, uintptr_t buffer, __u64 id,
-              struct ks_tls_chunk *chunk) {
+static __always_inline int ks_send_chunk(struct pt_regs *ctx, uintptr_t buffer,
+                                         __u64 id, struct ks_tls_chunk *chunk) {
   int ret = 0;
 #pragma unroll
   for (int i = 0; i < TLS_MAX_CHUNKS_PER_OP; i++) {
     if (chunk->len <= (TLS_CHUNK_SIZE * i))
       break;
-    int err = ks_send_chunk_part(ctx, buffer, id, chunk,
-                                 TLS_CHUNK_SIZE * i, chunk->len);
+    int err = ks_send_chunk_part(ctx, buffer, id, chunk, TLS_CHUNK_SIZE * i,
+                                 chunk->len);
     if (err && ret == 0)
       ret = err;
   }
@@ -137,9 +138,10 @@ ks_send_chunk(struct pt_regs *ctx, uintptr_t buffer, __u64 id,
  * Allocates from per-CPU heap, fills metadata, copies data in chunks,
  * sends via perf buffer.
  */
-static __always_inline void
-ks_output_ssl_chunk(struct pt_regs *ctx, struct ks_ssl_info *info,
-                    int count_bytes, __u64 id, __u32 flags) {
+static __always_inline void ks_output_ssl_chunk(struct pt_regs *ctx,
+                                                struct ks_ssl_info *info,
+                                                int count_bytes, __u64 id,
+                                                __u32 flags) {
   if (count_bytes > (TLS_CHUNK_SIZE * TLS_MAX_CHUNKS_PER_OP))
     return;
 

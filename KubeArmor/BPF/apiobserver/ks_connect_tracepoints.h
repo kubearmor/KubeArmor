@@ -73,6 +73,10 @@ void ks_sys_exit_accept4(struct ks_sys_exit_accept4_ctx *ctx) {
 
   __u64 key = (__u64)pid << 32 | fd;
   bpf_map_update_elem(&ks_connection_context, &key, &flags, BPF_ANY);
+
+  /* Also cache for memory BIO fallback — covers TLS handshake
+   * immediately after accept (before any read/write fires). */
+  ks_cache_socket_fd(fd);
 }
 
 /* ---- Connect tracepoint context ---- */
@@ -132,4 +136,8 @@ void ks_sys_exit_connect(struct ks_sys_exit_connect_ctx *ctx) {
 
   __u64 key = (__u64)pid << 32 | fd;
   bpf_map_update_elem(&ks_connection_context, &key, &flags, BPF_ANY);
+
+  /* Also cache for memory BIO fallback — covers first SSL operation
+   * on outgoing connections before any read/write fires. */
+  ks_cache_socket_fd(fd);
 }

@@ -5,8 +5,10 @@ package goprobe
 
 import (
 	"debug/buildinfo"
-	"log/slog"
+	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
 	"strings"
+
+	"github.com/Masterminds/semver/v3"
 )
 
 // DefaultOffsetTable returns an offset table with sensible defaults for
@@ -67,11 +69,11 @@ func DefaultOffsetTable() GoOffsetTable {
 	ot.Offsets[GoOffHfieldSize] = 32    // sizeof(hpack.HeaderField)
 
 	// loopyWriter/encoder probe offsets (stable defaults from Pixie).
-	ot.Offsets[GoOffLoopyWriterFramer] = 40   // loopyWriter.framer offset (google.golang.org/grpc v1.60+)
-	ot.Offsets[GoOffH2SCHpackEncoder] = 120   // http2serverConn.hpackEncoder (net/http)
-	ot.Offsets[GoOffH2SCConn] = 16            // http2serverConn.conn (net.Conn interface)
-	ot.Offsets[GoOffWriteResStreamID] = 0     // http2writeResHeaders.streamID
-	ot.Offsets[GoOffWriteResEndStream] = 4    // http2writeResHeaders.endStream
+	ot.Offsets[GoOffLoopyWriterFramer] = 40 // loopyWriter.framer offset (google.golang.org/grpc v1.60+)
+	ot.Offsets[GoOffH2SCHpackEncoder] = 120 // http2serverConn.hpackEncoder (net/http)
+	ot.Offsets[GoOffH2SCConn] = 16          // http2serverConn.conn (net.Conn interface)
+	ot.Offsets[GoOffWriteResStreamID] = 0   // http2writeResHeaders.streamID
+	ot.Offsets[GoOffWriteResEndStream] = 4  // http2writeResHeaders.endStream
 
 	return ot
 }
@@ -87,7 +89,7 @@ func ApplyVersionOffsets(ot *GoOffsetTable, version string) {
 		version = "v" + version
 	}
 
-	slog.Info("Applying gRPC version-specific offsets", "version", version)
+	kg.Debugf("Applying gRPC version-specific offsets version=%s", version)
 
 	// gRPC >= 1.60: handleStream has extra context parameter.
 	if versionGE(version, "v1.60.0") {
@@ -103,13 +105,18 @@ func ApplyVersionOffsets(ot *GoOffsetTable, version string) {
 	// offsets will be adjusted when support is added
 }
 
-// versionGE does a simple lexicographic comparison of Go module version strings.
-// Both a and b must have a "v" prefix (e.g. "v1.60.0").
-// This is sufficient for gRPC versions which follow strict semver.
+// versionGE returns true if version a >= version b using proper semver comparison.
+// Both a and b may optionally have a "v" prefix (e.g. "v1.60.0").
 func versionGE(a, b string) bool {
-	a = strings.TrimPrefix(a, "v")
-	b = strings.TrimPrefix(b, "v")
-	return a >= b
+	va, err := semver.NewVersion(a)
+	if err != nil {
+		return false
+	}
+	vb, err := semver.NewVersion(b)
+	if err != nil {
+		return false
+	}
+	return !va.LessThan(vb)
 }
 
 // GetGrpcLibVersion attempts to detect the gRPC library version from the
@@ -122,23 +129,9 @@ func GetGrpcLibVersion(binaryPath string) string {
 
 	for _, dep := range info.Deps {
 		if dep.Path == "google.golang.org/grpc" {
-			slog.Info("Detected gRPC version", "version", dep.Version, "binary", binaryPath)
+			kg.Debugf("Detected gRPC version=%s binary=%s", dep.Version, binaryPath)
 			return dep.Version
 		}
 	}
 	return ""
-}
-
-// DefaultCommonSymaddrs returns default common symaddrs for backward compatibility.
-func DefaultCommonSymaddrs() GoCommonSymaddrs {
-	return GoCommonSymaddrs{
-		InternalSyscallConn:   -1,
-		TlsConn:               -1,
-		NetTCPConn:            -1,
-		FD_SysfdOffset:        16,
-		TlsConnConnOffset:     0,
-		SyscallConnConnOffset: 8,
-		G_goidOffset:          152,
-		G_addrOffset:          -8,
-	}
 }

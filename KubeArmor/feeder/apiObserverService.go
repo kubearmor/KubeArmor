@@ -135,16 +135,15 @@ func (s *APIObserverService) GetAPIMetrics(
 // Internal API — called by feeder.PushAPIEvent
 // ═══════════════════════════════════════════════════════════════════════════
 
-func (s *APIObserverService) PublishEvent(event pb.APIEvent) {
+func (s *APIObserverService) PublishEvent(event *pb.APIEvent) {
 	s.updateMetrics(event)
-	ptr := &event
 
 	s.subscribersMu.RLock()
 	defer s.subscribersMu.RUnlock()
 
 	for _, sub := range s.subscribers {
 		select {
-		case sub.ch <- ptr:
+		case sub.ch <- event:
 		default:
 			kg.Warnf("Subscriber %s channel full, dropping API event", sub.id)
 		}
@@ -248,7 +247,7 @@ func matchesFilter(event *pb.APIEvent, f *pb.APIEventFilter) bool {
 // Metrics helpers
 // ═══════════════════════════════════════════════════════════════════════════
 
-func (s *APIObserverService) updateMetrics(event pb.APIEvent) {
+func (s *APIObserverService) updateMetrics(event *pb.APIEvent) {
 	s.metrics.mu.Lock()
 	defer s.metrics.mu.Unlock()
 

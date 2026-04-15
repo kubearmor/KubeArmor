@@ -51,6 +51,28 @@ ks_ssl_uprobe(struct pt_regs *ctx, void *ssl, uintptr_t buffer,
   info.count_ptr = count_ptr;
   info.buffer = buffer;
 
+  /* Strategy B: extract FD directly from SSL struct via rbio->num walk.
+   * Used for Java/Netty with BoringSSL where the nested syscall uses
+   * sendmsg/recvmsg. The per-TGID offsets are populated by userspace
+   * when a BoringSSL library is discovered in /proc/<pid>/maps. */
+  if (ssl != NULL && info.fd == ks_invalid_fd) {
+    __u32 tgid = id >> 32;
+    struct ssl_symaddrs *addrs = bpf_map_lookup_elem(&ssl_symaddrs, &tgid);
+    if (addrs != NULL) {
+      void *rbio = NULL;
+      long err = bpf_probe_read_user(&rbio, sizeof(void *),
+                                     (void *)((uintptr_t)ssl + addrs->ssl_rbio_offset));
+      if (err == 0 && rbio != NULL) {
+        int fd = -1;
+        err = bpf_probe_read_user(&fd, sizeof(int),
+                                  (void *)((uintptr_t)rbio + addrs->bio_num_offset));
+        if (err == 0 && fd > 2) {
+          info.fd = fd;
+        }
+      }
+    }
+  }
+
   bpf_map_update_elem(map_fd, &id, &info, BPF_ANY);
 }
 
@@ -73,8 +95,27 @@ ks_ssl_uretprobe(struct pt_regs *ctx, void *map_fd, __u32 flags) {
   if (err != 0)
     return;
 
-  if (info.fd == ks_invalid_fd)
-    return;
+  /* Memory BIO fallback chain:
+   * 1. Thread-level cache (same thread did socket I/O before SSL op)
+   * 2. Process-level cache (different thread did socket I/O — Java useTasks=true)
+   * Needed for Node.js, Python asyncio, Java/Netty where SSL_write/SSL_read
+   * use memory BIOs and make zero syscalls. */
+  if (info.fd == ks_invalid_fd) {
+    __u32 *cached = bpf_map_lookup_elem(&ks_pid_last_socket_fd, &id);
+    if (cached && *cached > 2) {
+      info.fd = *cached;
+    } else {
+      /* Fallback 2: process-level cache (tgid only).
+       * Less precise but catches Java useTasks=true where
+       * SSL ops run on task executor, I/O on event loop. */
+      __u32 tgid = id >> 32;
+      __u32 *tgid_cached = bpf_map_lookup_elem(&ks_tgid_last_socket_fd, &tgid);
+      if (tgid_cached && *tgid_cached > 2)
+        info.fd = *tgid_cached;
+      else
+        return;
+    }
+  }
 
   int count_bytes = ks_get_count_bytes(ctx, &info);
   if (count_bytes <= 0)
