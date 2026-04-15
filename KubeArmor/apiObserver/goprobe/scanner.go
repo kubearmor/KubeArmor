@@ -12,13 +12,13 @@ package goprobe
 import (
 	"debug/buildinfo"
 	"debug/elf"
-	"errors"
 	"fmt"
-	"log/slog"
+	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
 	"os"
-	"path/filepath"
 	"strings"
 	"syscall"
+
+	"github.com/kubearmor/KubeArmor/KubeArmor/apiObserver/ssl"
 )
 
 // LocType mirrors BPF enum go_location_type.
@@ -74,18 +74,7 @@ type GoOffsetTable struct {
 	Offsets [GoOffMax]int64
 }
 
-// GoCommonSymaddrs is retained for backward compatibility but no longer
-// used by the new OTel-style probes. The offset table replaces it.
-type GoCommonSymaddrs struct {
-	InternalSyscallConn   int64
-	TlsConn               int64
-	NetTCPConn            int64
-	FD_SysfdOffset        int32
-	TlsConnConnOffset     int32
-	SyscallConnConnOffset int32
-	G_goidOffset          int32
-	G_addrOffset          int32
-}
+
 
 // GoUProbeTarget is a Go binary that has gRPC / HTTP/2 symbols.
 type GoUProbeTarget struct {
@@ -155,9 +144,9 @@ var TargetSymbols = map[string][]string{
 // ScanProc scans /proc for Go binaries that use gRPC or net/http HTTP/2.
 // Returns a list of targets suitable for uprobe attachment.
 func ScanProc() ([]GoUProbeTarget, error) {
-	entries, err := os.ReadDir("/proc")
+	entries, err := os.ReadDir(ssl.ProcRoot)
 	if err != nil {
-		return nil, fmt.Errorf("read /proc: %w", err)
+		return nil, fmt.Errorf("read %s: %w", ssl.ProcRoot, err)
 	}
 
 	// Track binary→PIDs to avoid redundant ELF analysis.
@@ -179,13 +168,19 @@ func ScanProc() ([]GoUProbeTarget, error) {
 		if pid == 0 {
 			continue
 		}
-		exeLink := fmt.Sprintf("/proc/%d/exe", pid)
+		// Skip our own process — attaching uprobes to ourselves corrupts
+		// the Go runtime stack during dynamic stack growth, causing
+		// "unexpected return pc" panics in the K8s client JSON decoder.
+		if pid == 1 || ssl.IsSelfProcess(int(pid)) {
+			continue
+		}
+		exeLink := fmt.Sprintf("%s/%d/exe", ssl.ProcRoot, pid)
 		exePath, err := os.Readlink(exeLink)
 		if err != nil {
 			continue
 		}
 		// Resolve through procfs root for containerised binaries.
-		hostPath := fmt.Sprintf("/proc/%d/root%s", pid, exePath)
+		hostPath := fmt.Sprintf("%s/%d/root%s", ssl.ProcRoot, pid, exePath)
 		if _, err := os.Stat(hostPath); err != nil {
 			hostPath = exePath
 		}
@@ -214,8 +209,8 @@ func ScanProc() ([]GoUProbeTarget, error) {
 			continue
 		}
 
-		slog.Info("Found Go HTTP/2 binary for uprobe",
-			"path", hostPath, "pids", len(pids), "symbols", len(syms))
+		kg.Debugf("Found Go HTTP/2 binary for uprobe path=%s pids=%d symbols=%d",
+			hostPath, len(pids), len(syms))
 
 		// Build offset table with defaults.
 		offTable := DefaultOffsetTable()
@@ -237,16 +232,12 @@ func ScanProc() ([]GoUProbeTarget, error) {
 		if _, hasTLS := syms["go_tls_write"]; hasTLS {
 			offsets, tlsErr := FindGoTlsOffsets(hostPath)
 			if tlsErr != nil {
-				slog.Warn("Go TLS offset discovery failed (uretprobe fallback disabled)",
-					"path", hostPath, "err", tlsErr)
+				kg.Warnf("Go TLS offset discovery failed (uretprobe fallback disabled) path=%s err=%v",
+					hostPath, tlsErr)
 			} else {
 				tlsOffsets = &offsets
-				slog.Info("Go TLS ret offsets discovered",
-					"path", hostPath,
-					"write_exits", len(offsets.GoWriteOffset.Exits),
-					"read_exits", len(offsets.GoReadOffset.Exits),
-					"abi", offsets.Abi,
-				)
+				kg.Debugf("Go TLS ret offsets discovered path=%s write_exits=%d read_exits=%d abi=%d",
+					hostPath, len(offsets.GoWriteOffset.Exits), len(offsets.GoReadOffset.Exits), offsets.Abi)
 			}
 		}
 
@@ -265,65 +256,7 @@ func ScanProc() ([]GoUProbeTarget, error) {
 	return targets, nil
 }
 
-// ScanPID scans a single PID for Go HTTP/2 symbols.
-func ScanPID(pid uint32) (*GoUProbeTarget, error) {
-	exeLink := fmt.Sprintf("/proc/%d/exe", pid)
-	exePath, err := os.Readlink(exeLink)
-	if err != nil {
-		return nil, fmt.Errorf("readlink %s: %w", exeLink, err)
-	}
-	hostPath := fmt.Sprintf("/proc/%d/root%s", pid, exePath)
-	if _, err := os.Stat(hostPath); err != nil {
-		hostPath = exePath
-	}
 
-	if !isGoBinary(hostPath) {
-		return nil, fmt.Errorf("not a Go binary: %s", hostPath)
-	}
-
-	ef, err := elf.Open(hostPath)
-	if err != nil {
-		return nil, fmt.Errorf("open ELF %s: %w", hostPath, err)
-	}
-	defer ef.Close()
-
-	syms, err := resolveSymbols(ef, hostPath)
-	if err != nil {
-		return nil, err
-	}
-	if len(syms) == 0 {
-		return nil, fmt.Errorf("no gRPC/HTTP2 symbols in %s", hostPath)
-	}
-
-	offTable := DefaultOffsetTable()
-	grpcVer := GetGrpcLibVersion(hostPath)
-	ApplyVersionOffsets(&offTable, grpcVer)
-
-	var inode uint64
-	if fi, err := os.Stat(hostPath); err == nil {
-		if stat, ok := fi.Sys().(*syscall.Stat_t); ok {
-			inode = stat.Ino
-		}
-	}
-
-	// Discover Go TLS ret instruction offsets.
-	var tlsOffsets *GoTlsOffsets
-	if _, hasTLS := syms["go_tls_write"]; hasTLS {
-		offsets, tlsErr := FindGoTlsOffsets(hostPath)
-		if tlsErr == nil {
-			tlsOffsets = &offsets
-		}
-	}
-
-	return &GoUProbeTarget{
-		PID:          pid,
-		BinaryPath:   hostPath,
-		Inode:        inode,
-		Symbols:      syms,
-		OffsetTable:  offTable,
-		GoTlsOffsets: tlsOffsets,
-	}, nil
-}
 
 // isGoBinary checks if a binary contains Go build info.
 func isGoBinary(path string) bool {
@@ -342,12 +275,27 @@ func resolveSymbols(ef *elf.File, path string) (map[string]uint64, error) {
 		return nil, fmt.Errorf("read symbols from %s: %w", path, err)
 	}
 
-	// Build a map of name → address for quick lookup.
+	// Build a map of name → file offset for quick lookup.
+	// cilium/ebpf's UprobeOptions.Address expects file offsets, not virtual
+	// addresses. Convert using: offset = sym.Value - prog.Vaddr + prog.Off
+	// (same logic as cilium/ebpf internal symbol resolution).
 	symMap := make(map[string]uint64, len(allSyms))
 	for _, s := range allSyms {
-		if s.Value != 0 {
-			symMap[s.Name] = s.Value
+		if s.Value == 0 {
+			continue
 		}
+		// Convert vaddr → file offset using program headers.
+		offset := s.Value
+		for _, prog := range ef.Progs {
+			if prog.Type != elf.PT_LOAD {
+				continue
+			}
+			if prog.Vaddr <= s.Value && s.Value < (prog.Vaddr+prog.Memsz) {
+				offset = s.Value - prog.Vaddr + prog.Off
+				break
+			}
+		}
+		symMap[s.Name] = offset
 	}
 
 	result := make(map[string]uint64)
@@ -371,80 +319,3 @@ func resolveSymbols(ef *elf.File, path string) (map[string]uint64, error) {
 	return result, nil
 }
 
-// resolveItableAddrs is retained for backward compatibility.
-// The new OTel-style probes do not require itable resolution.
-func resolveItableAddrs(ef *elf.File, common *GoCommonSymaddrs) {
-	allSyms, err := ef.Symbols()
-	if err != nil {
-		return
-	}
-
-	for _, s := range allSyms {
-		if s.Value == 0 {
-			continue
-		}
-		name := s.Name
-
-		for _, prefix := range []string{"go.itab.", "go:itab."} {
-			if strings.HasPrefix(name, prefix) {
-				rest := name[len(prefix):]
-				switch {
-				case strings.Contains(rest, "internal.syscallConn,net.Conn"):
-					common.InternalSyscallConn = int64(s.Value)
-				case strings.Contains(rest, "crypto/tls.Conn,net.Conn"):
-					common.TlsConn = int64(s.Value)
-				case strings.Contains(rest, "net.TCPConn,net.Conn"):
-					common.NetTCPConn = int64(s.Value)
-				}
-			}
-		}
-	}
-}
-
-// FindGoHTTP2PIDs returns PIDs of processes using Go gRPC/HTTP2.
-// Useful for targeted scanning instead of full /proc scan.
-func FindGoHTTP2PIDs() ([]uint32, error) {
-	entries, err := os.ReadDir("/proc")
-	if err != nil {
-		return nil, err
-	}
-
-	var pids []uint32
-	seen := make(map[string]bool)
-
-	for _, e := range entries {
-		if !e.IsDir() {
-			continue
-		}
-		var pid uint32
-		if _, err := fmt.Sscanf(e.Name(), "%d", &pid); err != nil || pid == 0 {
-			continue
-		}
-		exeLink := fmt.Sprintf("/proc/%d/exe", pid)
-		target, err := filepath.EvalSymlinks(exeLink)
-		if err != nil {
-			continue
-		}
-		if seen[target] {
-			pids = append(pids, pid)
-			continue
-		}
-		if isGoBinary(target) {
-			ef, err := elf.Open(target)
-			if err != nil {
-				continue
-			}
-			syms, _ := resolveSymbols(ef, target)
-			ef.Close()
-			if len(syms) > 0 {
-				seen[target] = true
-				pids = append(pids, pid)
-			}
-		}
-	}
-
-	return pids, nil
-}
-
-// ErrNotGoBinary is returned when a binary is not a Go binary.
-var ErrNotGoBinary = errors.New("not a Go binary")

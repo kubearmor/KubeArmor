@@ -114,7 +114,7 @@ func DiscoverSSLLibsForPID(pid int) []SSLLibMatch {
 	for _, matcher := range DefaultMatchers {
 		if matcher.SearchType == MatchExecutable {
 			// For executable matchers (e.g. Node.js), check /proc/PID/exe
-			exePath, err := os.Readlink(fmt.Sprintf("/proc/%d/exe", pid))
+			exePath, err := os.Readlink(fmt.Sprintf("%s/%d/exe", ProcRoot, pid))
 			if err != nil {
 				continue
 			}

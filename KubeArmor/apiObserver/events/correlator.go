@@ -17,7 +17,7 @@ package events
 import (
 	"context"
 	"fmt"
-	"log/slog"
+
 	"sync"
 	"sync/atomic"
 	"time"
@@ -169,6 +169,7 @@ func NewCorrelator(timeout time.Duration) Correlator {
 	c := &defaultCorrelator{
 		connToHTTP1Queue:  make(map[ConnectionKey]*RequestQueue),
 		connToHTTP2Stream: make(map[ConnectionKey]*HTTP2StreamRequests),
+		transportHeaders:  make(map[transportHeaderKey]transportHeaderEntry),
 		timeout:           timeout,
 		stats:             correlatorStats{},
 		ctx:               ctx,
@@ -212,14 +213,8 @@ func (c *defaultCorrelator) AddHTTP1Request(key ConnectionKey, req PendingReques
 		c.stats.pipelinedRequests.Add(1)
 	}
 
-	slog.Debug("HTTP/1 request queued",
-		"PID", key.PID,
-		"FD", key.FD,
-		"sockptr", key.SockPtr,
-		"method", req.Method,
-		"url", req.URL,
-		"depth", depth,
-	)
+	log.Debugf("HTTP/1 request queued PID=%d FD=%d sockptr=%d method=%s url=%s depth=%d",
+		key.PID, key.FD, key.SockPtr, req.Method, req.URL, depth)
 }
 
 // MatchHTTP1Response dequeues the head of the FIFO queue and returns the
@@ -270,15 +265,8 @@ func (c *defaultCorrelator) MatchHTTP1Response(
 	c.stats.totalResponses.Add(1)
 	c.stats.matchedPairs.Add(1)
 
-	slog.Debug("HTTP/1 request-response matched",
-		"PID", key.PID,
-		"FD", key.FD,
-		"sockptr", key.SockPtr,
-		"method", req.Method,
-		"status", status,
-		"duration_ns", durationNs,
-		"queue_remaining", remaining,
-	)
+	log.Debugf("HTTP/1 request-response matched PID=%d FD=%d sockptr=%d method=%s status=%s duration_ns=%d queue_remaining=%d",
+		key.PID, key.FD, key.SockPtr, req.Method, status, durationNs, remaining)
 	return trace
 }
 
@@ -466,9 +454,8 @@ func (c *defaultCorrelator) InjectGoHTTP2Headers(
 	if path, ok := headers[":path"]; ok && path != "" {
 		if req.URL == "" || req.URL == "null" {
 			req.URL = path
-			slog.Debug("Go uprobe: injected :path into pending request",
-				"PID", key.PID, "FD", key.FD,
-				"stream_id", streamID, "path", path)
+			log.Debugf("Go uprobe: injected :path into pending request PID=%d FD=%d stream_id=%d path=%s",
+				key.PID, key.FD, streamID, path)
 		}
 	}
 	if method, ok := headers[":method"]; ok && method != "" {
@@ -545,8 +532,8 @@ func (c *defaultCorrelator) InjectGRPCCEvent(pid, fd, streamID uint32, method st
 	// Patch URL only when the kprobe data is absent or contains the fallback.
 	if req.URL == "" || req.URL == "*" || req.URL == "null" {
 		req.URL = method
-		slog.Debug("gRPC-C uprobe: patched :path",
-			"pid", pid, "fd", fd, "stream_id", streamID, "method", method)
+		log.Debugf("gRPC-C uprobe: patched :path pid=%d fd=%d stream_id=%d method=%s",
+			pid, fd, streamID, method)
 	}
 	// gRPC is always POST; set if kprobe hasn't populated it yet.
 	if req.Method == "" {
@@ -567,12 +554,8 @@ func (c *defaultCorrelator) InjectGoGRPCEvent(
 		latencyNs = endNs - startNs
 	}
 
-	slog.Info("Go uprobe gRPC event",
-		"pid", pid,
-		"path", path,
-		"status", status,
-		"latency_ns", latencyNs,
-	)
+	log.Debugf("Go uprobe gRPC event pid=%d path=%s status=%d latency_ns=%d",
+		pid, path, status, latencyNs)
 
 	c.stats.totalRequests.Add(1)
 	c.stats.totalResponses.Add(1)
@@ -602,8 +585,8 @@ func (c *defaultCorrelator) CloseConnection(key ConnectionKey) {
 
 	if cleaned > 0 {
 		c.stats.cleanedConnClose.Add(uint64(cleaned))
-		slog.Debug("Correlator: connection closed, flushed pending",
-			"sockptr", key.SockPtr, "flushed", cleaned)
+		log.Debugf("Correlator: connection closed, flushed pending sockptr=%d flushed=%d",
+			key.SockPtr, cleaned)
 	}
 }
 
@@ -682,10 +665,20 @@ func (c *defaultCorrelator) cleanup() {
 	}
 	c.connToHTTP2StreamMu.Unlock()
 
+	// Transport headers cleanup (Go HTTP/2 uprobe header injection).
+	c.transportHeadersMu.Lock()
+	for key, entry := range c.transportHeaders {
+		if !entry.CreatedAt.After(cutoff) {
+			delete(c.transportHeaders, key)
+			cleaned++
+		}
+	}
+	c.transportHeadersMu.Unlock()
+
 	if cleaned > 0 {
 		c.stats.cleanedTimeout.Add(uint64(cleaned))
-		slog.Debug("Correlator cleanup: evicted stale requests",
-			"count", cleaned, "timeout", c.timeout)
+		log.Debugf("Correlator cleanup: evicted stale requests count=%d timeout=%v",
+			cleaned, c.timeout)
 	}
 }
 

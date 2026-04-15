@@ -120,6 +120,13 @@ kubearmorConfigMap:
   maxAlertPerSec: 10
   throttleSec: 30
   matchArgs: true
+  enableAPIObserver: false
+  # API Observer: comma-separated :authority prefixes to block from API event stream.
+  # Example: "frontend,http-server.default.svc,my-internal-service"
+  apiBlockedAuthorities: ""
+  # API Observer: comma-separated ports to exclude from eBPF capture.
+  # Example: "6443,2379,10250,9090"
+  apiExcludedPorts: ""
 
 #volume mounts and volumes
 kubearmor:
@@ -178,10 +185,16 @@ kubearmor:
   commonMounts:
   - mountPath: /opt/kubearmor/BPF
     name: bpf
+  - mountPath: /sys/kernel/tracing
+    name: sys-kernel-tracing-path
 
   commonVolumes:
   - emptyDir: {}
     name: bpf
+  - hostPath:
+      path: /sys/kernel/tracing
+      type: DirectoryOrCreate
+    name: sys-kernel-tracing-path
 
   initMounts:
   - mountPath: /opt/kubearmor/BPF

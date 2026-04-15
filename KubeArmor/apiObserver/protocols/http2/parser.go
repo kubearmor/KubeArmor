@@ -10,7 +10,7 @@ package http2
 import (
 	"encoding/binary"
 	"fmt"
-	"log/slog"
+	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
 	"strings"
 	"sync"
 )
@@ -133,7 +133,7 @@ func (p *Parser) ParseFrames(data []byte) ([]*Message, []byte, error) {
 		} else if string(data[:prefaceLen]) == ClientPreface {
 			p.prefaceReceived = true
 			offset = prefaceLen
-			slog.Debug("HTTP/2 connection preface received")
+			kg.Debug("HTTP/2 connection preface received")
 		} else {
 			// No preface — treat as server-side connection.
 			p.prefaceReceived = true
@@ -169,10 +169,8 @@ func (p *Parser) ParseFrames(data []byte) ([]*Message, []byte, error) {
 		payload := data[offset+FrameHeaderSize : frameEnd]
 		msg, err := p.handleFrame(fh, payload)
 		if err != nil {
-			slog.Debug("Error handling HTTP/2 frame",
-				"type", fh.Type,
-				"stream_id", fh.StreamID,
-				"error", err)
+			kg.Debugf("Error handling HTTP/2 frame type=%d stream_id=%d error=%v",
+				fh.Type, fh.StreamID, err)
 			// Continue processing other frames.
 		} else if msg != nil {
 			messages = append(messages, msg)
@@ -210,13 +208,8 @@ func (p *Parser) handleFrame(fh *FrameHeader, payload []byte) (*Message, error) 
 func (p *Parser) handleHeaders(fh *FrameHeader, payload []byte) (*Message, error) {
 	headerData := payload
 
-	slog.Debug("HTTP/2 HEADERS frame",
-		"stream_id", fh.StreamID,
-		"flags", fmt.Sprintf("0x%02x", fh.Flags),
-		"end_stream", fh.IsEndStream(),
-		"end_headers", fh.IsEndHeaders(),
-		"payload_len", len(payload),
-	)
+	kg.Debugf("HTTP/2 HEADERS frame stream_id=%d flags=0x%02x end_stream=%v end_headers=%v payload_len=%d",
+		fh.StreamID, fh.Flags, fh.IsEndStream(), fh.IsEndHeaders(), len(payload))
 
 	if fh.Flags&FlagHeadersPadded != 0 {
 		if len(payload) == 0 {
@@ -374,26 +367,15 @@ func (p *Parser) deleteStream(streamID uint32) {
 func (p *Parser) decodeAndFinishHeaders(stream *StreamState, hpackData []byte, endStream bool) (*Message, error) {
 	fields, err := p.hpackDecoder.DecodeHeaders(hpackData)
 	if err != nil {
-		slog.Debug("HPACK decode error",
-			"stream_id", stream.StreamID,
-			"hpack_len", len(hpackData),
-			"error", err,
-		)
+		kg.Debugf("HPACK decode error stream_id=%d hpack_len=%d error=%v",
+			stream.StreamID, len(hpackData), err)
 		p.deleteStream(stream.StreamID)
 		return nil, fmt.Errorf("HPACK decode: %w", err)
 	}
 	method, path, scheme, authority, status := ExtractPseudoHeaders(fields)
 
-	slog.Debug("HTTP/2 HEADERS decoded",
-		"stream_id", stream.StreamID,
-		"method", method,
-		"path", path,
-		"status", status,
-		"scheme", scheme,
-		"authority", authority,
-		"num_fields", len(fields),
-		"end_stream", endStream,
-	)
+	kg.Debugf("HTTP/2 HEADERS decoded stream_id=%d method=%s path=%s status=%s scheme=%s authority=%s num_fields=%d end_stream=%v",
+		stream.StreamID, method, path, status, scheme, authority, len(fields), endStream)
 
 	if method != "" {
 		stream.Message.Method = method

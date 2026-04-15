@@ -19,7 +19,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log/slog"
+	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
 	"os"
 	"regexp"
 	"runtime"
@@ -84,8 +84,8 @@ func FindGoTlsOffsets(fpath string) (GoTlsOffsets, error) {
 	// ret instruction offsets even if we can't resolve goid/gStructOffset.
 	goidOffset, gStructOffset, netConnOffsets, err := findGoSymbolOffsets(fpath, offsets)
 	if err != nil {
-		slog.Warn("Go TLS: DWARF/symbol scan partial failure (continuing with ret offsets)",
-			"path", fpath, "err", err)
+		kg.Warnf("Go TLS: DWARF/symbol scan partial failure (continuing with ret offsets) path=%s err=%v",
+			fpath, err)
 	}
 
 	abi := GoABI0
@@ -97,8 +97,8 @@ func FindGoTlsOffsets(fpath string) (GoTlsOffsets, error) {
 		passed, goVersion, err = checkGoVersionFromBinary(fpath, goVersionOffset)
 		if err != nil {
 			// Version check failure is non-fatal — default to ABI0.
-			slog.Warn("Go TLS: version check failed (defaulting to ABIInternal for modern Go)",
-				"path", fpath, "err", err)
+			kg.Warnf("Go TLS: version check failed (defaulting to ABIInternal for modern Go) path=%s err=%v",
+				fpath, err)
 			// Most Go binaries in production are >= 1.17; default to ABIInternal.
 			passed = true
 		}
@@ -121,14 +121,8 @@ func FindGoTlsOffsets(fpath string) (GoTlsOffsets, error) {
 		return GoTlsOffsets{}, fmt.Errorf("symbol %s not found", goTlsReadSymbol)
 	}
 
-	slog.Info("Go TLS offsets found",
-		"version", goVersion,
-		"abi", abi,
-		"write_enter", writeOffset.Enter,
-		"write_exits", len(writeOffset.Exits),
-		"read_enter", readOffset.Enter,
-		"read_exits", len(readOffset.Exits),
-	)
+	kg.Debugf("Go TLS offsets found version=%s abi=%d write_enter=%d write_exits=%d read_enter=%d read_exits=%d",
+		goVersion, abi, writeOffset.Enter, len(writeOffset.Exits), readOffset.Enter, len(readOffset.Exits))
 
 	return GoTlsOffsets{
 		GoWriteOffset:  writeOffset,
@@ -212,11 +206,8 @@ func populateNetConnOffsetFromDwarf(dwarfData *dwarf.Data, entry *dwarf.Entry,
 		}
 		// net.conn has net.netFD where sysFd is at offset 0x10(16)
 		offset.SocketSysFdOffset = 16 + field.ByteOffset
-		slog.Debug("Found custom socket",
-			"name", structName,
-			"type", field.Type.String(),
-			"offset", offset.SocketSysFdOffset,
-		)
+		kg.Debugf("Found custom socket name=%s type=%s offset=%d",
+			structName, field.Type.String(), offset.SocketSysFdOffset)
 		return
 	}
 }
@@ -323,7 +314,7 @@ func findRetOffsets(symBytes []byte, symVaddr uint64, lastProg *elf.Prog) []uint
 	case "arm64":
 		return findRetOffsetsArm64(symBytes, symVaddr, lastProg)
 	default:
-		slog.Warn("Unsupported GOARCH for ret-probing", "arch", runtime.GOARCH)
+		kg.Warnf("Unsupported GOARCH for ret-probing arch=%s", runtime.GOARCH)
 		return nil
 	}
 }
@@ -396,11 +387,8 @@ func findGoSymbolOffsets(fpath string, offsets map[string]*GoTlsExtendedOffset) 
 		symEndIdx := symStartIdx + sym.Size
 
 		if symEndIdx > uint64(textSection.Size-1) {
-			slog.Warn("Symbol too large, skipping",
-				"symbol", sym.Name,
-				"endIdx", symEndIdx,
-				"textSize", textSection.Size,
-			)
+			kg.Warnf("Symbol too large, skipping symbol=%s endIdx=%d textSize=%d",
+				sym.Name, symEndIdx, textSection.Size)
 			continue
 		}
 

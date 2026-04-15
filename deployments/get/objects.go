@@ -6,6 +6,7 @@ package deployments
 import (
 	"strconv"
 
+	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -13,8 +14,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
-
-	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
 )
 
 // GetServiceAccount Function
@@ -49,7 +48,7 @@ func GetClusterRole() *rbacv1.ClusterRole {
 			},
 			{
 				APIGroups: []string{""},
-				Resources: []string{"pods", "nodes", "configmaps"},
+				Resources: []string{"pods", "nodes", "configmaps", "services", "endpoints"},
 				Verbs:     []string{"get", "list", "watch"},
 			},
 			{
@@ -130,6 +129,7 @@ var replicas = int32(1)
 var relayDeploymentLabels = map[string]string{
 	"kubearmor-app": "kubearmor-relay",
 }
+
 var envVars = []corev1.EnvVar{
 	{
 		Name:  "ENABLE_STDOUT_LOGS",
@@ -178,7 +178,7 @@ func GetRelayDeployment(namespace string) *appsv1.Deployment {
 						{
 							Name:  "kubearmor-relay-server",
 							Image: "kubearmor/kubearmor-relay-server:latest",
-							//imagePullPolicy is Always since image has latest tag
+							// imagePullPolicy is Always since image has latest tag
 							Ports: []corev1.ContainerPort{
 								{
 									ContainerPort: port,
@@ -256,43 +256,46 @@ var terminationGracePeriodSeconds = int64(10)
 
 // GenerateDaemonSet Function
 func GenerateDaemonSet(env, namespace string) *appsv1.DaemonSet {
-
-	var label = map[string]string{
+	label := map[string]string{
 		"kubearmor-app": kubearmor,
 	}
-	var privileged = bool(false)
-	var terminationGracePeriodSeconds = int64(60)
-	var args = []string{
+	privileged := bool(false)
+	terminationGracePeriodSeconds := int64(60)
+	args := []string{
 		"-gRPC=" + strconv.Itoa(int(port)),
 		"-procfsMount=/host/procfs",
 	}
 
-	var containerVolumeMounts = []corev1.VolumeMount{
+	containerVolumeMounts := []corev1.VolumeMount{
 		{
 			Name:      "bpf",
 			MountPath: "/opt/kubearmor/BPF",
 		},
 		{
-			Name:      "lib-modules-path", //BPF (read-only)
+			Name:      "lib-modules-path", // BPF (read-only)
 			MountPath: "/lib/modules",
 			ReadOnly:  true,
 		},
 		{
-			Name:      "sys-kernel-security-path", //LSM (read-only)
+			Name:      "sys-kernel-security-path", // LSM (read-only)
 			MountPath: "/sys/kernel/security",
 		},
 		{
-			Name:      "sys-kernel-debug-path", //BPF (read-only)
+			Name:      "sys-kernel-debug-path", // BPF (read-only)
 			MountPath: "/sys/kernel/debug",
 		},
 		{
-			Name:      "os-release-path", //BPF (read-only)
+			Name:      "sys-kernel-tracing-path", // tracefs for tracepoint attachment
+			MountPath: "/sys/kernel/tracing",
+		},
+		{
+			Name:      "os-release-path", // BPF (read-only)
 			MountPath: "/media/root/etc/os-release",
 			ReadOnly:  true,
 		},
 	}
 
-	var volumes = []corev1.Volume{
+	volumes := []corev1.Volume{
 		{
 			Name: "bpf",
 			VolumeSource: corev1.VolumeSource{
@@ -323,6 +326,15 @@ func GenerateDaemonSet(env, namespace string) *appsv1.DaemonSet {
 				HostPath: &corev1.HostPathVolumeSource{
 					Path: "/sys/kernel/debug",
 					Type: &hostPathDirectory,
+				},
+			},
+		},
+		{
+			Name: "sys-kernel-tracing-path",
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: "/sys/kernel/tracing",
+					Type: &hostPathDirectoryOrCreate,
 				},
 			},
 		},
@@ -737,10 +749,12 @@ func GetKubeArmorControllerWebhookService(namespace string) *corev1.Service {
 	}
 }
 
-var KubeArmorControllerMutationFullName = "annotation.kubearmor.com"
-var KubeArmorControllerPodMutationPath = "/mutate-pods"
-var KubeArmorControllerPodMutationFailurePolicy = admissionregistrationv1.Ignore
-var KubeArmorControllerMutationSideEffect = admissionregistrationv1.SideEffectClassNoneOnDryRun
+var (
+	KubeArmorControllerMutationFullName         = "annotation.kubearmor.com"
+	KubeArmorControllerPodMutationPath          = "/mutate-pods"
+	KubeArmorControllerPodMutationFailurePolicy = admissionregistrationv1.Ignore
+	KubeArmorControllerMutationSideEffect       = admissionregistrationv1.SideEffectClassNoneOnDryRun
+)
 
 // GetKubeArmorControllerMutationAdmissionConfiguration Function
 func GetKubeArmorControllerMutationAdmissionConfiguration(namespace string, caCert []byte) *admissionregistrationv1.MutatingWebhookConfiguration {
@@ -831,6 +845,9 @@ func GetKubearmorConfigMap(namespace, name string) *corev1.ConfigMap {
 	data[cfg.ConfigMaxAlertPerSec] = "10"
 	data[cfg.ConfigThrottleSec] = "30"
 	data[cfg.ConfigArgMatching] = "true"
+	data[cfg.ConfigEnableAPIObserver] = "false"
+	data[cfg.ConfigApiBlockedAuthorities] = "" // comma-separated :authority prefixes, e.g. "frontend,test-server.default.svc"
+	data[cfg.ConfigApiExcludedPorts] = ""      // comma-separated ports, e.g. "6443,2379,10250"
 
 	return &corev1.ConfigMap{
 		TypeMeta: metav1.TypeMeta{

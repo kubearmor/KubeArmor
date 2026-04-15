@@ -16,6 +16,7 @@ import (
 	"time"
 
 	apiobserver "github.com/kubearmor/KubeArmor/KubeArmor/apiObserver"
+	"github.com/kubearmor/KubeArmor/KubeArmor/apiObserver/ssl"
 	"github.com/kubearmor/KubeArmor/KubeArmor/common"
 	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
 	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
@@ -741,6 +742,13 @@ func KubeArmor() {
 	if cfg.GlobalCfg.EnableAPIObserver {
 		dm.Logger.Print("Initializing API Observer")
 
+		// Configure procfs path for SSL/Go uprobe scanners.
+		// Without hostPID, /proc only contains our own process.
+		// The host's procfs is mounted at cfg.GlobalCfg.ProcFsMount.
+		ssl.ProcRoot = cfg.GlobalCfg.ProcFsMount
+		ssl.InitSelfPID()
+		dm.Logger.Printf("API Observer procfs root: %s (self exe: %s, host PID: %d)", ssl.ProcRoot, ssl.SelfExePath, ssl.SelfHostPID)
+
 		// Start K8s Service watcher to populate ServiceIPMap before
 		// building the resolver, so initial services are available.
 		if dm.K8sEnabled {
@@ -751,7 +759,7 @@ func KubeArmor() {
 		// Build ClusterIP→FQDN resolver for :authority enrichment.
 		resolver := dm.buildServiceResolver()
 
-		apiObs, err := apiobserver.NewAPIObserver(dm.Node, dm.SystemMonitor.PinPath, *dm.Logger, resolver)
+		apiObs, err := apiobserver.NewAPIObserver(dm.Node, dm.SystemMonitor.PinPath, dm.Logger, resolver)
 		if err != nil {
 			dm.Logger.Warnf("Failed to initialize API Observer (non-fatal): %v", err)
 		} else {

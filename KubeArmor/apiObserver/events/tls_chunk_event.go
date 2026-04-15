@@ -153,6 +153,15 @@ func (e *TlsChunkEvent) ToDataEvent() *DataEvent {
 	srcIP := e.SrcIP4
 	dstIP := e.DstIP4
 
+	// AF_INET6 (family=10): k3s and dual-stack clusters use IPv6 sockets
+	// for all pod traffic. Addresses are stored as IPv4-mapped IPv6
+	// (::ffff:10.42.x.x) in SrcIP6/DstIP6, not in SrcIP4/DstIP4.
+	// Extract the IPv4 portion from bytes [12:16] of the IPv6 address.
+	if e.Family == 10 {
+		srcIP = ipv6MappedToIPv4(e.SrcIP6)
+		dstIP = ipv6MappedToIPv4(e.DstIP6)
+	}
+
 	// For client-side connections:
 	//   write (egress): src=local, dst=remote — addresses are already correct
 	//   read (ingress): swap so src=remote sender
@@ -182,6 +191,12 @@ func (e *TlsChunkEvent) ToDataEvent() *DataEvent {
 		FD:        e.FD,
 		SockPtr:   0, // Not available from perf path
 		Payload:   e.Data,
+
+		// Propagate client/server role from BPF connect/accept tracepoints.
+		// This is ground-truth: connect() → client, accept() → server.
+		// The ConnectionTracker uses this instead of guessing from direction.
+		HasConnRole:  true,
+		IsClientConn: e.IsClient(),
 	}
 
 	if direction == DirIngress {
@@ -194,4 +209,15 @@ func (e *TlsChunkEvent) ToDataEvent() *DataEvent {
 	}
 
 	return ev
+}
+
+// ipv6MappedToIPv4 extracts the IPv4 address from an IPv4-mapped IPv6
+// address (::ffff:a.b.c.d). If the address is not IPv4-mapped, returns
+// the last 4 bytes as a uint32 (best-effort for link-local/ULA).
+// Layout: [0:10]=0x00, [10:12]=0xFF 0xFF, [12:16]=IPv4 address.
+//
+// Returns little-endian uint32 to match uint32ToIP's expectation
+// (host byte order on x86/arm64).
+func ipv6MappedToIPv4(addr [16]byte) uint32 {
+	return binary.LittleEndian.Uint32(addr[12:16])
 }
