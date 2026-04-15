@@ -5,13 +5,13 @@ package apiobserver
 
 import (
 	"context"
-	"encoding/base64"
 	"errors"
 	"fmt"
 	"io"
-	"log/slog"
+	"math"
 	"net"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -30,6 +30,7 @@ import (
 	"github.com/kubearmor/KubeArmor/KubeArmor/apiObserver/goprobe"
 	"github.com/kubearmor/KubeArmor/KubeArmor/apiObserver/grpcc"
 	"github.com/kubearmor/KubeArmor/KubeArmor/apiObserver/ssl"
+	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
 	fd "github.com/kubearmor/KubeArmor/KubeArmor/feeder"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 )
@@ -43,14 +44,15 @@ type ServiceResolver func(ip string) string
 
 // APIObserver captures and processes network events via eBPF.
 type APIObserver struct {
-	Logger fd.Feeder
+	Logger *fd.Feeder
 
 	nodeName         string
 	resolveServiceFn ServiceResolver
 
 	// BPF compiled objects and attached probe links.
-	objs  apiObserverObjects
-	links []io.Closer
+	objs    apiObserverObjects
+	links   []io.Closer
+	linksMu sync.Mutex
 
 	// Ring buffer: BPF emits samples here; we drain into EventsChannel.
 	Events        *ringbuf.Reader
@@ -69,7 +71,7 @@ type APIObserver struct {
 	goH2SingleHeaderEvents  *ringbuf.Reader
 	goH2SingleHeaderChannel chan []byte
 
-	// Kubeshark-style TLS chunk perf reader (ks_chunks_buffer).
+	// TLS chunk perf reader (ks_chunks_buffer).
 	ksTlsChunksReader *perf.Reader
 
 	// Pipeline components.
@@ -81,12 +83,15 @@ type APIObserver struct {
 	eventBuf   []*pb.APIEvent
 	eventBufMu sync.Mutex
 
+	// Per-PID first-chunk diagnostic tracker (single-goroutine access in drainKsTlsChunks).
+	tlsPidSeen map[uint32]bool
+
 	ctx    context.Context
 	cancel context.CancelFunc
 	wg     sync.WaitGroup
 }
 
-func NewAPIObserver(node tp.Node, pinpath string, logger fd.Feeder, svcResolver ServiceResolver) (*APIObserver, error) {
+func NewAPIObserver(node tp.Node, pinpath string, logger *fd.Feeder, svcResolver ServiceResolver) (*APIObserver, error) {
 	if svcResolver == nil {
 		svcResolver = func(ip string) string { return "" }
 	}
@@ -142,13 +147,14 @@ func NewAPIObserver(node tp.Node, pinpath string, logger fd.Feeder, svcResolver 
 	}
 
 	ao.EventsChannel = make(chan []byte, 4096)
-	ao.Logger.Print("Ring buffer reader created")
+	ao.Logger.Debug("Ring buffer reader created")
 
 	ao.filterer = filter.NewFilterer()
 	cor := events.NewCorrelator(30 * time.Second)
 	ao.correlator = cor
 	ao.connManager = conn.NewManager(cor, conn.DefaultConfig())
-	ao.Logger.Print("API Observer processing components initialized")
+	ao.connManager.Start()
+	ao.Logger.Debug("API Observer processing components initialized")
 
 	// Start the Go HTTP/2 header events ring buffer.
 	ao.goHeaderEvents, err = ringbuf.NewReader(ao.objs.GoHttp2Events)
@@ -156,14 +162,14 @@ func NewAPIObserver(node tp.Node, pinpath string, logger fd.Feeder, svcResolver 
 		ao.Logger.Warnf("Go HTTP/2 header events ring buffer not available (uprobe headers disabled): %v", err)
 	} else {
 		ao.goHeaderChannel = make(chan []byte, 2048)
-		ao.Logger.Print("Go HTTP/2 header events ring buffer created")
+		ao.Logger.Debug("Go HTTP/2 header events ring buffer created")
 	}
 	ao.goH2TransportEvents, err = ringbuf.NewReader(ao.objs.GoH2TransportEvents)
 	if err != nil {
 		ao.Logger.Warnf("Go HTTP/2 transport events ring buffer not available (operateHeaders disabled): %v", err)
 	} else {
 		ao.goH2TransportChannel = make(chan []byte, 2048)
-		ao.Logger.Print("Go HTTP/2 transport events ring buffer created")
+		ao.Logger.Debug("Go HTTP/2 transport events ring buffer created")
 	}
 
 	ao.goH2SingleHeaderEvents, err = ringbuf.NewReader(ao.objs.GoH2SingleHeaderEvents)
@@ -171,7 +177,7 @@ func NewAPIObserver(node tp.Node, pinpath string, logger fd.Feeder, svcResolver 
 		ao.Logger.Warnf("Go HTTP/2 single-header events ring buffer not available (hpack probes disabled): %v", err)
 	} else {
 		ao.goH2SingleHeaderChannel = make(chan []byte, 4096)
-		ao.Logger.Print("Go HTTP/2 single-header events ring buffer created")
+		ao.Logger.Debug("Go HTTP/2 single-header events ring buffer created")
 	}
 
 	go ao.TraceEvents()
@@ -189,7 +195,7 @@ func NewAPIObserver(node tp.Node, pinpath string, logger fd.Feeder, svcResolver 
 		ao.Logger.Warnf("KS TLS perf reader not available: %v", err)
 	} else {
 		ao.ksTlsChunksReader = ksPerfReader
-		ao.Logger.Print("Kubeshark-style TLS chunk perf reader created")
+		ao.Logger.Debug("TLS chunk perf reader created")
 		go ao.drainKsTlsChunks()
 	}
 
@@ -198,7 +204,7 @@ func NewAPIObserver(node tp.Node, pinpath string, logger fd.Feeder, svcResolver 
 		ao.Logger.Warnf("gRPC-C events ring buffer not available: %v", err)
 	} else {
 		ao.grpccChannel = make(chan []byte, 1024)
-		ao.Logger.Print("gRPC-C events ring buffer created")
+		ao.Logger.Debug("gRPC-C events ring buffer created")
 	}
 
 	go ao.attachGRPCCUprobes()
@@ -214,7 +220,7 @@ func (ao *APIObserver) attachTracepoint() error {
 		return fmt.Errorf("attaching tracepoint: %w", err)
 	}
 	ao.links = append(ao.links, tpLink)
-	ao.Logger.Print("Tracepoint inet_sock_set_state attached")
+	ao.Logger.Debug("Tracepoint inet_sock_set_state attached")
 	return nil
 }
 
@@ -254,7 +260,7 @@ func (ao *APIObserver) attachSyscallKprobe(x64name, fallback string, prog *ebpf.
 		}
 	}
 	ao.links = append(ao.links, kp)
-	ao.Logger.Printf("Kprobe %s attached (FD lifecycle)", fallback)
+	ao.Logger.Debugf("Kprobe %s attached (FD lifecycle)", fallback)
 }
 
 func (ao *APIObserver) attachSyscallKretprobe(x64name, fallback string, prog *ebpf.Program) {
@@ -267,7 +273,39 @@ func (ao *APIObserver) attachSyscallKretprobe(x64name, fallback string, prog *eb
 		}
 	}
 	ao.links = append(ao.links, kp)
-	ao.Logger.Printf("Kretprobe %s attached (FD lifecycle)", fallback)
+	ao.Logger.Debugf("Kretprobe %s attached (FD lifecycle)", fallback)
+}
+
+// attachTracepointOrFallback tries to attach a BPF program via tracepoint first
+// (stable kernel ABI), falling back to kprobe if tracefs is unavailable. This
+// handles the common case where /sys/kernel/tracing is not mounted in the container.
+func (ao *APIObserver) attachTracepointOrFallback(group, name string, prog *ebpf.Program, kprobeFallbacks []string, isRet bool) error {
+	// Try tracepoint first (preferred — stable ABI).
+	l, err := link.Tracepoint(group, name, prog, nil)
+	if err == nil {
+		ao.links = append(ao.links, l)
+		ao.Logger.Debugf("KS tracepoint %s/%s attached", group, name)
+		return nil
+	}
+	ao.Logger.Debugf("Tracepoint %s/%s failed: %v — trying kprobe fallback", group, name, err)
+
+	// Fallback to kprobe/kretprobe with multiple arch-specific names.
+	for _, kpName := range kprobeFallbacks {
+		var kl link.Link
+		var kerr error
+		if isRet {
+			kl, kerr = link.Kretprobe(kpName, prog, nil)
+		} else {
+			kl, kerr = link.Kprobe(kpName, prog, nil)
+		}
+		if kerr == nil {
+			ao.links = append(ao.links, kl)
+			ao.Logger.Debugf("KS kprobe fallback %s attached (for %s)", kpName, name)
+			return nil
+		}
+	}
+
+	return fmt.Errorf("tracepoint %s/%s and all kprobe fallbacks failed: %w", group, name, err)
 }
 
 // attachKsFdTracepoints attaches the kubeshark-ported BPF programs that are
@@ -284,60 +322,131 @@ func (ao *APIObserver) attachSyscallKretprobe(x64name, fallback string, prog *eb
 //
 //  3. TCP kprobes (ks_tcp_kprobes.h) — tcp_sendmsg/tcp_recvmsg. These populate
 //     the source/destination IP+port in ks_ssl_info from struct sock.
+//
+// Each tracepoint is tried first; on failure, we fall back to kprobe/kretprobe
+// with arch-specific symbol names. This removes the hard dependency on tracefs.
 func (ao *APIObserver) attachKsFdTracepoints() error {
 	var firstErr error
 
-	// FD resolution tracepoints.
-	fdTracepoints := []struct {
-		group, name string
-		prog        *ebpf.Program
+	// FD resolution: entry tracepoints (sys_enter_*) → kprobe fallback.
+	fdEntryProbes := []struct {
+		group, name    string
+		prog           *ebpf.Program
+		kprobeFallback []string
 	}{
-		{"syscalls", "sys_enter_read", ao.objs.KsSysEnterRead},
-		{"syscalls", "sys_enter_write", ao.objs.KsSysEnterWrite},
-		{"syscalls", "sys_enter_recvfrom", ao.objs.KsSysEnterRecvfrom},
-		{"syscalls", "sys_enter_sendto", ao.objs.KsSysEnterSendto},
-		{"syscalls", "sys_exit_read", ao.objs.KsSysExitRead},
-		{"syscalls", "sys_exit_write", ao.objs.KsSysExitWrite},
+		{
+			"syscalls", "sys_enter_read", ao.objs.KsSysEnterRead,
+			[]string{"__x64_sys_read", "ksys_read", "__arm64_sys_read"},
+		},
+		{
+			"syscalls", "sys_enter_write", ao.objs.KsSysEnterWrite,
+			[]string{"__x64_sys_write", "ksys_write", "__arm64_sys_write"},
+		},
+		{
+			"syscalls", "sys_enter_recvfrom", ao.objs.KsSysEnterRecvfrom,
+			[]string{"__x64_sys_recvfrom", "__arm64_sys_recvfrom"},
+		},
+		{
+			"syscalls", "sys_enter_sendto", ao.objs.KsSysEnterSendto,
+			[]string{"__x64_sys_sendto", "__arm64_sys_sendto"},
+		},
+		// sendmsg/recvmsg: required for Java NIO (SocketChannelImpl)
+		// and gRPC-C which use these syscalls instead of write/read.
+		{
+			"syscalls", "sys_enter_sendmsg", ao.objs.KsSysEnterSendmsg,
+			[]string{"__x64_sys_sendmsg", "__arm64_sys_sendmsg"},
+		},
+		{
+			"syscalls", "sys_enter_recvmsg", ao.objs.KsSysEnterRecvmsg,
+			[]string{"__x64_sys_recvmsg", "__arm64_sys_recvmsg"},
+		},
 	}
 
-	for _, tp := range fdTracepoints {
-		l, err := link.Tracepoint(tp.group, tp.name, tp.prog, nil)
-		if err != nil {
-			ao.Logger.Warnf("KS FD tracepoint %s/%s failed: %v", tp.group, tp.name, err)
+	for _, tp := range fdEntryProbes {
+		if err := ao.attachTracepointOrFallback(tp.group, tp.name, tp.prog, tp.kprobeFallback, false); err != nil {
+			ao.Logger.Warnf("KS FD entry %s failed: %v", tp.name, err)
 			if firstErr == nil {
 				firstErr = err
 			}
-			continue
 		}
-		ao.links = append(ao.links, l)
-		ao.Logger.Printf("KS FD tracepoint %s attached", tp.name)
 	}
 
-	// Connect/accept tracepoints.
-	connTracepoints := []struct {
-		group, name string
-		prog        *ebpf.Program
+	// FD resolution: exit tracepoints (sys_exit_*) → kretprobe fallback.
+	fdExitProbes := []struct {
+		group, name    string
+		prog           *ebpf.Program
+		kprobeFallback []string
 	}{
-		{"syscalls", "sys_enter_accept4", ao.objs.KsSysEnterAccept4},
-		{"syscalls", "sys_exit_accept4", ao.objs.KsSysExitAccept4},
-		{"syscalls", "sys_enter_connect", ao.objs.KsSysEnterConnect},
-		{"syscalls", "sys_exit_connect", ao.objs.KsSysExitConnect},
+		{
+			"syscalls", "sys_exit_read", ao.objs.KsSysExitRead,
+			[]string{"__x64_sys_read", "ksys_read", "__arm64_sys_read"},
+		},
+		{
+			"syscalls", "sys_exit_write", ao.objs.KsSysExitWrite,
+			[]string{"__x64_sys_write", "ksys_write", "__arm64_sys_write"},
+		},
 	}
 
-	for _, tp := range connTracepoints {
-		l, err := link.Tracepoint(tp.group, tp.name, tp.prog, nil)
-		if err != nil {
-			ao.Logger.Warnf("KS connect tracepoint %s/%s failed: %v", tp.group, tp.name, err)
+	for _, tp := range fdExitProbes {
+		if err := ao.attachTracepointOrFallback(tp.group, tp.name, tp.prog, tp.kprobeFallback, true); err != nil {
+			ao.Logger.Warnf("KS FD exit %s failed: %v", tp.name, err)
 			if firstErr == nil {
 				firstErr = err
 			}
-			continue
 		}
-		ao.links = append(ao.links, l)
-		ao.Logger.Printf("KS connect tracepoint %s attached", tp.name)
 	}
 
-	// TCP kprobes for address resolution.
+	// Connect/accept: entry tracepoints → kprobe fallback.
+	connEntryProbes := []struct {
+		group, name    string
+		prog           *ebpf.Program
+		kprobeFallback []string
+	}{
+		{
+			"syscalls", "sys_enter_accept4", ao.objs.KsSysEnterAccept4,
+			[]string{"__x64_sys_accept4", "__sys_accept4", "__arm64_sys_accept4"},
+		},
+		{
+			"syscalls", "sys_enter_connect", ao.objs.KsSysEnterConnect,
+			[]string{"__x64_sys_connect", "__arm64_sys_connect"},
+		},
+	}
+
+	for _, tp := range connEntryProbes {
+		if err := ao.attachTracepointOrFallback(tp.group, tp.name, tp.prog, tp.kprobeFallback, false); err != nil {
+			ao.Logger.Warnf("KS connect entry %s failed: %v", tp.name, err)
+			if firstErr == nil {
+				firstErr = err
+			}
+		}
+	}
+
+	// Connect/accept: exit tracepoints → kretprobe fallback.
+	connExitProbes := []struct {
+		group, name    string
+		prog           *ebpf.Program
+		kprobeFallback []string
+	}{
+		{
+			"syscalls", "sys_exit_accept4", ao.objs.KsSysExitAccept4,
+			[]string{"__x64_sys_accept4", "__sys_accept4", "do_accept", "__arm64_sys_accept4"},
+		},
+		{
+			"syscalls", "sys_exit_connect", ao.objs.KsSysExitConnect,
+			[]string{"__x64_sys_connect", "__arm64_sys_connect"},
+		},
+	}
+
+	for _, tp := range connExitProbes {
+		if err := ao.attachTracepointOrFallback(tp.group, tp.name, tp.prog, tp.kprobeFallback, true); err != nil {
+			ao.Logger.Warnf("KS connect exit %s failed: %v", tp.name, err)
+			if firstErr == nil {
+				firstErr = err
+			}
+		}
+	}
+
+	// TCP kprobes for address resolution (always kprobes, no tracepoint equivalent).
 	tcpKprobes := []struct {
 		name string
 		prog *ebpf.Program
@@ -356,7 +465,7 @@ func (ao *APIObserver) attachKsFdTracepoints() error {
 			continue
 		}
 		ao.links = append(ao.links, l)
-		ao.Logger.Printf("KS TCP kprobe %s attached", kp.name)
+		ao.Logger.Debugf("KS TCP kprobe %s attached", kp.name)
 	}
 
 	return firstErr
@@ -389,7 +498,7 @@ func (ao *APIObserver) TraceEvents() {
 				return
 			default:
 				// Drop on overload rather than blocking the BPF reader.
-				slog.Debug("Dropping API Log due to load")
+				ao.Logger.Debug("Dropping API Log due to load")
 			}
 		}
 	}()
@@ -420,7 +529,7 @@ func (ao *APIObserver) drainGoHeaderEvents() {
 		return
 	}
 
-	ao.Logger.Print("Starting Go HTTP/2 header events reader")
+	ao.Logger.Debug("Starting Go HTTP/2 header events reader")
 
 	// Ring buffer reader goroutine.
 	go func() {
@@ -438,7 +547,7 @@ func (ao *APIObserver) drainGoHeaderEvents() {
 			case <-ao.ctx.Done():
 				return
 			default:
-				slog.Debug("Dropping Go header event due to load")
+				ao.Logger.Debug("Dropping Go header event due to load")
 			}
 		}
 	}()
@@ -463,8 +572,7 @@ func (ao *APIObserver) drainGoHeaderEvents() {
 // Each event contains a full path and latency — no accumulation needed.
 func (ao *APIObserver) processGoGRPCEvent(ev *events.GoGRPCRequestEvent) {
 	if ev.Path == "" {
-		slog.Debug("Go uprobe: ignoring event with empty path",
-			"pid", ev.PID, "type", ev.EventType)
+		ao.Logger.Debugf("Go uprobe: ignoring event with empty path pid=%d type=%d", ev.PID, ev.EventType)
 		return
 	}
 
@@ -473,7 +581,7 @@ func (ao *APIObserver) processGoGRPCEvent(ev *events.GoGRPCRequestEvent) {
 		direction = "client"
 	}
 
-	ao.Logger.Printf("Go uprobe: gRPC %s event pid=%d path=%s status=%d latency=%dns",
+	ao.Logger.Debugf("Go uprobe: gRPC %s event pid=%d path=%s status=%d latency=%dns",
 		direction, ev.PID, ev.Path, ev.Status, ev.LatencyNs())
 
 	// Inject into correlator so future kprobe events for this PID
@@ -494,18 +602,18 @@ func sanitizeUTF8(s string) string {
 	return strings.ToValidUTF8(s, "")
 }
 
-// sanitizeBody returns a clean body string. If the body contains non-printable
-// bytes (raw protobuf that wasn't decoded), base64-encode it with a prefix
-// so downstream consumers know it's encoded.
+// sanitizeBody returns a clean body string. Non-printable bodies (raw protobuf
+// that wasn't decoded) are replaced with a placeholder to avoid emitting
+// binary data to downstream consumers.
 func sanitizeBody(s string) string {
 	if s == "" {
 		return ""
 	}
 	// Check if body has non-printable characters (control chars excluding
-	// tab/newline/carriage-return).
+	// tab/newline/carriage-return). If so, replace with a placeholder.
 	for _, b := range []byte(s) {
 		if b < 0x20 && b != '\t' && b != '\n' && b != '\r' {
-			return "[base64]" + base64.StdEncoding.EncodeToString([]byte(s))
+			return fmt.Sprintf("[binary, %d bytes]", len(s))
 		}
 	}
 	return sanitizeUTF8(s)
@@ -537,10 +645,11 @@ func (ao *APIObserver) enrichAndEmit(trace *events.CorrelatedTrace, ev *events.D
 		return
 	}
 
-	srcName, srcNS := ao.resolveWorkload(ev.SrcIPString())
-	dstName, dstNS := ao.resolveWorkload(ev.DstIPString())
-
-	if !ao.filterer.ShouldTraceConnection(srcName, dstName, srcNS, dstNS) {
+	// Infrastructure traffic filter: drop known control-plane gRPC services
+	// (SPIRE, Envoy xDS, etc.) based on :authority header and gRPC service name.
+	// This avoids emitting noise from kubearmor and agents namespaces.
+	authority := ao.resolveAuthority(trace, ev)
+	if ao.filterer.IsInfrastructureTraffic(authority, trace.GRPCService) {
 		return
 	}
 	// Deduplication: both client and server perspectives of the same call
@@ -553,16 +662,12 @@ func (ao *APIObserver) enrichAndEmit(trace *events.CorrelatedTrace, ev *events.D
 	}
 
 	var statusCode int32
-	if n, err := fmt.Sscanf(trace.Status, "%d", &statusCode); n == 0 || err != nil {
-		statusCode = 0
+	if n, err := strconv.Atoi(trace.Status); err == nil && n >= math.MinInt32 && n <= math.MaxInt32 {
+		statusCode = int32(n) // #nosec G109 -- overflow guarded by MinInt32/MaxInt32 check above
 	}
 
 	// Build pb.APIEvent.
 	latencyMs := uint32(trace.DurationNs / 1_000_000)
-
-	// Resolve :authority — prefer host header, then :authority, then
-	// resolve destination IP to K8s service name, fallback to ip:port.
-	authority := ao.resolveAuthority(trace, ev)
 
 	// Ensure method and path are always populated.
 	method := sanitizeUTF8(trace.Method)
@@ -604,23 +709,19 @@ func (ao *APIObserver) enrichAndEmit(trace *events.CorrelatedTrace, ev *events.D
 	}
 	respHeaders[":status"] = trace.Status
 
-	apiEvent := pb.APIEvent{
+	apiEvent := &pb.APIEvent{
 		Metadata: &pb.Metadata{
 			Timestamp:    uint64(time.Now().Unix()),
 			NodeName:     ao.nodeName,
 			ReceiverName: "KubeArmor",
 		},
 		Source: &pb.Workload{
-			Name:      srcName,
-			Namespace: srcNS,
-			Ip:        ev.SrcIPString(),
-			Port:      int32(ev.SrcPort),
+			Ip:   ev.SrcIPString(),
+			Port: int32(ev.SrcPort),
 		},
 		Destination: &pb.Workload{
-			Name:      dstName,
-			Namespace: dstNS,
-			Ip:        ev.DstIPString(),
-			Port:      int32(ev.DstPort),
+			Ip:   ev.DstIPString(),
+			Port: int32(ev.DstPort),
 		},
 		Request: &pb.Request{
 			Method:      method,
@@ -666,7 +767,7 @@ func (ao *APIObserver) enrichAndEmit(trace *events.CorrelatedTrace, ev *events.D
 	}
 
 	// Buffer the event for batched flushing.
-	ao.bufferEvent(&apiEvent)
+	ao.bufferEvent(apiEvent)
 }
 
 // maxAPIBodyBytes caps the request/response body size in emitted APIEvents.
@@ -695,7 +796,7 @@ func (ao *APIObserver) flushEvents() {
 	ao.eventBufMu.Unlock()
 
 	for _, ev := range batch {
-		ao.Logger.PushAPIEvent(*ev)
+		ao.Logger.PushAPIEvent(ev)
 	}
 }
 
@@ -719,8 +820,12 @@ func (ao *APIObserver) flushLoop() {
 
 // K8s metadata resolution
 
-func (ao *APIObserver) resolveWorkload(ip string) (name, namespace string) {
-	return "", ""
+// appendLink is a thread-safe helper for adding probe links.
+// Must be used for all link appends from goroutines (SSL scanner, Go probe scanner, etc.).
+func (ao *APIObserver) appendLink(l io.Closer) {
+	ao.linksMu.Lock()
+	ao.links = append(ao.links, l)
+	ao.linksMu.Unlock()
 }
 
 // resolveAuthority determines the :authority pseudo-header value.
@@ -732,9 +837,9 @@ func (ao *APIObserver) resolveAuthority(trace *events.CorrelatedTrace, ev *event
 	}
 	// 2. Use :authority if already a hostname (not an IP).
 	if auth := trace.RequestHeaders[":authority"]; auth != "" {
-		authHost := auth
-		if idx := strings.LastIndex(authHost, ":"); idx > 0 {
-			authHost = authHost[:idx]
+		authHost, _, err := net.SplitHostPort(auth)
+		if err != nil {
+			authHost = auth // no port in authority
 		}
 		if net.ParseIP(authHost) == nil {
 			// Already a hostname, use as-is.
@@ -774,7 +879,9 @@ func (ao *APIObserver) attachSSLUprobes() {
 	defer func() {
 		for _, info := range tracked {
 			for _, l := range info.links {
-				l.Close()
+				if err := l.Close(); err != nil {
+					ao.Logger.Err(err.Error())
+				}
 			}
 		}
 	}()
@@ -789,12 +896,19 @@ func (ao *APIObserver) attachSSLUprobes() {
 			return
 		}
 
-		ao.Logger.Debugf("SSL scanner: found %d container PIDs", len(pids))
+		ao.Logger.Printf("SSL scanner: found %d container PIDs", len(pids))
 
 		for _, pid := range pids {
+			// Allow fast exit during shutdown.
+			select {
+			case <-ao.ctx.Done():
+				return
+			default:
+			}
+
 			matches := ssl.DiscoverSSLLibsForPID(pid)
 			if len(matches) > 0 {
-				ao.Logger.Debugf("SSL scanner: PID %d has %d SSL lib matches", pid, len(matches))
+				ao.Logger.Printf("SSL scanner: PID %d has %d SSL lib matches", pid, len(matches))
 			}
 			for _, m := range matches {
 				inode := ao.getFileInode(m.LibSSLPath)
@@ -807,15 +921,17 @@ func (ao *APIObserver) attachSSLUprobes() {
 					continue
 				}
 
-				ao.Logger.Debugf("SSL scanner: attaching probes to %s (PID %d, matcher=%q, strategy=%d)",
+				ao.Logger.Printf("SSL scanner: attaching probes to %s (PID %d, matcher=%q, strategy=%d)",
 					m.LibSSLPath, pid, m.Matcher.LibSSL, m.Matcher.SocketFDAccess)
 
 				links := ao.attachSSLProbesForMatch(m)
 				if len(links) == 0 {
-					ao.Logger.Debugf("SSL scanner: no probes attached for %s (PID %d) — symbols not found?",
+					ao.Logger.Warnf("SSL scanner: no probes attached for %s (PID %d) — symbols not found?",
 						m.LibSSLPath, pid)
 					continue
 				}
+
+				ao.Logger.Printf("SSL scanner: attached %d probes for %s (PID %d)", len(links), m.LibSSLPath, pid)
 
 				probed[key] = true
 
@@ -896,7 +1012,7 @@ func (ao *APIObserver) attachHostSSLUprobes(probed map[sslProbeKey]bool) {
 				probed[key] = true
 				// Host-level links are added directly to ao.links for lifecycle.
 				for _, l := range links {
-					ao.links = append(ao.links, l)
+					ao.appendLink(l)
 				}
 				ao.Logger.Printf("Host SSL uprobes attached to %s (%d probes)", libPath, len(links))
 			}
@@ -916,17 +1032,48 @@ func (ao *APIObserver) attachSSLProbesForMatch(m ssl.SSLLibMatch) []link.Link {
 
 	var links []link.Link
 	isStaticSSL := m.Matcher.SearchType == ssl.MatchExecutable
+	// BoringSSL (Netty tcnative, Conscrypt): always try address-based
+	// fallback because JNI libraries may not expose standard ELF symbol
+	// names that cilium/ebpf can resolve via .dynsym.
+	resolveAddr := isStaticSSL || m.Matcher.SocketFDAccess == ssl.SSLFDUserSpaceOffsets
+
+	// Strategy B (userspace offsets): for Java/Netty BoringSSL, populate
+	// the per-TGID ssl_symaddrs BPF map so the uprobe entry handler can
+	// walk ssl->rbio->num to extract the FD directly from the SSL struct.
+	if m.Matcher.SocketFDAccess == ssl.SSLFDUserSpaceOffsets && m.PID > 0 {
+		offsets, err := ssl.OffsetsForLib(m.LibSSLPath)
+		if err != nil {
+			ao.Logger.Warnf("SSL Strategy B: cannot determine offsets for %s: %v", m.LibSSLPath, err)
+		} else {
+			tgid := uint32(m.PID)
+			// The BPF struct ssl_symaddrs must match ssl.SymAddrs layout.
+			type bpfSSLSymaddrs struct {
+				SSLRBIOOffset int32
+				BIONumOffset  int32
+			}
+			bpfOffsets := bpfSSLSymaddrs{
+				SSLRBIOOffset: offsets.SSLRBIOOffset,
+				BIONumOffset:  offsets.BIONumOffset,
+			}
+			if err := ao.objs.SslSymaddrs.Put(tgid, bpfOffsets); err != nil {
+				ao.Logger.Warnf("SSL Strategy B: failed to write ssl_symaddrs[%d]: %v", tgid, err)
+			} else {
+				ao.Logger.Printf("SSL Strategy B: populated ssl_symaddrs[%d] rbio=0x%x num=0x%x for %s",
+					tgid, offsets.SSLRBIOOffset, offsets.BIONumOffset, m.LibSSLPath)
+			}
+		}
+	}
 
 	// Kubeshark-style probes: clean entry/return pattern with
 	// FD resolution via syscall tracepoints + address via tcp kprobes.
 	links = append(links, ao.attachSSLProbePair(ex, m.LibSSLPath,
-		"SSL_write", ao.objs.KsSslWrite, ao.objs.KsSslRetWrite, isStaticSSL)...)
+		"SSL_write", ao.objs.KsSslWrite, ao.objs.KsSslRetWrite, resolveAddr)...)
 	links = append(links, ao.attachSSLProbePair(ex, m.LibSSLPath,
-		"SSL_read", ao.objs.KsSslRead, ao.objs.KsSslRetRead, isStaticSSL)...)
+		"SSL_read", ao.objs.KsSslRead, ao.objs.KsSslRetRead, resolveAddr)...)
 	links = append(links, ao.attachSSLProbePair(ex, m.LibSSLPath,
-		"SSL_write_ex", ao.objs.KsSslWriteEx, ao.objs.KsSslRetWriteEx, isStaticSSL)...)
+		"SSL_write_ex", ao.objs.KsSslWriteEx, ao.objs.KsSslRetWriteEx, resolveAddr)...)
 	links = append(links, ao.attachSSLProbePair(ex, m.LibSSLPath,
-		"SSL_read_ex", ao.objs.KsSslReadEx, ao.objs.KsSslRetReadEx, isStaticSSL)...)
+		"SSL_read_ex", ao.objs.KsSslReadEx, ao.objs.KsSslRetReadEx, resolveAddr)...)
 
 	// SSL_pending — proactive context capture for double-read pattern.
 	if l, err := attachUprobeWithFallback(ex, "SSL_pending", ao.objs.KsSslPending, 0); err == nil {
@@ -1012,10 +1159,15 @@ func (ao *APIObserver) cleanupDeadSSLPIDs(tracked map[uint64]*sslPidInfo) {
 		}
 		// Process is dead — close uprobe links.
 		for _, l := range info.links {
-			l.Close()
+			if err := l.Close(); err != nil {
+				ao.Logger.Err(err.Error())
+			}
 		}
 		// Remove per-TGID BPF map entries.
-		ao.objs.SslSymaddrs.Delete(uint32(info.pid))
+		err := ao.objs.SslSymaddrs.Delete(uint32(info.pid))
+		if err != nil {
+			ao.Logger.Err("Failed to delete SSL SymAddrs")
+		}
 		delete(tracked, key)
 		ao.Logger.Printf("SSL: cleaned up dead PID %d", info.pid)
 	}
@@ -1070,6 +1222,13 @@ func (ao *APIObserver) attachGoHTTP2Uprobes() {
 		}
 
 		for _, target := range targets {
+			// Allow fast exit during shutdown.
+			select {
+			case <-ao.ctx.Done():
+				return
+			default:
+			}
+
 			if attached[target.BinaryPath] {
 				// Already probed this binary — just ensure BPF maps are populated.
 				ao.populateGoBPFMaps(target)
@@ -1098,9 +1257,9 @@ func (ao *APIObserver) attachGoHTTP2Uprobes() {
 						ao.Logger.Warnf("Failed to attach uprobe %s at 0x%x on %s: %v",
 							shortID, addr, target.BinaryPath, err)
 					} else {
-						ao.links = append(ao.links, l)
+						ao.appendLink(l)
 						probeCount++
-						ao.Logger.Printf("  uprobe/%s attached at 0x%x", shortID, addr)
+						ao.Logger.Printf("  uprobe/%s attached at 0x%x on %s", shortID, addr, target.BinaryPath)
 					}
 				}
 
@@ -1112,7 +1271,7 @@ func (ao *APIObserver) attachGoHTTP2Uprobes() {
 						ao.Logger.Warnf("Failed to attach uretprobe %s at 0x%x on %s: %v",
 							retKey, addr, target.BinaryPath, err)
 					} else {
-						ao.links = append(ao.links, l)
+						ao.appendLink(l)
 						probeCount++
 						ao.Logger.Printf("  uretprobe/%s attached at 0x%x", retKey, addr)
 					}
@@ -1198,10 +1357,10 @@ func (ao *APIObserver) attachGoTlsRetProbes(ex *link.Executable, target goprobe.
 		for _, exitOff := range offsets.GoWriteOffset.Exits {
 			l, err := attachUprobeWithFallback(ex, "", ao.objs.KaUprobeGoTlsWriteEx, exitOff)
 			if err != nil {
-				ao.Logger.Debugf("Go TLS write_ex at 0x%x on %s: %v", exitOff, target.BinaryPath, err)
+				ao.Logger.Warnf("Go TLS write_ex at 0x%x on %s: %v", exitOff, target.BinaryPath, err)
 				continue
 			}
-			ao.links = append(ao.links, l)
+			ao.appendLink(l)
 			probeCount++
 		}
 		ao.Logger.Printf("  Go TLS write_ex: %d ret probes attached", probeCount)
@@ -1213,10 +1372,10 @@ func (ao *APIObserver) attachGoTlsRetProbes(ex *link.Executable, target goprobe.
 		for _, exitOff := range offsets.GoReadOffset.Exits {
 			l, err := attachUprobeWithFallback(ex, "", ao.objs.KaUprobeGoTlsReadEx, exitOff)
 			if err != nil {
-				ao.Logger.Debugf("Go TLS read_ex at 0x%x on %s: %v", exitOff, target.BinaryPath, err)
+				ao.Logger.Warnf("Go TLS read_ex at 0x%x on %s: %v", exitOff, target.BinaryPath, err)
 				continue
 			}
-			ao.links = append(ao.links, l)
+			ao.appendLink(l)
 			readCount++
 		}
 		ao.Logger.Printf("  Go TLS read_ex: %d ret probes attached", readCount)
@@ -1255,6 +1414,9 @@ func (ao *APIObserver) drainKsTlsChunks() {
 
 		raw := record.RawSample
 		chunkCount++
+		if chunkCount <= 5 || chunkCount%100 == 0 {
+			ao.Logger.Printf("KS TLS chunk received #%d (rawLen=%d)", chunkCount, len(raw))
+		}
 
 		// Parse the TLS chunk into a structured event.
 		chunk, err := events.ParseTlsChunkEvent(raw)
@@ -1263,19 +1425,27 @@ func (ao *APIObserver) drainKsTlsChunks() {
 			continue
 		}
 
-		// Diagnostic: log every chunk received from BPF.
-		dataPreview := ""
-		if len(chunk.Data) > 0 {
-			previewLen := len(chunk.Data)
-			if previewLen > 80 {
-				previewLen = 80
-			}
-			dataPreview = string(chunk.Data[:previewLen])
+		// Diagnostic: log first chunk from each PID at INFO level to
+		// expose address resolution status without flooding logs.
+		if ao.tlsPidSeen == nil {
+			ao.tlsPidSeen = make(map[uint32]bool)
 		}
-		ao.Logger.Debugf("KS TLS chunk #%d: pid=%d fd=%d flags=0x%x len=%d start=%d recorded=%d family=%d src=%s:%d dst=%s:%d data=%q",
-			chunkCount, chunk.PID, chunk.FD, chunk.Flags, chunk.Len, chunk.Start, chunk.Recorded,
-			chunk.Family, chunk.SrcIPString(), chunk.SrcPort, chunk.DstIPString(), chunk.DstPort,
-			dataPreview)
+		if !ao.tlsPidSeen[chunk.PID] {
+			ao.tlsPidSeen[chunk.PID] = true
+			dataPreview := ""
+			if len(chunk.Data) > 0 {
+				previewLen := len(chunk.Data)
+				if previewLen > 80 {
+					previewLen = 80
+				}
+				dataPreview = string(chunk.Data[:previewLen])
+			}
+			ao.Logger.Printf("KS TLS first chunk from pid=%d fd=%d family=%d src=%s:%d dst=%s:%d flags=0x%x len=%d recorded=%d data=%q",
+				chunk.PID, chunk.FD, chunk.Family,
+				chunk.SrcIPString(), chunk.SrcPort,
+				chunk.DstIPString(), chunk.DstPort,
+				chunk.Flags, chunk.Len, chunk.Recorded, dataPreview)
+		}
 
 		// Skip empty chunks (start > 0 means continuation — for now,
 		// we only process the first chunk of each TLS operation).
@@ -1360,7 +1530,7 @@ func (ao *APIObserver) drainGoH2TransportEvents() {
 			case <-ao.ctx.Done():
 				return
 			default:
-				slog.Debug("Dropping Go H2 transport event due to load")
+				ao.Logger.Debug("Dropping Go H2 transport event due to load")
 			}
 		}
 	}()
@@ -1375,7 +1545,7 @@ func (ao *APIObserver) drainGoH2TransportEvents() {
 				ao.Logger.Debugf("ParseGoH2TransportEvent error: %v", err)
 				continue
 			}
-			ao.Logger.Printf("Go H2 transport event: pid=%d stream=%d is_server=%d method=%q path=%q",
+			ao.Logger.Debugf("Go H2 transport event: pid=%d stream=%d is_server=%d method=%q path=%q",
 				ev.PID, ev.StreamID, ev.IsServer, ev.Headers()[":method"], ev.Headers()[":path"])
 			ao.correlator.InjectGoHTTP2TransportHeaders(ev.PID, ev.StreamID, ev.Headers())
 		}
@@ -1393,7 +1563,7 @@ func (ao *APIObserver) drainGoH2SingleHeaderEvents() {
 		return
 	}
 
-	ao.Logger.Print("Starting Go HTTP/2 single-header events reader")
+	ao.Logger.Debug("Starting Go HTTP/2 single-header events reader")
 
 	go func() {
 		for {
@@ -1410,7 +1580,7 @@ func (ao *APIObserver) drainGoH2SingleHeaderEvents() {
 			case <-ao.ctx.Done():
 				return
 			default:
-				slog.Debug("Dropping Go H2 single-header event due to load")
+				ao.Logger.Debug("Dropping Go H2 single-header event due to load")
 			}
 		}
 	}()
@@ -1430,12 +1600,8 @@ func (ao *APIObserver) drainGoH2SingleHeaderEvents() {
 			if name == "" {
 				continue
 			}
-			slog.Debug("Go H2 single-header event",
-				"pid", ev.PID,
-				"stream_id", ev.StreamID,
-				"name", name,
-				"value", value,
-			)
+			ao.Logger.Debugf("Go H2 single-header event pid=%d stream_id=%d name=%s value=%s",
+				ev.PID, ev.StreamID, name, value)
 			ao.correlator.InjectGoH2SingleHeader(ev.PID, ev.StreamID, name, value)
 		}
 	}
@@ -1449,6 +1615,13 @@ func (ao *APIObserver) scanAndAttachGRPCC(attached map[string]bool) {
 		return
 	}
 	for _, target := range targets {
+		// Allow fast exit during shutdown.
+		select {
+		case <-ao.ctx.Done():
+			return
+		default:
+		}
+
 		if attached[target.LibPath] {
 			continue
 		}
@@ -1476,7 +1649,7 @@ func (ao *APIObserver) scanAndAttachGRPCC(attached map[string]bool) {
 			ao.Logger.Warnf("gRPC-C: uprobe attach failed on %s: %v", target.LibPath, err)
 			continue
 		}
-		ao.links = append(ao.links, l)
+		ao.appendLink(l)
 		attached[target.LibPath] = true
 		ao.Logger.Printf("gRPC-C uprobe attached to %s (PID %d)", target.LibPath, target.PID)
 	}
@@ -1492,7 +1665,7 @@ func (ao *APIObserver) processGRPCCEvent(raw []byte) {
 	}
 	method := ev.MethodString()
 	if method == "" {
-		slog.Debug("gRPC-C uprobe: ignoring event with empty method", "pid", ev.PID)
+		ao.Logger.Debugf("gRPC-C uprobe: ignoring event with empty method pid=%d", ev.PID)
 		return
 	}
 	ao.correlator.InjectGRPCCEvent(ev.PID, ev.FD, ev.StreamID, method)
@@ -1505,7 +1678,7 @@ func (ao *APIObserver) populateGoBPFMaps(target goprobe.GoUProbeTarget) {
 		return
 	}
 
-	ao.Logger.Printf("populateGoBPFMaps: pushing offset table for inode %d (binary %s)",
+	ao.Logger.Debugf("populateGoBPFMaps: pushing offset table for inode %d (binary %s)",
 		target.Inode, target.BinaryPath)
 
 	// Push offset table keyed by inode (matches BPF go_offsets_map).
@@ -1549,33 +1722,67 @@ func (ao *APIObserver) populateProtocolConfig() {
 	ao.Logger.Print("Protocol-aware capture config populated")
 }
 
-// defaultExcludedPorts lists Kubernetes control-plane and infrastructure ports
-// that should not be traced. Populated into BPF port_exclusion_map at startup.
-var defaultExcludedPorts = []uint16{
-	6443,  // kube-apiserver
-	2379,  // etcd client
-	2380,  // etcd peer
-	10250, // kubelet API
-	10255, // kubelet read-only
-	10256, // kube-proxy health
-	9091,  // prometheus pushgateway
-	9099,  // calico felix
-	9100,  // node-exporter
-}
-
-// populatePortExclusions writes default + user-configured excluded ports into
-// BPF port_exclusion_map. Called once at startup.
+// populatePortExclusions writes user-configured excluded ports into the BPF
+// port_exclusion_map. By default no ports are excluded — only ports explicitly
+// passed via the apiExcludedPorts flag/config are filtered.
 func (ao *APIObserver) populatePortExclusions() {
 	excluded := uint8(1)
 	count := 0
-	for _, port := range defaultExcludedPorts {
-		if err := ao.objs.PortExclusionMap.Put(port, excluded); err != nil {
-			ao.Logger.Warnf("Failed to set port_exclusion_map[%d]: %v", port, err)
-		} else {
-			count++
+
+	if extra := cfg.GlobalCfg.ConfigApiExcludedPorts.Load(); extra != nil {
+		if list, ok := extra.([]string); ok {
+			for _, s := range list {
+				s = strings.TrimSpace(s)
+				if s == "" {
+					continue
+				}
+				port, err := strconv.ParseUint(s, 10, 16)
+				if err != nil {
+					ao.Logger.Warnf("Invalid port in apiExcludedPorts: %q", s)
+					continue
+				}
+				if err := ao.objs.PortExclusionMap.Put(uint16(port), excluded); err != nil {
+					ao.Logger.Warnf("Failed to set port_exclusion_map[%d]: %v", port, err)
+				} else {
+					count++
+				}
+			}
 		}
 	}
+
 	ao.Logger.Printf("Port exclusion map populated: %d ports excluded", count)
+}
+
+// SyncPortExclusions clears the BPF port_exclusion_map and connection_filter_cache,
+// then re-populates the exclusion map from the current runtime config. This allows
+// port exclusions to be changed at runtime without restarting KubeArmor.
+func (ao *APIObserver) SyncPortExclusions() {
+	if ao == nil {
+		return
+	}
+
+	// Clear the existing port exclusion map.
+	var key uint16
+	for {
+		if err := ao.objs.PortExclusionMap.NextKey(nil, &key); err != nil {
+			break
+		}
+		_ = ao.objs.PortExclusionMap.Delete(key)
+	}
+
+	// Clear the connection filter cache so existing connections are
+	// re-evaluated against the new exclusion set on their next packet.
+	var sockKey uint64
+	for {
+		if err := ao.objs.ConnectionFilterCache.NextKey(nil, &sockKey); err != nil {
+			break
+		}
+		_ = ao.objs.ConnectionFilterCache.Delete(sockKey)
+	}
+
+	// Re-populate from current config.
+	ao.populatePortExclusions()
+	ao.Logger.Print("Port exclusion map re-synced from runtime config")
 }
 
 // Lifecycle
@@ -1584,9 +1791,13 @@ func (ao *APIObserver) DestroyAPIObserver() error {
 		return nil
 	}
 	var cleanupErr error
+
+	// 1. Cancel context — signals all goroutines to exit.
 	if ao.cancel != nil {
 		ao.cancel()
 	}
+
+	// 2. Close all perf/ring buffer readers — unblocks drain goroutines.
 	if ao.Events != nil {
 		if err := ao.Events.Close(); err != nil {
 			ao.Logger.Err(err.Error())
@@ -1623,9 +1834,35 @@ func (ao *APIObserver) DestroyAPIObserver() error {
 			cleanupErr = errors.Join(cleanupErr, err)
 		}
 	}
-	// Close probe links BEFORE closing BPF objects — programs must outlive
+
+	// 3. Wait for goroutines to finish BEFORE closing BPF objects.
+	//    Use a timeout to avoid hanging indefinitely if a scan is in progress.
+	wgDone := make(chan struct{})
+	go func() {
+		ao.wg.Wait()
+		close(wgDone)
+	}()
+	select {
+	case <-wgDone:
+		ao.Logger.Print("All API Observer goroutines stopped")
+	case <-time.After(10 * time.Second):
+		ao.Logger.Warnf("API Observer goroutines did not stop within 10s — forcing cleanup")
+	}
+
+	if ao.correlator != nil {
+		ao.correlator.Stop()
+	}
+	if ao.connManager != nil {
+		ao.connManager.Stop()
+	}
+
+	// 4. Close probe links BEFORE closing BPF objects — programs must outlive
 	// the links that reference them.
-	for _, l := range ao.links {
+	ao.linksMu.Lock()
+	links := ao.links
+	ao.links = nil
+	ao.linksMu.Unlock()
+	for _, l := range links {
 		if l == nil {
 			continue
 		}
@@ -1634,17 +1871,13 @@ func (ao *APIObserver) DestroyAPIObserver() error {
 			cleanupErr = errors.Join(cleanupErr, err)
 		}
 	}
+
+	// 5. Close BPF objects last.
 	if err := ao.objs.Close(); err != nil {
 		ao.Logger.Err(err.Error())
 		cleanupErr = errors.Join(cleanupErr, err)
 	}
-	if ao.correlator != nil {
-		ao.correlator.Stop()
-	}
-	if ao.connManager != nil {
-		ao.connManager.Stop()
-	}
-	ao.wg.Wait()
+
 	return cleanupErr
 }
 

@@ -3,7 +3,15 @@
 
 package conn
 
-import "log/slog"
+import (
+	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
+	"sync/atomic"
+	"time"
+)
+
+// lastOverflowLog tracks the last time an overflow warning was emitted
+// to avoid flooding logs during high-throughput TLS capture.
+var lastOverflowLog atomic.Int64
 
 // DataStreamBuffer accumulates raw TCP payload chunks from BPF events and
 // exposes them as a single contiguous byte window for the protocol parser.
@@ -28,16 +36,16 @@ func NewDataStreamBuffer(capacity int) *DataStreamBuffer {
 
 // Write appends data to the buffer, with three behaviours in order:
 //
-//   1. If skip > 0, consume the skip counter first (drain leftover body bytes
-//      from the wire without storing them). If the entire chunk is covered by
-//      skip, return immediately without touching buf.
+//  1. If skip > 0, consume the skip counter first (drain leftover body bytes
+//     from the wire without storing them). If the entire chunk is covered by
+//     skip, return immediately without touching buf.
 //
-//   2. If the buffer is within capacity after appending, return normally.
+//  2. If the buffer is within capacity after appending, return normally.
 //
-//   3. If over capacity, first GC already-consumed bytes. If still over
-//      capacity (a single un-parsed message is larger than the buffer),
-//      keep the HEAD of the buffer so HTTP headers are never discarded,
-//      and log a warning.
+//  3. If over capacity, first GC already-consumed bytes. If still over
+//     capacity (a single un-parsed message is larger than the buffer),
+//     keep the HEAD of the buffer so HTTP headers are never discarded,
+//     and log a warning.
 func (b *DataStreamBuffer) Write(data []byte) {
 	// Phase 1: drain skip counter
 	if b.skip > 0 {
@@ -62,10 +70,14 @@ func (b *DataStreamBuffer) Write(data []byte) {
 
 	// Phase 3: hard cap — keep HEAD so HTTP headers survive
 	if len(b.buf) > b.capacity {
-		slog.Warn("DataStreamBuffer: overflow, truncating to preserve headers",
-			"bufLen", len(b.buf),
-			"capacity", b.capacity,
-		)
+		now := time.Now().UnixMilli()
+		last := lastOverflowLog.Load()
+		if now-last > 10_000 { // log at most once per 10s
+			if lastOverflowLog.CompareAndSwap(last, now) {
+				kg.Warnf("DataStreamBuffer: overflow, truncating to preserve headers bufLen=%d capacity=%d",
+					len(b.buf), b.capacity)
+			}
+		}
 		b.buf = b.buf[:b.capacity] // keep head, discard tail
 	}
 }

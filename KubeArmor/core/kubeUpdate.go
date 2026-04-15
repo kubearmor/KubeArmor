@@ -1070,9 +1070,21 @@ func (dm *KubeArmorDaemon) WatchK8sServices() {
 			}
 		},
 		DeleteFunc: func(obj any) {
-			if svc, ok := obj.(*corev1.Service); ok {
-				updateServiceMap(svc, false)
+			svc, ok := obj.(*corev1.Service)
+			if !ok {
+				// The informer may deliver a tombstone (DeletedFinalStateUnknown)
+				// when it missed the original delete event (e.g. after a relist).
+				// Unwrap it so stale ClusterIP→FQDN entries are reliably removed.
+				tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
+				if !ok {
+					return
+				}
+				svc, ok = tombstone.Obj.(*corev1.Service)
+				if !ok {
+					return
+				}
 			}
+			updateServiceMap(svc, false)
 		},
 	}); err != nil {
 		dm.Logger.Warnf("Error starting service informer: %s", err)
@@ -4128,6 +4140,27 @@ func (dm *KubeArmorDaemon) WatchConfigMap() cache.InformerSynced {
 				dm.UpdateIMA(cfg.GlobalCfg.EnableIMA)
 				dm.UpdateUSBDeviceHandler(cfg.GlobalCfg.USBDeviceHandler)
 
+				// API Observer config (enableAPIObserver requires restart).
+				// Store an empty slice when the key is present but blank so
+				// callers can clear a previously configured list via ConfigMap.
+				if v, ok := cm.Data[cfg.ConfigApiBlockedAuthorities]; ok {
+					if v == "" {
+						cfg.GlobalCfg.ConfigApiBlockedAuthorities.Store([]string{})
+					} else {
+						cfg.GlobalCfg.ConfigApiBlockedAuthorities.Store(strings.Split(v, ","))
+					}
+				}
+				if v, ok := cm.Data[cfg.ConfigApiExcludedPorts]; ok {
+					var ports []string
+					if v != "" {
+						ports = strings.Split(v, ",")
+					}
+					cfg.GlobalCfg.ConfigApiExcludedPorts.Store(ports)
+					if dm.APIObserver != nil {
+						dm.APIObserver.SyncPortExclusions()
+					}
+				}
+
 				dm.Logger.Printf("Current Global Posture is %v", currentGlobalPosture)
 				dm.UpdateGlobalPosture(globalPosture)
 
@@ -4203,6 +4236,27 @@ func (dm *KubeArmorDaemon) WatchConfigMap() cache.InformerSynced {
 				dm.SystemMonitor.UpdateMatchArgsConfig()
 				dm.UpdateIMA(cfg.GlobalCfg.EnableIMA)
 				dm.UpdateUSBDeviceHandler(cfg.GlobalCfg.USBDeviceHandler)
+
+				// API Observer config (enableAPIObserver requires restart).
+				// Store an empty slice when the key is present but blank so
+				// callers can clear a previously configured list via ConfigMap.
+				if v, ok := cm.Data[cfg.ConfigApiBlockedAuthorities]; ok {
+					if v == "" {
+						cfg.GlobalCfg.ConfigApiBlockedAuthorities.Store([]string{})
+					} else {
+						cfg.GlobalCfg.ConfigApiBlockedAuthorities.Store(strings.Split(v, ","))
+					}
+				}
+				if v, ok := cm.Data[cfg.ConfigApiExcludedPorts]; ok {
+					var ports []string
+					if v != "" {
+						ports = strings.Split(v, ",")
+					}
+					cfg.GlobalCfg.ConfigApiExcludedPorts.Store(ports)
+					if dm.APIObserver != nil {
+						dm.APIObserver.SyncPortExclusions()
+					}
+				}
 			}
 		},
 		DeleteFunc: func(obj any) {

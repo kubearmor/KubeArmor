@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Authors of KubeArmor
+
 // Package conn implements per-connection lifecycle tracking.
 //
 // One ConnectionTracker per TCP connection. It owns the per-direction byte
@@ -8,8 +11,9 @@ package conn
 
 import (
 	"bytes"
+	"context"
 	"fmt"
-	"log/slog"
+
 	"sync"
 	"time"
 
@@ -148,12 +152,23 @@ func (ct *ConnectionTracker) Route(ev *events.DataEvent, cor CorrelatorIface) []
 
 	if !ct.directionSet {
 		ct.directionSet = true
-		ct.isClientSide = (ev.Direction == events.DirEgress)
-		if ct.isClientSide {
-			slog.Debug("Classified as client-side connection",
-				"pid", ct.Key.PID, "fd", ct.Key.FD,
-				"sockptr", fmt.Sprintf("0x%x", ct.Key.SockPtr))
+
+		// Use BPF ground truth when available (TLS chunks from
+		// connect/accept tracepoints). This is critical: the old
+		// direction-based guess was WRONG for server connections
+		// where the first event is SSL_write (response/egress),
+		// which caused isClientSide=true → inverted req/resp → drops.
+		if ev.HasConnRole {
+			ct.isClientSide = ev.IsClientConn
+		} else {
+			// Fallback for non-SSL (kprobe) events: guess from direction.
+			ct.isClientSide = (ev.Direction == events.DirEgress)
 		}
+
+		log.Printf("Tracker: new connection pid=%d fd=%d dir=%d isClient=%v hasConnRole=%v src=%s:%d dst=%s:%d ssl=%v",
+			ct.Key.PID, ct.Key.FD, ev.Direction, ct.isClientSide, ev.HasConnRole,
+			ev.SrcIPString(), ev.SrcPort, ev.DstIPString(), ev.DstPort,
+			ev.IsSSL())
 	}
 
 	if ct.Protocol == events.ProtoUnknown && ev.Protocol != events.ProtoUnknown {
@@ -169,7 +184,12 @@ func (ct *ConnectionTracker) Route(ev *events.DataEvent, cor CorrelatorIface) []
 	}
 
 	if ct.Protocol == events.ProtoUnknown {
+		oldProto := ct.Protocol
 		ct.detectProtocol()
+		if ct.Protocol != oldProto {
+			log.Printf("Tracker: protocol detected pid=%d fd=%d proto=%d sendBufLen=%d recvBufLen=%d",
+				ct.Key.PID, ct.Key.FD, ct.Protocol, ct.sendBuf.Len(), ct.recvBuf.Len())
+		}
 		if ct.Protocol == events.ProtoUnknown {
 			return nil
 		}
@@ -181,7 +201,12 @@ func (ct *ConnectionTracker) Route(ev *events.DataEvent, cor CorrelatorIface) []
 		ev.Protocol = ct.Protocol
 	}
 
-	return ct.iterMessages(ev, cor)
+	traces := ct.iterMessages(ev, cor)
+	if len(traces) > 0 {
+		log.Printf("Tracker: %d traces emitted pid=%d fd=%d proto=%d dir=%d",
+			len(traces), ct.Key.PID, ct.Key.FD, ct.Protocol, ev.Direction)
+	}
+	return traces
 }
 
 // Close marks the connection closed, flushes the correlator, and releases buffers.
@@ -312,8 +337,8 @@ func (ct *ConnectionTracker) iterHTTP1(ev *events.DataEvent, cor CorrelatorIface
 		}
 
 		if bytes.HasPrefix(data, []byte("HTTP/")) {
-			slog.Debug("Response data in request buffer, discarding",
-				"sockptr", fmt.Sprintf("0x%x", ct.Key.SockPtr))
+			log.Warnf("HTTP/1: response data in REQUEST buffer pid=%d fd=%d isClient=%v — direction mismatch!",
+				ct.Key.PID, ct.Key.FD, ct.isClientSide)
 			reqBuf.Reset()
 			return nil
 		}
@@ -331,6 +356,8 @@ func (ct *ConnectionTracker) iterHTTP1(ev *events.DataEvent, cor CorrelatorIface
 		}
 
 		for _, req := range reqs {
+			log.Printf("HTTP/1: request queued pid=%d fd=%d method=%s path=%s isClient=%v ssl=%v",
+				ct.Key.PID, ct.Key.FD, req.Method, req.Path, ct.isClientSide, ev.IsSSL())
 			cor.AddHTTP1Request(ct.Key, events.PendingRequest{
 				Timestamp:   time.Now(),
 				Method:      req.Method,
@@ -348,10 +375,8 @@ func (ct *ConnectionTracker) iterHTTP1(ev *events.DataEvent, cor CorrelatorIface
 			// BUG 2 fix: rate-limit parse error logs — emit on 1st
 			// and every 10th consecutive error to reduce flooding.
 			if ct.parseErrCount == 1 || ct.parseErrCount%10 == 0 {
-				slog.Debug("HTTP/1 request parse error",
-					"sockptr", fmt.Sprintf("0x%x", ct.Key.SockPtr),
-					"err", err,
-					"consecutive", ct.parseErrCount)
+				log.Warnf("HTTP/1 request parse error pid=%d fd=%d err=%v consecutive=%d dataLen=%d preview=%q",
+					ct.Key.PID, ct.Key.FD, err, ct.parseErrCount, len(data), truncPreview(data, 80))
 			}
 			if ct.parseErrCount >= maxConsecutiveParseErrors {
 				log.Warnf("HTTP/1: too many consecutive parse errors, resetting buffer, sockptr: %s, protocol: %d",
@@ -368,8 +393,8 @@ func (ct *ConnectionTracker) iterHTTP1(ev *events.DataEvent, cor CorrelatorIface
 		}
 
 		if isHTTP1RequestPrefix(data) {
-			slog.Debug("Request data in response buffer, discarding",
-				"sockptr", fmt.Sprintf("0x%x", ct.Key.SockPtr))
+			log.Warnf("HTTP/1: request data in RESPONSE buffer pid=%d fd=%d isClient=%v — direction mismatch!",
+				ct.Key.PID, ct.Key.FD, ct.isClientSide)
 			respBuf.Reset()
 			return nil
 		}
@@ -388,8 +413,8 @@ func (ct *ConnectionTracker) iterHTTP1(ev *events.DataEvent, cor CorrelatorIface
 
 		serverURI := fmt.Sprintf("%s:%d", ev.SrcIPString(), ev.SrcPort)
 		for _, resp := range resps {
-			// FIX 4: use resp.StatusText (already a string, e.g. "OK") instead of
-			// fmt.Sprintf("%d", resp.StatusCode) which allocates on every response.
+			log.Printf("HTTP/1: response parsed pid=%d fd=%d status=%d isClient=%v",
+				ct.Key.PID, ct.Key.FD, resp.StatusCode, ct.isClientSide)
 			trace := cor.MatchHTTP1Response(
 				ct.Key,
 				fmt.Sprintf("%d", resp.StatusCode),
@@ -398,18 +423,20 @@ func (ct *ConnectionTracker) iterHTTP1(ev *events.DataEvent, cor CorrelatorIface
 				serverURI,
 			)
 			if trace != nil {
+				log.Printf("HTTP/1: matched! pid=%d fd=%d method=%s path=%s status=%d",
+					ct.Key.PID, ct.Key.FD, trace.Method, trace.URL, resp.StatusCode)
 				out = append(out, trace)
+			} else {
+				log.Warnf("HTTP/1: response UNMATCHED (no pending request) pid=%d fd=%d status=%d",
+					ct.Key.PID, ct.Key.FD, resp.StatusCode)
 			}
 		}
 
 		if err != nil {
 			ct.parseErrCount++
-			// BUG 2 fix: rate-limit parse error logs.
 			if ct.parseErrCount == 1 || ct.parseErrCount%10 == 0 {
-				slog.Debug("HTTP/1 response parse error",
-					"sockptr", fmt.Sprintf("0x%x", ct.Key.SockPtr),
-					"err", err,
-					"consecutive", ct.parseErrCount)
+				log.Warnf("HTTP/1 response parse error pid=%d fd=%d err=%v consecutive=%d dataLen=%d preview=%q",
+					ct.Key.PID, ct.Key.FD, err, ct.parseErrCount, len(data), truncPreview(data, 80))
 			}
 			if ct.parseErrCount >= maxConsecutiveParseErrors {
 				log.Warnf("HTTP/1: too many consecutive parse errors, resetting buffer, sockptr: %s, protocol: %d",
@@ -423,7 +450,6 @@ func (ct *ConnectionTracker) iterHTTP1(ev *events.DataEvent, cor CorrelatorIface
 
 	return out
 }
-
 
 // isHTTP1RequestPrefix returns true if buf starts with a known HTTP/1.x
 // request method token (full token including trailing space).
@@ -440,6 +466,14 @@ func isHTTP1RequestPrefix(buf []byte) bool {
 		}
 	}
 	return false
+}
+
+// truncPreview returns a string preview of buf, truncated to maxLen bytes.
+func truncPreview(buf []byte, maxLen int) string {
+	if len(buf) <= maxLen {
+		return string(buf)
+	}
+	return string(buf[:maxLen])
 }
 
 // iterHTTP2 extracts HTTP/2 frames, identifies request/response by stream ID,
@@ -466,8 +500,8 @@ func (ct *ConnectionTracker) iterHTTP2(ev *events.DataEvent, cor CorrelatorIface
 
 	msgs, remaining, err := parser.ParseFrames(data)
 	if err != nil {
-		slog.Debug("HTTP/2 parse error",
-			"sockptr", fmt.Sprintf("0x%x", ct.Key.SockPtr), "err", err)
+		log.Debugf("HTTP/2 parse error sockptr=0x%x err=%v",
+			ct.Key.SockPtr, err)
 	}
 
 	buf.SetRemaining(remaining)
@@ -625,8 +659,8 @@ func (ct *ConnectionTracker) iterGRPC(ev *events.DataEvent, cor CorrelatorIface)
 
 	msgs, remaining, err := parser.ParseFrames(data)
 	if err != nil {
-		slog.Debug("gRPC/HTTP2 parse error",
-			"sockptr", fmt.Sprintf("0x%x", ct.Key.SockPtr), "err", err)
+		log.Debugf("gRPC/HTTP2 parse error sockptr=0x%x err=%v",
+			ct.Key.SockPtr, err)
 	}
 
 	buf.SetRemaining(remaining)
@@ -762,15 +796,25 @@ type ConnectionManager struct {
 	mu       sync.RWMutex
 	cor      CorrelatorIface
 	cfg      TrackerConfig
+	ctx      context.Context
+	cancel   context.CancelFunc
 }
 
 // NewManager creates a Manager that routes events through the given correlator.
 func NewManager(cor CorrelatorIface, cfg TrackerConfig) *ConnectionManager {
+	ctx, cancel := context.WithCancel(context.Background())
 	return &ConnectionManager{
 		trackers: make(map[events.ConnectionKey]*ConnectionTracker),
 		cor:      cor,
 		cfg:      cfg,
+		ctx:      ctx,
+		cancel:   cancel,
 	}
+}
+
+// Start launches the background stale connection eviction goroutine.
+func (m *ConnectionManager) Start() {
+	go m.evictLoop()
 }
 
 // Route processes one DataEvent, creating or finding the ConnectionTracker
@@ -814,7 +858,50 @@ func (m *ConnectionManager) Close(key events.ConnectionKey) {
 	}
 }
 
-// Stop is a no-op shutdown hook for the manager.
+// Stop cancels the eviction goroutine.
 func (m *ConnectionManager) Stop() {
-	// Currently no background goroutines to stop.
+	m.cancel()
+}
+
+// evictLoop periodically scans for stale connections and evicts them.
+func (m *ConnectionManager) evictLoop() {
+	ticker := time.NewTicker(60 * time.Second)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ticker.C:
+			m.evictStale()
+		case <-m.ctx.Done():
+			return
+		}
+	}
+}
+
+// evictStale removes connections that have been idle longer than
+// cfg.InactivityTimeout.
+func (m *ConnectionManager) evictStale() {
+	var staleKeys []events.ConnectionKey
+
+	m.mu.RLock()
+	for key, ct := range m.trackers {
+		if ct.IsStale() {
+			staleKeys = append(staleKeys, key)
+		}
+	}
+	m.mu.RUnlock()
+
+	if len(staleKeys) == 0 {
+		return
+	}
+
+	m.mu.Lock()
+	for _, key := range staleKeys {
+		if ct, exists := m.trackers[key]; exists {
+			delete(m.trackers, key)
+			ct.Close(m.cor)
+		}
+	}
+	m.mu.Unlock()
+
+	log.Debugf("ConnectionManager: evicted stale connections count=%d", len(staleKeys))
 }

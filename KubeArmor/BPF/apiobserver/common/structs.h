@@ -9,9 +9,10 @@
 
 #include "macros.h"
 
-//! TODO REMOVE THIS
 /*
  * data_event — emitted to ring buffer for every captured payload chunk.
+ *
+ * Wire layout (must match ParseDataEvent() in apiObserver/events/events.go):
  *
  *   offset  0 : u64 timestamp    (ktime_get_ns)
  *   offset  8 : u32 pid
@@ -21,16 +22,14 @@
  *   offset 24 : u16 src_port
  *   offset 26 : u16 dst_port
  *   offset 28 : u32 data_len     (actual captured bytes)
- *   offset 32 : u8  direction        (1 byte)
- *   offset 33 : u8  protocol         (1 byte)
- *   offset 34 : u8  flags            (1 byte)
- *   offset 35 : u8  pad[1]           (1 byte — alignment)
- *   offset 36 : u32 fd               (file descriptor)
- *   offset 40 : u64 sock_ptr         (8 bytes)
- *   offset 48 : u8  payload[]        (variable, up to MAX_DATA_SIZE = 8192)
+ *   offset 32 : u8  direction    (DIR_EGRESS=0, DIR_INGRESS=1)
+ *   offset 33 : u8  protocol     (PROTO_UNKNOWN/HTTP1/HTTP2/GRPC)
+ *   offset 34 : u8  flags        (FLAG_NO_PAYLOAD, FLAG_TRUNCATED, FLAG_IS_SSL)
+ *   offset 35 : u8  pad[1]       (alignment)
+ *   offset 36 : u32 fd           (file descriptor)
+ *   offset 40 : u64 sock_ptr     (kernel socket pointer)
+ *   offset 48 : u8  payload[]    (variable, up to MAX_DATA_SIZE = 8192)
  */
-
-// data_event — emitted to ring buffer for every captured payload chunk.
 struct data_event {
   u64 timestamp;
   u32 pid;

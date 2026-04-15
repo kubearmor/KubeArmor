@@ -255,3 +255,27 @@ struct {
   __type(key, __u16);
   __type(value, __u8);
 } port_exclusion_map SEC(".maps");
+
+/* Per-thread last-socket-FD cache: pid_tgid → fd.
+ * Populated by sys_enter_{read,write,recvfrom,sendto,sendmsg,recvmsg}
+ * and sys_exit_{accept4,connect}.
+ * Consumed as fallback in ks_ssl_uretprobe when fd=invalid (memory BIO apps
+ * like Node.js where SSL_write/SSL_read make zero syscalls). */
+struct {
+  __uint(type, BPF_MAP_TYPE_LRU_HASH);
+  __uint(max_entries, 8192);
+  __type(key, __u64);
+  __type(value, __u32);
+} ks_pid_last_socket_fd SEC(".maps");
+
+/* Per-process last-socket-FD cache: tgid (u32) → fd.
+ * Secondary fallback for Java/Netty with useTasks=true where
+ * the SSL operation runs on a different thread than socket I/O.
+ * Less precise than per-thread cache (may correlate wrong FD for
+ * multi-connection processes), but better than dropping events. */
+struct {
+  __uint(type, BPF_MAP_TYPE_LRU_HASH);
+  __uint(max_entries, 4096);
+  __type(key, __u32);
+  __type(value, __u32);
+} ks_tgid_last_socket_fd SEC(".maps");

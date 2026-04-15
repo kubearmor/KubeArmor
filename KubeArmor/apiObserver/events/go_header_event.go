@@ -4,9 +4,9 @@
 package events
 
 import (
+	"bytes"
 	"encoding/binary"
 	"fmt"
-	"strings"
 )
 
 // GoGRPCEventType matches enum go_grpc_event_type in go_http2_trace.h.
@@ -71,7 +71,7 @@ func ParseGoGRPCRequestEvent(data []byte) (*GoGRPCRequestEvent, error) {
 
 	// Path is a null-terminated C string at offset 24.
 	pathBytes := data[24:goGRPCRequestEventSize]
-	if idx := strings.IndexByte(string(pathBytes), 0); idx >= 0 {
+	if idx := bytes.IndexByte(pathBytes, 0); idx >= 0 {
 		e.Path = string(pathBytes[:idx])
 	} else {
 		e.Path = string(pathBytes)
