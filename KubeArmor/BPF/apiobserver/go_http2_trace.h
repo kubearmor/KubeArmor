@@ -26,16 +26,41 @@
 /* ---- Constants ---- */
 #define GRPC_MAX_PATH_SIZE 160
 
-/* ---- Go register ABI parameter access (Go 1.17+ amd64) ---- */
+/* ---- Go register ABI parameter access (Go 1.17+ ABIInternal) ---- */
+/*
+ * Go ABIInternal integer register assignment:
+ *   amd64: AX, BX, CX, DI, SI, R8, R9, R10, R11 (GP=R14)
+ *   arm64: X0, X1, X2, X3, X4, X5, X6, X7, X8   (GP=X28)
+ *
+ * These are the first 6 integer parameter registers + goroutine pointer.
+ * Kept separate from go_tls_trace.h macros which map specific function
+ * argument semantics rather than generic ordinal positions.
+ */
+#if defined(__TARGET_ARCH_x86) || defined(__x86_64__)
+
 #define GO_PARAM1(ctx) ((void *)(ctx)->ax)
 #define GO_PARAM2(ctx) ((void *)(ctx)->bx)
 #define GO_PARAM3(ctx) ((void *)(ctx)->cx)
 #define GO_PARAM4(ctx) ((void *)(ctx)->di)
 #define GO_PARAM5(ctx) ((void *)(ctx)->si)
 #define GO_PARAM6(ctx) ((void *)(ctx)->r8)
-
-/* Goroutine pointer: Go stores the current goroutine in r14 (amd64). */
 #define GOROUTINE_PTR(ctx) ((void *)(ctx)->r14)
+
+#elif defined(__TARGET_ARCH_arm64) || defined(__aarch64__)
+
+/* arm64: struct user_pt_regs is used (defined in api_observer.bpf.c shim) */
+#define GO_PARAM1(ctx) ((void *)((const volatile struct user_pt_regs *)(ctx))->regs[0])
+#define GO_PARAM2(ctx) ((void *)((const volatile struct user_pt_regs *)(ctx))->regs[1])
+#define GO_PARAM3(ctx) ((void *)((const volatile struct user_pt_regs *)(ctx))->regs[2])
+#define GO_PARAM4(ctx) ((void *)((const volatile struct user_pt_regs *)(ctx))->regs[3])
+#define GO_PARAM5(ctx) ((void *)((const volatile struct user_pt_regs *)(ctx))->regs[4])
+#define GO_PARAM6(ctx) ((void *)((const volatile struct user_pt_regs *)(ctx))->regs[5])
+#define GOROUTINE_PTR(ctx) ((void *)((const volatile struct user_pt_regs *)(ctx))->regs[28])
+
+#else
+#error "Unsupported architecture for Go gRPC probes"
+#endif
+
 
 /* ---- Event type emitted to userspace ---- */
 enum go_grpc_event_type {

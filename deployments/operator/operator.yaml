@@ -1687,6 +1687,8 @@ rules:
   - pods
   - nodes
   - configmaps
+  - services
+  - endpoints
   verbs:
   - get
   - list

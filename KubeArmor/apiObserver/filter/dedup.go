@@ -7,7 +7,6 @@ import (
 	"sync"
 	"time"
 )
-// ADDED BUT NOT BEING USED CURRENTLY IN FILTERER -- needs discussion
 
 // DedupCache is a lightweight time-based deduplication cache. It holds
 // fingerprints of recently seen events and drops duplicates within the
@@ -20,6 +19,7 @@ type DedupCache struct {
 	mu      sync.Mutex
 	entries map[string]time.Time
 	ttl     time.Duration
+	done    chan struct{}
 }
 
 // NewDedupCache creates a dedup cache with the given TTL.
@@ -27,6 +27,7 @@ func NewDedupCache(ttl time.Duration) *DedupCache {
 	d := &DedupCache{
 		entries: make(map[string]time.Time, 256),
 		ttl:     ttl,
+		done:    make(chan struct{}),
 	}
 	go d.cleanupLoop()
 	return d
@@ -46,18 +47,28 @@ func (d *DedupCache) IsDuplicate(key string) bool {
 	return false
 }
 
+// Stop terminates the cleanup goroutine.
+func (d *DedupCache) Stop() {
+	close(d.done)
+}
+
 // cleanupLoop periodically evicts expired entries to prevent memory leak.
 func (d *DedupCache) cleanupLoop() {
 	ticker := time.NewTicker(10 * time.Second)
 	defer ticker.Stop()
-	for range ticker.C {
-		d.mu.Lock()
-		now := time.Now()
-		for k, t := range d.entries {
-			if now.Sub(t) > d.ttl {
-				delete(d.entries, k)
+	for {
+		select {
+		case <-ticker.C:
+			d.mu.Lock()
+			now := time.Now()
+			for k, t := range d.entries {
+				if now.Sub(t) > d.ttl {
+					delete(d.entries, k)
+				}
 			}
+			d.mu.Unlock()
+		case <-d.done:
+			return
 		}
-		d.mu.Unlock()
 	}
 }

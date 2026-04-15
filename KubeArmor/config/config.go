@@ -11,8 +11,9 @@ import (
 	"strings"
 	"sync/atomic"
 
-	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
 	"github.com/spf13/viper"
+
+	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
 )
 
 // KubearmorConfig Structure
@@ -53,13 +54,15 @@ type KubearmorConfig struct {
 	HostDefaultCapabilitiesPosture string // Default Enforcement Action in Global Capabilities Context
 	HostDefaultDevicePosture       string // Default Enforcement Action in Global USB Device Conntext
 
-	CoverageTest       bool         // Enable/Disable Coverage Test
-	ConfigUntrackedNs  atomic.Value // untracked namespaces
-	LsmOrder           []string     // LSM order
-	BPFFsPath          string       // path to the BPF filesystem
-	EnforcerAlerts     bool         // policy enforcer
-	DefaultPostureLogs bool         // Enable/Disable Default Posture logs for AppArmor LSM
-	InitTimeout        string       // Timeout for main thread init stages
+	CoverageTest                bool         // Enable/Disable Coverage Test
+	ConfigUntrackedNs           atomic.Value // untracked namespaces
+	ConfigApiBlockedAuthorities atomic.Value // API Observer: blocked :authority prefixes (comma-separated)
+	ConfigApiExcludedPorts      atomic.Value // API Observer: excluded ports (comma-separated)
+	LsmOrder                    []string     // LSM order
+	BPFFsPath                   string       // path to the BPF filesystem
+	EnforcerAlerts              bool         // policy enforcer
+	DefaultPostureLogs          bool         // Enable/Disable Default Posture logs for AppArmor LSM
+	InitTimeout                 string       // Timeout for main thread init stages
 
 	StateAgent  bool // enable KubeArmor state agent
 	UseOCIHooks bool
@@ -122,6 +125,8 @@ const (
 	ConfigK8sEnv                         string = "k8s"
 	ConfigDebug                          string = "debug"
 	ConfigUntrackedNs                    string = "untrackedNs"
+	ConfigApiBlockedAuthorities          string = "apiBlockedAuthorities"
+	ConfigApiExcludedPorts               string = "apiExcludedPorts"
 	LsmOrder                             string = "lsm"
 	BPFFsPath                            string = "bpfFsPath"
 	EnforcerAlerts                       string = "enforcerAlerts"
@@ -181,7 +186,10 @@ func readCmdLineParams() {
 
 	coverageTestB := flag.Bool(ConfigCoverageTest, false, "enabling CoverageTest")
 
-	untrackedNs := flag.String(ConfigUntrackedNs, "kube-system,kubearmor", "Namespaces which are not being tracked, default untracked:[kube-system, kubearmor]")
+	untrackedNs := flag.String(ConfigUntrackedNs, "kube-system,kubearmor,agents", "Namespaces which are not being tracked, default untracked:[kube-system, kubearmor, agents]")
+
+	apiBlockedAuthorities := flag.String(ConfigApiBlockedAuthorities, "", "API Observer: comma-separated :authority prefixes to block (e.g. frontend,test-server.default.svc)")
+	apiExcludedPorts := flag.String(ConfigApiExcludedPorts, "", "API Observer: comma-separated ports to exclude (e.g. 6443,2379,10250)")
 
 	lsmOrder := flag.String(LsmOrder, "bpf,apparmor,selinux", "lsm preference order to use, available lsms [bpf, apparmor, selinux]")
 
@@ -265,6 +273,8 @@ func readCmdLineParams() {
 	viper.SetDefault(ConfigCoverageTest, *coverageTestB)
 
 	viper.SetDefault(ConfigUntrackedNs, *untrackedNs)
+	viper.SetDefault(ConfigApiBlockedAuthorities, *apiBlockedAuthorities)
+	viper.SetDefault(ConfigApiExcludedPorts, *apiExcludedPorts)
 
 	viper.SetDefault(LsmOrder, *lsmOrder)
 
@@ -376,6 +386,9 @@ func LoadConfig() error {
 
 	GlobalCfg.ConfigUntrackedNs.Store(strings.Split(viper.GetString(ConfigUntrackedNs), ","))
 
+	// API Observer authority/port config is loaded via LoadDynamicConfig()
+	// so it can be updated at runtime without restart.
+
 	GlobalCfg.LsmOrder = strings.Split(viper.GetString(LsmOrder), ",")
 
 	GlobalCfg.BPFFsPath = viper.GetString(BPFFsPath)
@@ -399,6 +412,8 @@ func LoadConfig() error {
 	GlobalCfg.SELinuxProfileDir = viper.GetString(ConfigSELinuxProfileDir)
 
 	GlobalCfg.NetworkPolicyEnforcer = viper.GetBool(ConfigNetworkPolicyEnforcer)
+
+	GlobalCfg.EnableAPIObserver = viper.GetBool(ConfigEnableAPIObserver)
 
 	LoadDynamicConfig()
 
@@ -447,7 +462,13 @@ func LoadDynamicConfig() {
 
 	GlobalCfg.NetworkPolicyEnforcer = viper.GetBool(ConfigNetworkPolicyEnforcer)
 
-	GlobalCfg.EnableAPIObserver = viper.GetBool(ConfigEnableAPIObserver)
+	// API Observer: dynamically configurable filters.
+	if v := viper.GetString(ConfigApiBlockedAuthorities); v != "" {
+		GlobalCfg.ConfigApiBlockedAuthorities.Store(strings.Split(v, ","))
+	}
+	if v := viper.GetString(ConfigApiExcludedPorts); v != "" {
+		GlobalCfg.ConfigApiExcludedPorts.Store(strings.Split(v, ","))
+	}
 
 	kg.Printf("Final Configuration [%+v]", GlobalCfg)
 }
