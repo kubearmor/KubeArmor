@@ -20,6 +20,13 @@ import (
 // The limit applies to body bytes only — headers are always fully captured.
 const maxBodyBytes = 124 * 1024 // 124KB
 
+// minChunkedEmitBytes is the minimum body bytes we need before emitting a
+// partial chunked response. For streaming endpoints (e.g. /stream/N) the
+// terminal 0\r\n chunk may never arrive within a useful timeframe. Once
+// we have this many decoded body bytes, emit with truncation.
+// Set low (512B) to catch small-count streams like /stream/10 (~1KB total).
+const minChunkedEmitBytes = 512
+
 // Message is one complete HTTP/1.x request or response frame.
 type Message struct {
 	IsRequest   bool
@@ -187,6 +194,16 @@ func bodyBoundary(headers map[string]string, buf []byte, bodyStart int, isReques
 			// via the circuit breaker or connection close.
 			return end, ok, trunc, math.MaxInt32
 		}
+		if !ok {
+			// Streaming fallback: if we have enough decoded body bytes
+			// (minChunkedEmitBytes) but no terminal chunk yet, emit a
+			// partial response. This handles streaming endpoints like
+			// /stream/N that send chunks over a long period.
+			bodyBytes := len(buf) - bodyStart
+			if bodyBytes >= minChunkedEmitBytes {
+				return len(buf), true, true, math.MaxInt32
+			}
+		}
 		return end, ok, trunc, 0
 	}
 
@@ -198,28 +215,30 @@ func bodyBoundary(headers map[string]string, buf []byte, bodyStart int, isReques
 		}
 
 		if n > maxBodyBytes {
-			// Body exceeds the cap. We want to capture exactly maxBodyBytes
-			// of body before emitting. Wait until the buffer holds enough.
-			wantTotal := bodyStart + maxBodyBytes
-			if len(buf) < wantTotal {
-				// Not enough data yet — tell the parser to wait.
-				return 0, false, false, 0
-			}
-			
+			// Body exceeds the cap. BPF captures at most 8KB per tcp_sendmsg
+			// event, so for large responses sent in a single write(), the
+			// full body is unrecoverable. Emit immediately with whatever
+			// body data we have, truncate, and drain the rest from the wire.
 			total := bodyStart + n
+			// If buffer holds the entire message, consume it all.
 			if len(buf) >= total {
-				// Buffer holds the entire message. Consume all of it, no wire skip.
 				return total, true, true, 0
 			}
-			// Buffer holds part of the message. Consume everything currently in the
-			// buffer to prevent leftovers from poisoning the next parse, and tell
-			// the tracker to skip the remainder from the wire.
+			// Otherwise consume everything in buffer and skip the remainder.
 			return len(buf), true, true, total - len(buf)
 		}
 
-		// Normal path: body is within cap. Wait for all of it.
+		// Normal path: body is within cap. However, if we have at least the
+		// header + some body (minChunkedEmitBytes) but not the full content,
+		// and the body is moderately large, emit what we have. BPF may not
+		// capture all segments of a multi-KB response.
 		total := bodyStart + n
 		if len(buf) < total {
+			// If we have enough body to be useful but not all, emit partial.
+			bodyInBuf := len(buf) - bodyStart
+			if bodyInBuf >= minChunkedEmitBytes && n > 8192 {
+				return len(buf), true, true, total - len(buf)
+			}
 			return 0, false, false, 0
 		}
 		return total, true, false, 0

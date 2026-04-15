@@ -9,6 +9,11 @@ data:
   throttleSec: {{ .Values.kubearmorConfigMap.throttleSec | quote }}
   matchArgs: {{ .Values.kubearmorConfigMap.matchArgs | quote }}
   karmor.yaml: | {{ toYaml .Values.kubearmorConfigMap | nindent 4 }}
+  enableAPIObserver: {{ .Values.kubearmorConfigMap.enableAPIObserver | quote }}
+  # API Observer: comma-separated :authority prefixes to block
+  apiBlockedAuthorities: {{ .Values.kubearmorConfigMap.apiBlockedAuthorities | quote }}
+  # API Observer: comma-separated ports to exclude from capture
+  apiExcludedPorts: {{ .Values.kubearmorConfigMap.apiExcludedPorts | quote }}
 kind: ConfigMap
 metadata:
   labels:

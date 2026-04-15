@@ -49,6 +49,22 @@ struct ks_sys_enter_recvfrom_sendto_ctx {
 
 /* ---- Inline handlers ---- */
 
+/* Cache the last socket FD used by this thread.
+ * Consumed as fallback by ks_ssl_uretprobe for memory BIO apps (Node.js)
+ * where SSL_write/SSL_read make zero syscalls and the FD tracepoint
+ * never fires during the SSL operation. */
+static __always_inline void ks_cache_socket_fd(__u32 fd) {
+  if (fd <= 2)
+    return; /* skip stdin/stdout/stderr */
+  __u64 id = bpf_get_current_pid_tgid();
+  bpf_map_update_elem(&ks_pid_last_socket_fd, &id, &fd, BPF_ANY);
+
+  /* Also cache at process level (tgid-only) for Java/Netty useTasks=true
+   * where SSL ops run on a different thread than socket I/O. */
+  __u32 tgid = id >> 32;
+  bpf_map_update_elem(&ks_tgid_last_socket_fd, &tgid, &fd, BPF_ANY);
+}
+
 static __always_inline void
 ks_fd_handle_openssl(void *ctx, __u32 fd, __u64 id,
                      struct ks_ssl_info *info_ptr, void *map_fd) {
@@ -75,6 +91,9 @@ static __always_inline void ks_handle_read(void *ctx, __u64 fd) {
     ks_fd_handle_openssl(ctx, fd, id, info_ptr, &ks_openssl_read_context);
 
   ks_fd_handle_go(ctx, fd, id, &ks_go_kernel_read_context);
+
+  /* Cache for memory BIO fallback (Node.js, Python asyncio). */
+  ks_cache_socket_fd((__u32)fd);
 }
 
 static __always_inline void ks_handle_write(void *ctx, __u64 fd) {
@@ -86,6 +105,9 @@ static __always_inline void ks_handle_write(void *ctx, __u64 fd) {
     ks_fd_handle_openssl(ctx, fd, id, info_ptr, &ks_openssl_write_context);
 
   ks_fd_handle_go(ctx, fd, id, &ks_go_kernel_write_context);
+
+  /* Cache for memory BIO fallback (Node.js, Python asyncio). */
+  ks_cache_socket_fd((__u32)fd);
 }
 
 /* ---- SEC entry probes ---- */
@@ -122,4 +144,31 @@ SEC("tracepoint/syscalls/sys_exit_write")
 void ks_sys_exit_write(struct ks_sys_exit_rw_ctx *ctx) {
   __u64 id = bpf_get_current_pid_tgid();
   bpf_map_delete_elem(&ks_go_kernel_write_context, &id);
+}
+
+/* ---- sendmsg / recvmsg support (Java NIO, gRPC-C) ---- */
+
+/* Java NIO's SocketChannelImpl uses sendmsg/recvmsg for socket I/O.
+ * Without these tracepoints, the FD is never captured for Java SSL
+ * operations and all TLS chunks are dropped (fd == ks_invalid_fd).
+ *
+ * The tracepoint context for sendmsg/recvmsg has fd as the first arg,
+ * followed by a pointer to struct msghdr and flags. */
+
+struct ks_sys_enter_sendmsg_recvmsg_ctx {
+  __u64 __unused_syscall_header;
+  __u32 __unused_syscall_nr;
+  __u64 fd;
+  void *msg;
+  __u32 flags;
+};
+
+SEC("tracepoint/syscalls/sys_enter_sendmsg")
+void ks_sys_enter_sendmsg(struct ks_sys_enter_sendmsg_recvmsg_ctx *ctx) {
+  ks_handle_write(ctx, ctx->fd);
+}
+
+SEC("tracepoint/syscalls/sys_enter_recvmsg")
+void ks_sys_enter_recvmsg(struct ks_sys_enter_sendmsg_recvmsg_ctx *ctx) {
+  ks_handle_read(ctx, ctx->fd);
 }

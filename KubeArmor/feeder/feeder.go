@@ -221,7 +221,7 @@ type FeederInterface interface {
 	// PushAPIEvent routes one correlated HTTP/gRPC event to the
 	// APIObserverService for fan-out to gRPC subscribers.
 	// Mirrors the PushLog pattern used for security audit events.
-	PushAPIEvent(apipb.APIEvent)
+	PushAPIEvent(*apipb.APIEvent)
 }
 
 type BaseFeeder struct {
@@ -486,7 +486,7 @@ func (fd *BaseFeeder) DestroyFeeder() error {
 //
 // Neither path blocks the caller — the ring-buffer processing goroutine in
 // apiObserver.go must never stall on a slow network client.
-func (fd *BaseFeeder) PushAPIEvent(event apipb.APIEvent) {
+func (fd *BaseFeeder) PushAPIEvent(event *apipb.APIEvent) {
 	// ── Primary: gRPC service fan-out ────────────────────────────────────
 	if fd.APIObserverService != nil {
 		fd.APIObserverService.PublishEvent(event)
@@ -500,7 +500,7 @@ func (fd *BaseFeeder) PushAPIEvent(event apipb.APIEvent) {
 	total := len(fd.EventStructs.APIEventStructs)
 	for uid := range fd.EventStructs.APIEventStructs {
 		select {
-		case fd.EventStructs.APIEventStructs[uid].Broadcast <- &event:
+		case fd.EventStructs.APIEventStructs[uid].Broadcast <- event:
 		default:
 			dropped++
 		}

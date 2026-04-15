@@ -7,7 +7,6 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
-	"strings"
 )
 
 // GRPCCHeaderEvent is the Go mirror of struct grpcc_header_event in
@@ -31,22 +30,28 @@ type GRPCCHeaderEvent struct {
 	Method   [64]byte
 }
 
+const grpccHeaderEventSize = 4 + 4 + 4 + 1 + 64 // = 77
+
 // ParseGRPCCHeaderEvent decodes a raw BPF ring-buffer record into a
 // GRPCCHeaderEvent. Returns an error if the slice is too short.
 func ParseGRPCCHeaderEvent(data []byte) (GRPCCHeaderEvent, error) {
 	var ev GRPCCHeaderEvent
-	size := binary.Size(ev) // = 77 bytes
-	if len(data) < size {
-		return ev, fmt.Errorf("grpcc_header_event: short record: got %d bytes, want %d", len(data), size)
+	if len(data) < grpccHeaderEventSize {
+		return ev, fmt.Errorf("grpcc_header_event: short record: got %d bytes, want %d", len(data), grpccHeaderEventSize)
 	}
-	if err := binary.Read(bytes.NewReader(data[:size]), binary.LittleEndian, &ev); err != nil {
-		return ev, fmt.Errorf("grpcc_header_event decode: %w", err)
-	}
+	ev.PID = binary.LittleEndian.Uint32(data[0:4])
+	ev.FD = binary.LittleEndian.Uint32(data[4:8])
+	ev.StreamID = binary.LittleEndian.Uint32(data[8:12])
+	ev.Pad = data[12]
+	copy(ev.Method[:], data[13:13+64])
 	return ev, nil
 }
 
 // MethodString returns the gRPC ":path" value as a Go string,
 // stripping trailing null bytes written by the BPF probe.
 func (e GRPCCHeaderEvent) MethodString() string {
-	return strings.TrimRight(string(e.Method[:]), "\x00")
+	if idx := bytes.IndexByte(e.Method[:], 0); idx >= 0 {
+		return string(e.Method[:idx])
+	}
+	return string(e.Method[:])
 }

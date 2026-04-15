@@ -5,7 +5,7 @@ package goprobe
 
 import (
 	"debug/buildinfo"
-	"log/slog"
+	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
 	"strings"
 )
 
@@ -87,7 +87,7 @@ func ApplyVersionOffsets(ot *GoOffsetTable, version string) {
 		version = "v" + version
 	}
 
-	slog.Info("Applying gRPC version-specific offsets", "version", version)
+	kg.Debugf("Applying gRPC version-specific offsets version=%s", version)
 
 	// gRPC >= 1.60: handleStream has extra context parameter.
 	if versionGE(version, "v1.60.0") {
@@ -122,23 +122,11 @@ func GetGrpcLibVersion(binaryPath string) string {
 
 	for _, dep := range info.Deps {
 		if dep.Path == "google.golang.org/grpc" {
-			slog.Info("Detected gRPC version", "version", dep.Version, "binary", binaryPath)
+			kg.Debugf("Detected gRPC version=%s binary=%s", dep.Version, binaryPath)
 			return dep.Version
 		}
 	}
 	return ""
 }
 
-// DefaultCommonSymaddrs returns default common symaddrs for backward compatibility.
-func DefaultCommonSymaddrs() GoCommonSymaddrs {
-	return GoCommonSymaddrs{
-		InternalSyscallConn:   -1,
-		TlsConn:               -1,
-		NetTCPConn:            -1,
-		FD_SysfdOffset:        16,
-		TlsConnConnOffset:     0,
-		SyscallConnConnOffset: 8,
-		G_goidOffset:          152,
-		G_addrOffset:          -8,
-	}
-}
+

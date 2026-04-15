@@ -3403,6 +3403,17 @@ func (dm *KubeArmorDaemon) WatchConfigMap() cache.InformerSynced {
 				dm.UpdateIMA(cfg.GlobalCfg.EnableIMA)
 				dm.UpdateUSBDeviceHandler(cfg.GlobalCfg.USBDeviceHandler)
 
+				// API Observer config
+				if v, ok := cm.Data[cfg.ConfigEnableAPIObserver]; ok {
+					cfg.GlobalCfg.EnableAPIObserver = (v == "true")
+				}
+				if v, ok := cm.Data[cfg.ConfigApiBlockedAuthorities]; ok && v != "" {
+					cfg.GlobalCfg.ConfigApiBlockedAuthorities.Store(strings.Split(v, ","))
+				}
+				if v, ok := cm.Data[cfg.ConfigApiExcludedPorts]; ok && v != "" {
+					cfg.GlobalCfg.ConfigApiExcludedPorts.Store(strings.Split(v, ","))
+				}
+
 				dm.Logger.Printf("Current Global Posture is %v", currentGlobalPosture)
 				dm.UpdateGlobalPosture(globalPosture)
 
@@ -3478,6 +3489,17 @@ func (dm *KubeArmorDaemon) WatchConfigMap() cache.InformerSynced {
 				dm.SystemMonitor.UpdateMatchArgsConfig()
 				dm.UpdateIMA(cfg.GlobalCfg.EnableIMA)
 				dm.UpdateUSBDeviceHandler(cfg.GlobalCfg.USBDeviceHandler)
+
+				// API Observer config
+				if v, ok := cm.Data[cfg.ConfigEnableAPIObserver]; ok {
+					cfg.GlobalCfg.EnableAPIObserver = (v == "true")
+				}
+				if v, ok := cm.Data[cfg.ConfigApiBlockedAuthorities]; ok && v != "" {
+					cfg.GlobalCfg.ConfigApiBlockedAuthorities.Store(strings.Split(v, ","))
+				}
+				if v, ok := cm.Data[cfg.ConfigApiExcludedPorts]; ok && v != "" {
+					cfg.GlobalCfg.ConfigApiExcludedPorts.Store(strings.Split(v, ","))
+				}
 			}
 		},
 		DeleteFunc: func(obj any) {
