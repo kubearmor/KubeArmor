@@ -1,4 +1,4 @@
-{{- if .Values.global.autoDeploy }}
+{{- if .Values.autoDeploy }}
 apiVersion: operator.kubearmor.com/v1
 kind: KubeArmorConfig
 metadata:
