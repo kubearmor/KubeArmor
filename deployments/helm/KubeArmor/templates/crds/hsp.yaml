@@ -58,16 +58,25 @@ spec:
                 enum:
                 - Allow
                 - Audit
+                - BatchAudit
                 - Block
                 type: string
               apparmor:
                 type: string
+              batchAudit:
+                properties:
+                  intervalSeconds:
+                    format: int32
+                    minimum: 1
+                    type: integer
+                type: object
               capabilities:
                 properties:
                   action:
                     enum:
                     - Allow
                     - Audit
+                    - BatchAudit
                     - Block
                     type: string
                   matchCapabilities:
@@ -77,6 +86,7 @@ spec:
                           enum:
                           - Allow
                           - Audit
+                          - BatchAudit
                           - Block
                           type: string
                         capability:
@@ -123,6 +133,7 @@ spec:
                     enum:
                     - Allow
                     - Audit
+                    - BatchAudit
                     - Block
                     type: string
                   matchDevice:
@@ -132,6 +143,7 @@ spec:
                           enum:
                           - Allow
                           - Audit
+                          - BatchAudit
                           - Block
                           type: string
                         class:
@@ -177,6 +189,7 @@ spec:
                     enum:
                     - Allow
                     - Audit
+                    - BatchAudit
                     - Block
                     type: string
                   matchDirectories:
@@ -186,6 +199,7 @@ spec:
                           enum:
                           - Allow
                           - Audit
+                          - BatchAudit
                           - Block
                           type: string
                         dir:
@@ -227,6 +241,7 @@ spec:
                           enum:
                           - Allow
                           - Audit
+                          - BatchAudit
                           - Block
                           type: string
                         fromSource:
@@ -267,6 +282,7 @@ spec:
                           enum:
                           - Allow
                           - Audit
+                          - BatchAudit
                           - Block
                           type: string
                         message:
@@ -308,6 +324,7 @@ spec:
                     enum:
                     - Allow
                     - Audit
+                    - BatchAudit
                     - Block
                     type: string
                   matchProtocols:
@@ -317,6 +334,7 @@ spec:
                           enum:
                           - Allow
                           - Audit
+                          - BatchAudit
                           - Block
                           type: string
                         fromSource:
@@ -370,6 +388,7 @@ spec:
                     enum:
                     - Allow
                     - Audit
+                    - BatchAudit
                     - Block
                     type: string
                   matchDirectories:
@@ -379,6 +398,7 @@ spec:
                           enum:
                           - Allow
                           - Audit
+                          - BatchAudit
                           - Block
                           type: string
                         dir:
@@ -418,6 +438,7 @@ spec:
                           enum:
                           - Allow
                           - Audit
+                          - BatchAudit
                           - Block
                           type: string
                         allowedArgs:
@@ -462,6 +483,7 @@ spec:
                           enum:
                           - Allow
                           - Audit
+                          - BatchAudit
                           - Block
                           type: string
                         message:
