@@ -23,7 +23,9 @@ replace (
 )
 
 require (
+	github.com/Masterminds/semver/v3 v3.4.0
 	github.com/Masterminds/sprig/v3 v3.3.0
+	github.com/accuknox/SentryFlow/protobuf/golang v0.0.0-20260301133930-7ac9c6659ed3
 	github.com/cilium/cilium v1.18.4
 	github.com/cilium/ebpf v0.19.1-0.20251013125301-c27ff922fc6a
 	github.com/containerd/containerd/api v1.9.0
@@ -41,10 +43,11 @@ require (
 	github.com/opencontainers/runtime-spec v1.2.1
 	github.com/spf13/viper v1.21.0
 	go.uber.org/zap v1.27.0
+	golang.org/x/arch v0.26.0
 	golang.org/x/exp v0.0.0-20250911091902-df9299821621
 	golang.org/x/sys v0.37.0
 	google.golang.org/grpc v1.75.1
-	google.golang.org/protobuf v1.36.9
+	google.golang.org/protobuf v1.36.11
 	k8s.io/api v0.34.1
 	k8s.io/apimachinery v0.34.1
 	k8s.io/client-go v0.34.1
@@ -57,7 +60,6 @@ require (
 require (
 	dario.cat/mergo v1.0.2 // indirect
 	github.com/Masterminds/goutils v1.1.1 // indirect
-	github.com/Masterminds/semver/v3 v3.4.0 // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/Microsoft/hcsshim v0.13.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect

@@ -11,8 +11,9 @@ import (
 	"strings"
 	"sync/atomic"
 
-	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
 	"github.com/spf13/viper"
+
+	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
 )
 
 // KubearmorConfig Structure
@@ -52,13 +53,15 @@ type KubearmorConfig struct {
 	HostDefaultCapabilitiesPosture string // Default Enforcement Action in Global Capabilities Context
 	HostDefaultDevicePosture       string // Default Enforcement Action in Global USB Device Conntext
 
-	CoverageTest       bool         // Enable/Disable Coverage Test
-	ConfigUntrackedNs  atomic.Value // untracked namespaces
-	LsmOrder           []string     // LSM order
-	BPFFsPath          string       // path to the BPF filesystem
-	EnforcerAlerts     bool         // policy enforcer
-	DefaultPostureLogs bool         // Enable/Disable Default Posture logs for AppArmor LSM
-	InitTimeout        string       // Timeout for main thread init stages
+	CoverageTest                bool         // Enable/Disable Coverage Test
+	ConfigUntrackedNs           atomic.Value // untracked namespaces
+	ConfigApiBlockedAuthorities atomic.Value // API Observer: blocked :authority prefixes (comma-separated)
+	ConfigApiExcludedPorts      atomic.Value // API Observer: excluded ports (comma-separated)
+	LsmOrder                    []string     // LSM order
+	BPFFsPath                   string       // path to the BPF filesystem
+	EnforcerAlerts              bool         // policy enforcer
+	DefaultPostureLogs          bool         // Enable/Disable Default Posture logs for AppArmor LSM
+	InitTimeout                 string       // Timeout for main thread init stages
 
 	StateAgent  bool // enable KubeArmor state agent
 	UseOCIHooks bool
@@ -73,6 +76,8 @@ type KubearmorConfig struct {
 	DropResourceFromProcessLogs bool // optionally drop resource field from process logs
 
 	MachineIDPath string // path to machine-id
+
+	EnableAPIObserver bool // Enable/Disable API Observer for HTTP/gRPC observability
 
 	USBDeviceHandler bool // enable USB device observability and enforcement
 
@@ -118,6 +123,8 @@ const (
 	ConfigK8sEnv                         string = "k8s"
 	ConfigDebug                          string = "debug"
 	ConfigUntrackedNs                    string = "untrackedNs"
+	ConfigApiBlockedAuthorities          string = "apiBlockedAuthorities"
+	ConfigApiExcludedPorts               string = "apiExcludedPorts"
 	LsmOrder                             string = "lsm"
 	BPFFsPath                            string = "bpfFsPath"
 	EnforcerAlerts                       string = "enforcerAlerts"
@@ -136,6 +143,7 @@ const (
 	ConfigUSBDeviceHandler               string = "enableUSBDeviceHandler"
 	ConfigArgMatching                    string = "matchArgs"
 	ConfigNetworkPolicyEnforcer          string = "enableNetworkPolicyEnforcer"
+	ConfigEnableAPIObserver              string = "enableAPIObserver"
 )
 
 func readCmdLineParams() {
@@ -175,7 +183,10 @@ func readCmdLineParams() {
 
 	coverageTestB := flag.Bool(ConfigCoverageTest, false, "enabling CoverageTest")
 
-	untrackedNs := flag.String(ConfigUntrackedNs, "kube-system,kubearmor", "Namespaces which are not being tracked, default untracked:[kube-system, kubearmor]")
+	untrackedNs := flag.String(ConfigUntrackedNs, "kube-system,kubearmor,agents", "Namespaces which are not being tracked, default untracked:[kube-system, kubearmor, agents]")
+
+	apiBlockedAuthorities := flag.String(ConfigApiBlockedAuthorities, "", "API Observer: comma-separated :authority prefixes to block (e.g. frontend,test-server.default.svc)")
+	apiExcludedPorts := flag.String(ConfigApiExcludedPorts, "", "API Observer: comma-separated ports to exclude (e.g. 6443,2379,10250)")
 
 	lsmOrder := flag.String(LsmOrder, "bpf,apparmor,selinux", "lsm preference order to use, available lsms [bpf, apparmor, selinux]")
 
@@ -210,6 +221,8 @@ func readCmdLineParams() {
 	matchArgs := flag.Bool(ConfigArgMatching, true, "enabling Argument matching")
 
 	networkPolicyEnforcer := flag.Bool(ConfigNetworkPolicyEnforcer, true, "Enable network policy enforcement")
+
+	enableAPIObserver := flag.Bool(ConfigEnableAPIObserver, false, "enable eBPF-based API Observer for HTTP/gRPC observability")
 
 	flags := []string{}
 	flag.VisitAll(func(f *flag.Flag) {
@@ -256,6 +269,8 @@ func readCmdLineParams() {
 	viper.SetDefault(ConfigCoverageTest, *coverageTestB)
 
 	viper.SetDefault(ConfigUntrackedNs, *untrackedNs)
+	viper.SetDefault(ConfigApiBlockedAuthorities, *apiBlockedAuthorities)
+	viper.SetDefault(ConfigApiExcludedPorts, *apiExcludedPorts)
 
 	viper.SetDefault(LsmOrder, *lsmOrder)
 
@@ -292,6 +307,8 @@ func readCmdLineParams() {
 	viper.SetDefault(ConfigArgMatching, *matchArgs)
 
 	viper.SetDefault(ConfigNetworkPolicyEnforcer, *networkPolicyEnforcer)
+
+	viper.SetDefault(ConfigEnableAPIObserver, *enableAPIObserver)
 }
 
 // LoadConfig Load configuration
@@ -364,6 +381,15 @@ func LoadConfig() error {
 
 	GlobalCfg.ConfigUntrackedNs.Store(strings.Split(viper.GetString(ConfigUntrackedNs), ","))
 
+	// API Observer: authority blocklist (user-supplied, merged with defaults in filterer).
+	if v := viper.GetString(ConfigApiBlockedAuthorities); v != "" {
+		GlobalCfg.ConfigApiBlockedAuthorities.Store(strings.Split(v, ","))
+	}
+	// API Observer: port exclusions (merged with defaults in apiObserver).
+	if v := viper.GetString(ConfigApiExcludedPorts); v != "" {
+		GlobalCfg.ConfigApiExcludedPorts.Store(strings.Split(v, ","))
+	}
+
 	GlobalCfg.LsmOrder = strings.Split(viper.GetString(LsmOrder), ",")
 
 	GlobalCfg.BPFFsPath = viper.GetString(BPFFsPath)
@@ -434,6 +460,8 @@ func LoadDynamicConfig() {
 	GlobalCfg.USBDeviceHandler = viper.GetBool(ConfigUSBDeviceHandler)
 
 	GlobalCfg.NetworkPolicyEnforcer = viper.GetBool(ConfigNetworkPolicyEnforcer)
+
+	GlobalCfg.EnableAPIObserver = viper.GetBool(ConfigEnableAPIObserver)
 
 	kg.Printf("Final Configuration [%+v]", GlobalCfg)
 }

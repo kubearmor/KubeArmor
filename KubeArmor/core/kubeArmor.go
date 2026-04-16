@@ -15,6 +15,8 @@ import (
 	"syscall"
 	"time"
 
+	apiobserver "github.com/kubearmor/KubeArmor/KubeArmor/apiObserver"
+	"github.com/kubearmor/KubeArmor/KubeArmor/apiObserver/ssl"
 	"github.com/kubearmor/KubeArmor/KubeArmor/common"
 	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
 	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
@@ -112,6 +114,13 @@ type KubeArmorDaemon struct {
 	// state agent
 	StateAgent *state.StateAgent
 
+	// API Observer
+	APIObserver *apiobserver.APIObserver
+
+	// Service ClusterIP → FQDN for API Observer :authority resolution
+	ServiceIPMap     map[string]string // e.g. "10.43.29.63" → "cartservice.online-boutique.svc.cluster.local"
+	ServiceIPMapLock *sync.RWMutex
+
 	// WgDaemon Handler
 	WgDaemon sync.WaitGroup
 
@@ -174,12 +183,24 @@ func NewKubeArmorDaemon() *KubeArmorDaemon {
 	dm.OwnerInfo = map[string]tp.PodOwner{}
 	dm.OwnerInfoLock = new(sync.RWMutex)
 
+	dm.ServiceIPMap = map[string]string{}
+	dm.ServiceIPMapLock = new(sync.RWMutex)
+
 	return dm
 }
 
 // DestroyKubeArmorDaemon Function
 func (dm *KubeArmorDaemon) DestroyKubeArmorDaemon() {
 	close(StopChan)
+
+	// close API Observer (before SystemMonitor since it uses BPF resources)
+	if dm.APIObserver != nil {
+		if err := dm.APIObserver.DestroyAPIObserver(); err != nil {
+			dm.Logger.Errf("Failed to stop API Observer: %s", err.Error())
+		} else {
+			dm.Logger.Print("Stopped API Observer")
+		}
+	}
 
 	if dm.SystemMonitor != nil {
 		// close system monitor
@@ -716,6 +737,37 @@ func KubeArmor() {
 		}
 	}
 
+	// == API Observer == //
+
+	if cfg.GlobalCfg.EnableAPIObserver {
+		dm.Logger.Print("Initializing API Observer")
+
+		// Configure procfs path for SSL/Go uprobe scanners.
+		// Without hostPID, /proc only contains our own process.
+		// The host's procfs is mounted at cfg.GlobalCfg.ProcFsMount.
+		ssl.ProcRoot = cfg.GlobalCfg.ProcFsMount
+		ssl.InitSelfPID()
+		dm.Logger.Printf("API Observer procfs root: %s (self exe: %s, host PID: %d)", ssl.ProcRoot, ssl.SelfExePath, ssl.SelfHostPID)
+
+		// Start K8s Service watcher to populate ServiceIPMap before
+		// building the resolver, so initial services are available.
+		if dm.K8sEnabled {
+			go dm.WatchK8sServices()
+			time.Sleep(500 * time.Millisecond) // let initial services sync
+		}
+
+		// Build ClusterIP→FQDN resolver for :authority enrichment.
+		resolver := dm.buildServiceResolver()
+
+		apiObs, err := apiobserver.NewAPIObserver(dm.Node, dm.SystemMonitor.PinPath, dm.Logger, resolver)
+		if err != nil {
+			dm.Logger.Warnf("Failed to initialize API Observer (non-fatal): %v", err)
+		} else {
+			dm.APIObserver = apiObs
+			dm.Logger.Print("API Observer initialized and running")
+		}
+	}
+
 	enableContainerPolicy := true
 
 	dm.SystemMonitor.Logger.ContainerNsKey = make(map[string]common.OuterKey)
@@ -1076,6 +1128,21 @@ func KubeArmor() {
 
 	// destroy the daemon
 	dm.DestroyKubeArmorDaemon()
+}
+
+// buildServiceResolver returns a closure that resolves a K8s Service
+// ClusterIP to its FQDN (e.g. "cartservice.online-boutique.svc.cluster.local").
+// Returns "" when no match found.
+func (dm *KubeArmorDaemon) buildServiceResolver() apiobserver.ServiceResolver {
+	return func(ip string) string {
+		dm.ServiceIPMapLock.RLock()
+		fqdn, ok := dm.ServiceIPMap[ip]
+		dm.ServiceIPMapLock.RUnlock()
+		if ok {
+			return fqdn
+		}
+		return ""
+	}
 }
 
 func (dm *KubeArmorDaemon) checkNRIAvailability() error {
