@@ -1,6 +1,6 @@
 module github.com/kubearmor/KubeArmor/KubeArmor
 
-go 1.25.8
+go 1.25.9
 
 replace (
 	github.com/kubearmor/KubeArmor => ../../
@@ -24,13 +24,12 @@ replace (
 
 require (
 	github.com/Masterminds/sprig/v3 v3.3.0
-	github.com/cilium/cilium v1.19.2
-	github.com/cilium/ebpf v0.21.0
+	github.com/cilium/cilium v1.18.6
+	github.com/cilium/ebpf v0.20.0
 	github.com/containerd/containerd/api v1.10.0
 	github.com/containerd/containerd/v2 v2.2.2
 	github.com/containerd/nri v0.11.0
 	github.com/containerd/typeurl/v2 v2.2.3
-	github.com/docker/docker v28.5.2+incompatible
 	github.com/florianl/go-nflog/v2 v2.3.0
 	github.com/fsnotify/fsnotify v1.9.0
 	github.com/google/gopacket v1.1.19
@@ -38,6 +37,8 @@ require (
 	github.com/kubearmor/KubeArmor/pkg/KubeArmorController v0.0.0-20260406102335-87edc770f8bf
 	github.com/kubearmor/KubeArmor/protobuf v0.0.0-20260406102335-87edc770f8bf
 	github.com/mdlayher/netlink v1.10.0
+	github.com/moby/moby/api v1.54.1
+	github.com/moby/moby/client v0.4.0
 	github.com/opencontainers/runtime-spec v1.3.0
 	github.com/spf13/viper v1.21.0
 	go.uber.org/zap v1.27.1
@@ -99,7 +100,6 @@ require (
 	github.com/go-viper/mapstructure/v2 v2.5.0 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/groupcache v0.0.0-20241129210726-2c02b8208cf8 // indirect
-	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/google/btree v1.1.3 // indirect
 	github.com/google/gnostic-models v0.7.1 // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
@@ -156,11 +156,9 @@ require (
 	golang.org/x/text v0.35.0 // indirect
 	golang.org/x/time v0.15.0 // indirect
 	gomodules.xyz/jsonpatch/v2 v2.5.0 // indirect
-	google.golang.org/genproto/googleapis/api v0.0.0-20260406210006-6f92a3bedf2d // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260406210006-6f92a3bedf2d // indirect
 	gopkg.in/evanphx/json-patch.v4 v4.13.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
-	gotest.tools/v3 v3.5.2 // indirect
 	k8s.io/apiextensions-apiserver v0.35.3 // indirect
 	k8s.io/kube-openapi v0.0.0-20260330154417-16be699c7b31 // indirect
 	sigs.k8s.io/json v0.0.0-20250730193827-2d320260d730 // indirect
