@@ -3,7 +3,7 @@ module github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator
 go 1.25.8
 
 replace (
-	github.com/go-jose/go-jose/v4 => github.com/go-jose/go-jose/v4 v4.0.5
+	github.com/go-jose/go-jose/v4 => github.com/go-jose/go-jose/v4 v4.1.4
 	github.com/kubearmor/KubeArmor/KubeArmor => ../../KubeArmor
 	github.com/kubearmor/KubeArmor/deployments => ../../deployments
 	github.com/kubearmor/KubeArmor/pkg/KubeArmorController => ../KubeArmorController
