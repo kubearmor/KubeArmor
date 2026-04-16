@@ -29,9 +29,9 @@ spec:
       imagePullSecrets:
       {{- toYaml .Values.kubearmorOperator.image.imagePullSecrets | nindent 8 }}
 
-      {{- else if .Values.global.registry.secretName }}
+      {{- else if .Values.registry.secretName }}
       imagePullSecrets:
-        - name: {{ .Values.global.registry.secretName }}
+        - name: {{ .Values.registry.secretName }}
       {{- end }}
       {{- if .Values.kubearmorOperator.tolerations }}
       tolerations: 
@@ -52,8 +52,8 @@ spec:
         - name: KUBEARMOR_OCI_HOOKS
           value: "yes"
         {{- end }}
-        {{- if .Values.global.imagePinning -}}
-          {{- include "pinnedImages" .Values.global.kubearmor | trim | nindent 8 }}
+        {{- if .Values.imagePinning -}}
+          {{- include "pinnedImages" .Values.kubearmor | trim | nindent 8 }}
         {{- end }}
         {{- if .Values.kubearmorOperator.env -}}
           {{- .Values.kubearmorOperator.env | toYaml | nindent 8 }}
@@ -69,8 +69,8 @@ spec:
         {{- if .Values.kubearmorOperator.image.imagePullSecrets }}
         - --image-pull-secrets={{ .Values.kubearmorOperator.image.imagePullSecrets | toJson }}
 
-        {{- else if .Values.global.registry.secretName }}
-        - --image-pull-secrets={{ list (dict "name" .Values.global.registry.secretName) | toJson }}
+        {{- else if .Values.registry.secretName }}
+        - --image-pull-secrets={{ list (dict "name" .Values.registry.secretName) | toJson }}
         {{- end }}
         {{- if .Values.kubearmorOperator.args -}}
           {{- toYaml .Values.kubearmorOperator.args | trim | nindent 8 }}
