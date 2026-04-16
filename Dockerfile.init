@@ -2,7 +2,7 @@
 # Copyright 2026 Authors of KubeArmor
 
 ### Make compiler image
-FROM redhat/ubi9-minimal as kubearmor-init
+FROM redhat/ubi10-minimal as kubearmor-init
 
 ARG VERSION=latest
 
