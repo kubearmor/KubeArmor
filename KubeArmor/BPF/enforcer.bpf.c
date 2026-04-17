@@ -275,6 +275,13 @@ decision:
         return 0;
       }
     }
+    if (val && (val->processmask & RULE_PTS))
+    {
+      if (is_pts(t))
+      {
+        retval = -EPERM;
+      }
+    }
     if (val && (val->processmask & RULE_OWNER))
     {
       if (!is_owner(bprm->file))
@@ -312,7 +319,7 @@ decision:
         return 0;
       }
     }
-    if (val && (val->processmask & RULE_DENY))
+    if (val && ((val->processmask & RULE_DENY) && !(val->processmask & RULE_PTS)))
     {
       retval = -EPERM;
     }
@@ -336,6 +343,20 @@ decision:
         retval = -EPERM;
       }
       goto ringbuf;
+    }
+    else
+    {
+      if (val && (val->processmask & RULE_PTS))
+      {
+        if (is_pts(t))
+        {
+          retval = -EPERM;
+        }
+      }
+      else
+      {
+        retval = -EPERM;
+      }
     }
   }
 
@@ -526,8 +547,19 @@ decision:
   {
     if (val && (val->processmask & RULE_DENY))
     {
-      retval = -EPERM;
-      goto ringbuf;
+      if (val && (val->processmask & RULE_PTS))
+      {
+        if (is_pts(t))
+        {
+          retval = -EPERM;
+          goto ringbuf;
+        }
+      }
+      else
+      {
+        retval = -EPERM;
+        goto ringbuf;
+      }
     }
   }
 
@@ -545,6 +577,20 @@ decision:
         retval = -EPERM;
       }
       goto ringbuf;
+    }
+    else
+    {
+      if (allow && allow->processmask == BLOCK_POSTURE)
+      {
+        if (val && (val->processmask & RULE_PTS))
+        {
+          if (is_pts(t))
+          {
+            retval = -EPERM;
+          }
+        }
+        goto ringbuf;
+      }
     }
   }
 

@@ -24,6 +24,7 @@ const (
 	HINT      uint16 = 1 << 6
 	DENY      uint16 = 1 << 7
 	ARGSET    uint16 = 1 << 8
+	PTS       uint16 = 1 << 9
 )
 
 // Data Index for rules
@@ -124,6 +125,10 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 			if path.OwnerOnly {
 				val[PROCESS] = val[PROCESS] | OWNER
 			}
+			// process is not allowed from psudo-terminal
+			if path.Pts != nil && !*path.Pts {
+				val[PROCESS] = val[PROCESS] | PTS
+			}
 			if len(path.AllowedArgs) > 0 {
 				val[PROCESS] = val[PROCESS] | ARGSET
 			}
@@ -184,6 +189,10 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 			if dir.Recursive {
 				val[PROCESS] = val[PROCESS] | RECURSIVE
 			}
+			// process is not allowed from psudo-terminal
+			if dir.Pts != nil && !*dir.Pts {
+				val[PROCESS] = val[PROCESS] | PTS
+			}
 			if len(dir.FromSource) == 0 {
 				if dir.Action == "Allow" {
 					newrules.ProcWhiteListPosture = true
@@ -215,6 +224,9 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 			}
 			if !path.ReadOnly {
 				val[FILE] = val[FILE] | WRITE
+			}
+			if path.Pts != nil && !*path.Pts {
+				val[FILE] = val[FILE] | PTS
 			}
 			if len(path.FromSource) == 0 {
 				var key InnerKey
@@ -256,6 +268,9 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 			if dir.Recursive {
 				val[FILE] = val[FILE] | RECURSIVE
 			}
+			if dir.Pts != nil && !*dir.Pts {
+				val[FILE] = val[FILE] | PTS
+			}
 			if len(dir.FromSource) == 0 {
 				if dir.Action == "Allow" {
 					newrules.FileWhiteListPosture = true
@@ -291,6 +306,10 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 			} else if val, ok := netType[strings.ToUpper(net.Protocol)]; ok {
 				key.Path[0] = byte(TYPE)
 				key.Path[1] = byte(val)
+			}
+
+			if net.Pts != nil && !*net.Pts {
+				val[NETWORK] = val[NETWORK] | PTS
 			}
 
 			if len(net.FromSource) == 0 {

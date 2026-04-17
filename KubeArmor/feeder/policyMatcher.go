@@ -214,6 +214,11 @@ func (fd *Feeder) newMatchPolicy(policyEnabled int, policyName, src string, mp a
 
 		match.OwnerOnly = ppt.OwnerOnly
 
+		if ppt.Pts != nil {
+			match.Pts = new(bool)
+			*match.Pts = *ppt.Pts
+		}
+
 		if policyEnabled == tp.KubeArmorPolicyAudited && ppt.Action == "Allow" {
 			match.Action = "Audit (" + ppt.Action + ")"
 		} else if policyEnabled == tp.KubeArmorPolicyAudited && ppt.Action == "Block" {
@@ -232,6 +237,11 @@ func (fd *Feeder) newMatchPolicy(policyEnabled int, policyName, src string, mp a
 
 		match.OwnerOnly = pdt.OwnerOnly
 		match.Recursive = pdt.Recursive
+
+		if pdt.Pts != nil {
+			match.Pts = new(bool)
+			*match.Pts = *pdt.Pts
+		}
 
 		if policyEnabled == tp.KubeArmorPolicyAudited && pdt.Action == "Allow" {
 			match.Action = "Audit (" + pdt.Action + ")"
@@ -270,6 +280,11 @@ func (fd *Feeder) newMatchPolicy(policyEnabled int, policyName, src string, mp a
 		match.OwnerOnly = fpt.OwnerOnly
 		match.ReadOnly = fpt.ReadOnly
 
+		if fpt.Pts != nil {
+			match.Pts = new(bool)
+			*match.Pts = *fpt.Pts
+		}
+
 		if policyEnabled == tp.KubeArmorPolicyAudited && fpt.Action == "Allow" {
 			match.Action = "Audit (" + fpt.Action + ")"
 		} else if policyEnabled == tp.KubeArmorPolicyAudited && fpt.Action == "Block" {
@@ -289,6 +304,11 @@ func (fd *Feeder) newMatchPolicy(policyEnabled int, policyName, src string, mp a
 		match.OwnerOnly = fdt.OwnerOnly
 		match.ReadOnly = fdt.ReadOnly
 		match.Recursive = fdt.Recursive
+
+		if fdt.Pts != nil {
+			match.Pts = new(bool)
+			*match.Pts = *fdt.Pts
+		}
 
 		if policyEnabled == tp.KubeArmorPolicyAudited && fdt.Action == "Allow" {
 			match.Action = "Audit (" + fdt.Action + ")"
@@ -323,6 +343,11 @@ func (fd *Feeder) newMatchPolicy(policyEnabled int, policyName, src string, mp a
 		match.Operation = "Network"
 		match.Resource = strings.ToLower(npt.Protocol)
 		match.ResourceType = "Protocol"
+
+		if npt.Pts != nil {
+			match.Pts = new(bool)
+			*match.Pts = *npt.Pts
+		}
 
 		// TODO: Handle cases where AppArmor network enforcement is not present
 		// https://github.com/kubearmor/KubeArmor/issues/1285
@@ -1407,6 +1432,12 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 							} else if log.UID != log.OID {
 								matchedFlags = true
 							}
+						} else if secPolicy.Pts != nil && !*secPolicy.Pts {
+							if log.TTY == "" {
+								matchedFlags = false
+							} else {
+								matchedFlags = true
+							}
 						} else {
 							// ! read only && ! owner only
 							matchedFlags = true
@@ -1597,6 +1628,13 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 					protocol := fetchProtocol(log.Resource)
 					if protocol == secPolicy.Resource || secPolicy.Resource == "all" {
 						matchedFlags = true
+					}
+					if secPolicy.Pts != nil && !*secPolicy.Pts {
+						if log.TTY == "" {
+							matchedFlags = false
+						} else {
+							matchedFlags = true
+						}
 					}
 
 					if matchedFlags {

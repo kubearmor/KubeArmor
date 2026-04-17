@@ -204,6 +204,8 @@ spec:
                           type: string
                         ownerOnly:
                           type: boolean
+                        pts:
+                          type: boolean
                         readOnly:
                           type: boolean
                         recursive:
@@ -246,6 +248,8 @@ spec:
                           maxLength: 200
                           pattern: ^\/+.*[^\/]$
                           type: string
+                        pts:
+                          type: boolean
                         readOnly:
                           type: boolean
                         severity:
@@ -397,6 +401,8 @@ spec:
                           type: string
                         ownerOnly:
                           type: boolean
+                        pts:
+                          type: boolean
                         recursive:
                           type: boolean
                         severity:
@@ -445,6 +451,8 @@ spec:
                           maxLength: 200
                           pattern: ^\/+.*[^\/]$
                           type: string
+                        pts:
+                          type: boolean
                         severity:
                           maximum: 10
                           minimum: 1
