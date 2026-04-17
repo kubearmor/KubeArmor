@@ -240,7 +240,7 @@ var defaultConfigs = map[string]DaemonSetConfig{
 			apparmorVolMnt,
 			{
 				Name:      "containerd-sock-path",
-				MountPath: "/var/run/containerd/containerd.sock",
+				MountPath: "/run/k0s/containerd.sock",
 				ReadOnly:  true,
 			},
 		},
@@ -264,7 +264,7 @@ var defaultConfigs = map[string]DaemonSetConfig{
 			apparmorVolMnt,
 			{
 				Name:      "containerd-sock-path", // containerd
-				MountPath: "/var/run/containerd/containerd.sock",
+				MountPath: "/run/k3s/containerd/containerd.sock",
 				ReadOnly:  true,
 			},
 		},
@@ -336,7 +336,7 @@ var defaultConfigs = map[string]DaemonSetConfig{
 			apparmorVolMnt,
 			{
 				Name:      "containerd-sock-path", // containerd
-				MountPath: "/var/run/containerd/containerd.sock",
+				MountPath: "/run/containerd/containerd.sock",
 				ReadOnly:  true,
 			},
 		},
