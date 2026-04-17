@@ -24,7 +24,7 @@ COPY common/ common/
 # Build
 RUN CGO_ENABLED=0 GO111MODULE=on go build -a -o manager cmd/main.go
 
-FROM redhat/ubi9-minimal AS controller
+FROM redhat/ubi10-minimal AS controller
 
 ARG VERSION=latest
 

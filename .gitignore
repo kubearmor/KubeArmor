@@ -42,3 +42,6 @@ go.work.sum
 # ignore hook and related binaries
 hook
 deployHook
+
+# alow hook directory
+!**/hook/

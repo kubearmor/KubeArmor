@@ -8,13 +8,13 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"text/template"
 
 	sprig "github.com/Masterminds/sprig/v3"
 	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
-	"k8s.io/utils/strings/slices"
 )
 
 // == //

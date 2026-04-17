@@ -14,16 +14,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/events"
-	"github.com/docker/docker/client"
-
 	"github.com/kubearmor/KubeArmor/KubeArmor/common"
 	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
 	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
 	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
 	"github.com/kubearmor/KubeArmor/KubeArmor/state"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
+	"github.com/moby/moby/api/types/events"
+	"github.com/moby/moby/client"
 )
 
 // ==================== //
@@ -53,16 +51,15 @@ func NewDockerHandler() (*DockerHandler, error) {
 
 	// try to create a new docker client
 	// If env DOCKER_API_VERSION set - NegotiateAPIVersion() won't do anything
-	DockerClient, err := client.NewClientWithOpts(client.FromEnv)
+	DockerClient, err := client.New(client.FromEnv)
 	if err != nil {
 		return nil, err
 	}
-	DockerClient.NegotiateAPIVersion(context.Background())
 	clientVersion := DockerClient.ClientVersion()
 
 	kg.Printf("Verifying Docker API client version: %s", clientVersion)
 
-	serverVersion, err := DockerClient.ServerVersion(context.Background())
+	serverVersion, err := DockerClient.ServerVersion(context.Background(), client.ServerVersionOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -99,7 +96,7 @@ func (dh *DockerHandler) GetContainerInfo(containerID, nodeID string, OwnerInfo 
 		return tp.Container{}, errors.New("no docker client")
 	}
 
-	inspect, err := dh.DockerClient.ContainerInspect(context.Background(), containerID)
+	inspect, err := dh.DockerClient.ContainerInspect(context.Background(), containerID, client.ContainerInspectOptions{})
 	if err != nil {
 		return tp.Container{}, err
 	}
@@ -108,14 +105,14 @@ func (dh *DockerHandler) GetContainerInfo(containerID, nodeID string, OwnerInfo 
 
 	// == container base == //
 
-	container.ContainerID = inspect.ID
-	container.ContainerName = strings.TrimLeft(inspect.Name, "/")
+	container.ContainerID = inspect.Container.ID
+	container.ContainerName = strings.TrimLeft(inspect.Container.Name, "/")
 
 	container.NamespaceName = "Unknown"
 	container.EndPointName = "Unknown"
 
 	containerLabels := make(map[string]string)
-	containerLabels = inspect.Config.Labels
+	containerLabels = inspect.Container.Config.Labels
 	if _, ok := containerLabels["io.kubernetes.pod.namespace"]; ok { // kubernetes
 		if val, ok := containerLabels["io.kubernetes.pod.namespace"]; ok {
 			container.NamespaceName = val
@@ -135,15 +132,15 @@ func (dh *DockerHandler) GetContainerInfo(containerID, nodeID string, OwnerInfo 
 		}
 	}
 
-	container.AppArmorProfile = inspect.AppArmorProfile
-	if inspect.HostConfig.Privileged ||
-		len(inspect.HostConfig.CapAdd) > 0 {
-		container.Privileged = inspect.HostConfig.Privileged
+	container.AppArmorProfile = inspect.Container.AppArmorProfile
+	if inspect.Container.HostConfig.Privileged ||
+		len(inspect.Container.HostConfig.CapAdd) > 0 {
+		container.Privileged = inspect.Container.HostConfig.Privileged
 	}
 
 	// == //
 
-	pid := strconv.Itoa(inspect.State.Pid)
+	pid := strconv.Itoa(inspect.Container.State.Pid)
 
 	if data, err := os.Readlink(filepath.Join(cfg.GlobalCfg.ProcFsMount, pid, "/ns/pid")); err == nil {
 		if _, err := fmt.Sscanf(data, "pid:[%d]\n", &container.PidNS); err != nil {
@@ -160,7 +157,7 @@ func (dh *DockerHandler) GetContainerInfo(containerID, nodeID string, OwnerInfo 
 	// == //
 
 	if !cfg.GlobalCfg.K8sEnv {
-		container.ContainerImage = inspect.Config.Image //+ kl.GetSHA256ofImage(inspect.Image)
+		container.ContainerImage = inspect.Container.Config.Image //+ kl.GetSHA256ofImage(inspect.Image)
 
 		container.NodeName = cfg.GlobalCfg.Host
 		container.NodeID = nodeID
@@ -179,29 +176,29 @@ func (dh *DockerHandler) GetContainerInfo(containerID, nodeID string, OwnerInfo 
 		container.Labels = strings.Join(labels, ",")
 
 		var podIP string
-		if inspect.HostConfig != nil {
-			if inspect.HostConfig.NetworkMode.IsNone() || inspect.HostConfig.NetworkMode.IsContainer() {
+		if inspect.Container.HostConfig != nil {
+			if inspect.Container.HostConfig.NetworkMode.IsNone() || inspect.Container.HostConfig.NetworkMode.IsContainer() {
 				podIP = ""
-			} else if inspect.HostConfig.NetworkMode.IsHost() {
+			} else if inspect.Container.HostConfig.NetworkMode.IsHost() {
 				podIP = dh.NodeIP
 			} else {
 				// user defined network OR swarm mode
-				networkName := inspect.HostConfig.NetworkMode.NetworkName()
-				networkInfo, ok := inspect.NetworkSettings.Networks[networkName]
+				networkName := inspect.Container.HostConfig.NetworkMode.NetworkName()
+				networkInfo, ok := inspect.Container.NetworkSettings.Networks[networkName]
 				if ok && networkInfo != nil {
-					podIP = networkInfo.IPAddress
+					podIP = networkInfo.IPAddress.String()
 				}
 			}
 		}
 		container.ContainerIP = podIP
 
 		// time format used by docker engine is RFC3339Nano
-		lastUpdatedAt, err := time.Parse(time.RFC3339Nano, inspect.State.StartedAt)
+		lastUpdatedAt, err := time.Parse(time.RFC3339Nano, inspect.Container.State.StartedAt)
 		if err == nil {
 			container.LastUpdatedAt = lastUpdatedAt.UTC().String()
 		}
 		// finished at is IsZero until a container exits
-		timeFinished, err := time.Parse(time.RFC3339Nano, inspect.State.FinishedAt)
+		timeFinished, err := time.Parse(time.RFC3339Nano, inspect.Container.State.FinishedAt)
 		if err == nil && !timeFinished.IsZero() && timeFinished.After(lastUpdatedAt) {
 			lastUpdatedAt = timeFinished
 		}
@@ -222,7 +219,10 @@ func (dh *DockerHandler) GetEventChannel(ctx context.Context, StopChan <-chan st
 
 		go func() {
 
-			eventStream, errCh := dh.DockerClient.Events(ctx, events.ListOptions{})
+			eventsResult := dh.DockerClient.Events(ctx, client.EventsListOptions{})
+			// Extract the channels from the result struct
+			eventStream := eventsResult.Messages
+			errCh := eventsResult.Err
 			defer close(eventBuffer)
 
 			for {
@@ -305,8 +305,8 @@ func (dm *KubeArmorDaemon) GetAlreadyDeployedDockerContainers() {
 		}
 	}
 
-	if containerList, err := Docker.DockerClient.ContainerList(context.Background(), container.ListOptions{}); err == nil {
-		for _, dcontainer := range containerList {
+	if containerList, err := Docker.DockerClient.ContainerList(context.Background(), client.ContainerListOptions{}); err == nil {
+		for _, dcontainer := range containerList.Items {
 			// get container information from docker client
 			dm.OwnerInfoLock.RLock()
 			owner := dm.OwnerInfo
@@ -838,7 +838,7 @@ func (dm *KubeArmorDaemon) MonitorDockerEvents() {
 
 			// if message type is container
 			if msg.Type == "container" {
-				dm.UpdateDockerContainer(msg.ID, string(msg.Action))
+				dm.UpdateDockerContainer(msg.Actor.ID, string(msg.Action))
 			}
 		}
 	}
