@@ -34,7 +34,7 @@ require (
 	github.com/fsnotify/fsnotify v1.9.0
 	github.com/google/gopacket v1.1.19
 	github.com/google/uuid v1.6.0
-	github.com/kubearmor/KubeArmor/pkg/KubeArmorController v0.0.0-20260406102335-87edc770f8bf
+	github.com/kubearmor/KubeArmor/pkg/KubeArmorController v0.0.0-20260417183239-3c0345205950
 	github.com/kubearmor/KubeArmor/protobuf v0.0.0-20260406102335-87edc770f8bf
 	github.com/mdlayher/netlink v1.10.0
 	github.com/moby/moby/api v1.54.1
