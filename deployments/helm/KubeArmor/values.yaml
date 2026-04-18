@@ -6,7 +6,7 @@ environment:
   name: generic
 
 tls:
-  enabled: false  
+  enabled: false
 
 kubearmorRelay:
   # to enable/disable kubearmor-relay
@@ -40,31 +40,30 @@ kubearmorRelay:
     tlsCertProvider: external
     certSecretName: kubearmor-relay-server-certs
     certVolumeMount:
-    - mountPath: /var/lib/kubearmor/tls
-      name: kubearmor-relay-certs-secrets
-      readOnly: true
+      - mountPath: /var/lib/kubearmor/tls
+        name: kubearmor-relay-certs-secrets
+        readOnly: true
     certVolume:
-    - name: kubearmor-relay-certs-secrets
-      projected:
-        defaultMode: 0444
-        sources:
-        - secret:
-            name: kubearmor-relay-server-certs
-            items:
-            - key: tls.crt
-              path: server.crt
-            - key: tls.key
-              path: server.key
-            - key: ca.crt
-              path: ca.crt
-        - secret:
-            name: kubearmor-client-certs
-            items:
-            - key: tls.crt
-              path: client.crt
-            - key: tls.key
-              path: client.key  
-
+      - name: kubearmor-relay-certs-secrets
+        projected:
+          defaultMode: 0444
+          sources:
+            - secret:
+                name: kubearmor-relay-server-certs
+                items:
+                  - key: tls.crt
+                    path: server.crt
+                  - key: tls.key
+                    path: server.key
+                  - key: ca.crt
+                    path: ca.crt
+            - secret:
+                name: kubearmor-client-certs
+                items:
+                  - key: tls.crt
+                    path: client.crt
+                  - key: tls.key
+                    path: client.key
 
 kubearmorInit:
   image:
@@ -99,7 +98,7 @@ kubearmorController:
     tag: latest
     # Optional, but if there are a lot of image pulls required, Docker might be rate-limited. So, it's good to add pull secrets for production.
     imagePullSecrets: ""
-  tolerations: ""  
+  tolerations: ""
   mutation:
     # kubearmor-controller failure policy
     failurePolicy: Ignore
@@ -120,6 +119,7 @@ kubearmorConfigMap:
   maxAlertPerSec: 10
   throttleSec: 30
   matchArgs: true
+  enableMonitor: true
 
 #volume mounts and volumes
 kubearmor:
@@ -144,61 +144,61 @@ kubearmor:
     caSecretName: kubearmor-ca
     clientCertSecretName: kubearmor-client-certs
     kubearmorCACertVolumeMount:
-    - mountPath: /var/lib/kubearmor/tls
-      name: kubearmor-ca-secret
-      readOnly: true
+      - mountPath: /var/lib/kubearmor/tls
+        name: kubearmor-ca-secret
+        readOnly: true
     kubearmorCACertVolume:
-    - name: kubearmor-ca-secret
-      projected:
-        defaultMode: 0444
-        sources:
-        - secret:
-            name: kubearmor-ca
-            items:
-            - key: tls.crt
-              path: ca.crt
-            - key: tls.key
-              path: ca.key
+      - name: kubearmor-ca-secret
+        projected:
+          defaultMode: 0444
+          sources:
+            - secret:
+                name: kubearmor-ca
+                items:
+                  - key: tls.crt
+                    path: ca.crt
+                  - key: tls.key
+                    path: ca.key
 
   capabilities:
     add:
-    - SETUID
-    - SETGID
-    - SETPCAP
-    - SYS_ADMIN
-    - SYS_PTRACE
-    - MAC_ADMIN
-    - SYS_RESOURCE
-    - IPC_LOCK
-    - CAP_DAC_OVERRIDE
-    - CAP_DAC_READ_SEARCH
+      - SETUID
+      - SETGID
+      - SETPCAP
+      - SYS_ADMIN
+      - SYS_PTRACE
+      - MAC_ADMIN
+      - SYS_RESOURCE
+      - IPC_LOCK
+      - CAP_DAC_OVERRIDE
+      - CAP_DAC_READ_SEARCH
     drop:
-    - ALL
+      - ALL
 
   commonMounts:
-  - mountPath: /opt/kubearmor/BPF
-    name: bpf
+    - mountPath: /opt/kubearmor/BPF
+      name: bpf
 
   commonVolumes:
-  - emptyDir: {}
-    name: bpf
+    - emptyDir: {}
+      name: bpf
 
   initMounts:
-  - mountPath: /opt/kubearmor/BPF
-    name: bpf
-  - mountPath: /lib/modules
-    name: lib-modules-path
-    readOnly: true
-  - mountPath: /sys/kernel/security
-    name: sys-kernel-security-path
-  - mountPath: /sys/kernel/debug
-    name: sys-kernel-debug-path
-  - mountPath: /media/root/etc/os-release
-    name: os-release-path
-    readOnly: true
-  - mountPath: /usr/src
-    name: usr-src-path
-    readOnly: true
+    - mountPath: /opt/kubearmor/BPF
+      name: bpf
+    - mountPath: /lib/modules
+      name: lib-modules-path
+      readOnly: true
+    - mountPath: /sys/kernel/security
+      name: sys-kernel-security-path
+    - mountPath: /sys/kernel/debug
+      name: sys-kernel-debug-path
+    - mountPath: /media/root/etc/os-release
+      name: os-release-path
+      readOnly: true
+    - mountPath: /usr/src
+      name: usr-src-path
+      readOnly: true
 
   volumeMountsGeneric:
     - mountPath: /usr/src

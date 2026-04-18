@@ -583,6 +583,9 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 
 // HandleUnknownNamespaceNsMap Function
 func (dm *KubeArmorDaemon) HandleUnknownNamespaceNsMap(container *tp.Container) {
+	if dm.SystemMonitor == nil {
+		return
+	}
 	dm.SystemMonitor.AddContainerIDToNsMap(container.ContainerID, container.NamespaceName, container.PidNS, container.MntNS)
 	dm.SystemMonitor.NsMapLock.Lock()
 	if val, ok := dm.SystemMonitor.NamespacePidsMap["Unknown"]; ok {
@@ -680,9 +683,11 @@ func (dm *KubeArmorDaemon) handlePodEvent(event string, obj *corev1.Pod) {
 	for k, v := range pod.Labels {
 		labels = append(labels, k+"="+v)
 	}
-	dm.SystemMonitor.PodLabelsMapLock.Lock()
-	dm.SystemMonitor.PodLabelsMap[pod.Metadata["podName"]] = strings.Join(labels, ",")
-	dm.SystemMonitor.PodLabelsMapLock.Unlock()
+	if dm.SystemMonitor != nil {
+		dm.SystemMonitor.PodLabelsMapLock.Lock()
+		dm.SystemMonitor.PodLabelsMap[pod.Metadata["podName"]] = strings.Join(labels, ",")
+		dm.SystemMonitor.PodLabelsMapLock.Unlock()
+	}
 
 	pod.Containers = map[string]string{}
 	pod.ContainerImages = map[string]string{}
@@ -952,7 +957,9 @@ func (dm *KubeArmorDaemon) handlePodEvent(event string, obj *corev1.Pod) {
 			if k8spod.Metadata["namespaceName"] == pod.Metadata["namespaceName"] && k8spod.Metadata["podName"] == pod.Metadata["podName"] {
 				dm.K8sPods = append(dm.K8sPods[:idx], dm.K8sPods[idx+1:]...)
 				delete(dm.OwnerInfo, pod.Metadata["podName"])
-				delete(dm.SystemMonitor.PodLabelsMap, pod.Metadata["podName"])
+				if dm.SystemMonitor != nil {
+					delete(dm.SystemMonitor.PodLabelsMap, pod.Metadata["podName"])
+				}
 				break
 			}
 		}
@@ -3007,6 +3014,9 @@ func (dm *KubeArmorDaemon) validateVisibility(scope string, visibility string) b
 
 // UpdateVisibility Function
 func (dm *KubeArmorDaemon) UpdateVisibility(action string, namespace string, visibility tp.Visibility) {
+	if dm.SystemMonitor == nil {
+		return
+	}
 	dm.SystemMonitor.BpfMapLock.Lock()
 	defer dm.SystemMonitor.BpfMapLock.Unlock()
 
