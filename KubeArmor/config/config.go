@@ -79,6 +79,8 @@ type KubearmorConfig struct {
 	MatchArgs bool // enable argument rules for policy
 
 	NetworkPolicyEnforcer bool // enable network policy enforcement
+
+	DropPaths []string // Absolute file paths to drop from file-access telemetry (kernel-space)
 }
 
 // GlobalCfg Global configuration for Kubearmor
@@ -136,6 +138,7 @@ const (
 	ConfigUSBDeviceHandler               string = "enableUSBDeviceHandler"
 	ConfigArgMatching                    string = "matchArgs"
 	ConfigNetworkPolicyEnforcer          string = "enableNetworkPolicyEnforcer"
+	ConfigDropPaths                      string = "dropPaths"
 )
 
 func readCmdLineParams() {
@@ -210,6 +213,8 @@ func readCmdLineParams() {
 	matchArgs := flag.Bool(ConfigArgMatching, true, "enabling Argument matching")
 
 	networkPolicyEnforcer := flag.Bool(ConfigNetworkPolicyEnforcer, true, "Enable network policy enforcement")
+
+	dropPathsStr := flag.String(ConfigDropPaths, "", "Comma-separated absolute file paths to drop from file-access telemetry (kernel-space, exact match only)")
 
 	flags := []string{}
 	flag.VisitAll(func(f *flag.Flag) {
@@ -292,6 +297,8 @@ func readCmdLineParams() {
 	viper.SetDefault(ConfigArgMatching, *matchArgs)
 
 	viper.SetDefault(ConfigNetworkPolicyEnforcer, *networkPolicyEnforcer)
+
+	viper.SetDefault(ConfigDropPaths, *dropPathsStr)
 }
 
 // LoadConfig Load configuration
@@ -388,11 +395,30 @@ func LoadConfig() error {
 
 	GlobalCfg.NetworkPolicyEnforcer = viper.GetBool(ConfigNetworkPolicyEnforcer)
 
+	GlobalCfg.DropPaths = parseDropPaths(viper.GetString(ConfigDropPaths))
+
 	LoadDynamicConfig()
 
 	kg.Printf("Final Configuration [%+v]", GlobalCfg)
 
 	return nil
+}
+
+func parseDropPaths(pathsStr string) []string {
+	if pathsStr == "" {
+		return []string{}
+	}
+	parts := strings.Split(pathsStr, ",")
+	var paths []string
+	for _, p := range parts {
+		p = strings.TrimSpace(p)
+		if p != "" && strings.HasPrefix(p, "/") {
+			paths = append(paths, p)
+		} else if p != "" {
+			kg.Warnf("DropPath '%s' is not an absolute path — skipping", p)
+		}
+	}
+	return paths
 }
 
 // LoadDynamicConfig set dynamic configuration which can be updated at runtime without restarting kubearmor
