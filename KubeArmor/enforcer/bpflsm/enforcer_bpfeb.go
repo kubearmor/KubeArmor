@@ -89,6 +89,7 @@ type enforcerSpecs struct {
 // It can be passed ebpf.CollectionSpec.Assign.
 type enforcerProgramSpecs struct {
 	EnforceCap        *ebpf.ProgramSpec `ebpf:"enforce_cap"`
+	EnforceDns        *ebpf.ProgramSpec `ebpf:"enforce_dns"`
 	EnforceFile       *ebpf.ProgramSpec `ebpf:"enforce_file"`
 	EnforceFilePerm   *ebpf.ProgramSpec `ebpf:"enforce_file_perm"`
 	EnforceNetAccept  *ebpf.ProgramSpec `ebpf:"enforce_net_accept"`
@@ -183,6 +184,7 @@ type enforcerVariables struct {
 // It can be passed to loadEnforcerObjects or ebpf.CollectionSpec.LoadAndAssign.
 type enforcerPrograms struct {
 	EnforceCap        *ebpf.Program `ebpf:"enforce_cap"`
+	EnforceDns        *ebpf.Program `ebpf:"enforce_dns"`
 	EnforceFile       *ebpf.Program `ebpf:"enforce_file"`
 	EnforceFilePerm   *ebpf.Program `ebpf:"enforce_file_perm"`
 	EnforceNetAccept  *ebpf.Program `ebpf:"enforce_net_accept"`
@@ -194,6 +196,7 @@ type enforcerPrograms struct {
 func (p *enforcerPrograms) Close() error {
 	return _EnforcerClose(
 		p.EnforceCap,
+		p.EnforceDns,
 		p.EnforceFile,
 		p.EnforceFilePerm,
 		p.EnforceNetAccept,

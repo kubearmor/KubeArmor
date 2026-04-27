@@ -1173,6 +1173,55 @@ static inline bool matchArguments(unsigned int num_of_args, struct outer_key *ok
 
   return argmatch;
 }
+// extract_dns_name decodes a DNS wire-format QNAME from a raw packet payload
+// into the caller-provided output buffer pointed to by `name`.
+// `data` must point to the start of the DNS packet (including 12-byte header).
+// `name` must be a 64-byte caller-allocated stack buffer.
+// Returns the number of bytes written (excluding null terminator).
+static __always_inline int extract_dns_name(void *data, char *name)
+{
+  // Read the whole DNS payload into a per-CPU scratch buffer instead of
+  // the local stack to prevent blowing up the 512-byte BPF stack limit.
+  // PATH_BUFFER is safe to use here because it's re-used sequentially.
+  bufs_t *scratch = get_buf(PATH_BUFFER);
+  if (!scratch)
+    return 0;
+
+  bpf_probe_read_user(scratch->buf, 256, data);
+
+  // Decode QNAME wire format: \x06google\x03com\x00 -> google.com
+  // volatile prevents Clang from emitting forbidden `|= on pointer` instructions.
+  volatile u8 llen = scratch->buf[12]; // first label length byte (offset 12 = after DNS header)
+  volatile int bi = 13;                // byte index into buf
+  volatile int ni = 0;                 // byte index into name output
+
+#pragma unroll
+  for (int i = 0; i < 63; i++)
+  {
+    if (bi >= 256 || llen == 0 || llen > 63 || ni >= 63)
+      break;
+
+    name[ni & 63] = scratch->buf[bi & 255]; // copy one label character
+    ni++;
+    bi++;
+    llen--;
+
+    if (llen == 0) // consumed current label — read next length byte
+    {
+      if (bi >= 256)
+        break;
+      llen = scratch->buf[bi & 255];
+      bi++;
+      if (llen == 0 || llen > 63)
+        break; // root label (end) or invalid
+      if (ni < 63)
+        name[ni++ & 63] = '.'; // dot separator between labels
+    }
+  }
+
+  name[63] = '\0';
+  return ni;
+}
 
 /*
   How do we check what to deny or not?
