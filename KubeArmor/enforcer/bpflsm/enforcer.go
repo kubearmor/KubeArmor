@@ -186,6 +186,12 @@ func NewBPFEnforcer(node tp.Node, pinpath string, logger *fd.Feeder, monitor *mo
 		return be, err
 	}
 
+	be.Probes[be.obj.EnforceDns.String()], err = link.AttachLSM(link.LSMOptions{Program: be.obj.EnforceDns})
+	if err != nil {
+		be.Logger.Errf("opening lsm %s: %s", be.obj.EnforceDns.String(), err)
+		return be, err
+	}
+
 	/*
 		Path Hooks
 
@@ -392,6 +398,11 @@ func (be *BPFEnforcer) TraceEvents() {
 				log.Resource = fd.GetProtocolFromName(mon.GetProtocol(sockProtocol))
 			}
 			log.Data = "lsm=" + mon.GetSyscallName(int32(event.EventID)) + " " + log.Resource
+
+		case mon.SocketSendMsg:
+			log.Operation = "Network"
+			log.Resource = string(bytes.Trim(event.Data.Path[:], "\x00"))
+			log.Data = "lsm=" + mon.GetSyscallName(int32(event.EventID)) + " " + "domain=" + log.Resource
 
 		case mon.SecurityBprmCheck:
 			log.Operation = "Process"

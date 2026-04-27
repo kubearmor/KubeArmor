@@ -338,6 +338,40 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 				}
 			}
 		}
+
+		for _, dns := range secPolicy.Spec.Network.MatchDNSQueries {
+			var val [2]uint16
+			var key = InnerKey{Path: [200]byte{}, Source: [200]byte{}}
+
+			copy(key.Path[:], []byte(dns.Domain))
+
+			if len(dns.FromSource) == 0 {
+				if dns.Action == "Allow" {
+					newrules.NetWhiteListPosture = true
+					newrules.NetworkRuleList[key] = val
+
+				} else if dns.Action == "Block" {
+					val[NETWORK] = val[NETWORK] | DENY
+					newrules.NetworkRuleList[key] = val
+				}
+			} else {
+				for _, src := range dns.FromSource {
+					var source [200]byte
+					copy(source[:], []byte(src.Path))
+					key.Source = source
+					if dns.Action == "Allow" {
+						newrules.NetWhiteListPosture = true
+						newrules.NetworkRuleList[key] = val
+
+					} else if dns.Action == "Block" {
+						val[NETWORK] = val[NETWORK] | DENY
+						newrules.NetworkRuleList[key] = val
+					}
+
+				}
+			}
+		}
+
 		for _, capab := range secPolicy.Spec.Capabilities.MatchCapabilities {
 			var val [2]uint16
 			var key = InnerKey{Path: [200]byte{}, Source: [200]byte{}}
