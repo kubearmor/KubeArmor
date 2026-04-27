@@ -2,6 +2,8 @@
 
 This guide assumes you have access to a [k8s cluster](support_matrix.md). If you want to try non-k8s mode, for instance systemd mode to protect/audit containers or processes on VMs/bare-metal, check [here](kubearmor_vm.md).
 
+If you're deploying kubearmor on GKE autopilot follow the instructions provide with [GKE Autopilot Installation Guide](kubearmor_installation_on_gke_autopilot.md)
+
 Check the [KubeArmor support matrix](support_matrix.md) to verify if your platform is supported.
 
 ## Install KubeArmor
