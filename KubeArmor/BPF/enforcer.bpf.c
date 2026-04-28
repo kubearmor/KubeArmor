@@ -906,7 +906,7 @@ decision:
   }
 
   bpf_map_update_elem(&bufk, &one, z, BPF_ANY);
-  p->path[0] = dnet;
+  p->path[0] = ddns;
 
   struct data_t *allow = bpf_map_lookup_elem(inner, p);
   if (allow)
