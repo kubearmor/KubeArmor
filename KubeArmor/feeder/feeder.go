@@ -655,16 +655,20 @@ func MarshalVisibilityLog(log tp.Log) *pb.Log {
 	return &pbLog
 }
 
-// PushLog Function
-// PushLog Function
 func (fd *Feeder) PushLog(log tp.Log) {
 	/* if enforcer == BPFLSM and log.Enforcer == ebpfmonitor ( block and default Posture Alerts from System
 	   monitor are converted to host/container logs)
 	   in case of enforcer = AppArmor only Default Posture logs will be converted to
 	   container/host log depending upon the defaultPostureLogs flag
 	*/
+	batchAudit := log.Action == "BatchAudit"
+	if batchAudit {
+		log.Action = "Audit"
+		log.Enforcer = "eBPF Monitor"
+	}
+
 	isBPFLSM := fd.GetEnforcer() == "BPFLSM"
-	if !common.IsPresetEnforcer(log.Enforcer) {
+	if !batchAudit && !common.IsPresetEnforcer(log.Enforcer) {
 		if (cfg.GlobalCfg.EnforcerAlerts && isBPFLSM && log.Enforcer == "") || (!isBPFLSM && !cfg.GlobalCfg.DefaultPostureLogs) {
 			log = fd.UpdateMatchedPolicy(log)
 			isDefaultPostureLog := strings.Contains(log.PolicyName, "DefaultPosture")
@@ -683,11 +687,6 @@ func (fd *Feeder) PushLog(log tp.Log) {
 				log.Enforcer = "BPFLSM"
 			}
 		}
-	}
-
-	if log.Action == "BatchAudit" {
-		log.Action = "Audit"
-		log.Enforcer = "eBPF Monitor"
 	}
 
 	// change enforcer and format log Resource

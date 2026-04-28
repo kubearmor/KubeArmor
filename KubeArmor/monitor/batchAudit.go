@@ -537,11 +537,11 @@ func (mon *SystemMonitor) pollBatchAuditMapOnce() {
 	mon.BpfMapLock.Unlock()
 
 	for i := range keys {
-		mon.emitBatchAuditAlert(keys[i], vals[i])
+		mon.emitBatchAuditLog(keys[i], vals[i])
 	}
 }
 
-func (mon *SystemMonitor) emitBatchAuditAlert(key batchAuditAggregationKey, val batchAuditAggregationVal) {
+func (mon *SystemMonitor) emitBatchAuditLog(key batchAuditAggregationKey, val batchAuditAggregationVal) {
 	entrySize := int(val.EntrySampleSize)
 	retSize := int(val.RetSampleSize)
 	if entrySize <= 0 || entrySize > len(val.SampleData) {
@@ -559,7 +559,6 @@ func (mon *SystemMonitor) emitBatchAuditAlert(key batchAuditAggregationKey, val 
 	if retSize > 0 && entrySize+retSize <= len(val.SampleData) {
 		rs, err := decodeBatchAuditSample(val.SampleData[entrySize : entrySize+retSize])
 		if err != nil {
-			// try decoding as file aggregated ret sample
 			raw := val.SampleData[entrySize : entrySize+retSize]
 			if n := bytes.IndexByte(raw, 0); n >= 0 {
 				raw = raw[:n]
@@ -571,7 +570,16 @@ func (mon *SystemMonitor) emitBatchAuditAlert(key batchAuditAggregationKey, val 
 	}
 
 Flush:
-	log := formatBatchAuditBaseLog(mon, entrySample)
+	var containerID string
+	if entrySample.Ctx.PidID != 0 && entrySample.Ctx.MntID != 0 {
+		containerID = mon.LookupContainerID(entrySample.Ctx.PidID, entrySample.Ctx.MntID)
+	}
+
+	log := mon.BuildLogBase(entrySample.Ctx.EventID, ContextCombined{
+		ContainerID: containerID,
+		ContextSys:  entrySample.Ctx,
+		HashData:    entrySample.Hashes,
+	}, true)
 	if err := formatBatchAuditEvent(&log, entrySample, retSample); err != nil {
 		mon.Logger.Warnf("failed to format batch audit event: %v", err)
 		return
@@ -596,11 +604,22 @@ Flush:
 	mon.BatchAuditStateLock.RUnlock()
 
 	log.PolicyName = "Unknown"
+	log.Type = "HostLog"
+	if log.ContainerID != "" {
+		log.Type = "ContainerLog"
+	}
+
 	if ok {
-		if meta.Kind == "container" && log.ContainerID == "" {
-			// drop container-policy batch events that lost container mapping
-			// and would be reclassified as host alerts downstream.
-			return
+		switch meta.Kind {
+		case "container":
+			if log.ContainerID == "" {
+				// drop container-policy batch events that lost container mapping
+				// and would be reclassified as host logs downstream.
+				return
+			}
+			log.Type = "ContainerLog"
+		case "host":
+			log.Type = "HostLog"
 		}
 		log.PolicyName = meta.PolicyName
 		if log.NamespaceName == "" && meta.Namespace != "" {
@@ -618,7 +637,6 @@ Flush:
 		}
 	}
 
-	log.Type = "MatchedPolicy"
 	log.Enforcer = "eBPF Monitor"
 	log.Action = "BatchAudit"
 	if log.Result == "" {
@@ -654,18 +672,6 @@ func decodeBatchAuditSample(raw []byte) (batchAuditDecodedSample, error) {
 	}
 
 	return out, nil
-}
-
-func formatBatchAuditBaseLog(mon *SystemMonitor, sample batchAuditDecodedSample) tp.Log {
-	var containerID string
-	if sample.Ctx.PidID != 0 && sample.Ctx.MntID != 0 {
-		containerID = mon.LookupContainerID(sample.Ctx.PidID, sample.Ctx.MntID)
-	}
-	return mon.BuildLogBase(sample.Ctx.EventID, ContextCombined{
-		ContainerID: containerID,
-		ContextSys:  sample.Ctx,
-		HashData:    sample.Hashes,
-	}, true)
 }
 
 func formatBatchAuditEvent(log *tp.Log, entry batchAuditDecodedSample, ret *batchAuditDecodedSample) error {

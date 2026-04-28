@@ -391,7 +391,7 @@ func (dm *KubeArmorDaemon) MonitorCrioEvents() {
 			if len(newContainers) > 0 {
 				for containerID := range newContainers {
 					if err := dm.UpdateCrioContainer(context.Background(), containerID, "start"); err != nil {
-					kg.Warnf("Failed to update CRIO container %s: %s", containerID, err.Error())
+						kg.Warnf("Failed to update CRIO container %s: %s", containerID, err.Error())
 						invalidContainers = append(invalidContainers, containerID)
 					}
 				}
