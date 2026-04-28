@@ -936,8 +936,8 @@ decision:
     if (!match && allow->processmask == BLOCK_POSTURE)
     {
       retval = -EPERM;
-      goto ringbuf;
     }
+    goto ringbuf;
   }
 
   return 0;
@@ -960,7 +960,6 @@ ringbuf:
   task_info->event_id = eventID;
   task_info->retval = retval;
   bpf_ringbuf_submit(task_info, 0);
-  bpf_printk("KubeArmor DNS Match: name=%s\n", dns_name);
 
   return retval;
 }
@@ -979,11 +978,23 @@ int BPF_PROG(enforce_dns, struct socket *sock, struct msghdr *msg, int size)
 
   struct iovec iov = {};
   void *data = NULL;
-  bpf_probe_read(&iov, sizeof(iov), &msg->msg_iter.__iov);
+
+  if (bpf_core_field_exists(msg->msg_iter.__iov))
+  {
+    // kernel >= 6.4: __iov exists in BTF
+    bpf_probe_read_kernel(&iov, sizeof(iov), &msg->msg_iter.__iov);
+  }
+  else
+  {
+    // kernel < 6.4: iov at offset 24
+    // u8(1) + bool(1) + bool(1) + pad(5) + size_t(8) + size_t(8) = 24
+    bpf_probe_read_kernel(&iov, sizeof(iov), (void *)&msg->msg_iter + 24);
+  }
+
   bpf_probe_read(&data, sizeof(data), &iov.iov_base);
+
   if (!data)
   {
-    bpf_printk("KubeArmor DNS: failed to read iov_base\n");
     return 0;
   }
 
