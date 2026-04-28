@@ -4,7 +4,6 @@
 package feeder
 
 import (
-	"fmt"
 	"math"
 	"os"
 	"path/filepath"
@@ -1707,20 +1706,39 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 				if (!secPolicy.IsFromSource) || (secPolicy.IsFromSource && (strings.HasPrefix(log.Source, secPolicy.Source+" ") || secPolicy.Source == log.ProcessName)) {
 					matchedFlags := false
 
-					protocol := fetchProtocol(log.Resource)
-					if protocol == secPolicy.Resource || secPolicy.Resource == "all" {
-						matchedFlags = true
-					}
-					if secPolicy.Pts != nil && !*secPolicy.Pts {
-						if log.TTY == "" {
-							matchedFlags = false
-						} else {
+					protocol := "unknown"
+					switch secPolicy.ResourceType {
+					case "Protocol":
+						protocol = fetchProtocol(log.Resource)
+						if protocol == secPolicy.Resource || secPolicy.Resource == "all" {
 							matchedFlags = true
 						}
-					}
-					if log.Enforcer == "BPFLSM" {
-						fmt.Printf("resource :%s , data :%s source :%s ", log.Resource, log.Data, log.Source)
-						fmt.Println("secPolicy : ", secPolicy, matchedFlags)
+						if secPolicy.Pts != nil && !*secPolicy.Pts {
+							if log.TTY == "" {
+								matchedFlags = false
+							} else {
+								matchedFlags = true
+							}
+						}
+					case "DNS":
+						// For BPFLSM events, log.Resource is the domain.
+						// For kprobe (udp_sendmsg) audit events, the domain is embedded in log.Data (e.g., "domain=google.com").
+						resource := strings.ToLower(log.Resource)
+						if strings.Contains(log.Data, "domain=") {
+							for _, part := range strings.Split(log.Data, " ") {
+								if strings.HasPrefix(part, "domain=") {
+									resource = strings.ToLower(strings.TrimPrefix(part, "domain="))
+									break
+								}
+							}
+						}
+
+						// Match exact domain or K8s search-path expansions (e.g. google.com.svc.cluster.local)
+						domain := strings.ToLower(secPolicy.Resource)
+						if resource == domain || strings.HasPrefix(resource, domain+".") {
+							log.Resource = secPolicy.Resource // normalize log resource to the policy resource
+							matchedFlags = true
+						}
 					}
 
 					if matchedFlags {

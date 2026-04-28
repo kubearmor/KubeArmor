@@ -812,16 +812,6 @@ ringbuf:
   return retval;
 }
 
-// match_dns_rules enforces per-container DNS domain-name policy.
-// Mirrors match_net_rules exactly:
-//   - looks up container via outer_key → kubearmor_containers
-//   - supports fromSource (domain + process exe) and domain-only rules
-//   - supports block-posture default-deny
-//   - emits a ringbuf event on match
-//
-// Key layout in the inner policy map:
-//   bufs_k.path   = FQDN  (e.g. "evil.com")
-//   bufs_k.source = exe path for fromSource rules, or "" for domain-only
 static inline int match_dns_rules(char *dns_name, u32 eventID)
 {
   event *task_info;
@@ -833,12 +823,10 @@ static inline int match_dns_rules(char *dns_name, u32 eventID)
   struct outer_key okey;
   get_outer_key(&okey, t);
 
-  // Check if this process belongs to a monitored container.
   u32 *inner = bpf_map_lookup_elem(&kubearmor_containers, &okey);
   if (!inner)
     return 0;
 
-  // Fetch scratch key buffers from per-CPU array (same as match_net_rules).
   u32 zero = 0, one = 1, two = 2;
   bufs_k *z = bpf_map_lookup_elem(&bufk, &zero);
   if (z == NULL)
@@ -850,10 +838,8 @@ static inline int match_dns_rules(char *dns_name, u32 eventID)
   if (store == NULL)
     return 0;
 
-  // Reset p so previous hook invocations don't bleed in.
   bpf_map_update_elem(&bufk, &one, z, BPF_ANY);
 
-  // Copy the decoded FQDN into the lookup key.
   bpf_probe_read_str(p->path, MAX_STRING_SIZE, dns_name);
 
   struct data_t *val = NULL;
@@ -882,13 +868,14 @@ static inline int match_dns_rules(char *dns_name, u32 eventID)
       fromSourceCheck = false;
   }
 
-  // --- Rule lookup 1: domain + fromSource ---
   if (fromSourceCheck)
   {
+    bpf_map_update_elem(&bufk, &one, z, BPF_ANY);
+    bpf_probe_read_str(p->path, MAX_STRING_SIZE, dns_name);
     void *src_ptr = &src_buf->buf[*src_offset];
     bpf_probe_read_str(p->source, MAX_STRING_SIZE, src_ptr);
-    // p->path already set to FQDN above
     bpf_probe_read_str(store->source, MAX_STRING_SIZE, p->source);
+
     val = bpf_map_lookup_elem(inner, p);
     if (val)
     {
@@ -897,10 +884,8 @@ static inline int match_dns_rules(char *dns_name, u32 eventID)
     }
   }
 
-  // --- Rule lookup 2: domain-only (clear source field) ---
   bpf_map_update_elem(&bufk, &one, z, BPF_ANY);
   bpf_probe_read_str(p->path, MAX_STRING_SIZE, dns_name);
-  // p->source is empty (zeroed by the reset above)
   val = bpf_map_lookup_elem(inner, p);
   if (val)
   {
@@ -953,6 +938,8 @@ ringbuf:
   task_info->event_id = eventID;
   task_info->retval = retval;
   bpf_ringbuf_submit(task_info, 0);
+  bpf_printk("KubeArmor DNS Match: name=%s\n", dns_name);
+
   return retval;
 }
 
@@ -973,7 +960,10 @@ int BPF_PROG(enforce_dns, struct socket *sock, struct msghdr *msg, int size)
   bpf_probe_read(&iov, sizeof(iov), &msg->msg_iter.__iov);
   bpf_probe_read(&data, sizeof(data), &iov.iov_base);
   if (!data)
+  {
+    bpf_printk("KubeArmor DNS: failed to read iov_base\n");
     return 0;
+  }
 
   if (size > 512) // ignore oversized / malformed packets
     return 0;

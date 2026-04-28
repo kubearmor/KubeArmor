@@ -5,6 +5,7 @@ package bpflsm
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"strings"
 
@@ -339,35 +340,27 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 			}
 		}
 
+		ns := secPolicy.Metadata["namespaceName"]
 		for _, dns := range secPolicy.Spec.Network.MatchDNSQueries {
 			var val [2]uint16
-			var key = InnerKey{Path: [200]byte{}, Source: [200]byte{}}
-
-			copy(key.Path[:], []byte(dns.Domain))
 
 			if len(dns.FromSource) == 0 {
 				if dns.Action == "Allow" {
 					newrules.NetWhiteListPosture = true
-					newrules.NetworkRuleList[key] = val
-
+					domaintoMap(NETWORK, dns.Domain, "", ns, newrules.NetworkRuleList, val)
 				} else if dns.Action == "Block" {
 					val[NETWORK] = val[NETWORK] | DENY
-					newrules.NetworkRuleList[key] = val
+					domaintoMap(NETWORK, dns.Domain, "", ns, newrules.NetworkRuleList, val)
 				}
 			} else {
 				for _, src := range dns.FromSource {
-					var source [200]byte
-					copy(source[:], []byte(src.Path))
-					key.Source = source
 					if dns.Action == "Allow" {
 						newrules.NetWhiteListPosture = true
-						newrules.NetworkRuleList[key] = val
-
+						domaintoMap(NETWORK, dns.Domain, src.Path, ns, newrules.NetworkRuleList, val)
 					} else if dns.Action == "Block" {
 						val[NETWORK] = val[NETWORK] | DENY
-						newrules.NetworkRuleList[key] = val
+						domaintoMap(NETWORK, dns.Domain, src.Path, ns, newrules.NetworkRuleList, val)
 					}
-
 				}
 			}
 		}
@@ -532,6 +525,7 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 		}
 	}
 	for key, val := range newrules.NetworkRuleList {
+		fmt.Println("applying policy on container ", id, " with key ", key, " and value ", val)
 		be.ContainerMap[id].Rules.NetworkRuleList[key] = val
 		if err := be.ContainerMap[id].Map.Put(key, val); err != nil {
 			be.Logger.Errf("error adding rule to map for container %s: %s", id, err)
@@ -659,6 +653,29 @@ func dirtoMap(idx int, p, src string, m map[InnerKey][2]uint16, val [2]uint16) {
 			if oldval[idx]&DIR != 0 {
 				val[idx] = oldval[idx] | HINT
 			}
+		}
+		m[key] = val
+	}
+}
+
+func domaintoMap(idx int, domain, src, namespace string, m map[InnerKey][2]uint16, val [2]uint16) {
+	// K8s cluster search domain suffixes present on every standard cluster.
+	// These are injected alongside the exact domain so that the expanded queries
+	// sent by the pod resolver are also matched by the existing exact-match BPF code.
+	clusterSuffixes := []string{
+		"", // exact domain
+		".cluster.local",
+		".svc.cluster.local",
+	}
+	if namespace != "" {
+		clusterSuffixes = append(clusterSuffixes, "."+namespace+".svc.cluster.local")
+	}
+
+	for _, suffix := range clusterSuffixes {
+		var key InnerKey
+		copy(key.Path[:], []byte(domain+suffix))
+		if src != "" {
+			copy(key.Source[:], []byte(src))
 		}
 		m[key] = val
 	}
