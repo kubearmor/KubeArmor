@@ -5,7 +5,6 @@ package bpflsm
 
 import (
 	"errors"
-	"fmt"
 	"os"
 	"strings"
 
@@ -442,6 +441,7 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 		list.Rules.ProcWhiteListPosture = newrules.ProcWhiteListPosture
 		list.Rules.FileWhiteListPosture = newrules.FileWhiteListPosture
 		list.Rules.NetWhiteListPosture = newrules.NetWhiteListPosture
+		list.Rules.DNSNetWhiteListPosture = newrules.DNSNetWhiteListPosture
 		list.Rules.CapWhiteListPosture = newrules.CapWhiteListPosture
 
 		be.ContainerMap[id] = list
@@ -546,7 +546,6 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 		}
 	}
 	for key, val := range newrules.NetworkRuleList {
-		fmt.Println("applying policy on container ", id, " with key ", key, " and value ", val)
 		be.ContainerMap[id].Rules.NetworkRuleList[key] = val
 		if err := be.ContainerMap[id].Map.Put(key, val); err != nil {
 			be.Logger.Errf("error adding rule to map for container %s: %s", id, err)
@@ -687,6 +686,7 @@ func domaintoMap(idx int, domain, src, namespace string, m map[InnerKey][2]uint1
 		"", // exact domain
 		".cluster.local",
 		".svc.cluster.local",
+		".domain.name",
 	}
 	if namespace != "" {
 		clusterSuffixes = append(clusterSuffixes, "."+namespace+".svc.cluster.local")
