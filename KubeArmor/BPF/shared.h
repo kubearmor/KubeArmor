@@ -53,7 +53,8 @@ enum deny_by_default
   dproc = 101,
   dfile,
   dnet,
-  dcap
+  dcap,
+  ddns
 }; // check if the list is whitelist/blacklist
 enum network_check_type
 {
