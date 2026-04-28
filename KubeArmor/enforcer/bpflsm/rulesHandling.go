@@ -687,6 +687,7 @@ func domaintoMap(idx int, domain, src, namespace string, m map[InnerKey][2]uint1
 		"", // exact domain
 		".cluster.local",
 		".svc.cluster.local",
+		".domain.name",
 	}
 	if namespace != "" {
 		clusterSuffixes = append(clusterSuffixes, "."+namespace+".svc.cluster.local")

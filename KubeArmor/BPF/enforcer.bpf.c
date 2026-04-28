@@ -938,7 +938,6 @@ ringbuf:
   task_info->event_id = eventID;
   task_info->retval = retval;
   bpf_ringbuf_submit(task_info, 0);
-  bpf_printk("KubeArmor DNS Match: name=%s\n", dns_name);
 
   return retval;
 }
@@ -961,7 +960,6 @@ int BPF_PROG(enforce_dns, struct socket *sock, struct msghdr *msg, int size)
   bpf_probe_read(&data, sizeof(data), &iov.iov_base);
   if (!data)
   {
-    bpf_printk("KubeArmor DNS: failed to read iov_base\n");
     return 0;
   }
 
