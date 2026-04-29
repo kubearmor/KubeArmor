@@ -1828,7 +1828,7 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 						}
 					}
 					// if protocol is unknown we skip the audit alert event
-					if protocol == "unknown" && log.Type == "Protocol" {
+					if protocol == "unknown" && secPolicy.ResourceType == "Protocol" {
 						log.Type = "MatchedPolicy"
 						log.Action = "Allow"
 						continue

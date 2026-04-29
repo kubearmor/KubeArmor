@@ -914,8 +914,8 @@ decision:
     if (!match && allow->processmask == BLOCK_POSTURE)
     {
       retval = -EPERM;
-      goto ringbuf;
-    }
+        }
+    goto ringbuf;
   }
 
   return 0;
