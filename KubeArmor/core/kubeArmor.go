@@ -44,6 +44,7 @@ import (
 
 // StopChan Channel
 var StopChan chan struct{}
+var Daemon *KubeArmorDaemon
 
 // init Function
 func init() {
@@ -184,7 +185,12 @@ func NewKubeArmorDaemon() *KubeArmorDaemon {
 
 // DestroyKubeArmorDaemon Function
 func (dm *KubeArmorDaemon) DestroyKubeArmorDaemon() {
-	close(StopChan)
+	select {
+	case <-StopChan:
+		// already closed
+	default:
+		close(StopChan) // closes StopChan which unblocks KubeArmor()
+	}
 
 	if dm.RuntimeEnforcer != nil {
 		// close runtime enforcer
@@ -459,6 +465,9 @@ func (dm *KubeArmorDaemon) MonitorSystemEvents() {
 
 // CloseSystemMonitor Function
 func (dm *KubeArmorDaemon) CloseSystemMonitor() error {
+	if dm.SystemMonitor == nil {
+		return nil
+	}
 	if err := dm.SystemMonitor.DestroySystemMonitor(); err != nil {
 		return fmt.Errorf("failed to destroy KubeArmor Monitor: %w", err)
 	}
@@ -952,8 +961,7 @@ func (dm *KubeArmorDaemon) setupNonK8sPolicyService() {
 func KubeArmor() {
 	// create a daemon
 	dm := NewKubeArmorDaemon()
-	defer dm.DestroyKubeArmorDaemon()
-
+	Daemon = dm
 	if err := dm.initializeEnvironment(); err != nil {
 		kg.Errf("failed to initialized environment: %v", err)
 		dm.DestroyKubeArmorDaemon()
@@ -1100,11 +1108,20 @@ func KubeArmor() {
 	// == //
 
 	if !cfg.GlobalCfg.CoverageTest {
-		// listen for interrupt signals
 		sigChan := GetOSSigChannel()
-		<-sigChan
-		dm.Logger.Print("Got a signal to terminate KubeArmor")
+		select {
+		case <-sigChan:
+			dm.Logger.Print("Got a signal to terminate KubeArmor")
+		case <-StopChan:
+			// Windows service path — DestroyKubeArmorDaemon was already
+			// called from Execute, just return so core.KubeArmor() exits
+			// which closes done and unblocks <-done in Execute
+			dm.Logger.Print("Got a stop request to terminate KubeArmor")
+			return
+		}
 	}
+
+	dm.DestroyKubeArmorDaemon()
 }
 
 func (dm *KubeArmorDaemon) checkNRIAvailability() error {

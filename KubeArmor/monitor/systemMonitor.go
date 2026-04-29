@@ -191,54 +191,52 @@ type MonitorState struct {
 // SystemMonitor Structure
 type SystemMonitor struct {
 	// monitor state
-	MonitorState
+	*MonitorState
 	// monitor module
 	Monitor
 	// IMA hash
 	ImaHash
-	// context + args
-	ContextChan chan ContextCombined
 }
 
 // NewSystemMonitor Function
 func NewSystemMonitor(node *tp.Node, nodeLock **sync.RWMutex, logger *fd.Feeder, containers *map[string]tp.Container, containersLock **sync.RWMutex,
 	activeHostPidMap *map[string]tp.PidMap, activePidMapLock **sync.RWMutex, monitorLock **sync.RWMutex) *SystemMonitor {
 	mon := new(SystemMonitor)
-	mon.MonitorState = *new(MonitorState)
-	mon.Node = node
-	mon.NodeLock = nodeLock
-	mon.Logger = logger
+	ms := new(MonitorState)
+	ms.Node = node
+	ms.NodeLock = nodeLock
+	ms.Logger = logger
 
-	mon.Containers = containers
-	mon.ContainersLock = containersLock
+	ms.Containers = containers
+	ms.ContainersLock = containersLock
 
-	mon.ActiveHostPidMap = activeHostPidMap
-	mon.ActivePidMapLock = activePidMapLock
+	ms.ActiveHostPidMap = activeHostPidMap
+	ms.ActivePidMapLock = activePidMapLock
 
-	mon.NsMap = make(map[NsKey]string)
-	mon.NsMapLock = new(sync.RWMutex)
+	ms.NsMap = make(map[NsKey]string)
+	ms.NsMapLock = new(sync.RWMutex)
 
-	mon.ContextChan = make(chan ContextCombined, 4096)
+	ms.MonitorLock = monitorLock
 
-	mon.MonitorLock = monitorLock
+	ms.Status = true
+	ms.UptimeTimeStamp = kl.GetUptimeTimestamp()
+	ms.HostByteOrder = binary.LittleEndian
 
-	mon.Status = true
-	mon.UptimeTimeStamp = kl.GetUptimeTimestamp()
-	mon.HostByteOrder = binary.LittleEndian
+	ms.execLogMap = map[uint32]tp.Log{}
+	ms.execLogMapLock = new(sync.RWMutex)
 
-	mon.execLogMap = map[uint32]tp.Log{}
-	mon.execLogMapLock = new(sync.RWMutex)
-
-	mon.NamespacePidsMap = make(map[string]NsVisibility)
+	ms.NamespacePidsMap = make(map[string]NsVisibility)
 
 	// assign the value of untracked ns from GlobalCfg
-	mon.UntrackedNamespaces = make([]string, len(cfg.GlobalCfg.ConfigUntrackedNs))
-	copy(mon.UntrackedNamespaces, cfg.GlobalCfg.ConfigUntrackedNs)
+	ms.UntrackedNamespaces = make([]string, len(cfg.GlobalCfg.ConfigUntrackedNs))
+	copy(ms.UntrackedNamespaces, cfg.GlobalCfg.ConfigUntrackedNs)
 
-	mon.PodLabelsMap = make(map[string]string)
-	mon.PodLabelsMapLock = new(sync.RWMutex)
+	ms.PodLabelsMap = make(map[string]string)
+	ms.PodLabelsMapLock = new(sync.RWMutex)
 
-	mon.Monitor = mon.NewMonitor(&mon.MonitorState)
+	mon.MonitorState = ms
+
+	mon.Monitor = mon.NewMonitor(ms)
 
 	return mon
 }

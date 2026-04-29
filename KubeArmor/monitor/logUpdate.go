@@ -128,12 +128,13 @@ func (mon *MonitorState) UpdateLogBase(ctx SyscallContext, log tp.Log) tp.Log {
 
 // UpdateLogs Function
 func (mon *SystemMonitor) UpdateLogs() {
+	contextChan := mon.GetContextChannel()
 	for {
 		select {
 		case <-StopChan:
 			return
 
-		case msg, valid := <-mon.ContextChan:
+		case msg, valid := <-contextChan:
 			if !valid {
 				continue
 			}

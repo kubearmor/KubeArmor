@@ -84,14 +84,14 @@ func (dm *KubeArmorDaemon) WatchConfigChanges() {
 		}
 
 		// Update throttling configs
-		dm.SystemMonitor.UpdateThrottlingConfig()
+		// dm.SystemMonitor.UpdateThrottlingConfig()
 
 		// Update USB Device Handler
-		dm.UpdateUSBDeviceHandler(cfg.GlobalCfg.USBDeviceHandler)
+		// dm.UpdateUSBDeviceHandler(cfg.GlobalCfg.USBDeviceHandler)
 
 		// Update the default posture and visibility for the unorchestrated containers
-		dm.SystemMonitor.UpdateDefaultVisibility()
-		dm.UpdateHostSecurityPolicies()
+		// dm.SystemMonitor.UpdateDefaultVisibility()
+		// dm.UpdateHostSecurityPolicies()
 	})
 	viper.WatchConfig()
 }

@@ -61,9 +61,21 @@ func readInt8FromBuff(buff io.Reader) (int8, error) {
 	return res, err
 }
 
+func readUInt8FromBuff(buff io.Reader) (uint8, error) {
+	var res uint8
+	err := binary.Read(buff, binary.LittleEndian, &res)
+	return res, err
+}
+
 // readInt16FromBuff Function
 func readInt16FromBuff(buff io.Reader) (int16, error) {
 	var res int16
+	err := binary.Read(buff, binary.LittleEndian, &res)
+	return res, err
+}
+
+func readUInt16FromBuff(buff io.Reader) (uint16, error) {
+	var res uint16
 	err := binary.Read(buff, binary.LittleEndian, &res)
 	return res, err
 }
@@ -93,6 +105,20 @@ func readUInt32FromBuff(buff io.Reader) (uint32, error) {
 func readUInt32BigendFromBuff(buff io.Reader) (uint32, error) {
 	var res uint32
 	err := binary.Read(buff, binary.BigEndian, &res)
+	return res, err
+}
+
+// readInt64FromBuff Function
+func readInt64FromBuff(buff io.Reader) (int64, error) {
+	var res int64
+	err := binary.Read(buff, binary.LittleEndian, &res)
+	return res, err
+}
+
+// readUInt64FromBuff Function
+func readUInt64FromBuff(buff io.Reader) (uint64, error) {
+	var res uint64
+	err := binary.Read(buff, binary.LittleEndian, &res)
 	return res, err
 }
 

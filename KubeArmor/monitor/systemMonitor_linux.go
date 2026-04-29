@@ -72,6 +72,7 @@ func (mon *SystemMonitor) NewMonitor(ms *MonitorState) Monitor {
 		ValueSize:  4,
 		MaxEntries: 6,
 	}
+	m.contextChan = make(chan ContextCombined, 4096)
 	kl.CheckOrMountBPFFs(cfg.GlobalCfg.BPFFsPath)
 	m.PinPath = kl.GetMapRoot()
 

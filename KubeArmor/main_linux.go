@@ -1,3 +1,5 @@
+//go:build linux
+
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2021 Authors of KubeArmor
 
@@ -7,7 +9,6 @@ package main
 import (
 	"os"
 	"path/filepath"
-	"runtime"
 
 	"github.com/kubearmor/KubeArmor/KubeArmor/buildinfo"
 	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
@@ -20,7 +21,7 @@ func init() {
 }
 
 func main() {
-	if runtime.GOOS != "windows" && os.Geteuid() != 0 {
+	if os.Geteuid() != 0 {
 		if os.Getenv("KUBEARMOR_UBI") == "" {
 			kg.Printf("Need to have root privileges to run %s\n", os.Args[0])
 			return

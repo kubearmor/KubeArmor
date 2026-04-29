@@ -35,10 +35,10 @@ func parseDataString(data string) map[string]string {
 	if data == "" {
 		return nil
 	}
-	
+
 	result := make(map[string]string)
 	pairs := strings.Fields(data) // Split by whitespace
-	
+
 	for _, pair := range pairs {
 		if strings.Contains(pair, "=") {
 			parts := strings.SplitN(pair, "=", 2) // Split only on first "="
@@ -51,7 +51,7 @@ func parseDataString(data string) map[string]string {
 			}
 		}
 	}
-	
+
 	return result
 }
 
@@ -572,7 +572,7 @@ func (fd *Feeder) PushLog(log tp.Log) {
 	   container/host log depending upon the defaultPostureLogs flag
 	*/
 	isBPFLSM := fd.GetEnforcer() == "BPFLSM"
-	if !common.IsPresetEnforcer(log.Enforcer) {
+	if !common.IsPresetEnforcer(log.Enforcer) && !(fd.GetEnforcer() == "Minifilter") {
 		if (cfg.GlobalCfg.EnforcerAlerts && isBPFLSM && log.Enforcer == "") || (!isBPFLSM && !cfg.GlobalCfg.DefaultPostureLogs) {
 			log = fd.UpdateMatchedPolicy(log)
 			isDefaultPostureLog := strings.Contains(log.PolicyName, "DefaultPosture")

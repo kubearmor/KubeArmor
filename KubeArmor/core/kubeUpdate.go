@@ -160,9 +160,13 @@ func (dm *KubeArmorDaemon) checkAndUpdateNode(item *corev1.Node) {
 	dm.HandleNodeAnnotations(&node)
 
 	// update node info
+	dm.Logger.Print("checkAndUpdateNode locking node")
 	dm.NodeLock.Lock()
+	dm.Logger.Print("checkAndUpdateNode locked node")
 	dm.Node = node
+	dm.Logger.Print("checkAndUpdateNode unlocking node")
 	dm.NodeLock.Unlock()
+	dm.Logger.Print("checkAndUpdateNode unlocked node")
 }
 
 // WatchK8sNodes Function
@@ -260,7 +264,9 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 		}
 
 		containersAppArmorProfiles := map[string]string{}
+		dm.Logger.Print("UpdateEndPointWithPod locking container")
 		dm.ContainersLock.Lock()
+		dm.Logger.Print("UpdateEndPointWithPod locked container")
 
 		// update containers and apparmors
 		for _, containerID := range newPoint.Containers {
@@ -310,9 +316,13 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 			// and delete the container id from  NamespacePidsMap within "Unknown" namespace
 			dm.HandleUnknownNamespaceNsMap(&container)
 		}
+		dm.Logger.Print("UpdateEndPointWithPod unlocking container")
 		dm.ContainersLock.Unlock()
+		dm.Logger.Print("UpdateEndPointWithPod unlocked container")
 
+		dm.Logger.Print("UpdateEndPointWithPod locking defaultposture")
 		dm.DefaultPosturesLock.Lock()
+		dm.Logger.Print("UpdateEndPointWithPod locked defaultposture")
 		if val, ok := dm.DefaultPostures[newPoint.NamespaceName]; ok {
 			newPoint.DefaultPosture = val
 		} else {
@@ -323,7 +333,9 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 			}
 			newPoint.DefaultPosture = globalDefaultPosture
 		}
+		dm.Logger.Print("UpdateEndPointWithPod unlocking container")
 		dm.DefaultPosturesLock.Unlock()
+		dm.Logger.Print("UpdateEndPointWithPod unlocked container")
 
 		// update security policies with the identities
 		newPoint.SecurityPolicies = dm.GetSecurityPolicies(newPoint)
@@ -347,12 +359,16 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 			endpoints = append(endpoints, endpoint)
 		}
 
+		dm.Logger.Print("UpdateEndPointWithPod locking endpoint")
 		dm.EndPointsLock.Lock()
+		dm.Logger.Print("UpdateEndPointWithPod locked endpoint")
 
 		// add the endpoint into the endpoint list
 		dm.EndPoints = append(dm.EndPoints, endpoints...)
 
+		dm.Logger.Print("UpdateEndPointWithPod unlocking endpoint")
 		dm.EndPointsLock.Unlock()
+		dm.Logger.Print("UpdateEndPointWithPod unlocked endpoint")
 
 		if cfg.GlobalCfg.Policy {
 			// update security policies
@@ -378,14 +394,18 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 		newEndPoint := tp.EndPoint{}
 		endpoints := []tp.EndPoint{}
 
+		dm.Logger.Print("UpdateEndPointWithPod locking endpoint")
 		dm.EndPointsLock.RLock()
+		dm.Logger.Print("UpdateEndPointWithPod locked endpoint")
 		for _, endPoint := range dm.EndPoints {
 			if pod.Metadata["namespaceName"] == endPoint.NamespaceName && pod.Metadata["podName"] == endPoint.EndPointName {
 				endpoints = append(endpoints, endPoint)
 				break
 			}
 		}
+		dm.Logger.Print("UpdateEndPointWithPod unlocking endpoint")
 		dm.EndPointsLock.RUnlock()
+		dm.Logger.Print("UpdateEndPointWithPod unlocked endpoint")
 		if len(endpoints) == 0 {
 			// No endpoints were added as containers ID have been just added
 			// Same logic as ADDED
@@ -443,7 +463,9 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 
 			containersAppArmorProfiles := map[string]string{}
 
+			dm.Logger.Print("UpdateEndPointWithPod locking container")
 			dm.ContainersLock.Lock()
+			dm.Logger.Print("UpdateEndPointWithPod locked container")
 			// update containers and apparmors
 			for _, containerID := range newEndPoint.Containers {
 				container := dm.Containers[containerID]
@@ -487,9 +509,13 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 				// and delete the container id from  NamespacePidsMap within "Unknown" namespace
 				dm.HandleUnknownNamespaceNsMap(&container)
 			}
+			dm.Logger.Print("UpdateEndPointWithPod unlocking container")
 			dm.ContainersLock.Unlock()
+			dm.Logger.Print("UpdateEndPointWithPod unlocked container")
 
+			dm.Logger.Print("UpdateEndPointWithPod locking defaultposture")
 			dm.DefaultPosturesLock.Lock()
+			dm.Logger.Print("UpdateEndPointWithPod locked defaultposture")
 			if val, ok := dm.DefaultPostures[newEndPoint.NamespaceName]; ok {
 				newEndPoint.DefaultPosture = val
 			} else {
@@ -500,7 +526,9 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 				}
 				newEndPoint.DefaultPosture = globalDefaultPosture
 			}
+			dm.Logger.Print("UpdateEndPointWithPod unlocking defaultposture")
 			dm.DefaultPosturesLock.Unlock()
+			dm.Logger.Print("UpdateEndPointWithPod unlocked defaultposture")
 
 			// get security policies according to the updated identities
 			newEndPoint.SecurityPolicies = dm.GetSecurityPolicies(newEndPoint)
@@ -524,7 +552,9 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 				endpoints = append(newendpoints, endpoint)
 			}
 
+			dm.Logger.Print("UpdateEndPointWithPod locking endpoint")
 			dm.EndPointsLock.Lock()
+			dm.Logger.Print("UpdateEndPointWithPod locked endpoint")
 
 			idx := 0
 			nidx := 0
@@ -535,7 +565,9 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 				}
 				idx++
 			}
+			dm.Logger.Print("UpdateEndPointWithPod unlocking endpoint")
 			dm.EndPointsLock.Unlock()
+			dm.Logger.Print("UpdateEndPointWithPod unlocked endpoint")
 			for _, endpoint := range endpoints {
 				if cfg.GlobalCfg.Policy {
 					// update security policies
@@ -559,7 +591,9 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 		}
 
 	} else { // DELETED
+		dm.Logger.Print("UpdateEndPointWithPod locking endpoint")
 		dm.EndPointsLock.Lock()
+		dm.Logger.Print("UpdateEndPointWithPod locked endpoint")
 		idx := 0
 		endpointsLength := len(dm.EndPoints)
 		for idx < endpointsLength {
@@ -571,14 +605,18 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 			}
 			idx++
 		}
+		dm.Logger.Print("UpdateEndPointWithPod locking endpoint")
 		dm.EndPointsLock.Unlock()
+		dm.Logger.Print("UpdateEndPointWithPod locked endpoint")
 	}
 }
 
 // HandleUnknownNamespaceNsMap Function
 func (dm *KubeArmorDaemon) HandleUnknownNamespaceNsMap(container *tp.Container) {
 	dm.SystemMonitor.AddContainerIDToNsMap(container.ContainerID, container.NamespaceName, container.PidNS, container.MntNS)
+	dm.Logger.Print("HandleUnknownNamespaceNsMap locking nsmap")
 	dm.SystemMonitor.NsMapLock.Lock()
+	dm.Logger.Print("HandleUnknownNamespaceNsMap locked nsmap")
 	if val, ok := dm.SystemMonitor.NamespacePidsMap["Unknown"]; ok {
 		for i := range val.NsKeys {
 			if val.NsKeys[i].MntNS == container.MntNS && val.NsKeys[i].PidNS == container.PidNS {
@@ -588,7 +626,9 @@ func (dm *KubeArmorDaemon) HandleUnknownNamespaceNsMap(container *tp.Container) 
 		}
 		dm.SystemMonitor.NamespacePidsMap["Unknown"] = val
 	}
+	dm.Logger.Print("HandleUnknownNamespaceNsMap unlocking nsmap")
 	dm.SystemMonitor.NsMapLock.Unlock()
+	dm.Logger.Print("HandleUnknownNamespaceNsMap unlocked nsmap")
 }
 
 func (dm *KubeArmorDaemon) handlePodEvent(event string, obj *corev1.Pod) {
@@ -609,7 +649,9 @@ func (dm *KubeArmorDaemon) handlePodEvent(event string, obj *corev1.Pod) {
 	pod.Metadata["podName"] = obj.ObjectMeta.Name
 	var controllerName, controller, namespace string
 	var err error
+	dm.Logger.Print("HandlePodEvent locking ownerinfo")
 	dm.OwnerInfoLock.Lock()
+	dm.Logger.Print("HandlePodEvent locked ownerinfo")
 
 	if event == addEvent {
 		controllerName, controller, namespace, err = getTopLevelOwner(obj.ObjectMeta, obj.Namespace, obj.Kind)
@@ -646,7 +688,9 @@ func (dm *KubeArmorDaemon) handlePodEvent(event string, obj *corev1.Pod) {
 		dm.OwnerInfo[pod.Metadata["podName"]] = owner
 		podOwnerName = controllerName
 	}
+	dm.Logger.Print("HandlePodEvent unlocking ownerinfo")
 	dm.OwnerInfoLock.Unlock()
+	dm.Logger.Print("HandlePodEvent unlocked ownerinfo")
 
 	//get the owner , then check if that owner has owner if...do it recusivelt until you get the no owner
 
@@ -676,9 +720,13 @@ func (dm *KubeArmorDaemon) handlePodEvent(event string, obj *corev1.Pod) {
 	for k, v := range pod.Labels {
 		labels = append(labels, k+"="+v)
 	}
+	dm.Logger.Print("HandlePodEvent locking podlabel")
 	dm.SystemMonitor.PodLabelsMapLock.Lock()
+	dm.Logger.Print("HandlePodEvent locked podlabel")
 	dm.SystemMonitor.PodLabelsMap[pod.Metadata["podName"]] = strings.Join(labels, ",")
+	dm.Logger.Print("HandlePodEvent unlocking podlabel")
 	dm.SystemMonitor.PodLabelsMapLock.Unlock()
+	dm.Logger.Print("HandlePodEvent unlocked podlabel")
 
 	pod.Containers = map[string]string{}
 	pod.ContainerImages = map[string]string{}
@@ -745,7 +793,9 @@ func (dm *KubeArmorDaemon) handlePodEvent(event string, obj *corev1.Pod) {
 	if event == addEvent || event == updateEvent {
 		exist := false
 
+		dm.Logger.Print("HandlePodEvent locking k8spod")
 		dm.K8sPodsLock.RLock()
+		dm.Logger.Print("HandlePodEvent locked k8spod")
 		for _, k8spod := range dm.K8sPods {
 			if k8spod.Metadata["namespaceName"] == pod.Metadata["namespaceName"] && k8spod.Metadata["podName"] == pod.Metadata["podName"] {
 				if k8spod.Annotations["kubearmor-policy"] == "patched" {
@@ -754,7 +804,9 @@ func (dm *KubeArmorDaemon) handlePodEvent(event string, obj *corev1.Pod) {
 				}
 			}
 		}
+		dm.Logger.Print("HandlePodEvent unlocking k8spod")
 		dm.K8sPodsLock.RUnlock()
+		dm.Logger.Print("HandlePodEvent unlocked k8spod")
 
 		if exist {
 			return
@@ -766,7 +818,9 @@ func (dm *KubeArmorDaemon) handlePodEvent(event string, obj *corev1.Pod) {
 	if dm.RuntimeEnforcer != nil && dm.RuntimeEnforcer.GetEnforcerType() == "AppArmor" {
 		appArmorAnnotations := map[string]string{}
 		updateAppArmor := false
+		dm.Logger.Print("HandlePodEvent locking ownerinfo")
 		dm.OwnerInfoLock.RLock()
+		dm.Logger.Print("HandlePodEvent locked ownerinfo")
 		if dm.OwnerInfo[pod.Metadata["podName"]].Name != "" {
 			if dm.OwnerInfo[pod.Metadata["podName"]].Ref == "StatefulSet" {
 				statefulset, err := K8s.K8sClient.AppsV1().StatefulSets(pod.Metadata["namespaceName"]).Get(context.Background(), podOwnerName, metav1.GetOptions{})
@@ -824,7 +878,9 @@ func (dm *KubeArmorDaemon) handlePodEvent(event string, obj *corev1.Pod) {
 			}
 
 		}
+		dm.Logger.Print("HandlePodEvent unlocking ownerinfo")
 		dm.OwnerInfoLock.RUnlock()
+		dm.Logger.Print("HandlePodEvent unlocked ownerinfo")
 
 		for k, v := range pod.Annotations {
 			if strings.HasPrefix(k, "container.apparmor.security.beta.kubernetes.io") {
@@ -863,7 +919,9 @@ func (dm *KubeArmorDaemon) handlePodEvent(event string, obj *corev1.Pod) {
 		if event == addEvent {
 			// update apparmor profiles
 			dm.RuntimeEnforcer.UpdateAppArmorProfiles(pod.Metadata["podName"], addEvent, appArmorAnnotations, pod.PrivilegedAppArmorProfiles)
+			dm.Logger.Print("HandlePodEvent locking ownerinfo")
 			dm.OwnerInfoLock.RLock()
+			dm.Logger.Print("HandlePodEvent locked ownerinfo")
 			if updateAppArmor && pod.Annotations["kubearmor-policy"] == "enabled" && dm.OwnerInfo[pod.Metadata["podName"]].Ref != "Pod" {
 
 				// patch deployments only when kubearmor-controller is not present
@@ -878,10 +936,14 @@ func (dm *KubeArmorDaemon) handlePodEvent(event string, obj *corev1.Pod) {
 					pod.Annotations["kubearmor-policy"] = "patched"
 				}
 			}
+			dm.Logger.Print("HandlePodEvent unlocking ownerinfo")
 			dm.OwnerInfoLock.RUnlock()
+			dm.Logger.Print("HandlePodEvent unlocked ownerinfo")
 
 		} else if event == updateEvent {
+			dm.Logger.Print("HandlePodEvent locking ownerinfo")
 			dm.OwnerInfoLock.RLock()
+			dm.Logger.Print("HandlePodEvent locked ownerinfo")
 			for _, k8spod := range dm.K8sPods {
 				if k8spod.Metadata["namespaceName"] == pod.Metadata["namespaceName"] && k8spod.Metadata["podName"] == pod.Metadata["podName"] {
 					prevPolicyEnabled := "disabled"
@@ -908,14 +970,18 @@ func (dm *KubeArmorDaemon) handlePodEvent(event string, obj *corev1.Pod) {
 					break
 				}
 			}
+			dm.Logger.Print("HandlePodEvent unlocking ownerinfo")
 			dm.OwnerInfoLock.RUnlock()
+			dm.Logger.Print("HandlePodEvent unlocked ownerinfo")
 		} else if event == deleteEvent {
 			// update apparmor profiles
 			dm.RuntimeEnforcer.UpdateAppArmorProfiles(pod.Metadata["podName"], deleteEvent, appArmorAnnotations, pod.PrivilegedAppArmorProfiles)
 		}
 	}
 
+	dm.Logger.Print("HandlePodEvent locking k8spod")
 	dm.K8sPodsLock.Lock()
+	dm.Logger.Print("HandlePodEvent locked k8spod")
 
 	if event == addEvent {
 		newPod := true
@@ -954,7 +1020,9 @@ func (dm *KubeArmorDaemon) handlePodEvent(event string, obj *corev1.Pod) {
 		}
 	}
 
+	dm.Logger.Print("HandlePodEvent locking k8spod")
 	dm.K8sPodsLock.Unlock()
+	dm.Logger.Print("HandlePodEvent locked k8spod")
 
 	if pod.Annotations["kubearmor-policy"] == "patched" {
 		dm.Logger.Printf("Detected a Pod (patched/%s/%s)", pod.Metadata["namespaceName"], pod.Metadata["podName"])
@@ -1065,8 +1133,14 @@ func updateNamespaceListforCSP(policy *tp.SecurityPolicy) {
 
 // GetSecurityPolicies Function
 func (dm *KubeArmorDaemon) GetSecurityPolicies(endPoint tp.EndPoint) []tp.SecurityPolicy {
+	dm.Logger.Print("GetSecurityPolicies locking secpol")
 	dm.SecurityPoliciesLock.RLock()
-	defer dm.SecurityPoliciesLock.RUnlock()
+	dm.Logger.Print("GetSecurityPolicies locked secpol")
+	defer func() {
+		dm.Logger.Print("GetSecurityPolicies unlocking secpol")
+		dm.SecurityPoliciesLock.RUnlock()
+		dm.Logger.Print("GetSecurityPolicies unlocked secpol")
+	}()
 
 	secPolicies := []tp.SecurityPolicy{}
 
@@ -1098,14 +1172,22 @@ func containsPolicy(endPointPolicies []tp.SecurityPolicy, secPolicy tp.SecurityP
 
 // UpdateSecurityPolicy Function
 func (dm *KubeArmorDaemon) UpdateSecurityPolicy(action string, secPolicyType string, secPolicy tp.SecurityPolicy) {
+	dm.Logger.Print("UpdateSecurityPolicy locking endpoint")
 	dm.EndPointsLock.RLock()
+	dm.Logger.Print("UpdateSecurityPolicy locked endpoint")
 	endPointsLength := len(dm.EndPoints)
+	dm.Logger.Print("UpdateSecurityPolicy unlocking endpoint")
 	dm.EndPointsLock.RUnlock()
+	dm.Logger.Print("UpdateSecurityPolicy unlocked endpoint")
 
 	for idx := range endPointsLength {
+		dm.Logger.Print("UpdateSecurityPolicy locking endpoint")
 		dm.EndPointsLock.RLock()
+		dm.Logger.Print("UpdateSecurityPolicy locked endpoint")
 		endPoint := dm.EndPoints[idx]
+		dm.Logger.Print("UpdateSecurityPolicy unlocking endpoint")
 		dm.EndPointsLock.RUnlock()
+		dm.Logger.Print("UpdateSecurityPolicy unlocked endpoint")
 
 		// update a security policy
 		if secPolicyType == KubeArmorPolicy {
@@ -1153,9 +1235,13 @@ func (dm *KubeArmorDaemon) UpdateSecurityPolicy(action string, secPolicyType str
 					}
 				}
 
+				dm.Logger.Print("UpdateSecurityPolicy locking endpoint")
 				dm.EndPointsLock.Lock()
+				dm.Logger.Print("UpdateSecurityPolicy locked endpoint")
 				dm.EndPoints[idx] = endPoint
+				dm.Logger.Print("UpdateSecurityPolicy unlocking endpoint")
 				dm.EndPointsLock.Unlock()
+				dm.Logger.Print("UpdateSecurityPolicy unlocked endpoint")
 
 				if cfg.GlobalCfg.Policy {
 					// update security policies
@@ -1226,9 +1312,13 @@ func (dm *KubeArmorDaemon) UpdateSecurityPolicy(action string, secPolicyType str
 					}
 				}
 
+				dm.Logger.Print("UpdateSecurityPolicy locking endpoint")
 				dm.EndPointsLock.Lock()
+				dm.Logger.Print("UpdateSecurityPolicy locked endpoint")
 				dm.EndPoints[idx] = endPoint
+				dm.Logger.Print("UpdateSecurityPolicy unlocking endpoint")
 				dm.EndPointsLock.Unlock()
+				dm.Logger.Print("UpdateSecurityPolicy unlocked endpoint")
 
 				if cfg.GlobalCfg.Policy {
 					// update security policies
@@ -1765,7 +1855,9 @@ func (dm *KubeArmorDaemon) WatchSecurityPolicies() cache.InformerSynced {
 						dm.Logger.Warnf("Error ADD, %s", err)
 						return
 					}
+					dm.Logger.Print("UpdateSecurityPolicy locking secpol")
 					dm.SecurityPoliciesLock.Lock()
+					dm.Logger.Print("UpdateSecurityPolicy locked secpol")
 					new := true
 					for _, policy := range dm.SecurityPolicies {
 						if policy.Metadata["namespaceName"] == secPolicy.Metadata["namespaceName"] && policy.Metadata["policyName"] == secPolicy.Metadata["policyName"] {
@@ -1776,7 +1868,9 @@ func (dm *KubeArmorDaemon) WatchSecurityPolicies() cache.InformerSynced {
 					if new {
 						dm.SecurityPolicies = append(dm.SecurityPolicies, secPolicy)
 					}
+					dm.Logger.Print("UpdateSecurityPolicy unlocking endpoint")
 					dm.SecurityPoliciesLock.Unlock()
+					dm.Logger.Print("UpdateSecurityPolicy unlocked endpoint")
 					dm.Logger.Printf("Detected a Security Policy (added/%s/%s)", secPolicy.Metadata["namespaceName"], secPolicy.Metadata["policyName"])
 
 					// apply security policies to pods
@@ -1791,14 +1885,18 @@ func (dm *KubeArmorDaemon) WatchSecurityPolicies() cache.InformerSynced {
 						return
 					}
 
+					dm.Logger.Print("WatchSecurityPolicies locking secpol")
 					dm.SecurityPoliciesLock.Lock()
+					dm.Logger.Print("WatchSecurityPolicies locked secpol")
 					for idx, policy := range dm.SecurityPolicies {
 						if policy.Metadata["namespaceName"] == secPolicy.Metadata["namespaceName"] && policy.Metadata["policyName"] == secPolicy.Metadata["policyName"] {
 							dm.SecurityPolicies[idx] = secPolicy
 							break
 						}
 					}
+					dm.Logger.Print("WatchSecurityPolicies unlocking secpol")
 					dm.SecurityPoliciesLock.Unlock()
+					dm.Logger.Print("WatchSecurityPolicies unlocked secpol")
 
 					dm.Logger.Printf("Detected a Security Policy (modified/%s/%s)", secPolicy.Metadata["namespaceName"], secPolicy.Metadata["policyName"])
 
@@ -1812,14 +1910,18 @@ func (dm *KubeArmorDaemon) WatchSecurityPolicies() cache.InformerSynced {
 					if err != nil {
 						return
 					}
+					dm.Logger.Print("WatchSecurityPolicies locking secpol")
 					dm.SecurityPoliciesLock.Lock()
+					dm.Logger.Print("WatchSecurityPolicies locked secpol")
 					for idx, policy := range dm.SecurityPolicies {
 						if policy.Metadata["namespaceName"] == secPolicy.Metadata["namespaceName"] && policy.Metadata["policyName"] == secPolicy.Metadata["policyName"] {
 							dm.SecurityPolicies = append(dm.SecurityPolicies[:idx], dm.SecurityPolicies[idx+1:]...)
 							break
 						}
 					}
+					dm.Logger.Print("WatchSecurityPolicies unlocking secpol")
 					dm.SecurityPoliciesLock.Unlock()
+					dm.Logger.Print("WatchSecurityPolicies unlocked secpol")
 
 					dm.Logger.Printf("Detected a Security Policy (deleted/%s/%s)", secPolicy.Metadata["namespaceName"], secPolicy.Metadata["policyName"])
 
@@ -1872,7 +1974,9 @@ func (dm *KubeArmorDaemon) WatchClusterSecurityPolicies(timeout time.Duration) c
 						dm.Logger.Warnf("Error ADD, %s", err)
 						return
 					}
+					dm.Logger.Print("WatchClusterSecurityPolicies locking secpol")
 					dm.SecurityPoliciesLock.Lock()
+					dm.Logger.Print("WatchClusterSecurityPolicies locked secpol")
 					new := true
 					for _, policy := range dm.SecurityPolicies {
 						if policy.Metadata["policyName"] == secPolicy.Metadata["policyName"] {
@@ -1883,7 +1987,9 @@ func (dm *KubeArmorDaemon) WatchClusterSecurityPolicies(timeout time.Duration) c
 					if new {
 						dm.SecurityPolicies = append(dm.SecurityPolicies, secPolicy)
 					}
+					dm.Logger.Print("WatchClusterSecurityPolicies unlocking secpol")
 					dm.SecurityPoliciesLock.Unlock()
+					dm.Logger.Print("WatchClusterSecurityPolicies unlocked secpol")
 					dm.Logger.Printf("Detected a Cluster Security Policy (added/%s)", secPolicy.Metadata["policyName"])
 
 					// apply security policies to pods
@@ -1897,15 +2003,18 @@ func (dm *KubeArmorDaemon) WatchClusterSecurityPolicies(timeout time.Duration) c
 					if err != nil {
 						return
 					}
-
+					dm.Logger.Print("WatchClusterSecurityPolicies locking secpol")
 					dm.SecurityPoliciesLock.Lock()
+					dm.Logger.Print("WatchClusterSecurityPolicies locked secpol")
 					for idx, policy := range dm.SecurityPolicies {
 						if policy.Metadata["policyName"] == secPolicy.Metadata["policyName"] {
 							dm.SecurityPolicies[idx] = secPolicy
 							break
 						}
 					}
+					dm.Logger.Print("WatchClusterSecurityPolicies unlocking secpol")
 					dm.SecurityPoliciesLock.Unlock()
+					dm.Logger.Print("WatchClusterSecurityPolicies unlocked secpol")
 
 					dm.Logger.Printf("Detected a Cluster Security Policy (modified/%s)", secPolicy.Metadata["policyName"])
 
@@ -1919,14 +2028,18 @@ func (dm *KubeArmorDaemon) WatchClusterSecurityPolicies(timeout time.Duration) c
 					if err != nil {
 						return
 					}
+					dm.Logger.Print("WatchClusterSecurityPolicies locking secpol")
 					dm.SecurityPoliciesLock.Lock()
+					dm.Logger.Print("WatchClusterSecurityPolicies locked secpol")
 					for idx, policy := range dm.SecurityPolicies {
 						if policy.Metadata["policyName"] == secPolicy.Metadata["policyName"] {
 							dm.SecurityPolicies = append(dm.SecurityPolicies[:idx], dm.SecurityPolicies[idx+1:]...)
 							break
 						}
 					}
+					dm.Logger.Print("WatchClusterSecurityPolicies unlocking secpol")
 					dm.SecurityPoliciesLock.Unlock()
+					dm.Logger.Print("WatchClusterSecurityPolicies unlocked secpol")
 
 					dm.Logger.Printf("Detected a Cluster Security Policy (deleted/%s)", secPolicy.Metadata["policyName"])
 
@@ -1951,16 +2064,24 @@ func (dm *KubeArmorDaemon) WatchClusterSecurityPolicies(timeout time.Duration) c
 
 // UpdateHostSecurityPolicies Function
 func (dm *KubeArmorDaemon) UpdateHostSecurityPolicies() {
+	dm.Logger.Print("UpdateHostSecurityPolicies locking hostsecpol")
 	dm.HostSecurityPoliciesLock.RLock()
+	dm.Logger.Print("UpdateHostSecurityPolicies locked hostsecpol")
 	hostSecurityPoliciesLength := len(dm.HostSecurityPolicies)
+	dm.Logger.Print("UpdateHostSecurityPolicies locking hostsecpol")
 	dm.HostSecurityPoliciesLock.RUnlock()
+	dm.Logger.Print("UpdateHostSecurityPolicies locked hostsecpol")
 
 	secPolicies := []tp.HostSecurityPolicy{}
 
 	for idx := range hostSecurityPoliciesLength {
+		dm.Logger.Print("UpdateHostSecurityPolicies locking endpoint")
 		dm.EndPointsLock.RLock()
+		dm.Logger.Print("UpdateHostSecurityPolicies locked endpoint")
 		policy := dm.HostSecurityPolicies[idx]
+		dm.Logger.Print("UpdateHostSecurityPolicies unlocking secpol")
 		dm.EndPointsLock.RUnlock()
+		dm.Logger.Print("UpdateHostSecurityPolicies unlocked secpol")
 
 		if kl.MatchIdentities(policy.Spec.NodeSelector.Identities, dm.Node.Identities) {
 			secPolicies = append(secPolicies, policy)
@@ -2416,8 +2537,9 @@ func (dm *KubeArmorDaemon) ParseAndUpdateHostSecurityPolicy(event tp.K8sKubeArmo
 	}
 
 	// update a security policy into the policy list
-
+	dm.Logger.Print("ParseAndUpdateHostSecurityPolicy locking hostsecpol")
 	dm.HostSecurityPoliciesLock.Lock()
+	dm.Logger.Print("ParseAndUpdateHostSecurityPolicy locked hostsecpol")
 
 	if event.Type == addEvent {
 		new := true
@@ -2425,7 +2547,9 @@ func (dm *KubeArmorDaemon) ParseAndUpdateHostSecurityPolicy(event tp.K8sKubeArmo
 			if policy.Metadata["policyName"] == secPolicy.Metadata["policyName"] {
 				if reflect.DeepEqual(policy, secPolicy) {
 					kg.Debugf("No updates to policy %s", policy.Metadata["policyName"])
+					dm.Logger.Print("ParseAndUpdateHostSecurityPolicy unlocking hostsecpol")
 					dm.HostSecurityPoliciesLock.Unlock()
+					dm.Logger.Print("ParseAndUpdateHostSecurityPolicy unlocked hostsecpol")
 					return pb.PolicyStatus_Applied
 				}
 
@@ -2443,7 +2567,9 @@ func (dm *KubeArmorDaemon) ParseAndUpdateHostSecurityPolicy(event tp.K8sKubeArmo
 			if policy.Metadata["policyName"] == secPolicy.Metadata["policyName"] {
 				if reflect.DeepEqual(policy, secPolicy) {
 					kg.Debugf("No updates to policy %s", policy.Metadata["policyName"])
+					dm.Logger.Print("ParseAndUpdateHostSecurityPolicy unlocking hostsecpol")
 					dm.HostSecurityPoliciesLock.Unlock()
+					dm.Logger.Print("ParseAndUpdateHostSecurityPolicy unlocked hostsecpol")
 					return pb.PolicyStatus_Applied
 				}
 
@@ -2463,12 +2589,16 @@ func (dm *KubeArmorDaemon) ParseAndUpdateHostSecurityPolicy(event tp.K8sKubeArmo
 		}
 		if !policymatch {
 			dm.Logger.Warnf("Failed to delete security policy. Policy doesn't exist")
+			dm.Logger.Print("ParseAndUpdateHostSecurityPolicy unlocking hostsecpol")
 			dm.HostSecurityPoliciesLock.Unlock()
+			dm.Logger.Print("ParseAndUpdateHostSecurityPolicy unlocked hostsecpol")
 			return pb.PolicyStatus_NotExist
 		}
 	}
 
+	dm.Logger.Print("ParseAndUpdateHostSecurityPolicy unlocking hostsecpol")
 	dm.HostSecurityPoliciesLock.Unlock()
+	dm.Logger.Print("ParseAndUpdateHostSecurityPolicy unlocked hostsecpol")
 
 	dm.Logger.Printf("Detected a Host Security Policy (%s/%s)", strings.ToLower(event.Type), secPolicy.Metadata["policyName"])
 
@@ -2550,11 +2680,23 @@ func (dm *KubeArmorDaemon) WatchHostSecurityPolicies(timeout time.Duration) {
 // ===================== //
 
 func (dm *KubeArmorDaemon) updatEndpointsWithCM(cm *corev1.ConfigMap, action string) {
+	dm.Logger.Print("updatEndpointsWithCM locking endpoint")
 	dm.EndPointsLock.Lock()
-	defer dm.EndPointsLock.Unlock()
+	dm.Logger.Print("updatEndpointsWithCM locked endpoint")
+	defer func() {
+		dm.Logger.Print("updatEndpointsWithCM unlocking endpoint")
+		dm.EndPointsLock.Unlock()
+		dm.Logger.Print("updatEndpointsWithCM unlocked endpoint")
+	}()
 
+	dm.Logger.Print("updatEndpointsWithCM locking defaultpost")
 	dm.DefaultPosturesLock.Lock()
-	defer dm.DefaultPosturesLock.Unlock()
+	dm.Logger.Print("updatEndpointsWithCM locked defaultpost")
+	defer func() {
+		dm.Logger.Print("updatEndpointsWithCM unlocking defaultpost")
+		dm.DefaultPosturesLock.Unlock()
+		dm.Logger.Print("updatEndpointsWithCM unlocked defaultpost")
+	}()
 
 	// get all namespaces
 	nsList, err := K8s.K8sClient.CoreV1().Namespaces().List(context.Background(), metav1.ListOptions{})
@@ -2645,8 +2787,14 @@ func validateDefaultPosture(key string, ns *corev1.Namespace, defaultPosture str
 
 // UpdateDefaultPosture Function
 func (dm *KubeArmorDaemon) UpdateDefaultPosture(action string, namespace string, defaultPosture tp.DefaultPosture, annotated bool) {
+	dm.Logger.Print("UpdateDefaultPosture locking defaultpost")
 	dm.DefaultPosturesLock.Lock()
-	defer dm.DefaultPosturesLock.Unlock()
+	dm.Logger.Print("UpdateDefaultPosture locked defaultpost")
+	defer func() {
+		dm.Logger.Print("UpdateDefaultPosture unlocking defaultpost")
+		dm.DefaultPosturesLock.Unlock()
+		dm.Logger.Print("UpdateDefaultPosture unlocked defaultpost")
+	}()
 
 	// namespace deleted
 	if action == deleteEvent {
@@ -2662,14 +2810,22 @@ func (dm *KubeArmorDaemon) UpdateDefaultPosture(action string, namespace string,
 	}
 	dm.Logger.UpdateDefaultPosture(action, namespace, defaultPosture)
 
+	dm.Logger.Print("UpdateDefaultPosture locking endpoint")
 	dm.EndPointsLock.RLock()
+	dm.Logger.Print("UpdateDefaultPosture locked endpoint")
 	endPointsLen := len(dm.EndPoints)
+	dm.Logger.Print("UpdateDefaultPosture unlocking endpoint")
 	dm.EndPointsLock.RUnlock()
+	dm.Logger.Print("UpdateDefaultPosture unlocked endpoint")
 
 	for idx := range endPointsLen {
+		dm.Logger.Print("UpdateDefaultPosture locking endpoint")
 		dm.EndPointsLock.RLock()
+		dm.Logger.Print("UpdateDefaultPosture locked endpoint")
 		endPoint := dm.EndPoints[idx]
+		dm.Logger.Print("UpdateDefaultPosture unlocking endpoint")
 		dm.EndPointsLock.RUnlock()
+		dm.Logger.Print("UpdateDefaultPosture unlocked endpoint")
 		// update a security policy
 		if namespace == endPoint.NamespaceName {
 			if endPoint.DefaultPosture == defaultPosture {
@@ -2679,9 +2835,13 @@ func (dm *KubeArmorDaemon) UpdateDefaultPosture(action string, namespace string,
 			dm.Logger.Printf("Updating default posture for %s with %v namespace default %v", endPoint.EndPointName, endPoint.DefaultPosture, defaultPosture)
 			endPoint.DefaultPosture = defaultPosture
 
+			dm.Logger.Print("UpdateDefaultPosture locking endpoint")
 			dm.EndPointsLock.Lock()
+			dm.Logger.Print("UpdateDefaultPosture locked endpoint")
 			dm.EndPoints[idx] = endPoint
+			dm.Logger.Print("UpdateDefaultPosture unlocking endpoint")
 			dm.EndPointsLock.Unlock()
+			dm.Logger.Print("UpdateDefaultPosture unlocked endpoint")
 
 			if cfg.GlobalCfg.Policy {
 				// update security policies
@@ -2791,11 +2951,23 @@ func (dm *KubeArmorDaemon) updateVisibilityWithCM(cm *corev1.ConfigMap, _ string
 
 // UpdateGlobalPosture Function
 func (dm *KubeArmorDaemon) UpdateGlobalPosture(posture tp.DefaultPosture) {
+	dm.Logger.Print("UpdateGlobalPosture locking endpoint")
 	dm.EndPointsLock.Lock()
-	defer dm.EndPointsLock.Unlock()
+	dm.Logger.Print("UpdateGlobalPosture locked endpoint")
+	defer func() {
+		dm.Logger.Print("UpdateGlobalPosture unlocking endpoint")
+		dm.EndPointsLock.Unlock()
+		dm.Logger.Print("UpdateGlobalPosture unlocked endpoint")
+	}()
 
+	dm.Logger.Print("UpdateGlobalPosture locking defaultpost")
 	dm.DefaultPosturesLock.Lock()
-	defer dm.DefaultPosturesLock.Unlock()
+	dm.Logger.Print("UpdateGlobalPosture locked defaultpost")
+	defer func() {
+		dm.Logger.Print("UpdateGlobalPosture unlocking defaultpost")
+		dm.DefaultPosturesLock.Unlock()
+		dm.Logger.Print("UpdateGlobalPosture unlocked defaultpost")
+	}()
 
 	cfg.GlobalCfg.DefaultFilePosture = validateGlobalDefaultPosture(posture.FileAction)
 	cfg.GlobalCfg.DefaultNetworkPosture = validateGlobalDefaultPosture(posture.NetworkAction)
@@ -2926,9 +3098,13 @@ func (dm *KubeArmorDaemon) WatchConfigMap() cache.InformerSynced {
 				cfg.GlobalCfg.HostVisibility = cm.Data[cfg.ConfigHostVisibility]
 				cfg.GlobalCfg.Visibility = cm.Data[cfg.ConfigVisibility]
 				cfg.GlobalCfg.Cluster = cm.Data[cfg.ConfigCluster]
+				dm.Logger.Print("WatchConfigMap locking node")
 				dm.NodeLock.Lock()
+				dm.Logger.Print("WatchConfigMap locked node")
 				dm.Node.ClusterName = cm.Data[cfg.ConfigCluster]
+				dm.Logger.Print("WatchConfigMap unlocking node")
 				dm.NodeLock.Unlock()
+				dm.Logger.Print("WatchConfigMap unlocked node")
 				if _, ok := cm.Data[cfg.ConfigDefaultPostureLogs]; ok {
 					cfg.GlobalCfg.DefaultPostureLogs = (cm.Data[cfg.ConfigDefaultPostureLogs] == "true")
 				}
@@ -3053,6 +3229,7 @@ func (dm *KubeArmorDaemon) WatchConfigMap() cache.InformerSynced {
 
 // UpdateIMA func updates the status of IMA module
 func (dm *KubeArmorDaemon) UpdateIMA(enabled bool) {
+	return
 	if enabled && dm.SystemMonitor.ImaHash == nil {
 		if err := dm.SystemMonitor.ImaHash.Init(); err != nil {
 			dm.Logger.Warnf("error initializing IMA module: %s", err)
