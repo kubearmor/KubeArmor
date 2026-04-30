@@ -847,7 +847,9 @@ static inline int match_dns_rules(char *dns_name, u32 eventID)
 
   u32 *inner = bpf_map_lookup_elem(&kubearmor_containers, &okey);
   if (!inner)
+  {
     return 0;
+  }
 
   u32 zero = 0, one = 1, two = 2;
   bufs_k *z = bpf_map_lookup_elem(&bufk, &zero);
@@ -976,22 +978,32 @@ int BPF_PROG(enforce_dns, struct socket *sock, struct msghdr *msg, int size)
   if (bpf_ntohs(dport) != 53)
     return 0;
 
-  struct iovec iov = {};
+  void *iov_ptr = NULL;
   void *data = NULL;
 
-  if (bpf_core_field_exists(msg->msg_iter.__iov))
+  // Handle __iov / iov field rename across kernel versions
+  struct iov_iter___new *iter = (void *)&msg->msg_iter;
+  if (bpf_core_field_exists(iter->__iov))
   {
-    // kernel >= 6.4: __iov exists in BTF
-    bpf_probe_read_kernel(&iov, sizeof(iov), &msg->msg_iter.__iov);
+    bpf_probe_read_kernel(&iov_ptr, sizeof(iov_ptr), &iter->__iov);
   }
   else
   {
-    // kernel < 6.4: iov at offset 24
-    // u8(1) + bool(1) + bool(1) + pad(5) + size_t(8) + size_t(8) = 24
-    bpf_probe_read_kernel(&iov, sizeof(iov), (void *)&msg->msg_iter + 24);
+    bpf_probe_read_kernel(&iov_ptr, sizeof(iov_ptr), &iter->iov);
   }
 
-  bpf_probe_read(&data, sizeof(data), &iov.iov_base);
+  if (!iov_ptr)
+    return 0;
+
+  // ITER_IOVEC: iov_ptr → kernel iovec array (read normally).
+  // ITER_UBUF: iov_ptr → user buffer directly (kernel read fails, use as-is)
+  struct iovec first_iov = {};
+  bpf_probe_read_kernel(&first_iov, sizeof(first_iov), iov_ptr);
+
+  if (first_iov.iov_base)
+    data = first_iov.iov_base;
+  else
+    data = iov_ptr;
 
   if (!data)
   {

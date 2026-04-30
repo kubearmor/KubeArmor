@@ -120,6 +120,7 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 
 	// Generate Fresh Rule Set based on Updated Security Policies
 	for _, secPolicy := range securityPolicies {
+
 		for _, path := range secPolicy.Spec.Process.MatchPaths {
 			var val [2]uint16
 			var argKey ArgListKey
@@ -691,7 +692,6 @@ func domaintoMap(idx int, domain, src, namespace string, m map[InnerKey][2]uint1
 	if namespace != "" {
 		clusterSuffixes = append(clusterSuffixes, "."+namespace+".svc.cluster.local")
 	}
-
 	for _, suffix := range clusterSuffixes {
 		var key InnerKey
 		copy(key.Path[:], []byte(domain+suffix))

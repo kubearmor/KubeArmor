@@ -346,7 +346,6 @@ spec:
                           type: array
                       required:
                       - domain
-                      - fromSource
                       type: object
                     type: array
                   matchProtocols:
