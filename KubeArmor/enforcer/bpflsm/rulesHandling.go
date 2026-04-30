@@ -5,6 +5,7 @@ package bpflsm
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"strings"
 
@@ -691,13 +692,13 @@ func domaintoMap(idx int, domain, src, namespace string, m map[InnerKey][2]uint1
 	if namespace != "" {
 		clusterSuffixes = append(clusterSuffixes, "."+namespace+".svc.cluster.local")
 	}
-
 	for _, suffix := range clusterSuffixes {
 		var key InnerKey
 		copy(key.Path[:], []byte(domain+suffix))
 		if src != "" {
 			copy(key.Source[:], []byte(src))
 		}
+		fmt.Println("Adding domain rule for ", domain+suffix)
 		m[key] = val
 	}
 }
