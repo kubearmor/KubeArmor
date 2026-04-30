@@ -266,6 +266,16 @@ struct exec_pid_map
   __uint(pinning, LIBBPF_PIN_BY_NAME);
 };
 
+// Shadow struct for new kernel (>= 6.4)
+struct iov_iter___new
+{
+  union
+  {
+    const struct iovec *__iov;
+    const struct iovec *iov;
+  };
+} __attribute__((preserve_access_index));
+
 struct exec_pid_map kubearmor_exec_pids SEC(".maps");
 
 static __always_inline bufs_t *get_buf(int idx)
@@ -756,7 +766,7 @@ static inline int match_and_enforce_path_hooks(struct path *f_path, u32 id,
   bpf_probe_read_str(store->path, MAX_STRING_SIZE, path_ptr);
 
   struct data_t *val = bpf_map_lookup_elem(inner, store);
-  struct data_t *dirval;
+  struct data_t *dirval = NULL;
   bool recursivebuthint = false;
   bool fromSourceCheck = true;
 
