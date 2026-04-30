@@ -914,7 +914,7 @@ decision:
     if (!match && allow->processmask == BLOCK_POSTURE)
     {
       retval = -EPERM;
-        }
+    }
     goto ringbuf;
   }
 
@@ -956,8 +956,21 @@ int BPF_PROG(enforce_dns, struct socket *sock, struct msghdr *msg, int size)
 
   struct iovec iov = {};
   void *data = NULL;
-  bpf_probe_read(&iov, sizeof(iov), &msg->msg_iter.__iov);
+
+  if (bpf_core_field_exists(msg->msg_iter.__iov))
+  {
+    // kernel >= 6.4: __iov exists in BTF
+    bpf_probe_read_kernel(&iov, sizeof(iov), &msg->msg_iter.__iov);
+  }
+  else
+  {
+    // kernel < 6.4: iov at offset 24
+    // u8(1) + bool(1) + bool(1) + pad(5) + size_t(8) + size_t(8) = 24
+    bpf_probe_read_kernel(&iov, sizeof(iov), (void *)&msg->msg_iter + 24);
+  }
+
   bpf_probe_read(&data, sizeof(data), &iov.iov_base);
+
   if (!data)
   {
     return 0;
