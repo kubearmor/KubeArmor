@@ -17,7 +17,7 @@ char LICENSE[] SEC("license") = "Dual BSD/GPL";
 #define EPERM 13
 
 #define MAX_BUFFER_SIZE 32768
-#define MAX_STRING_SIZE 200
+#define MAX_STRING_SIZE 128
 #define MAX_COMBINED_LENGTH 4096
 #define MAX_BUFFERS 1
 #define PATH_BUFFER 0
@@ -68,6 +68,13 @@ typedef struct buffers
 
 typedef struct bufkey
 {
+  // key_type: 0 => path/string based keys, 1 => inode based keys
+  u8 key_type;
+  u8 __pad[7];
+  u64 ino;
+  u64 dev;
+  u64 src_ino;
+  u64 src_dev;
   char path[MAX_STRING_SIZE];
   char source[MAX_STRING_SIZE];
 } bufs_k;
@@ -391,6 +398,13 @@ static __always_inline bufs_k *get_full_path_from_file_ptr(struct file *file)
 
   void *path_ptr = &path_buf->buf[*path_offset];
   bpf_probe_read_str(store->path, MAX_STRING_SIZE, path_ptr);
+  // Fill inode and device for exact (inode-based) lookup
+  struct dentry *dentry_path = BPF_CORE_READ(&f_path, dentry);
+  if (dentry_path) {
+    store->ino = BPF_CORE_READ(dentry_path, d_inode, i_ino);
+    store->dev = BPF_CORE_READ(dentry_path, d_inode, i_sb, s_dev);
+    store->key_type = 1;
+  }
 
   return store;
 }
@@ -753,6 +767,13 @@ static inline int match_and_enforce_path_hooks(struct path *f_path, u32 id,
   if (fromSourceCheck)
   {
     bpf_probe_read_str(store->source, MAX_STRING_SIZE, src_ptr);
+    /* set source inode/device for exact lookup */
+    struct dentry *dentry_src = BPF_CORE_READ(&f_src, dentry);
+    if (dentry_src) {
+      store->src_ino = BPF_CORE_READ(dentry_src, d_inode, i_ino);
+      store->src_dev = BPF_CORE_READ(dentry_src, d_inode, i_sb, s_dev);
+      store->key_type = 1;
+    }
 
     val = bpf_map_lookup_elem(inner, store);
 
@@ -773,6 +794,12 @@ static inline int match_and_enforce_path_hooks(struct path *f_path, u32 id,
         bpf_map_update_elem(&bufk, &two, z, BPF_ANY);
 
         match = false;
+
+        /* clear inode parts for string based directory lookup */
+        pk->ino = 0;
+        pk->dev = 0;
+        pk->src_ino = 0;
+        pk->src_dev = 0;
 
         bpf_probe_read_str(pk->path, i + 2, store->path);
         /* Check Subdir with From Source */
@@ -829,6 +856,11 @@ static inline int match_and_enforce_path_hooks(struct path *f_path, u32 id,
     }
   }
   bpf_map_update_elem(&bufk, &two, z, BPF_ANY);
+  /* clear inode parts for string based full-path lookup */
+  pk->ino = 0;
+  pk->dev = 0;
+  pk->src_ino = 0;
+  pk->src_dev = 0;
   bpf_probe_read_str(pk->path, MAX_STRING_SIZE, store->path);
 
   val = bpf_map_lookup_elem(inner, pk);
@@ -851,6 +883,11 @@ static inline int match_and_enforce_path_hooks(struct path *f_path, u32 id,
     {
       bpf_map_update_elem(&bufk, &two, z, BPF_ANY);
       match = false;
+      /* clear inode parts for string based directory lookup */
+      pk->ino = 0;
+      pk->dev = 0;
+      pk->src_ino = 0;
+      pk->src_dev = 0;
       bpf_probe_read_str(pk->path, i + 2, store->path);
       dirval = bpf_map_lookup_elem(inner, pk);
       if (!dirval)
