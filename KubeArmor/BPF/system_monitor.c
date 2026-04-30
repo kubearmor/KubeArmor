@@ -2393,7 +2393,7 @@ int kretprobe__tcp_connect(struct pt_regs *ctx)
     context->argnum = get_arg_num(types);
     context->retval = PT_REGS_RC(ctx);
 
-    if (context->retval >= 0 && drop_syscall(_NETWORK_PROBE))
+    if (get_kubearmor_config(_ENFORCER_BPFLSM) && drop_syscall(_NETWORK_PROBE))
     {
         return 0;
     }
@@ -2495,7 +2495,7 @@ int kretprobe__inet_csk_accept(struct pt_regs *ctx)
     int *err_ptr = (int *)PT_REGS_PARM3(ctx);
     bpf_probe_read(&context->retval, sizeof(context->retval), err_ptr);
 
-    if (context->retval >= 0 && drop_syscall(_NETWORK_PROBE))
+    if (get_kubearmor_config(_ENFORCER_BPFLSM) && drop_syscall(_NETWORK_PROBE))
     {
         return 0;
     }
