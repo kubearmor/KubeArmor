@@ -42,7 +42,7 @@ func AppArmorAnnotator(pod *corev1.Pod, binding *corev1.Binding, isBinding bool)
 		podOwnerName = pod.ObjectMeta.Name
 	}
 
-	// Get existant kubearmor annotations
+	// Get existent kubearmor annotations
 	for k, v := range pod.Annotations {
 		if strings.HasPrefix(k, appArmorAnnotation) {
 			if v == "unconfined" {
@@ -55,7 +55,7 @@ func AppArmorAnnotator(pod *corev1.Pod, binding *corev1.Binding, isBinding bool)
 		}
 	}
 
-	// Get the remaining containers / not addressed explecitly in the annotation
+	// Get the remaining containers / not addressed explicitly in the annotation
 	for _, container := range pod.Spec.Containers {
 		if _, ok := podAnnotations[container.Name]; !ok {
 			podAnnotations[container.Name] = "kubearmor-" + pod.Namespace + "-" + podOwnerName + "-" + container.Name

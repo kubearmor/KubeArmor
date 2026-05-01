@@ -292,8 +292,8 @@ var _ = Describe("Syscalls", func() {
 
 	})
 
-	Describe("Policy informations for matchsyscalls", func() {
-		It("can detect unlink syscall recursive target with global informations", func() {
+	Describe("Policy information for matchsyscalls", func() {
+		It("can detect unlink syscall recursive target with global information", func() {
 			// Apply policy
 			err := K8sApply([]string{"manifests/matchsyscalls/matchsyscalls-global-information.yaml"})
 			Expect(err).To(BeNil())
@@ -320,7 +320,7 @@ var _ = Describe("Syscalls", func() {
 
 		})
 
-		It("can detect unlink syscall recursive target with local informations", func() {
+		It("can detect unlink syscall recursive target with local information", func() {
 			// Apply policy
 			err := K8sApply([]string{"manifests/matchsyscalls/matchsyscalls-local-information.yaml"})
 			Expect(err).To(BeNil())
@@ -347,7 +347,7 @@ var _ = Describe("Syscalls", func() {
 
 		})
 
-		It("can detect unlink syscall recursive target with local informations when global is set", func() {
+		It("can detect unlink syscall recursive target with local information when global is set", func() {
 			// Apply policy
 			err := K8sApply([]string{"manifests/matchsyscalls/matchsyscalls-local-trumps-global-information.yaml"})
 			Expect(err).To(BeNil())
@@ -374,7 +374,7 @@ var _ = Describe("Syscalls", func() {
 
 		})
 
-		It("can detect unlink syscall recursive target with missing local informations when global is set", func() {
+		It("can detect unlink syscall recursive target with missing local information when global is set", func() {
 			// Apply policy
 			err := K8sApply([]string{"manifests/matchsyscalls/matchsyscalls-global-fill-missing-local-information.yaml"})
 			Expect(err).To(BeNil())
@@ -402,8 +402,8 @@ var _ = Describe("Syscalls", func() {
 		})
 	})
 
-	Describe("Policy informations for matchpaths", func() {
-		It("can detect unlink syscall recursive target with global informations", func() {
+	Describe("Policy information for matchpaths", func() {
+		It("can detect unlink syscall recursive target with global information", func() {
 			// Apply policy
 			err := K8sApply([]string{"manifests/matchpaths/matchpaths-global-information.yaml"})
 			Expect(err).To(BeNil())
@@ -430,7 +430,7 @@ var _ = Describe("Syscalls", func() {
 
 		})
 
-		It("can detect unlink syscall recursive target with local informations", func() {
+		It("can detect unlink syscall recursive target with local information", func() {
 			// Apply policy
 			err := K8sApply([]string{"manifests/matchpaths/matchpaths-local-information.yaml"})
 			Expect(err).To(BeNil())
@@ -457,7 +457,7 @@ var _ = Describe("Syscalls", func() {
 
 		})
 
-		It("can detect unlink syscall recursive target with local informations when global is set", func() {
+		It("can detect unlink syscall recursive target with local information when global is set", func() {
 			// Apply policy
 			err := K8sApply([]string{"manifests/matchpaths/matchpaths-local-trumps-global-information.yaml"})
 			Expect(err).To(BeNil())
@@ -484,7 +484,7 @@ var _ = Describe("Syscalls", func() {
 
 		})
 
-		It("can detect unlink syscall recursive target with missing local informations when global is set", func() {
+		It("can detect unlink syscall recursive target with missing local information when global is set", func() {
 			// Apply policy
 			err := K8sApply([]string{"manifests/matchpaths/matchpaths-global-fill-missing-local-information.yaml"})
 			Expect(err).To(BeNil())

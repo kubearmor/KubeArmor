@@ -92,7 +92,7 @@ var _ = Describe("Smoke", func() {
 			err = KarmorLogStart("all", "wordpress-mysql", "", wp)
 			Expect(err).To(BeNil())
 
-			// check for throttling, alerts should not be genrated
+			// check for throttling, alerts should not be generated
 			AssertCommand(
 				wp, "wordpress-mysql",
 				[]string{"bash", "-c", "apt update"},

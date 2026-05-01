@@ -331,7 +331,7 @@ use-cases/
 - modelarmor.md, modelarmor-pickle-code.md, modelarmor-deploy-pytorch.md, modelarmor-adverserial-attacks.md, hardening.md — Individual use-case pages and deep dives
 
 use-cases/res/
-- trusted-cert-bundle.md, tmp-noexec.md, svc-act-token-alert.md, ... — Re-usable sub-resources and small scenario documents referenced by use-case pages
+- trusted-cert-bundle.md, tmp-noexec.md, svc-act-token-alert.md, ... — Reusable sub-resources and small scenario documents referenced by use-case pages
 
 Directory organization rules
 - Put concept/overview pages at repository root for discoverability (e.g., deployment_models.md, differentiation.md)
