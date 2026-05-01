@@ -7,7 +7,7 @@ on:
       - "KubeArmor/**"
       - "tests/**"
       - "protobuf/**"
-      - ".github/workflows/ci-test-ginkgo.yml"
+      - ".github/workflows/ci-test-ubi-image.yml"
       - "pkg/KubeArmorOperator/**"
       - "deployments/helm/**"
   pull_request:
@@ -16,7 +16,7 @@ on:
       - "KubeArmor/**"
       - "tests/**"
       - "protobuf/**"
-      - ".github/workflows/ci-test-ginkgo.yml"
+      - ".github/workflows/ci-test-ubi-image.yml"
       - "examples/multiubuntu/build/**"
       - "pkg/KubeArmorOperator/**"
       - "deployments/helm/**"
