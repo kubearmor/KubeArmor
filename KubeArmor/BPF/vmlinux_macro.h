@@ -27,7 +27,7 @@
  *    in general applies to vmlinux BTF as well.
  * 2) Macros in the kernel source will not part of vmlinux BTF [Ref 1]
  * 3) Kernel struct & enum may or may not be present in the vmlinux BTF
- *    unless the `BTF_TYPE_EMIT*` macros are explicity used on those
+ *    unless the `BTF_TYPE_EMIT*` macros are explicitly used on those
  *    struct and enum in the kernel source [Ref 2 and 3].
  * 
  * ### Reference

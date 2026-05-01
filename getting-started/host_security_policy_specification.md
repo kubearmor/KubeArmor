@@ -25,13 +25,13 @@ spec:
     - path: [absolute executable path]
       ownerOnly: [true|false]              # --> optional
       fromSource:                          # --> optional
-      - path: [absolute exectuable path]
+      - path: [absolute executable path]
     matchDirectories:
     - dir: [absolute directory path]
       recursive: [true|false]              # --> optional
       ownerOnly: [true|false]              # --> optional
       fromSource:                          # --> optional
-      - path: [absolute exectuable path]
+      - path: [absolute executable path]
     matchPatterns:
     - pattern: [regex pattern]
       ownerOnly: [true|false]              # --> optional
@@ -42,14 +42,14 @@ spec:
       readOnly: [true|false]               # --> optional
       ownerOnly: [true|false]              # --> optional
       fromSource:                          # --> optional
-      - path: [absolute exectuable path]
+      - path: [absolute executable path]
     matchDirectories:
     - dir: [absolute directory path]
       recursive: [true|false]              # --> optional
       readOnly: [true|false]               # --> optional
       ownerOnly: [true|false]              # --> optional
       fromSource:                          # --> optional
-      - path: [absolute exectuable path]
+      - path: [absolute executable path]
     matchPatterns:
     - pattern: [regex pattern]
       readOnly: [true|false]               # --> optional
@@ -59,7 +59,7 @@ spec:
     matchProtocols:
     - protocol: [TCP|tcp|UDP|udp|ICMP|icmp]
       fromSource:
-      - path: [absolute exectuable path]
+      - path: [absolute executable path]
 
   device:
     matchDevice:
@@ -72,7 +72,7 @@ spec:
     matchCapabilities:
     - capability: [capability name]
       fromSource:
-      - path: [absolute exectuable path]
+      - path: [absolute executable path]
 
   action: [Audit|Block] (Block by default)
 ```
@@ -157,7 +157,7 @@ Now, we will briefly explain how to define a host security policy.
         recursive: [true|false]            # --> optional
         ownerOnly: [true|false]            # --> optional
         fromSource:                        # --> optional
-        - path: [absolute exectuable path]
+        - path: [absolute executable path]
       matchPatterns:
       - pattern: [regex pattern]
         ownerOnly: [true|false]            # --> optional
@@ -263,17 +263,17 @@ Now, we will briefly explain how to define a host security policy.
       - syscallX
       - syscallY
       fromSource:                            # --> optional
-      - path: [absolute exectuable path]
+      - path: [absolute executable path]
       - dir: [absolute directory path]
         recursive: [true|false]              # --> optional
     matchPaths:
-    - path: [absolute directory path | absolute exectuable path]
+    - path: [absolute directory path | absolute executable path]
       recursive: [true|false]                # --> optional
       - syscall:
         - syscallX
         - syscallY
       fromSource:                            # --> optional
-      - path: [absolute exectuable path]
+      - path: [absolute executable path]
       - dir: [absolute directory path]
         recursive: [true|false]              # --> optional
   ```

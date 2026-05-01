@@ -8,7 +8,7 @@ This directory hosts the generated, environment specific, YAML deployment files 
 make
 ```
 
-- Add/Update Enviroment
+- Add/Update Environment
 
     Make changes in `defaults.go`
 

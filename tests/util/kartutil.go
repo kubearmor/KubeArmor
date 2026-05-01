@@ -538,7 +538,7 @@ func K8sApplyFile(fileName string) error {
 		return err
 	}
 
-	// multiple yaml files seperate by ---
+	// multiple yaml files separate by ---
 	fileAsString := string(f[:])
 
 	for f := range strings.SplitSeq(fileAsString, "---") {
@@ -711,7 +711,7 @@ func K8sRuntime() string {
 	return splitStr[0]
 }
 
-// RunDockerCommand() executes docker commmands
+// RunDockerCommand() executes docker commands
 func RunDockerCommand(cmdParts []string) (string, error) {
 	if len(cmdParts) == 0 {
 		return "", errors.New("empty command")

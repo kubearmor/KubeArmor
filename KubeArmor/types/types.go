@@ -158,7 +158,7 @@ type K8sPod struct {
 	Containers      map[string]string
 	ContainerImages map[string]string
 
-	// using two maps here as it is inefficent to
+	// using two maps here as it is inefficient to
 	// obtain either from just one
 	// for storing privilegd container names
 	PrivilegedContainers map[string]struct{}
@@ -688,7 +688,7 @@ type HostSecurityPolicy struct {
 type DefaultPosture struct {
 	FileAction         string `json:"file,omitempty"`
 	NetworkAction      string `json:"network,omitempty"`
-	CapabilitiesAction string `json:"capabilties,omitempty"`
+	CapabilitiesAction string `json:"capabilities,omitempty"`
 	DeviceAction       string `json:"device,omitempty"`
 }
 
@@ -697,7 +697,7 @@ type Visibility struct {
 	File         bool `json:"file,omitempty"`
 	Process      bool `json:"process,omitempty"`
 	Network      bool `json:"network,omitempty"`
-	Capabilities bool `json:"capabilties,omitempty"`
+	Capabilities bool `json:"capabilities,omitempty"`
 	DNS          bool `json:"dns,omitempty"`
 	IMA          bool `json:"ima,omitempty"`
 }

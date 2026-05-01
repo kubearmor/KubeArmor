@@ -22,7 +22,7 @@ import (
 )
 
 // ===================== //
-// == Const. Vaiables == //
+// == Const. Variables == //
 // ===================== //
 
 // Data Types

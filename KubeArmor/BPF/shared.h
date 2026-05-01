@@ -683,7 +683,7 @@ static inline int match_and_enforce_path_hooks(struct path *f_path, u32 id,
   // "z" is a zero value map key which is used to reset values of other keys
   // which are inturn used and updated to lookup the Rule Map
 
-  // "store" stores informaton needed to do a lookup to our Rule Map
+  // "store" stores information needed to do a lookup to our Rule Map
 
   // "pk" is a map key which is used for all kinds of matching and lookups, We
   // needed a third key because we need to copy contents from store and keep

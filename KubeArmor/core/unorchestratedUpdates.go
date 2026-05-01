@@ -666,7 +666,7 @@ func (dm *KubeArmorDaemon) ParseAndUpdateContainerSecurityPolicy(event tp.K8sKub
 		endPointIndex++
 
 		// update container rules if there exists another endpoint with same policy.Metadata["policyName"]
-		// this is for handling cases when an existing policy has been sent with modified identites - we delete security policies
+		// this is for handling cases when an existing policy has been sent with modified identities - we delete security policies
 		// from previously matched endpoint
 		for policyIndex, policy := range endPoint.SecurityPolicies {
 			if policy.Metadata["namespaceName"] == secPolicy.Metadata["namespaceName"] && policy.Metadata["policyName"] == secPolicy.Metadata["policyName"] && !kl.MatchIdentities(secPolicy.Spec.Selector.Identities, endPoint.Identities) {

@@ -26,7 +26,7 @@
 | NamespaceName          | lists the namespace where pod is running                                  | accuknox-agents                                                                                               |
 | PID                    | lists the process ID running in container                                 | 1                                                                                                             |
 | PPID                   | lists the Parent process ID running in container                          | 967496                                                                                                        |
-| ParentProcessName      | gives the parent process name from where the operation happend            | /usr/bin/containerd-shim-runc-v2                                                                              |
+| ParentProcessName      | gives the parent process name from where the operation happened            | /usr/bin/containerd-shim-runc-v2                                                                              |
 | PodName                | lists the pod name where the log got generated                            | mysql-76ddc6ddc4-h47hv                                                                                        |
 | ProcessName            | specifies the operation that happened inside the pod for this log         | /knoxAutoPolicy                                                                                               |
 | Resource               | lists the resources that was requested                                    | //accuknox-obs.db                                                                                             |
@@ -145,7 +145,7 @@ The primary difference in the container alerts events vs the telemetry events (s
 | NamespaceName          | lists the namespace where pod is running                                             | wordpress-mysql                                                                                      |
 | PID                    | lists the process ID running in container                                            | 266                                                                                                  |
 | PPID                   | lists the Parent process ID running in container                                     | 251                                                                                                  |
-| ParentProcessName      | gives the parent process name from where the operation happend                       | /bin/bash                                                                                            |
+| ParentProcessName      | gives the parent process name from where the operation happened                       | /bin/bash                                                                                            |
 | PodName                | lists the pod name where the alert got generated                                     | mysql-76ddc6ddc4-h47hv                                                                               |
 | PolicyName             | gives the policy that was matched for this alert generation                          | harden-mysql-pkg-mngr-exec                                                                           |
 | ProcessName            | specifies the operation that happened inside the pod for this alert                  | /usr/bin/apt                                                                                         |

@@ -223,7 +223,7 @@ func (kh *K8sHandler) PatchResourceWithAppArmorAnnotations(namespaceName, deploy
 			return err
 		}
 	case "Pod":
-		// this condition wont be triggered, handled by controller
+		// this condition won't be triggered, handled by controller
 		return nil
 
 	}

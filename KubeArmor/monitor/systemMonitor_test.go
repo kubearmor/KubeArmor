@@ -51,7 +51,7 @@ func TestSystemMonitor(t *testing.T) {
 	}
 	t.Log("[PASS] Created logger")
 
-	// montor lock
+	// monitor lock
 	monitorLock := new(sync.RWMutex)
 
 	// Create System Monitor
@@ -118,7 +118,7 @@ func TestTraceSyscallWithPod(t *testing.T) {
 	}
 	t.Log("[PASS] Created logger")
 
-	// montor lock
+	// monitor lock
 	monitorLock := new(sync.RWMutex)
 
 	// Create System Monitor
