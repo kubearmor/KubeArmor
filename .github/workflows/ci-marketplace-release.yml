@@ -14,7 +14,7 @@ jobs:
   certify-images-on-redhat:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: install latest preflight
         run: |
@@ -61,7 +61,7 @@ jobs:
   publish-images-to-ecr:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v6
@@ -94,7 +94,7 @@ jobs:
   publish-images-to-ocir:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: login to ocir registry
         run: |
@@ -121,7 +121,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: ["publish-images-to-ecr"]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: azure/setup-helm@v3
 
       - name: Configure AWS credentials
@@ -177,7 +177,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: ["publish-images-to-ocir"]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: azure/setup-helm@v3
 
       - name: Login to OCI Helm
@@ -228,7 +228,7 @@ jobs:
     permissions:
       issues: write
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Create marketplace release issue
         run: |
           RELEASE=`cat STABLE-RELEASE`
