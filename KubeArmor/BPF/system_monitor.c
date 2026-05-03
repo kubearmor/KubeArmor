@@ -290,6 +290,14 @@ BPF_PERCPU_ARRAY(bufs_offset, u32, 5);
 
 BPF_PERF_OUTPUT(sys_events);
 
+struct {
+    __uint(type, BPF_MAP_TYPE_HASH);
+    __uint(max_entries, 256);
+    __type(key, u64);
+    __type(value, u8);
+    __uint(pinning, LIBBPF_PIN_BY_NAME);
+} drop_path_map SEC(".maps");
+
 #ifdef BTF_SUPPORTED
 #define GET_FIELD_ADDR(field) __builtin_preserve_access_index(&field)
 
@@ -1817,6 +1825,28 @@ static __always_inline int get_arg_num(u64 types)
     return argnum;
 }
 
+static __always_inline u64 djb2_hash(const char *str) {
+    u64 hash = 5381;
+    char ch;
+
+#pragma unroll
+    for (int i = 0; i < MAX_STRING_SIZE; i++) {
+        int ret = bpf_probe_read_kernel_str((void *)&ch, 1, (void *)(str + i));
+        if (ret <= 0)
+            break;
+        if (ch == '\0')
+            break;
+        hash = ((hash << 5) + hash) ^ ((u64)ch & 0xFF);
+    }
+
+    return hash;
+}
+
+static __always_inline int should_drop_path_by_hash(u64 path_hash) {
+    u8 *entry = bpf_map_lookup_elem(&drop_path_map, &path_hash);
+    return entry ? 1 : 0;
+}
+
 static __always_inline int trace_ret_generic(u32 id, struct pt_regs *ctx, u64 types, u32 scope)
 {
     if (skip_syscall())
@@ -1884,6 +1914,17 @@ static __always_inline int trace_ret_generic(u32 id, struct pt_regs *ctx, u64 ty
 
     save_context_to_buffer(bufs_p, (void *)&context);
     save_args_to_buffer(types, &args);
+    
+    if ((id == _SYS_OPEN || id == _SYS_OPENAT) && scope == _FILE_PROBE) {
+        const char *path_ptr = (const char *)&bufs_p->buf[sizeof(sys_context_t)];
+        
+        u64 path_h = djb2_hash(path_ptr);
+        if (should_drop_path_by_hash(path_h)) {
+            set_buffer_offset(DATA_BUF_TYPE, 0);
+            return 0;
+        }
+    }
+    
     if (scope == _FILE_PROBE)
     {
         save_all_hashes_to_the_buffer(bufs_p, true);

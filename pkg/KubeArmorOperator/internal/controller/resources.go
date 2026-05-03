@@ -196,6 +196,10 @@ func generateDaemonset(name, enforcer, runtime, socket, nriSocket, btfPresent, a
 	}
 	daemonset.Spec.Template.Spec.Containers[0].Args = append(daemonset.Spec.Template.Spec.Containers[0].Args, ociArgs...)
 	daemonset.Spec.Template.Spec.Containers[0].Args = append(daemonset.Spec.Template.Spec.Containers[0].Args, LsmFlagString)
+	
+	if dropPathsStr, ok := common.ConfigMapData[common.ConfigDropPaths]; ok && dropPathsStr != "" {
+		common.AddOrReplaceArg(fmt.Sprintf("--%s=%s", common.ConfigDropPaths, dropPathsStr), "", &daemonset.Spec.Template.Spec.Containers[0].Args)
+	}
 	daemonset.Spec.Template.Spec.InitContainers[0].Image = common.GetApplicationImage(common.KubeArmorInitName)
 	daemonset.Spec.Template.Spec.InitContainers[0].ImagePullPolicy = corev1.PullPolicy(common.KubeArmorInitImagePullPolicy)
 
