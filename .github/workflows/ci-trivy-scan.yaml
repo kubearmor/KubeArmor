@@ -8,7 +8,7 @@ on:
     paths:
       - "KubeArmor/**"
       - "protobuf/**"
-      - ".github/workflows/ci-latest-release.yml"
+      - ".github/workflows/ci-trivy-scan.yaml"
       - "pkg/**"
       - "!STABLE-RELEASE"
 
