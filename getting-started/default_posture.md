@@ -1,6 +1,6 @@
 # Default Posture
 
-KubeArmor supports configurable default security posture. The security posture could be allow/audit/deny. Default Posture is used when there's atleast one `Allow` policy for the given deployment i.e. KubeArmor is handling policies in whitelisting manner (more about this in [Considerations in Policy Action](https://github.com/kubearmor/KubeArmor/blob/event-auditor/getting-started/consideration_in_policy_action.md) ).
+KubeArmor supports configurable default security posture. The security posture could be allow/audit/deny. Default Posture is used when there's at least one `Allow` policy for the given deployment i.e. KubeArmor is handling policies in whitelisting manner (more about this in [Considerations in Policy Action](https://github.com/kubearmor/KubeArmor/blob/event-auditor/getting-started/consideration_in_policy_action.md) ).
 
 There are two default mode of operations available `block` and `audit`. `block` mode blocks all the operations that are not allowed in the policy. `audit` generates telemetry events for operations that would have been blocked otherwise.
 

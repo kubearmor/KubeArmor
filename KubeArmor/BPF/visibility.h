@@ -27,7 +27,7 @@ struct visibility
     __type(value, u32);
     /*
         https://github.com/kubernetes/community/blob/master/sig-scalability/configs-and-limits/thresholds.md#kubernetes-thresholds
-        The link above mentions that a node can have a maximun of 110 pods.
+        The link above mentions that a node can have a maximum of 110 pods.
     */
     __uint(max_entries, 65535);
     __uint(pinning, LIBBPF_PIN_BY_NAME);

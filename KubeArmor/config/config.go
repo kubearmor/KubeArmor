@@ -23,7 +23,7 @@ type KubearmorConfig struct {
 	GRPC              string // gRPC Port to use
 	TLSEnabled        bool   // enable tls
 	TLSCertPath       string // tls certification path
-	TLSCertProvider   string // tls certficate provider
+	TLSCertProvider   string // tls certificate provider
 	LogPath           string // Log file to use
 	SELinuxProfileDir string // Directory to store SELinux profiles
 	CRISocket         string // Container runtime to use

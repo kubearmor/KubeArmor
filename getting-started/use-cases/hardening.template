@@ -12,7 +12,7 @@
       unused asset that can be leveraged by the attacker.
     attackscenario: >
       It's important to note that attackers often look for ways to gain access to other entities within Kubernetes clusters. One common method is to check for credential accesses, such as service account tokens, in order to perform lateral movements. For instance, in many Kubernetes attacks, once the attacker gains entry into a pod, they may attempt to use a service account token to access other entities. <br /> 
-      **Attack type** Credential Access, Comand Injection <br /> 
+      **Attack type** Credential Access, Command Injection <br /> 
       **Actual Attack** Hildegard, BlackT, BlackCat RaaS
     compliance:
       - CIS_Kubernetes_Benchmark_v1.27, Control-Id-5.1.6

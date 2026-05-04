@@ -5,6 +5,6 @@
 # remove docker
 sudo dnf remove docker-ce docker-ce-cli containerd.io
 
-# remove any assoicated files
+# remove any associated files
 sudo rm -rf /var/lib/docker
 sudo rm -rf /var/lib/containerd

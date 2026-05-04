@@ -54,7 +54,7 @@ Here, we demonstrate how to define security policies using our example microserv
         Block
     ```
 
-    * Explanation: The purpose of this policy is to block the execution of 'apt' binary in all the workloads in the namespace `multiubuntu`, who contains label `container=ubuntu-1`. For this, we define the 'container=ubuntu-1' as value and operator as 'In' for key `label` in selector -&gt; matchExpressions and the specific execname \('apt'\) in process -&gt; matchPaths. The other expression `container=ubuntu-3` value and operator as 'NotIn' for key `label` is not mandatory because if we mention something in 'In' operator, everything else is just not slected for matching. Also, we put 'Block' as the action of this policy.
+    * Explanation: The purpose of this policy is to block the execution of 'apt' binary in all the workloads in the namespace `multiubuntu`, who contains label `container=ubuntu-1`. For this, we define the 'container=ubuntu-1' as value and operator as 'In' for key `label` in selector -&gt; matchExpressions and the specific execname \('apt'\) in process -&gt; matchPaths. The other expression `container=ubuntu-3` value and operator as 'NotIn' for key `label` is not mandatory because if we mention something in 'In' operator, everything else is just not selected for matching. Also, we put 'Block' as the action of this policy.
 
     * Verification: After applying this policy, please exec into any container who contains label `container=ubuntu-1` within the namespace 'multiubuntu' and run 'apt'. You can see the binary is blocked. Then try to do same in other workloads who doesn't contains label `container=ubuntu-1`, the binary won't be blocked.
 

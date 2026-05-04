@@ -2845,7 +2845,7 @@ func (dm *KubeArmorDaemon) updatEndpointsWithCM(cm *corev1.ConfigMap, action str
 		fp, fa := validateDefaultPosture("kubearmor-file-posture", &ns, cm.Data[cfg.ConfigDefaultFilePosture])
 		np, na := validateDefaultPosture("kubearmor-network-posture", &ns, cm.Data[cfg.ConfigDefaultNetworkPosture])
 		cp, ca := validateDefaultPosture("kubearmor-capabilities-posture", &ns, cm.Data[cfg.ConfigDefaultCapabilitiesPosture])
-		annotated := fa || na || ca      // if namespace is annotated for atleast one posture
+		annotated := fa || na || ca      // if namespace is annotated for at least one posture
 		fullyannotated := fa && na && ca // if namespace is fully annotated
 		posture := tp.DefaultPosture{
 			FileAction:         fp,
@@ -2876,7 +2876,7 @@ func (dm *KubeArmorDaemon) updatEndpointsWithCM(cm *corev1.ConfigMap, action str
 // UpdateDefaultPostureWithCM Function
 func (dm *KubeArmorDaemon) UpdateDefaultPostureWithCM(endPoint *tp.EndPoint, action string, namespace string, defaultPosture tp.DefaultPosture, annotated bool) {
 
-	// namespace is (partialy) annotated with posture annotation(s)
+	// namespace is (partially) annotated with posture annotation(s)
 	if annotated {
 		// update the dm.DefaultPosture[namespace]
 		dm.DefaultPostures[namespace] = defaultPosture
@@ -3034,7 +3034,7 @@ func (dm *KubeArmorDaemon) UpdateVisibility(action string, namespace string, vis
 				IMA:        visibility.IMA,
 			}
 		}
-		dm.Logger.Printf("Namespace %s visibiliy configured %+v", namespace, visibility)
+		dm.Logger.Printf("Namespace %s visibility configured %+v", namespace, visibility)
 	case deleteEvent:
 		if val, ok := dm.SystemMonitor.NamespacePidsMap[namespace]; ok {
 			for _, nskey := range val.NsKeys {

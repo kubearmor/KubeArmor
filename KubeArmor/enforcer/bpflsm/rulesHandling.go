@@ -564,7 +564,7 @@ func (be *BPFEnforcer) resolveConflictsProcessRules(newRuleList, oldRuleList map
 			}
 			// Deleting Arguments if exists
 			delete(oldRuleList, key)
-			// deleting the arguments map valus
+			// deleting the arguments map values
 			if len(argListMap) > 0 {
 				var argKey ArgListKey
 				argKey.InnerKey = key

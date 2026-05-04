@@ -486,7 +486,7 @@ func (ae *AppArmorEnforcer) GenerateAppArmorProfile(appArmorProfile string, secu
 		}
 		oldProfile = string(profile)
 	} else {
-		// this path is expected to have a single componenet "apparmor-profile"
+		// this path is expected to have a single component "apparmor-profile"
 		// and this is to ensure that the filename has no path separators or parent directory references
 		if strings.Contains(appArmorProfile, "/") || strings.Contains(appArmorProfile, "\\") || strings.Contains(appArmorProfile, "..") {
 			ae.Logger.Warnf("Invalid appArmor profile name (%s)", appArmorProfile)

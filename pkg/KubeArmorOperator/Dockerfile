@@ -7,7 +7,7 @@ ARG GOOS
 
 WORKDIR /KubeArmor
 
-# relative deps requried by the operator
+# relative deps required by the operator
 ADD deployments deployments
 ADD KubeArmor KubeArmor
 ADD pkg/KubeArmorController pkg/KubeArmorController
@@ -82,7 +82,7 @@ LABEL name="kubearmor-snitch" \
       version=${VERSION} \
       release=${VERSION} \
       summary="kubearmor-snitch container image based on redhat ubi" \
-      description="KubeArmor-Snitch, A CLI Utility to Detect node related informations for KubeArmor"
+      description="KubeArmor-Snitch, A CLI Utility to Detect node related information for KubeArmor"
 
 ARG OPERATOR_DIR=pkg/KubeArmorOperator
 COPY --from=builder /KubeArmor/$OPERATOR_DIR/snitch /snitch

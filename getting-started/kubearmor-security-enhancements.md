@@ -17,7 +17,7 @@ You can check out https://github.com/kubearmor/KubeArmor/blob/bbdc04d4dea3c3e717
 
 ### Debugging
 
-There may be some enviroments where seccomp profiles might not work, for example a K8s enviroment where the Kubelet path is different than the default `/var/lib/kubelet`. We are currently in the process of defining our own Kubelet path in a future update.
+There may be some environments where seccomp profiles might not work, for example a K8s environment where the Kubelet path is different than the default `/var/lib/kubelet`. We are currently in the process of defining our own Kubelet path in a future update.
 
 Other issues like missing syscalls in a particular K8s setup is possible, in that case raise an issue in the [repo](https://github.com/kubearmor/KubeArmor/issues).
 

@@ -130,7 +130,7 @@ func (r *PodRefresherReconciler) Reconcile(ctx context.Context, req ctrl.Request
 				log.Info("Deleting single pod " + pod.Name + " in namespace " + pod.Namespace)
 				if err := r.Delete(ctx, &pod, client.GracePeriodSeconds(0)); err != nil {
 					if !errors.IsNotFound(err) {
-						log.Error(err, "Could'nt delete pod "+pod.Name+" in namespace "+pod.Namespace)
+						log.Error(err, "Couldn't delete pod "+pod.Name+" in namespace "+pod.Namespace)
 					}
 				}
 
@@ -191,7 +191,7 @@ func restartResources(resourcesMap map[string]ResourceInfo, corev1 *kubernetes.C
 		case "Deployment":
 			dep, err := corev1.AppsV1().Deployments(resInfo.namespaceName).Get(ctx, name, metav1.GetOptions{})
 			if err != nil {
-				log.Error(err, fmt.Sprintf("error geting deployment %s in namespace %s", name, resInfo.namespaceName))
+				log.Error(err, fmt.Sprintf("error getting deployment %s in namespace %s", name, resInfo.namespaceName))
 				continue
 			}
 			log.Info(fmt.Sprintf("restarting deployment %s in namespace %s", name, resInfo.namespaceName))
@@ -208,7 +208,7 @@ func restartResources(resourcesMap map[string]ResourceInfo, corev1 *kubernetes.C
 		case "Statefulset":
 			statefulSet, err := corev1.AppsV1().StatefulSets(resInfo.namespaceName).Get(ctx, name, metav1.GetOptions{})
 			if err != nil {
-				log.Error(err, fmt.Sprintf("error geting statefulset %s in namespace %s", name, resInfo.namespaceName))
+				log.Error(err, fmt.Sprintf("error getting statefulset %s in namespace %s", name, resInfo.namespaceName))
 				continue
 			}
 			log.Info("restarting statefulset " + name + " in namespace " + resInfo.namespaceName)
@@ -226,7 +226,7 @@ func restartResources(resourcesMap map[string]ResourceInfo, corev1 *kubernetes.C
 		case "Daemonset":
 			daemonSet, err := corev1.AppsV1().DaemonSets(resInfo.namespaceName).Get(ctx, name, metav1.GetOptions{})
 			if err != nil {
-				log.Error(err, fmt.Sprintf("error geting daemonset %s in namespace %s", name, resInfo.namespaceName))
+				log.Error(err, fmt.Sprintf("error getting daemonset %s in namespace %s", name, resInfo.namespaceName))
 				continue
 			}
 			log.Info("restarting daemonset " + name + " in namespace " + resInfo.namespaceName)
