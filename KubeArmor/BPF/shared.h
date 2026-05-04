@@ -269,56 +269,10 @@ struct exec_pid_map
 // Shadow struct for new kernel (>= 6.4)
 struct iov_iter___new
 {
-  u8 iter_type;
-  bool nofault;
-  bool data_source;
-  size_t iov_offset;
   union
   {
-    struct iovec __ubuf_iovec;
-    struct
-    {
-      union
-      {
-        const struct iovec *__iov;
-        const struct kvec *kvec;
-        const struct bio_vec *bvec;
-        struct xarray *xarray;
-        void *ubuf;
-      };
-      size_t count;
-    };
-  };
-  union
-  {
-    long unsigned int nr_segs;
-    loff_t xarray_start;
-  };
-} __attribute__((preserve_access_index));
-struct iov_iter___old
-{
-  u8 iter_type;
-  bool nofault;
-  bool data_source;
-  size_t iov_offset;
-  size_t count;
-  union
-  {
+    const struct iovec *__iov;
     const struct iovec *iov;
-    const struct kvec *kvec;
-    const struct bio_vec *bvec;
-    struct xarray *xarray;
-    struct pipe_inode_info *pipe;
-  };
-  union
-  {
-    long unsigned int nr_segs;
-    struct
-    {
-      unsigned int head;
-      unsigned int start_head;
-    };
-    loff_t xarray_start;
   };
 } __attribute__((preserve_access_index));
 

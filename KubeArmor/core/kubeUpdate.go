@@ -1173,6 +1173,7 @@ func (dm *KubeArmorDaemon) UpdateSecurityPolicy(action string, secPolicyType str
 								if !kl.ContainsElement(cfg.GlobalCfg.ConfigUntrackedNs.Load().([]string), dm.EndPoints[idx].NamespaceName) || action == deleteEvent {
 									// we want to avoid new policies in untracked namespaces but deletion of the existing policies should be allowed
 									if dm.RuntimeEnforcer != nil {
+										fmt.Println(" 1176 Updating security policies in runtime enforcer for endpoint:", dm.EndPoints[idx].NamespaceName, dm.EndPoints[idx].EndPointName, dm.EndPoints[idx].ContainerName)
 										dm.RuntimeEnforcer.UpdateSecurityPolicies(dm.EndPoints[idx])
 									}
 									if dm.Presets != nil {
@@ -1276,7 +1277,6 @@ func (dm *KubeArmorDaemon) UpdateSecurityPolicy(action string, secPolicyType str
 // CreateSecurityPolicy - creates `KubeArmorPolicy` & `KubeArmorClusterPolicy` object from crd
 func (dm *KubeArmorDaemon) CreateSecurityPolicy(policyType string, securityPolicy any) (secPolicy tp.SecurityPolicy, err error) {
 	var namespace, name string
-
 	switch policyType {
 	case KubeArmorPolicy:
 		kubearmorPolicy := securityPolicy.(ksp.KubeArmorPolicy)

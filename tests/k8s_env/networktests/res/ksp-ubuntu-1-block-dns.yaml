@@ -11,5 +11,4 @@ spec:
   network:
     matchDNSQueries:
     - domain: google.com
-    action: Block
-    message: "Blocked curl query to google.com"
+  action: Block

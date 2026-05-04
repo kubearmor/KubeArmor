@@ -121,6 +121,7 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 
 	// Generate Fresh Rule Set based on Updated Security Policies
 	for _, secPolicy := range securityPolicies {
+
 		for _, path := range secPolicy.Spec.Process.MatchPaths {
 			var val [2]uint16
 			var argKey ArgListKey

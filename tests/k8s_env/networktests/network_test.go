@@ -82,8 +82,8 @@ var _ = Describe("Network Tests", func() {
 			It("it can block all network traffic on net-raw protocol", func() {
 				// multiubuntu_test_03, github_test_10
 
-				if strings.Contains(K8sRuntimeEnforcer(), "bpf") {
-					Skip("Skipping due to policy not supported by bpflsm enforcer")
+				if strings.Contains(K8sRuntimeEnforcer(), "apparmor") {
+					Skip("Skipping due to policy not supported by apparmmor enforcer")
 				}
 
 				// Apply Policy
@@ -91,7 +91,7 @@ var _ = Describe("Network Tests", func() {
 				Expect(err).To(BeNil())
 
 				// Start KubeArmor Logs
-				err = KarmorLogStart("policy", "", "Network", ub1)
+				err = KarmorLogStart("policy", "", "Capabilities", ub1)
 				Expect(err).To(BeNil())
 
 				// to wait for apparmor policy to be generated
@@ -252,6 +252,12 @@ var _ = Describe("Network Tests", func() {
 				err = KarmorLogStart("policy", "multiubuntu", "Network", ub1)
 				Expect(err).To(BeNil())
 
+				// Allowed DNS Query
+				AssertCommand(ub1, "multiubuntu", []string{"bash", "-c", "curl -m 3 duckduckgo.com"},
+					MatchRegexp(".*"), false,
+				)
+
+				// Blocked DNS Query
 				AssertCommand(ub1, "multiubuntu", []string{"bash", "-c", "curl -m 3 google.com"},
 					MatchRegexp("Could not resolve host: google.com"), true,
 				)

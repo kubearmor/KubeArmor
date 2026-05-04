@@ -828,7 +828,7 @@ static inline int match_dns_rules(char *dns_name, u32 eventID)
   {
     return 0;
   }
-  bpf_printk("name %s, pidns %d, container id %d", dns_name, okey.pid_ns, okey.mnt_ns);
+
   u32 zero = 0, one = 1, two = 2;
   bufs_k *z = bpf_map_lookup_elem(&bufk, &zero);
   if (z == NULL)
@@ -940,7 +940,7 @@ ringbuf:
   task_info->event_id = eventID;
   task_info->retval = retval;
   bpf_ringbuf_submit(task_info, 0);
-  bpf_printk("DNS request for domain %s blocked ", store->path);
+
   return retval;
 }
 
@@ -956,24 +956,33 @@ int BPF_PROG(enforce_dns, struct socket *sock, struct msghdr *msg, int size)
   if (bpf_ntohs(dport) != 53)
     return 0;
 
-  struct iovec iov = {};
+  void *iov_ptr = NULL;
   void *data = NULL;
 
   // Handle __iov / iov field rename across kernel versions
-  struct iov_iter___new *iter_new = (void *)&msg->msg_iter;
-  if (bpf_core_field_exists(iter_new->__iov))
+  struct iov_iter___new *iter = (void *)&msg->msg_iter;
+  if (bpf_core_field_exists(iter->__iov))
   {
-    /* kernel >= 6.4: field was renamed to __iov */
-    bpf_probe_read_kernel(&iov, sizeof(iov), &iter_new->__iov);
+    bpf_probe_read_kernel(&iov_ptr, sizeof(iov_ptr), &iter->__iov);
   }
   else
   {
-    /* older kernel: recast to ___old to read iov */
-    struct iov_iter___old *iter_old = (void *)&msg->msg_iter;
-    bpf_probe_read_kernel(&iov, sizeof(iov), &iter_old->iov);
+    bpf_probe_read_kernel(&iov_ptr, sizeof(iov_ptr), &iter->iov);
   }
 
-  bpf_probe_read(&data, sizeof(data), &iov.iov_base);
+  if (!iov_ptr)
+    return 0;
+
+  // ITER_IOVEC: iov_ptr → kernel iovec array (read normally).
+  // ITER_UBUF: iov_ptr → user buffer directly (kernel read fails, use as-is)
+  struct iovec first_iov = {};
+  bpf_probe_read_kernel(&first_iov, sizeof(first_iov), iov_ptr);
+
+  if (first_iov.iov_base)
+    data = first_iov.iov_base;
+  else
+    data = iov_ptr;
+
   if (!data)
   {
     return 0;
@@ -984,6 +993,6 @@ int BPF_PROG(enforce_dns, struct socket *sock, struct msghdr *msg, int size)
 
   char name[64] = {};
   extract_dns_name(data, name);
-  bpf_printk("Extracted DNS name: %s", name);
+
   return match_dns_rules(name, _SOCKET_SENDMSG);
 }
