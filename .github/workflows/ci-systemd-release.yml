@@ -26,8 +26,10 @@ jobs:
             os: ubuntu-22.04-arm
     if: github.repository == 'kubearmor/kubearmor'
     permissions:
-      id-token: write # requires for cosign keyless signing
-      contents: write # requires for goreleaser to write to GitHub release
+      id-token: write    # required for cosign keyless signing
+      contents: write    # required for goreleaser to upload to GitHub release
+    outputs:
+      hashes: ${{ steps.hash.outputs.hashes }}
     steps:
       - name: Validate version
         id: validate
@@ -49,7 +51,6 @@ jobs:
               core.setFailed(`Invalid version format: ${version}`);
             } else {
               console.log(`Valid version format: ${version}`);
-              // Set the validated version as an output for other steps
               core.setOutput('release_tag', version);
             }
 
@@ -69,7 +70,17 @@ jobs:
         run: ./.github/workflows/install-libbpf.sh
 
       - name: Install Cosign
-        uses: sigstore/cosign-installer@main
+        uses: sigstore/cosign-installer@59acb6260d9c0ba8f4a2f9d9b48431a222b68e20 # v3.5.0
+
+      - name: Install Syft (for SBOM generation)
+        uses: anchore/sbom-action/download-syft@78fc58e266e87a38d4194b2137a3d4e9baf7c2c6 # v0.15.1
+
+      - name: Install SLSA verifier
+        run: |
+          curl -sL https://github.com/slsa-framework/slsa-verifier/releases/download/v2.5.1/slsa-verifier-linux-amd64 -o slsa-verifier
+          chmod +x slsa-verifier
+          sudo mv slsa-verifier /usr/local/bin/
+          slsa-verifier version
 
       - name: Install karmor
         run: curl -sfL https://raw.githubusercontent.com/kubearmor/kubearmor-client/main/install.sh | sudo sh -s -- -b .
@@ -88,17 +99,11 @@ jobs:
       - name: Prepare environment from validated tag
         id: vars
         run: |
-          # Use the validated release tag from the previous step
           RELEASE_TAG="${{ steps.validate.outputs.release_tag }}"
           echo "Using release tag: ${RELEASE_TAG}"
-
           echo "GORELEASER_CURRENT_TAG=${RELEASE_TAG}" >> $GITHUB_OUTPUT
-
           echo "tag=${RELEASE_TAG#v}" >> $GITHUB_OUTPUT
-
           cp KubeArmor/.goreleaser.yaml /tmp/.goreleaser.yaml
-
-          # For manual dispatch -- checkout that particular tag
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
             echo "Checking out tag: ${RELEASE_TAG}"
             git checkout "${RELEASE_TAG}"
@@ -113,7 +118,7 @@ jobs:
       - name: Patch goarch
         working-directory: KubeArmor
         run: |
-           yq -i '.builds[0].goarch = ["${{ matrix.arch }}"]' /tmp/.goreleaser.yaml
+          yq -i '.builds[0].goarch = ["${{ matrix.arch }}"]' /tmp/.goreleaser.yaml
 
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v5
@@ -127,6 +132,42 @@ jobs:
           GORELEASER_CURRENT_TAG: ${{ steps.vars.outputs.GORELEASER_CURRENT_TAG }}
           ARCH: ${{ matrix.arch }}
 
+      - name: Compute artifact hashes for SLSA provenance
+        id: hash
+        if: matrix.arch == 'amd64'
+        working-directory: KubeArmor/dist
+        run: |
+          echo "Computing SHA256 hashes for all release artifacts..."
+          files=$(ls *.tar.gz *.deb *.rpm *.sbom.json 2>/dev/null | tr '\n' ' ')
+          echo "Files to hash: $files"
+          hashes=$(sha256sum $files | base64 -w0)
+          echo "hashes=${hashes}" >> $GITHUB_OUTPUT
+          echo "Hashes computed successfully"
+
+      - name: Verify signed artifacts exist
+        working-directory: KubeArmor/dist
+        run: |
+          echo "=== Signed bundles (.sigstore.json) ==="
+          ls -la *.sigstore.json || echo "WARNING: No .sigstore.json files found"
+          echo "=== SBOM files ==="
+          ls -la *.sbom.json || echo "WARNING: No SBOM files found"
+          echo "=== All dist artifacts ==="
+          ls -la
+
+      - name: Verify release artifacts with cosign
+        working-directory: KubeArmor/dist
+        run: |
+          for artifact in *.tar.gz *.deb *.rpm; do
+            if [ -f "${artifact}" ] && [ -f "${artifact}.sigstore.json" ]; then
+              echo "Verifying: ${artifact}"
+              cosign verify-blob \
+                --bundle "${artifact}.sigstore.json" \
+                --certificate-identity-regexp "https://github.com/kubearmor/KubeArmor/.*" \
+                --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+                "${artifact}" && echo "PASS: ${artifact}" || echo "FAIL: ${artifact}"
+            fi
+          done
+
       - name: Setup ORAS
         uses: oras-project/setup-oras@v1
         with:
@@ -136,3 +177,99 @@ jobs:
         working-directory: KubeArmor/dist
         run: |
           oras push docker.io/kubearmor/kubearmor-systemd:${{ steps.vars.outputs.tag }}_linux-${{ matrix.arch }} kubearmor_${{ steps.vars.outputs.tag }}_linux-${{ matrix.arch }}.tar.gz
+
+  provenance:
+    name: Generate SLSA provenance attestation
+    needs: [goreleaser]
+    if: github.repository == 'kubearmor/kubearmor'
+    permissions:
+      actions: read
+      id-token: write
+      contents: write
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.0.0
+    with:
+      base64-subjects: ${{ needs.goreleaser.outputs.hashes }}
+      upload-assets: true
+      provenance-name: kubearmor.intoto.jsonl
+
+  verify:
+    name: Verify release artifacts end-to-end
+    needs: [goreleaser, provenance]
+    if: github.repository == 'kubearmor/kubearmor'
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: read
+    steps:
+      - name: Install cosign
+        uses: sigstore/cosign-installer@59acb6260d9c0ba8f4a2f9d9b48431a222b68e20 # v3.5.0
+
+      - name: Install SLSA verifier
+        run: |
+          curl -sL https://github.com/slsa-framework/slsa-verifier/releases/download/v2.5.1/slsa-verifier-linux-amd64 -o slsa-verifier
+          chmod +x slsa-verifier
+          sudo mv slsa-verifier /usr/local/bin/
+          slsa-verifier version
+
+      - name: Download release artifacts and provenance
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ github.ref_name }}"
+          echo "Downloading artifacts for tag: ${TAG}"
+          gh release download "${TAG}" \
+            --repo kubearmor/KubeArmor \
+            --pattern "*.tar.gz" \
+            --pattern "*.deb" \
+            --pattern "*.rpm" \
+            --pattern "*.sigstore.json" \
+            --pattern "*.sbom.json" \
+            --pattern "kubearmor.intoto.jsonl" \
+            --dir ./artifacts
+          ls -la ./artifacts
+
+      - name: Verify artifacts with cosign
+        working-directory: ./artifacts
+        run: |
+          echo "=== Verifying with cosign ==="
+          for artifact in *.tar.gz *.deb *.rpm; do
+            [ -f "${artifact}" ] || continue
+            bundle="${artifact}.sigstore.json"
+            if [ -f "${bundle}" ]; then
+              echo "Verifying ${artifact}..."
+              cosign verify-blob \
+                --bundle "${bundle}" \
+                --certificate-identity-regexp "https://github.com/kubearmor/KubeArmor/.*" \
+                --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+                "${artifact}" && echo "PASS: ${artifact}" || echo "FAIL: ${artifact}"
+            fi
+          done
+
+      - name: Verify SLSA provenance with slsa-verifier
+        working-directory: ./artifacts
+        run: |
+          echo "=== Verifying SLSA provenance ==="
+          for artifact in *.tar.gz *.deb *.rpm; do
+            [ -f "${artifact}" ] || continue
+            echo "Verifying SLSA provenance for ${artifact}..."
+            slsa-verifier verify-artifact "${artifact}" \
+              --provenance-path kubearmor.intoto.jsonl \
+              --source-uri github.com/kubearmor/KubeArmor \
+              && echo "SLSA PASS: ${artifact}" || echo "SLSA FAIL: ${artifact}"
+          done
+
+      - name: Verify SBOM signatures with cosign
+        working-directory: ./artifacts
+        run: |
+          echo "=== Verifying SBOM signatures ==="
+          for sbom in *.sbom.json; do
+            [ -f "${sbom}" ] || continue
+            bundle="${sbom}.sigstore.json"
+            if [ -f "${bundle}" ]; then
+              echo "Verifying SBOM ${sbom}..."
+              cosign verify-blob \
+                --bundle "${bundle}" \
+                --certificate-identity-regexp "https://github.com/kubearmor/KubeArmor/.*" \
+                --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+                "${sbom}" && echo "PASS: ${sbom}" || echo "FAIL: ${sbom}"
+            fi
+          done
