@@ -7,6 +7,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 	"testing"
 )
@@ -75,4 +76,85 @@ func TestMain(t *testing.T) {
 	t.Log("[INFO] Executed KubeArmor")
 	main()
 	t.Log("[INFO] Terminated KubeArmor")
+}
+
+func TestBpfMapFiltering(t *testing.T) {
+	cases := []struct {
+		filename string
+		want     bool
+	}{
+		{"kubearmor_events", true},
+		{"kubearmor_policy", true},
+		{"cilium_events", false},
+		{"kube", false},
+		{"", false},
+		{"KubeArmor", false},
+	}
+	for _, tc := range cases {
+		got := isKubeArmorBpfMap(tc.filename)
+		if got != tc.want {
+			t.Errorf("isKubeArmorBpfMap(%q) = %v, want %v", tc.filename, got, tc.want)
+		}
+	}
+}
+
+func TestBpfDirCleanupWithTempDir(t *testing.T) {
+	dir := t.TempDir()
+	files := map[string]bool{
+		"kubearmor_events": true,
+		"kubearmor_policy": true,
+		"cilium_events":    false,
+	}
+	for name := range files {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte("x"), 0600); err != nil {
+			t.Fatalf("failed to create fixture file %q: %v", name, err)
+		}
+	}
+	err := cleanupBpfMaps(dir, os.Remove)
+	if err != nil {
+		t.Fatalf("cleanupBpfMaps returned unexpected error: %v", err)
+	}
+	for name, shouldDelete := range files {
+		_, err := os.Stat(filepath.Join(dir, name))
+		if shouldDelete && err == nil {
+			t.Errorf("%s should have been deleted", name)
+		}
+		if !shouldDelete && err != nil {
+			t.Errorf("%s should still exist", name)
+		}
+	}
+}
+
+func TestBpfDirCleanupSkipsDirectories(t *testing.T) {
+	dir := t.TempDir()
+	sub := filepath.Join(dir, "kubearmor_subdir")
+	if err := os.Mkdir(sub, 0755); err != nil {
+		t.Fatalf("failed to create subdir: %v", err)
+	}
+	err := cleanupBpfMaps(dir, os.Remove)
+	if err != nil {
+		t.Fatalf("cleanupBpfMaps returned unexpected error: %v", err)
+	}
+	if _, err := os.Stat(sub); os.IsNotExist(err) {
+		t.Error("subdir was incorrectly removed")
+	}
+}
+
+func TestBpfDirCleanupMissingDir(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.RemoveAll(dir); err != nil {
+		t.Fatalf("failed to remove temp dir: %v", err)
+	}
+	err := cleanupBpfMaps(dir, os.Remove)
+	if err == nil {
+		t.Error("expected error for missing dir")
+	}
+}
+
+func TestNonRootWithoutUBI(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("must run as non-root")
+	}
+	t.Setenv("KUBEARMOR_UBI", "")
+	main()
 }
