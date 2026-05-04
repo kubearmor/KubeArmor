@@ -26,8 +26,8 @@ jobs:
             os: ubuntu-22.04-arm
     if: github.repository == 'kubearmor/kubearmor'
     permissions:
-      id-token: write # requires for cosign keyless signing
-      contents: write # requires for goreleaser to write to GitHub release
+      id-token: write    # required for cosign keyless signing
+      contents: write    # required for goreleaser to upload to GitHub release
     steps:
       - name: Validate version
         id: validate
@@ -49,7 +49,6 @@ jobs:
               core.setFailed(`Invalid version format: ${version}`);
             } else {
               console.log(`Valid version format: ${version}`);
-              // Set the validated version as an output for other steps
               core.setOutput('release_tag', version);
             }
 
@@ -69,7 +68,7 @@ jobs:
         run: ./.github/workflows/install-libbpf.sh
 
       - name: Install Cosign
-        uses: sigstore/cosign-installer@main
+        uses: sigstore/cosign-installer@59acb6260d9c0ba8f4a2f9d9b48431a222b68e20 # v3.5.0
 
       - name: Install karmor
         run: curl -sfL https://raw.githubusercontent.com/kubearmor/kubearmor-client/main/install.sh | sudo sh -s -- -b .
@@ -88,17 +87,11 @@ jobs:
       - name: Prepare environment from validated tag
         id: vars
         run: |
-          # Use the validated release tag from the previous step
           RELEASE_TAG="${{ steps.validate.outputs.release_tag }}"
           echo "Using release tag: ${RELEASE_TAG}"
-
           echo "GORELEASER_CURRENT_TAG=${RELEASE_TAG}" >> $GITHUB_OUTPUT
-
           echo "tag=${RELEASE_TAG#v}" >> $GITHUB_OUTPUT
-
           cp KubeArmor/.goreleaser.yaml /tmp/.goreleaser.yaml
-
-          # For manual dispatch -- checkout that particular tag
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
             echo "Checking out tag: ${RELEASE_TAG}"
             git checkout "${RELEASE_TAG}"
@@ -113,7 +106,7 @@ jobs:
       - name: Patch goarch
         working-directory: KubeArmor
         run: |
-           yq -i '.builds[0].goarch = ["${{ matrix.arch }}"]' /tmp/.goreleaser.yaml
+          yq -i '.builds[0].goarch = ["${{ matrix.arch }}"]' /tmp/.goreleaser.yaml
 
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v5
@@ -126,6 +119,14 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GORELEASER_CURRENT_TAG: ${{ steps.vars.outputs.GORELEASER_CURRENT_TAG }}
           ARCH: ${{ matrix.arch }}
+
+      - name: Verify signed artifacts exist
+        working-directory: KubeArmor/dist
+        run: |
+          echo "Listing signed artifacts (.sigstore.json bundles):"
+          ls -la *.sigstore.json || echo "WARNING: No .sigstore.json files found"
+          echo "All dist artifacts:"
+          ls -la
 
       - name: Setup ORAS
         uses: oras-project/setup-oras@v1
