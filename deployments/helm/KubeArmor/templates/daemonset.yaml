@@ -58,9 +58,13 @@ spec:
             command:
             - /bin/bash
             - -c
-            - if [ -z $(pgrep kubearmor) ]; then exit 1; fi;
+            - pgrep -f kubearmor >/dev/null
+          failureThreshold: 5
           initialDelaySeconds: 60
-          periodSeconds: 10
+          periodSeconds: 20
+          successThreshold: 1
+          timeoutSeconds: 5
+
         name: kubearmor
         ports:
         - containerPort: 32767

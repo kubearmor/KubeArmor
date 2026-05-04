@@ -451,14 +451,16 @@ func GenerateDaemonSet(env, namespace string) *appsv1.DaemonSet {
 								ProbeHandler: corev1.ProbeHandler{
 									Exec: &corev1.ExecAction{
 										Command: []string{
-											"/bin/bash",
+											"/bin/sh",
 											"-c",
-											"if [ -z $(pgrep kubearmor) ]; then exit 1; fi;",
+											"pgrep -f kubearmor >/dev/null",
 										},
 									},
 								},
 								InitialDelaySeconds: 60,
-								PeriodSeconds:       10,
+								PeriodSeconds:       20,
+								TimeoutSeconds:      5,
+								FailureThreshold:    5,
 							},
 							TerminationMessagePolicy: "File",
 							TerminationMessagePath:   "/dev/termination-log",
