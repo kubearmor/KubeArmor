@@ -23,7 +23,7 @@ jobs:
         os: [oracle-vm-16cpu-64gb-x86-64]
         runtime: ["containerd"]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           submodules: true
 
