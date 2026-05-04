@@ -955,15 +955,19 @@ int BPF_PROG(enforce_dns, struct socket *sock, struct msghdr *msg, int size)
 
   struct iovec *iovp = NULL;
   void *data = NULL;
+  struct iov_iter___new *iter_new = (void *)&msg->msg_iter;
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 3, 13) || RHEL9_BUILD_GTE_400
-  bpf_probe_read(&iovp, sizeof(iovp), &msg->msg_iter.__iov);
-#else
-  // kernel < 6.4: iov at offset 24
-  // u8(1) + bool(1) + bool(1) + pad(5) + size_t(8) + size_t(8) = 24
-  bpf_probe_read(&iovp, sizeof(iovp), (void *)&msg->msg_iter + 24);
-#endif
-
+  if (bpf_core_field_exists(iter_new->__iov))
+  {
+    // kernel >= 6.4
+    bpf_probe_read(&iovp, sizeof(iovp), &iter_new->__iov);
+  }
+  else
+  {
+    // kernel < 6.4
+    struct iov_iter___old *iter_old = (void *)&msg->msg_iter;
+    bpf_probe_read(&iovp, sizeof(iovp), &iter_old->iov);
+  }
   if (!iovp)
     return 0;
 

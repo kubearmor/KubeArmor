@@ -266,6 +266,32 @@ struct exec_pid_map
   __uint(pinning, LIBBPF_PIN_BY_NAME);
 };
 
+// Shadow struct for new kernel (>= 6.4)
+struct iov_iter___new
+{
+  u8 iter_type;
+  bool nofault;
+  bool data_source;
+  size_t iov_offset;
+  size_t count;
+  union
+  {
+    const struct iovec *__iov;
+  };
+} __attribute__((preserve_access_index));
+struct iov_iter___old
+{
+  u8 iter_type;
+  bool nofault;
+  bool data_source;
+  size_t iov_offset;
+  size_t count;
+  union
+  {
+    const struct iovec *iov;
+  };
+} __attribute__((preserve_access_index));
+
 struct exec_pid_map kubearmor_exec_pids SEC(".maps");
 
 static __always_inline bufs_t *get_buf(int idx)
