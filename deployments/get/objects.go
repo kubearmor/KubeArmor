@@ -795,10 +795,11 @@ func GetKubeArmorControllerMutationAdmissionConfiguration(namespace string, caCe
 	}
 }
 
-// GetKubeArmorControllerTLSSecret Functionn
-func GetKubeArmorControllerTLSSecret(namespace string, caCert string, tlsCrt string, tlsKey string) *corev1.Secret {
+// GetKubeArmorControllerTLSSecret Function
+func GetKubeArmorControllerTLSSecret(namespace string, caCert string, caKey string, tlsCrt string, tlsKey string) *corev1.Secret {
 	data := make(map[string]string)
 	data["ca.crt"] = caCert
+	data["ca.key"] = caKey
 	data["tls.crt"] = tlsCrt
 	data["tls.key"] = tlsKey
 	return &corev1.Secret{
