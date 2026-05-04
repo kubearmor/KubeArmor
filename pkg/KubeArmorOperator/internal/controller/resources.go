@@ -699,7 +699,7 @@ func (clusterWatcher *ClusterWatcher) fetchClusterNameFromGKE(providerHostname, 
 	// Check for a successful response
 	if resp.StatusCode != http.StatusOK {
 		clusterWatcher.Log.Warnf("failed to fetch from metadata, status code: %d", resp.StatusCode)
-		return "", err
+		return "", fmt.Errorf("unexpected status code: %d", resp.StatusCode)
 	}
 
 	// Read the response body
@@ -732,7 +732,7 @@ func (clusterWatcher *ClusterWatcher) fetchClusterNameFromAWS(providerHostname, 
 	if resp.StatusCode == http.StatusOK {
 		token, err = io.ReadAll(resp.Body)
 		if err != nil {
-			clusterWatcher.Log.Warnf("failed to read token: %d", err)
+			clusterWatcher.Log.Warnf("failed to read token: %s", err.Error())
 			return "", err
 		}
 	}
@@ -756,12 +756,12 @@ func (clusterWatcher *ClusterWatcher) fetchClusterNameFromAWS(providerHostname, 
 
 	if resp.StatusCode != http.StatusOK {
 		clusterWatcher.Log.Warnf("failed to fetch from metadata, status code: %d", resp.StatusCode)
-		return "", err
+		return "", fmt.Errorf("unexpected status code: %d", resp.StatusCode)
 	}
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		clusterWatcher.Log.Warnf("failed to read metadata: %d", err)
+		clusterWatcher.Log.Warnf("failed to read metadata: %s", err.Error())
 		return "", err
 	}
 
@@ -772,7 +772,7 @@ func (clusterWatcher *ClusterWatcher) fetchClusterNameFromAWS(providerHostname, 
 		return match[1], nil
 	}
 
-	return "", err
+	return "", fmt.Errorf("cluster name not found in EKS metadata response")
 }
 
 func (clusterWatcher *ClusterWatcher) GetClusterName(providerHostname, providerEndpoint string) string {
