@@ -5,7 +5,6 @@ package bpflsm
 
 import (
 	"errors"
-	"fmt"
 	"os"
 	"strings"
 
@@ -698,7 +697,6 @@ func domaintoMap(idx int, domain, src, namespace string, m map[InnerKey][2]uint1
 		if src != "" {
 			copy(key.Source[:], []byte(src))
 		}
-		fmt.Println("Adding domain rule for ", domain+suffix)
 		m[key] = val
 	}
 }

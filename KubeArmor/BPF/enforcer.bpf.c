@@ -63,7 +63,7 @@ int BPF_PROG(enforce_proc, struct linux_binprm *bprm, int ret)
   bpf_probe_read_str(store->path, MAX_STRING_SIZE, path_ptr);
 
   struct data_t *val = bpf_map_lookup_elem(inner, store);
-  struct data_t *dirval;
+  struct data_t *dirval = NULL;
   bool recursivebuthint = false;
   bool fromSourceCheck = true;
   bool goToDecision = false;
@@ -938,7 +938,6 @@ ringbuf:
   task_info->event_id = eventID;
   task_info->retval = retval;
   bpf_ringbuf_submit(task_info, 0);
-
   return retval;
 }
 
@@ -954,23 +953,21 @@ int BPF_PROG(enforce_dns, struct socket *sock, struct msghdr *msg, int size)
   if (bpf_ntohs(dport) != 53)
     return 0;
 
-  struct iovec iov = {};
+  struct iovec *iovp = NULL;
   void *data = NULL;
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 3, 13) || RHEL9_BUILD_GTE_400
-
-  // kernel >= 6.3.13: __iov exists in BTF
-  bpf_probe_read_kernel(&iov, sizeof(iov), &msg->msg_iter.__iov);
-
+  bpf_probe_read(&iovp, sizeof(iovp), &msg->msg_iter.__iov);
 #else
   // kernel < 6.4: iov at offset 24
   // u8(1) + bool(1) + bool(1) + pad(5) + size_t(8) + size_t(8) = 24
-  bpf_probe_read_kernel(&iov, sizeof(iov), (void *)&msg->msg_iter + 24);
-
+  bpf_probe_read(&iovp, sizeof(iovp), (void *)&msg->msg_iter + 24);
 #endif
 
-  bpf_probe_read(&data, sizeof(data), &iov.iov_base);
+  if (!iovp)
+    return 0;
 
+  bpf_probe_read(&data, sizeof(data), &iovp->iov_base);
   if (!data)
   {
     return 0;
@@ -981,6 +978,5 @@ int BPF_PROG(enforce_dns, struct socket *sock, struct msghdr *msg, int size)
 
   char name[64] = {};
   extract_dns_name(data, name);
-
   return match_dns_rules(name, _SOCKET_SENDMSG);
 }
