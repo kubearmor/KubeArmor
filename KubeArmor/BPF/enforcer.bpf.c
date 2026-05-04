@@ -825,8 +825,10 @@ static inline int match_dns_rules(char *dns_name, u32 eventID)
 
   u32 *inner = bpf_map_lookup_elem(&kubearmor_containers, &okey);
   if (!inner)
+  {
     return 0;
-
+  }
+  bpf_printk("name %s, pidns %d, container id %d", dns_name, okey.pid_ns, okey.mnt_ns);
   u32 zero = 0, one = 1, two = 2;
   bufs_k *z = bpf_map_lookup_elem(&bufk, &zero);
   if (z == NULL)
@@ -938,6 +940,7 @@ ringbuf:
   task_info->event_id = eventID;
   task_info->retval = retval;
   bpf_ringbuf_submit(task_info, 0);
+  bpf_printk("DNS request for domain %s blocked ", store->path);
   return retval;
 }
 
@@ -953,25 +956,24 @@ int BPF_PROG(enforce_dns, struct socket *sock, struct msghdr *msg, int size)
   if (bpf_ntohs(dport) != 53)
     return 0;
 
-  struct iovec *iovp = NULL;
+  struct iovec iov = {};
   void *data = NULL;
-  struct iov_iter___new *iter_new = (void *)&msg->msg_iter;
 
+  // Handle __iov / iov field rename across kernel versions
+  struct iov_iter___new *iter_new = (void *)&msg->msg_iter;
   if (bpf_core_field_exists(iter_new->__iov))
   {
-    // kernel >= 6.4
-    bpf_probe_read(&iovp, sizeof(iovp), &iter_new->__iov);
+    /* kernel >= 6.4: field was renamed to __iov */
+    bpf_probe_read_kernel(&iov, sizeof(iov), &iter_new->__iov);
   }
   else
   {
-    // kernel < 6.4
+    /* older kernel: recast to ___old to read iov */
     struct iov_iter___old *iter_old = (void *)&msg->msg_iter;
-    bpf_probe_read(&iovp, sizeof(iovp), &iter_old->iov);
+    bpf_probe_read_kernel(&iov, sizeof(iov), &iter_old->iov);
   }
-  if (!iovp)
-    return 0;
 
-  bpf_probe_read(&data, sizeof(data), &iovp->iov_base);
+  bpf_probe_read(&data, sizeof(data), &iov.iov_base);
   if (!data)
   {
     return 0;
@@ -982,5 +984,6 @@ int BPF_PROG(enforce_dns, struct socket *sock, struct msghdr *msg, int size)
 
   char name[64] = {};
   extract_dns_name(data, name);
+  bpf_printk("Extracted DNS name: %s", name);
   return match_dns_rules(name, _SOCKET_SENDMSG);
 }
