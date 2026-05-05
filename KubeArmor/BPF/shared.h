@@ -53,7 +53,8 @@ enum deny_by_default
   dproc = 101,
   dfile,
   dnet,
-  dcap
+  dcap,
+  ddns
 }; // check if the list is whitelist/blacklist
 enum network_check_type
 {
@@ -264,6 +265,16 @@ struct exec_pid_map
   __uint(max_entries, 10240);
   __uint(pinning, LIBBPF_PIN_BY_NAME);
 };
+
+// Shadow struct for new kernel (>= 6.4)
+struct iov_iter___new
+{
+  union
+  {
+    const struct iovec *__iov;
+    const struct iovec *iov;
+  };
+} __attribute__((preserve_access_index));
 
 struct exec_pid_map kubearmor_exec_pids SEC(".maps");
 
@@ -723,7 +734,7 @@ static inline int match_and_enforce_path_hooks(struct path *f_path, u32 id,
   bpf_probe_read_str(store->path, MAX_STRING_SIZE, path_ptr);
 
   struct data_t *val = bpf_map_lookup_elem(inner, store);
-  struct data_t *dirval;
+  struct data_t *dirval = NULL;
   bool recursivebuthint = false;
   bool fromSourceCheck = true;
 
@@ -1172,6 +1183,50 @@ static inline bool matchArguments(unsigned int num_of_args, struct outer_key *ok
   }
 
   return argmatch;
+}
+
+static __always_inline int extract_dns_name(void *data, char *name)
+{
+  // Read the DNS payload
+
+  bufs_t *payload = get_buf(PATH_BUFFER);
+  if (!payload)
+    return 0;
+
+  bpf_probe_read_user(payload->buf, 256, data);
+
+  // Decode QNAME wire format: \x06google\x03com\x00 -> google.com
+  // volatile prevents Clang from emitting forbidden `|= on pointer` instructions.
+  volatile u8 llen = payload->buf[12]; // first label length byte (offset 12 = after DNS header)
+  volatile int bi = 13;                // byte index into buf
+  volatile int ni = 0;                 // byte index into name output
+
+#pragma unroll
+  for (int i = 0; i < 63; i++)
+  {
+    if (bi >= 256 || llen == 0 || llen > 63 || ni >= 63)
+      break;
+
+    name[ni & 63] = payload->buf[bi & 255]; // copy one label character
+    ni++;
+    bi++;
+    llen--;
+
+    if (llen == 0) // read next length byte
+    {
+      if (bi >= 256)
+        break;
+      llen = payload->buf[bi & 255];
+      bi++;
+      if (llen == 0 || llen > 63)
+        break; // root label (end) or invalid
+      if (ni < 63)
+        name[ni++ & 63] = '.'; // dot separator between labels
+    }
+  }
+
+  name[63] = '\0';
+  return ni;
 }
 
 /*

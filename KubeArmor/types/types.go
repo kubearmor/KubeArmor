@@ -509,9 +509,20 @@ type NetworkProtocolType struct {
 	Action     string            `json:"action,omitempty"`
 }
 
+// MatchDNSQueryType Structure
+type MatchDNSQueryType struct {
+	Domain     string            `json:"domain"`
+	FromSource []MatchSourceType `json:"fromSource,omitempty"`
+	Severity   int               `json:"severity,omitempty"`
+	Tags       []string          `json:"tags,omitempty"`
+	Message    string            `json:"message,omitempty"`
+	Action     string            `json:"action,omitempty"`
+}
+
 // NetworkType Structure
 type NetworkType struct {
-	MatchProtocols []NetworkProtocolType `json:"matchProtocols,omitempty"`
+	MatchProtocols  []NetworkProtocolType `json:"matchProtocols,omitempty"`
+	MatchDNSQueries []MatchDNSQueryType   `json:"matchDNSQueries,omitempty"`
 
 	Severity int      `json:"severity,omitempty"`
 	Tags     []string `json:"tags,omitempty"`

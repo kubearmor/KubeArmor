@@ -5,6 +5,7 @@ package bpflsm
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"strings"
 
@@ -43,10 +44,11 @@ const (
 
 // Map Key Identifiers for Whitelist/Posture
 var (
-	PROCWHITELIST = InnerKey{Path: [200]byte{101}}
-	FILEWHITELIST = InnerKey{Path: [200]byte{102}}
-	NETWHITELIST  = InnerKey{Path: [200]byte{103}}
-	CAPWHITELIST  = InnerKey{Path: [200]byte{104}}
+	PROCWHITELIST   = InnerKey{Path: [200]byte{101}}
+	FILEWHITELIST   = InnerKey{Path: [200]byte{102}}
+	NETWHITELIST    = InnerKey{Path: [200]byte{103}}
+	CAPWHITELIST    = InnerKey{Path: [200]byte{104}}
+	DNSNETWHITELIST = InnerKey{Path: [200]byte{105}}
 )
 
 // Protocol Identifiers for Network Rules
@@ -81,15 +83,16 @@ const capableKey = 200
 
 // RuleList Structure contains all the data required to set rules for a particular container
 type RuleList struct {
-	ProcessRuleList      map[InnerKey][2]uint16
-	FileRuleList         map[InnerKey][2]uint16
-	NetworkRuleList      map[InnerKey][2]uint16
-	CapabilitiesRuleList map[InnerKey][2]uint16
-	ProcWhiteListPosture bool
-	FileWhiteListPosture bool
-	NetWhiteListPosture  bool
-	CapWhiteListPosture  bool
-	ArgumentsList        map[ArgListKey][]string
+	ProcessRuleList        map[InnerKey][2]uint16
+	FileRuleList           map[InnerKey][2]uint16
+	NetworkRuleList        map[InnerKey][2]uint16
+	CapabilitiesRuleList   map[InnerKey][2]uint16
+	ProcWhiteListPosture   bool
+	FileWhiteListPosture   bool
+	NetWhiteListPosture    bool
+	DNSNetWhiteListPosture bool
+	CapWhiteListPosture    bool
+	ArgumentsList          map[ArgListKey][]string
 }
 
 // Init prepares the RuleList object
@@ -118,6 +121,7 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 
 	// Generate Fresh Rule Set based on Updated Security Policies
 	for _, secPolicy := range securityPolicies {
+
 		for _, path := range secPolicy.Spec.Process.MatchPaths {
 			var val [2]uint16
 			var argKey ArgListKey
@@ -338,6 +342,32 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 				}
 			}
 		}
+
+		ns := secPolicy.Metadata["namespaceName"]
+		for _, dns := range secPolicy.Spec.Network.MatchDNSQueries {
+			var val [2]uint16
+
+			if len(dns.FromSource) == 0 {
+				if dns.Action == "Allow" {
+					newrules.DNSNetWhiteListPosture = true
+					domaintoMap(NETWORK, dns.Domain, "", ns, newrules.NetworkRuleList, val)
+				} else if dns.Action == "Block" {
+					val[NETWORK] = val[NETWORK] | DENY
+					domaintoMap(NETWORK, dns.Domain, "", ns, newrules.NetworkRuleList, val)
+				}
+			} else {
+				for _, src := range dns.FromSource {
+					if dns.Action == "Allow" {
+						newrules.DNSNetWhiteListPosture = true
+						domaintoMap(NETWORK, dns.Domain, src.Path, ns, newrules.NetworkRuleList, val)
+					} else if dns.Action == "Block" {
+						val[NETWORK] = val[NETWORK] | DENY
+						domaintoMap(NETWORK, dns.Domain, src.Path, ns, newrules.NetworkRuleList, val)
+					}
+				}
+			}
+		}
+
 		for _, capab := range secPolicy.Spec.Capabilities.MatchCapabilities {
 			var val [2]uint16
 			var key = InnerKey{Path: [200]byte{}, Source: [200]byte{}}
@@ -413,6 +443,7 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 		list.Rules.ProcWhiteListPosture = newrules.ProcWhiteListPosture
 		list.Rules.FileWhiteListPosture = newrules.FileWhiteListPosture
 		list.Rules.NetWhiteListPosture = newrules.NetWhiteListPosture
+		list.Rules.DNSNetWhiteListPosture = newrules.DNSNetWhiteListPosture
 		list.Rules.CapWhiteListPosture = newrules.CapWhiteListPosture
 
 		be.ContainerMap[id] = list
@@ -481,6 +512,7 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 	}
 
 	if newrules.NetWhiteListPosture {
+
 		if defaultPosture.NetworkAction == "block" {
 			if err := be.ContainerMap[id].Map.Put(NETWHITELIST, [2]uint16{BlockPosture}); err != nil {
 				be.Logger.Errf("error adding network key rule to map for container %s: %s", id, err)
@@ -492,6 +524,24 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 		}
 	} else {
 		if err := be.ContainerMap[id].Map.Delete(NETWHITELIST); err != nil {
+			if !errors.Is(err, os.ErrNotExist) {
+				be.Logger.Err(err.Error())
+			}
+		}
+	}
+	if newrules.DNSNetWhiteListPosture {
+
+		if defaultPosture.NetworkAction == "block" {
+			if err := be.ContainerMap[id].Map.Put(DNSNETWHITELIST, [2]uint16{BlockPosture}); err != nil {
+				be.Logger.Errf("error adding network key rule to map for container %s: %s", id, err)
+			}
+		} else {
+			if err := be.ContainerMap[id].Map.Put(DNSNETWHITELIST, [2]uint16{AuditPosture}); err != nil {
+				be.Logger.Errf("error adding network key rule to map for container %s: %s", id, err)
+			}
+		}
+	} else {
+		if err := be.ContainerMap[id].Map.Delete(DNSNETWHITELIST); err != nil {
 			if !errors.Is(err, os.ErrNotExist) {
 				be.Logger.Err(err.Error())
 			}
@@ -626,6 +676,30 @@ func dirtoMap(idx int, p, src string, m map[InnerKey][2]uint16, val [2]uint16) {
 				val[idx] = oldval[idx] | HINT
 			}
 		}
+		m[key] = val
+	}
+}
+
+func domaintoMap(idx int, domain, src, namespace string, m map[InnerKey][2]uint16, val [2]uint16) {
+	// K8s cluster search domain suffixes present on every standard cluster.
+	// These are injected alongside the exact domain so that the expanded queries
+	// sent by the pod resolver are also matched by the existing exact-match BPF code.
+	clusterSuffixes := []string{
+		"", // exact domain
+		".cluster.local",
+		".svc.cluster.local",
+		".domain.name",
+	}
+	if namespace != "" {
+		clusterSuffixes = append(clusterSuffixes, "."+namespace+".svc.cluster.local")
+	}
+	for _, suffix := range clusterSuffixes {
+		var key InnerKey
+		copy(key.Path[:], []byte(domain+suffix))
+		if src != "" {
+			copy(key.Source[:], []byte(src))
+		}
+		fmt.Printf("Adding domain rule for %s \n", domain+suffix)
 		m[key] = val
 	}
 }

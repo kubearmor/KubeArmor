@@ -1173,6 +1173,7 @@ func (dm *KubeArmorDaemon) UpdateSecurityPolicy(action string, secPolicyType str
 								if !kl.ContainsElement(cfg.GlobalCfg.ConfigUntrackedNs.Load().([]string), dm.EndPoints[idx].NamespaceName) || action == deleteEvent {
 									// we want to avoid new policies in untracked namespaces but deletion of the existing policies should be allowed
 									if dm.RuntimeEnforcer != nil {
+										fmt.Println(" 1176 Updating security policies in runtime enforcer for endpoint:", dm.EndPoints[idx].NamespaceName, dm.EndPoints[idx].EndPointName, dm.EndPoints[idx].ContainerName)
 										dm.RuntimeEnforcer.UpdateSecurityPolicies(dm.EndPoints[idx])
 									}
 									if dm.Presets != nil {
@@ -1276,7 +1277,6 @@ func (dm *KubeArmorDaemon) UpdateSecurityPolicy(action string, secPolicyType str
 // CreateSecurityPolicy - creates `KubeArmorPolicy` & `KubeArmorClusterPolicy` object from crd
 func (dm *KubeArmorDaemon) CreateSecurityPolicy(policyType string, securityPolicy any) (secPolicy tp.SecurityPolicy, err error) {
 	var namespace, name string
-
 	switch policyType {
 	case KubeArmorPolicy:
 		kubearmorPolicy := securityPolicy.(ksp.KubeArmorPolicy)
@@ -1390,6 +1390,7 @@ func (dm *KubeArmorDaemon) CreateSecurityPolicy(policyType string, securityPolic
 	secPolicy.Metadata["policyName"] = name
 
 	kl.ObjCommaExpandFirstDupOthers(&secPolicy.Spec.Network.MatchProtocols)
+	kl.ObjCommaExpandFirstDupOthers(&secPolicy.Spec.Network.MatchDNSQueries)
 	kl.ObjCommaExpandFirstDupOthers(&secPolicy.Spec.Capabilities.MatchCapabilities)
 
 	switch secPolicy.Spec.Action {
@@ -1652,6 +1653,42 @@ func (dm *KubeArmorDaemon) CreateSecurityPolicy(policyType string, securityPolic
 					secPolicy.Spec.Network.MatchProtocols[idx].Action = secPolicy.Spec.Network.Action
 				} else {
 					secPolicy.Spec.Network.MatchProtocols[idx].Action = secPolicy.Spec.Action
+				}
+			}
+		}
+	}
+
+	if len(secPolicy.Spec.Network.MatchDNSQueries) > 0 {
+		for idx, dns := range secPolicy.Spec.Network.MatchDNSQueries {
+			if dns.Severity == 0 {
+				if secPolicy.Spec.Network.Severity != 0 {
+					secPolicy.Spec.Network.MatchDNSQueries[idx].Severity = secPolicy.Spec.Network.Severity
+				} else {
+					secPolicy.Spec.Network.MatchDNSQueries[idx].Severity = secPolicy.Spec.Severity
+				}
+			}
+
+			if len(dns.Tags) == 0 {
+				if len(secPolicy.Spec.Network.Tags) > 0 {
+					secPolicy.Spec.Network.MatchDNSQueries[idx].Tags = secPolicy.Spec.Network.Tags
+				} else {
+					secPolicy.Spec.Network.MatchDNSQueries[idx].Tags = secPolicy.Spec.Tags
+				}
+			}
+
+			if len(dns.Message) == 0 {
+				if len(secPolicy.Spec.Network.Message) > 0 {
+					secPolicy.Spec.Network.MatchDNSQueries[idx].Message = secPolicy.Spec.Network.Message
+				} else {
+					secPolicy.Spec.Network.MatchDNSQueries[idx].Message = secPolicy.Spec.Message
+				}
+			}
+
+			if len(dns.Action) == 0 {
+				if len(secPolicy.Spec.Network.Action) > 0 {
+					secPolicy.Spec.Network.MatchDNSQueries[idx].Action = secPolicy.Spec.Network.Action
+				} else {
+					secPolicy.Spec.Network.MatchDNSQueries[idx].Action = secPolicy.Spec.Action
 				}
 			}
 		}
@@ -2013,6 +2050,7 @@ func (dm *KubeArmorDaemon) ParseAndUpdateHostSecurityPolicy(event tp.K8sKubeArmo
 	}
 
 	kl.ObjCommaExpandFirstDupOthers(&secPolicy.Spec.Network.MatchProtocols)
+	kl.ObjCommaExpandFirstDupOthers(&secPolicy.Spec.Network.MatchDNSQueries)
 	kl.ObjCommaExpandFirstDupOthers(&secPolicy.Spec.Capabilities.MatchCapabilities)
 
 	switch secPolicy.Spec.Action {
@@ -2285,6 +2323,42 @@ func (dm *KubeArmorDaemon) ParseAndUpdateHostSecurityPolicy(event tp.K8sKubeArmo
 					secPolicy.Spec.Network.MatchProtocols[idx].Action = secPolicy.Spec.Network.Action
 				} else {
 					secPolicy.Spec.Network.MatchProtocols[idx].Action = secPolicy.Spec.Action
+				}
+			}
+		}
+	}
+
+	if len(secPolicy.Spec.Network.MatchDNSQueries) > 0 {
+		for idx, dns := range secPolicy.Spec.Network.MatchDNSQueries {
+			if dns.Severity == 0 {
+				if secPolicy.Spec.Network.Severity != 0 {
+					secPolicy.Spec.Network.MatchDNSQueries[idx].Severity = secPolicy.Spec.Network.Severity
+				} else {
+					secPolicy.Spec.Network.MatchDNSQueries[idx].Severity = secPolicy.Spec.Severity
+				}
+			}
+
+			if len(dns.Tags) == 0 {
+				if len(secPolicy.Spec.Network.Tags) > 0 {
+					secPolicy.Spec.Network.MatchDNSQueries[idx].Tags = secPolicy.Spec.Network.Tags
+				} else {
+					secPolicy.Spec.Network.MatchDNSQueries[idx].Tags = secPolicy.Spec.Tags
+				}
+			}
+
+			if len(dns.Message) == 0 {
+				if len(secPolicy.Spec.Network.Message) > 0 {
+					secPolicy.Spec.Network.MatchDNSQueries[idx].Message = secPolicy.Spec.Network.Message
+				} else {
+					secPolicy.Spec.Network.MatchDNSQueries[idx].Message = secPolicy.Spec.Message
+				}
+			}
+
+			if len(dns.Action) == 0 {
+				if len(secPolicy.Spec.Network.Action) > 0 {
+					secPolicy.Spec.Network.MatchDNSQueries[idx].Action = secPolicy.Spec.Network.Action
+				} else {
+					secPolicy.Spec.Network.MatchDNSQueries[idx].Action = secPolicy.Spec.Action
 				}
 			}
 		}

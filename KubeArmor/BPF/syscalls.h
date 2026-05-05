@@ -24,6 +24,7 @@ enum
     _SOCKET_CREATE = 461,
     _SOCKET_CONNECT = 462,
     _SOCKET_ACCEPT = 463,
+    _SOCKET_SENDMSG = 465,
 
     //process
     _SECURITY_BPRM_CHECK = 352,
