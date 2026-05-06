@@ -40,12 +40,29 @@ jobs:
           echo "tag: ${{ steps.tag.outputs.tag }}" >> release-manifest-${{ steps.tag.outputs.tag }}.txt
           echo "generated_at: $(date -u --rfc-3339=seconds)" >> release-manifest-${{ steps.tag.outputs.tag }}.txt
 
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: 'KubeArmor/go.mod'
+
+      - name: Build Linux amd64 binary
+        run: |
+          GOOS=linux GOARCH=amd64 go build -o kubearmor-linux-amd64 ./KubeArmor
+
+      - name: Package binary
+        run: |
+          tar -czf kubearmor-linux-amd64.tar.gz kubearmor-linux-amd64
+
       - name: Install cosign
         uses: sigstore/cosign-installer@v1
 
       - name: Sign manifest (keyless)
         run: |
           cosign sign-blob --keyless --output-signature release-manifest-${{ steps.tag.outputs.tag }}.txt.sig release-manifest-${{ steps.tag.outputs.tag }}.txt
+
+      - name: Sign binary tarball (keyless)
+        run: |
+          cosign sign-blob --keyless --output-signature kubearmor-linux-amd64.tar.gz.sig kubearmor-linux-amd64.tar.gz
 
       - name: Create or ensure GitHub Release
         id: create_release
@@ -70,4 +87,20 @@ jobs:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: release-manifest-${{ steps.tag.outputs.tag }}.txt.sig
           asset_name: release-manifest-${{ steps.tag.outputs.tag }}.txt.sig
+          asset_content_type: application/octet-stream
+
+      - name: Upload binary tarball
+        uses: actions/upload-release-asset@v1
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: kubearmor-linux-amd64.tar.gz
+          asset_name: kubearmor-linux-amd64.tar.gz
+          asset_content_type: application/gzip
+
+      - name: Upload binary signature
+        uses: actions/upload-release-asset@v1
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: kubearmor-linux-amd64.tar.gz.sig
+          asset_name: kubearmor-linux-amd64.tar.gz.sig
           asset_content_type: application/octet-stream
