@@ -59,11 +59,11 @@ jobs:
 
       - name: Sign manifest (keyless)
         run: |
-          cosign sign-blob --keyless --output-signature release-manifest-${{ steps.tag.outputs.tag }}.txt.sig release-manifest-${{ steps.tag.outputs.tag }}.txt
+          cosign sign-blob --yes --output-signature release-manifest-${{ steps.tag.outputs.tag }}.txt.sig --output-certificate release-manifest-${{ steps.tag.outputs.tag }}.txt.pem release-manifest-${{ steps.tag.outputs.tag }}.txt
 
       - name: Sign binary tarball (keyless)
         run: |
-          cosign sign-blob --keyless --output-signature kubearmor-linux-amd64.tar.gz.sig kubearmor-linux-amd64.tar.gz
+          cosign sign-blob --yes --output-signature kubearmor-linux-amd64.tar.gz.sig --output-certificate kubearmor-linux-amd64.tar.gz.pem kubearmor-linux-amd64.tar.gz
 
       - name: Create or update release and upload assets
         uses: softprops/action-gh-release@v2
@@ -75,5 +75,7 @@ jobs:
           files: |
             release-manifest-${{ steps.tag.outputs.tag }}.txt
             release-manifest-${{ steps.tag.outputs.tag }}.txt.sig
+            release-manifest-${{ steps.tag.outputs.tag }}.txt.pem
             kubearmor-linux-amd64.tar.gz
             kubearmor-linux-amd64.tar.gz.sig
+            kubearmor-linux-amd64.tar.gz.pem

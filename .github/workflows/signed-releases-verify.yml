@@ -43,15 +43,17 @@ jobs:
         run: |
           MANIFEST_URL=$(grep "release-manifest-" assets.list | cut -d':::' -f2 | head -n1)
           SIG_URL=$(grep "release-manifest-.*.txt.sig" assets.list | cut -d':::' -f2 | head -n1)
-          if [ -z "$MANIFEST_URL" ] || [ -z "$SIG_URL" ]; then
-            echo "Manifest or signature asset not found"; exit 2;
+          CERT_URL=$(grep "release-manifest-.*.txt.pem" assets.list | cut -d':::' -f2 | head -n1)
+          if [ -z "$MANIFEST_URL" ] || [ -z "$SIG_URL" ] || [ -z "$CERT_URL" ]; then
+            echo "Manifest, signature, or certificate asset not found"; exit 2;
           fi
           curl -L -H "Authorization: token $GITHUB_TOKEN" -o manifest.txt "$MANIFEST_URL"
           curl -L -H "Authorization: token $GITHUB_TOKEN" -o manifest.txt.sig "$SIG_URL"
+          curl -L -H "Authorization: token $GITHUB_TOKEN" -o manifest.txt.pem "$CERT_URL"
 
       - name: Install cosign
         uses: sigstore/cosign-installer@v3.10.1
 
       - name: Verify signature (keyless)
         run: |
-          cosign verify-blob --keyless --signature manifest.txt.sig manifest.txt
+          cosign verify-blob --signature manifest.txt.sig --certificate manifest.txt.pem --certificate-identity-regexp ".*" --certificate-oidc-issuer-regexp ".*" manifest.txt
