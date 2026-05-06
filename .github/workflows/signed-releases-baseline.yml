@@ -46,8 +46,9 @@ jobs:
           go-version-file: 'KubeArmor/go.mod'
 
       - name: Build Linux amd64 binary
+        working-directory: ./KubeArmor
         run: |
-          GOOS=linux GOARCH=amd64 go build -o kubearmor-linux-amd64 ./KubeArmor
+          GOOS=linux GOARCH=amd64 go build -o ../kubearmor-linux-amd64 .
 
       - name: Package binary
         run: |
@@ -64,43 +65,15 @@ jobs:
         run: |
           cosign sign-blob --keyless --output-signature kubearmor-linux-amd64.tar.gz.sig kubearmor-linux-amd64.tar.gz
 
-      - name: Create or ensure GitHub Release
-        id: create_release
-        uses: actions/create-release@v1
+      - name: Create or update release and upload assets
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.tag.outputs.tag }}
-          release_name: "Signed baseline ${{ steps.tag.outputs.tag }}"
+          name: "Signed baseline ${{ steps.tag.outputs.tag }}"
           body: "Baseline signed artifacts for OpenSSF Scorecard Signed-Releases check."
           draft: false
-
-      - name: Upload manifest asset
-        uses: actions/upload-release-asset@v1
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: release-manifest-${{ steps.tag.outputs.tag }}.txt
-          asset_name: release-manifest-${{ steps.tag.outputs.tag }}.txt
-          asset_content_type: text/plain
-
-      - name: Upload signature asset
-        uses: actions/upload-release-asset@v1
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: release-manifest-${{ steps.tag.outputs.tag }}.txt.sig
-          asset_name: release-manifest-${{ steps.tag.outputs.tag }}.txt.sig
-          asset_content_type: application/octet-stream
-
-      - name: Upload binary tarball
-        uses: actions/upload-release-asset@v1
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: kubearmor-linux-amd64.tar.gz
-          asset_name: kubearmor-linux-amd64.tar.gz
-          asset_content_type: application/gzip
-
-      - name: Upload binary signature
-        uses: actions/upload-release-asset@v1
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: kubearmor-linux-amd64.tar.gz.sig
-          asset_name: kubearmor-linux-amd64.tar.gz.sig
-          asset_content_type: application/octet-stream
+          files: |
+            release-manifest-${{ steps.tag.outputs.tag }}.txt
+            release-manifest-${{ steps.tag.outputs.tag }}.txt.sig
+            kubearmor-linux-amd64.tar.gz
+            kubearmor-linux-amd64.tar.gz.sig
