@@ -41,7 +41,7 @@ jobs:
           echo "generated_at: $(date -u --rfc-3339=seconds)" >> release-manifest-${{ steps.tag.outputs.tag }}.txt
 
       - name: Install cosign
-        uses: sigstore/cosign-installer@main
+        uses: sigstore/cosign-installer@v1
 
       - name: Sign manifest (keyless)
         run: |
