@@ -1,0 +1,57 @@
+name: Signed Releases Verification
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to verify"
+        required: false
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  verify-signature:
+    name: Verify signed release manifest
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Determine tag
+        id: tag
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG="${{ github.event.inputs.tag }}"
+          else
+            TAG="${{ github.event.release.tag_name }}"
+          fi
+          if [ -z "$TAG" ]; then
+            echo "No tag provided or found; exiting"; exit 1;
+          fi
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+
+      - name: Query release assets
+        id: assets
+        run: |
+          release_json=$(curl -s -H "Authorization: token $GITHUB_TOKEN" "https://api.github.com/repos/$GITHUB_REPOSITORY/releases/tags/${{ steps.tag.outputs.tag }}")
+          echo "$release_json" > release.json
+          jq -r '.assets[] | "\(.name):::\(.browser_download_url)"' release.json > assets.list || true
+          cat assets.list
+
+      - name: Download manifest and signature
+        run: |
+          MANIFEST_URL=$(grep "release-manifest-" assets.list | cut -d':::' -f2 | head -n1)
+          SIG_URL=$(grep "release-manifest-.*.txt.sig" assets.list | cut -d':::' -f2 | head -n1)
+          if [ -z "$MANIFEST_URL" ] || [ -z "$SIG_URL" ]; then
+            echo "Manifest or signature asset not found"; exit 2;
+          fi
+          curl -L -H "Authorization: token $GITHUB_TOKEN" -o manifest.txt "$MANIFEST_URL"
+          curl -L -H "Authorization: token $GITHUB_TOKEN" -o manifest.txt.sig "$SIG_URL"
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v1
+
+      - name: Verify signature (keyless)
+        run: |
+          cosign verify-blob --keyless --signature manifest.txt.sig manifest.txt
