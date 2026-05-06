@@ -1,0 +1,73 @@
+name: Signed Releases Baseline
+
+on:
+  release:
+    types: [created]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Optional tag to create a release for"
+        required: false
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  sign-and-publish:
+    name: Create signed release manifest and attach signature
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set TAG
+        id: tag
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG="${{ github.event.inputs.tag }}"
+          else
+            TAG="${{ github.event.release.tag_name }}"
+          fi
+          if [ -z "$TAG" ]; then
+            TAG="manual-$(date -u +%Y%m%d%H%M%S)"
+          fi
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+
+      - name: Create release manifest
+        run: |
+          echo "repo: $GITHUB_REPOSITORY" > release-manifest-${{ steps.tag.outputs.tag }}.txt
+          echo "tag: ${{ steps.tag.outputs.tag }}" >> release-manifest-${{ steps.tag.outputs.tag }}.txt
+          echo "generated_at: $(date -u --rfc-3339=seconds)" >> release-manifest-${{ steps.tag.outputs.tag }}.txt
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@main
+
+      - name: Sign manifest (keyless)
+        run: |
+          cosign sign-blob --keyless --output-signature release-manifest-${{ steps.tag.outputs.tag }}.txt.sig release-manifest-${{ steps.tag.outputs.tag }}.txt
+
+      - name: Create or ensure GitHub Release
+        id: create_release
+        uses: actions/create-release@v1
+        with:
+          tag_name: ${{ steps.tag.outputs.tag }}
+          release_name: "Signed baseline ${{ steps.tag.outputs.tag }}"
+          body: "Baseline signed artifacts for OpenSSF Scorecard Signed-Releases check."
+          draft: false
+
+      - name: Upload manifest asset
+        uses: actions/upload-release-asset@v1
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: release-manifest-${{ steps.tag.outputs.tag }}.txt
+          asset_name: release-manifest-${{ steps.tag.outputs.tag }}.txt
+          asset_content_type: text/plain
+
+      - name: Upload signature asset
+        uses: actions/upload-release-asset@v1
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: release-manifest-${{ steps.tag.outputs.tag }}.txt.sig
+          asset_name: release-manifest-${{ steps.tag.outputs.tag }}.txt.sig
+          asset_content_type: application/octet-stream
