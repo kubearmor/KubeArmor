@@ -53,7 +53,7 @@ FROM alpine:3.22 AS kubearmor
 RUN echo "@v323main https://dl-cdn.alpinelinux.org/alpine/v3.23/main" >> /etc/apk/repositories && \
     echo "https://dl-cdn.alpinelinux.org/alpine/v3.23/community" >> /etc/apk/repositories
 RUN apk --no-cache update && \
-    apk upgrade --no-cache libcrypto3 libssl3 zlib libexpat && \
+    apk upgrade --no-cache libcrypto3 libssl3 zlib libexpat busybox  && \
     apk add --no-cache musl@v323main musl-utils@v323main perl@v323main
 
 RUN apk add --no-cache apparmor apparmor-utils bash nftables
