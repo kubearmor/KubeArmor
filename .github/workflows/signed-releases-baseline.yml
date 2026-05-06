@@ -54,7 +54,7 @@ jobs:
           tar -czf kubearmor-linux-amd64.tar.gz kubearmor-linux-amd64
 
       - name: Install cosign
-        uses: sigstore/cosign-installer@v1
+        uses: sigstore/cosign-installer@v3.10.1
 
       - name: Sign manifest (keyless)
         run: |

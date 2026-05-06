@@ -50,7 +50,7 @@ jobs:
           curl -L -H "Authorization: token $GITHUB_TOKEN" -o manifest.txt.sig "$SIG_URL"
 
       - name: Install cosign
-        uses: sigstore/cosign-installer@v1
+        uses: sigstore/cosign-installer@v3.10.1
 
       - name: Verify signature (keyless)
         run: |
