@@ -24,9 +24,13 @@ How to test locally / on the repo
 ---------------------------------
 
 1. Create a release in your fork (or run the `Signed Releases Baseline` workflow manually and provide a `tag`).
-2. Confirm the release has two assets:
+2. Confirm the release has the signed release assets:
    - `release-manifest-<tag>.txt`
    - `release-manifest-<tag>.txt.sig`
+   - `release-manifest-<tag>.txt.pem`
+   - `kubearmor-linux-amd64.tar.gz`
+   - `kubearmor-linux-amd64.tar.gz.sig`
+   - `kubearmor-linux-amd64.tar.gz.pem`
 3. After the release is published, the `Signed Releases Verification` workflow will run and should pass the
    `cosign verify-blob --keyless` check.
 
