@@ -1,0 +1,81 @@
+name: Signed Releases Baseline
+
+on:
+  release:
+    types: [created]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Optional tag to create a release for"
+        required: false
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  sign-and-publish:
+    name: Create signed release manifest and attach signature
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set TAG
+        id: tag
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG="${{ github.event.inputs.tag }}"
+          else
+            TAG="${{ github.event.release.tag_name }}"
+          fi
+          if [ -z "$TAG" ]; then
+            TAG="manual-$(date -u +%Y%m%d%H%M%S)"
+          fi
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+
+      - name: Create release manifest
+        run: |
+          echo "repo: $GITHUB_REPOSITORY" > release-manifest-${{ steps.tag.outputs.tag }}.txt
+          echo "tag: ${{ steps.tag.outputs.tag }}" >> release-manifest-${{ steps.tag.outputs.tag }}.txt
+          echo "generated_at: $(date -u --rfc-3339=seconds)" >> release-manifest-${{ steps.tag.outputs.tag }}.txt
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: 'KubeArmor/go.mod'
+
+      - name: Build Linux amd64 binary
+        working-directory: ./KubeArmor
+        run: |
+          GOOS=linux GOARCH=amd64 go build -o ../kubearmor-linux-amd64 .
+
+      - name: Package binary
+        run: |
+          tar -czf kubearmor-linux-amd64.tar.gz kubearmor-linux-amd64
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3.10.1
+
+      - name: Sign manifest (keyless)
+        run: |
+          cosign sign-blob --yes --output-signature release-manifest-${{ steps.tag.outputs.tag }}.txt.sig --output-certificate release-manifest-${{ steps.tag.outputs.tag }}.txt.pem release-manifest-${{ steps.tag.outputs.tag }}.txt
+
+      - name: Sign binary tarball (keyless)
+        run: |
+          cosign sign-blob --yes --output-signature kubearmor-linux-amd64.tar.gz.sig --output-certificate kubearmor-linux-amd64.tar.gz.pem kubearmor-linux-amd64.tar.gz
+
+      - name: Create or update release and upload assets
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag.outputs.tag }}
+          name: "Signed baseline ${{ steps.tag.outputs.tag }}"
+          body: "Baseline signed artifacts for OpenSSF Scorecard Signed-Releases check."
+          draft: false
+          files: |
+            release-manifest-${{ steps.tag.outputs.tag }}.txt
+            release-manifest-${{ steps.tag.outputs.tag }}.txt.sig
+            release-manifest-${{ steps.tag.outputs.tag }}.txt.pem
+            kubearmor-linux-amd64.tar.gz
+            kubearmor-linux-amd64.tar.gz.sig
+            kubearmor-linux-amd64.tar.gz.pem
