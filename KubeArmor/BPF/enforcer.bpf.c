@@ -5,6 +5,7 @@
 #include "shared.h"
 #include "syscalls.h"
 #include "arg_matching_helpers.h"
+
 SEC("lsm/bprm_check_security")
 int BPF_PROG(enforce_proc, struct linux_binprm *bprm, int ret)
 {
@@ -57,11 +58,18 @@ int BPF_PROG(enforce_proc, struct linux_binprm *bprm, int ret)
   if (path_offset == NULL)
     return 0;
 
-  void *path_ptr = &path_buf->buf[*path_offset];
+  u32 path_off = 0;
+  if (!valid_buf_and_off(path_buf, path_offset, &path_off))
+      return 0;
+
+  void *path_ptr = &path_buf->buf[path_off];
+  if (!path_ptr)
+      return 0;
+
   bpf_probe_read_str(store->path, MAX_STRING_SIZE, path_ptr);
 
   struct data_t *val = bpf_map_lookup_elem(inner, store);
-  struct data_t *dirval;
+  struct data_t *dirval = NULL;
   bool recursivebuthint = false;
   bool fromSourceCheck = true;
   bool goToDecision = false;
@@ -74,21 +82,29 @@ int BPF_PROG(enforce_proc, struct linux_binprm *bprm, int ret)
   bufs_t *src_buf = get_buf(PATH_BUFFER);
   if (src_buf == NULL)
     fromSourceCheck = false;
-  struct path f_src = BPF_CORE_READ(file_p, f_path);
-  if (!prepend_path(&f_src, src_buf))
-    fromSourceCheck = false;
+  if (fromSourceCheck) {
+    struct path f_src = BPF_CORE_READ(file_p, f_path);
+    if (!prepend_path(&f_src, src_buf))
+      fromSourceCheck = false;
+  }
 
   u32 *src_offset = get_buf_off(PATH_BUFFER);
   if (src_offset == NULL)
     fromSourceCheck = false;
 
-  void *src_ptr;
-  if (src_buf->buf[*src_offset])
-  {
-    src_ptr = &src_buf->buf[*src_offset];
+  void *src_ptr = NULL;
+
+  if (fromSourceCheck) {
+    u32 src_off = 0;
+
+    if (!valid_buf_and_off(src_buf, src_offset, &src_off)) {
+      fromSourceCheck = false;
+    } else {
+      src_ptr = &src_buf->buf[src_off];
+      if (!src_ptr)
+        fromSourceCheck = false;
+    }
   }
-  if (src_ptr == NULL)
-    fromSourceCheck = false;
 
   if (fromSourceCheck)
   {
@@ -113,8 +129,12 @@ int BPF_PROG(enforce_proc, struct linux_binprm *bprm, int ret)
 
         match = false;
 
-        bpf_probe_read_str(pk->path, i + 2, store->path);
+        u32 len = i + 2;
+        if (len > MAX_STRING_SIZE)
+            len = MAX_STRING_SIZE;
+
         // Check Subdir with From Source
+        bpf_probe_read_str(pk->path, len, store->path);
         bpf_probe_read_str(pk->source, MAX_STRING_SIZE, store->source);
         dirval = bpf_map_lookup_elem(inner, pk);
         if (dirval)
@@ -124,16 +144,14 @@ int BPF_PROG(enforce_proc, struct linux_binprm *bprm, int ret)
           {
             match = true;
             if ((dirval->processmask & RULE_RECURSIVE) &&
-                (~dirval->processmask &
-                 RULE_HINT))
+                (~dirval->processmask & RULE_HINT))
             { // true directory match and not a hint suggests
               // there are no possibility of child dir
               val = dirval;
               goToDecision = true; // to please the holy verifier
               break;
             }
-            else if (dirval->processmask &
-                     RULE_RECURSIVE)
+            else if (dirval->processmask & RULE_RECURSIVE) 
             { // It's a directory match but also a
               // hint, it's possible that a
               // subdirectory exists that can also
@@ -161,13 +179,10 @@ int BPF_PROG(enforce_proc, struct linux_binprm *bprm, int ret)
       match = true;
       goto decision;
     }
-    if (match)
-    {
-      if (dirval)
-      { // to please the holy verifier
-        val = dirval;
-        goto decision;
-      }
+    if (match && dirval)
+    { // to please the holy verifier
+      val = dirval;
+      goto decision;
     }
   }
   bpf_map_update_elem(&bufk, &two, z, BPF_ANY);
@@ -182,8 +197,8 @@ int BPF_PROG(enforce_proc, struct linux_binprm *bprm, int ret)
   }
 
   // match exec name
-  struct qstr d_name;
-  d_name = BPF_CORE_READ(f_path.dentry, d_name);
+  struct qstr d_name = BPF_CORE_READ(f_path.dentry, d_name);
+
   bpf_map_update_elem(&bufk, &two, z, BPF_ANY);
   bpf_probe_read_str(pk->path, MAX_STRING_SIZE, d_name.name);
 
@@ -209,7 +224,11 @@ int BPF_PROG(enforce_proc, struct linux_binprm *bprm, int ret)
 
       match = false;
 
-      bpf_probe_read_str(pk->path, i + 2, store->path);
+      u32 len = i + 2;
+      if (len > MAX_STRING_SIZE)
+          len = MAX_STRING_SIZE;
+
+      bpf_probe_read_str(pk->path, len, store->path);
       dirval = bpf_map_lookup_elem(inner, pk);
       if (dirval)
       {
@@ -218,8 +237,7 @@ int BPF_PROG(enforce_proc, struct linux_binprm *bprm, int ret)
         {
           match = true;
           if ((dirval->processmask & RULE_RECURSIVE) &&
-              (~dirval->processmask &
-               RULE_HINT))
+              (~dirval->processmask & RULE_HINT))
           { // true directory match and not a hint suggests
             // there are no possibility of child dir match
             val = dirval;

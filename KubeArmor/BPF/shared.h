@@ -282,6 +282,19 @@ static __always_inline u32 *get_buf_off(int buf_idx)
   return bpf_map_lookup_elem(&bufs_off, &buf_idx);
 }
 
+static __always_inline bool valid_buf_and_off(bufs_t *buf, u32 *off_ptr, u32 *off)
+{
+    if (!buf || !off_ptr)
+        return false;
+
+    *off = *off_ptr;
+
+    if (*off >= MAX_BUFFER_SIZE)
+        return false;
+
+    return true;
+}
+
 static inline struct mount *real_mount(struct vfsmount *mnt)
 {
   return container_of(mnt, struct mount, mnt);
@@ -439,12 +452,31 @@ static __always_inline long strtol(const char *buf, size_t buf_len, long *res)
 
 static __always_inline u32 get_task_pid_ns_id(struct task_struct *task)
 {
-  return BPF_CORE_READ(task, nsproxy, pid_ns_for_children, ns).inum;
+  struct pid_namespace *pid_ns;
+  u32 inum = 0;
+
+  pid_ns = BPF_CORE_READ(task, nsproxy, pid_ns_for_children);
+
+  if (!pid_ns)
+      return 0;
+
+  bpf_core_read(&inum, sizeof(inum), &pid_ns->ns.inum);
+
+  return inum;
 }
 
 static __always_inline u32 get_task_mnt_ns_id(struct task_struct *task)
 {
-  return BPF_CORE_READ(task, nsproxy, mnt_ns, ns).inum;
+    struct mnt_namespace *mnt_ns;
+    u32 inum = 0;
+
+    mnt_ns = BPF_CORE_READ(task, nsproxy, mnt_ns);
+    if (!mnt_ns)
+        return 0;
+
+    bpf_core_read(&inum, sizeof(inum), &mnt_ns->ns.inum);
+
+    return inum;
 }
 
 static __always_inline u32 get_task_pid_vnr(struct task_struct *task)
