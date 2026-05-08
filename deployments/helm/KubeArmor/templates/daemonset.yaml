@@ -14,7 +14,7 @@ spec:
       labels:
         kubearmor-app: kubearmor
       {{- if eq .Values.environment.name "autopilot" }}
-        "cloud.google.com/matching-allowlist": accuknox-kubearmor-{{ include "chart.majorMinorVersion" . }}
+        "cloud.google.com/matching-allowlist": accuknox-kubearmor-{{ if ne (.Values.gkeAllowlistVersion | default "") "" }}{{ .Values.gkeAllowlistVersion }}{{ else }}{{ include "chart.majorMinorVersion" . }}{{ end }}
       {{- end }}
     spec:
       {{- if .Values.kubearmor.image.imagePullSecrets }}
