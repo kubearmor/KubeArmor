@@ -25,6 +25,7 @@ jobs:
     runs-on: oracle-vm-16cpu-64gb-x86-64
     permissions:
       id-token: write
+      contents: read
     timeout-minutes: 150
     steps:
       - name: Checkout code

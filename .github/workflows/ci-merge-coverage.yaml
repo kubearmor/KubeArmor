@@ -6,11 +6,16 @@ on:
     types:
       - completed
 
+permissions: read-all
+
 jobs:
   merge-coverage-files:
     name: Download and merge files
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    permissions:
+      actions: read
+      contents: read
     steps:
       - name: Check if all required workflows completed successfully
         id: check-workflows
@@ -43,18 +48,17 @@ jobs:
           fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           submodules: true
-          
-      - uses: actions/setup-go@v5
+
+      - uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
         with:
-          go-version-file: 'KubeArmor/go.mod'
+          go-version-file: "KubeArmor/go.mod"
 
       - name: Download k8s coverage files from ci-test-ginkgo
         if: ${{ env.ci-test-ginkgo_status == 'success' }}
-        uses: dawidd6/action-download-artifact@v6
+        uses: dawidd6/action-download-artifact@20319c5641d495c8a52e688b7dc5fada6c3a9fbc # v8
         with:
           workflow: ci-test-ginkgo.yml
           name: coverage.*
@@ -62,6 +66,6 @@ jobs:
           name_is_regexp: true
           search_artifacts: true
 
-      - uses: codecov/codecov-action@v4
+      - uses: codecov/codecov-action@13ce06bfc6bbe3ecf90edbbf1bc32fe5978ca1d3 # v5.3.1
         with:
           token: ${{ secrets.CODECOV_TOKEN }}

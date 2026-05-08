@@ -28,6 +28,7 @@ jobs:
     permissions:
       id-token: write # requires for cosign keyless signing
       contents: write # requires for goreleaser to write to GitHub release
+      packages: write # requires for goreleaser to publish to GitHub Packages
     steps:
       - name: Validate version
         id: validate
