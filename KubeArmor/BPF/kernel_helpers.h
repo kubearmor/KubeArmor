@@ -148,4 +148,15 @@ static __always_inline void get_outer_key(struct outer_key *pokey,
     }
 }
 
+// Shadow struct for new kernel (>= 6.4)
+// Only define when CO-RE builtins are available (requires modern clang with BPF CO-RE support)
+#if defined(BTF_SUPPORTED) && __has_builtin(__builtin_preserve_field_info)
+struct iov_iter___new {
+  union {
+    const struct iovec *__iov;
+    const struct iovec *iov;
+  };
+} __attribute__((preserve_access_index));
+#endif
+
 #endif // _KERNEL_HELPERS_H
