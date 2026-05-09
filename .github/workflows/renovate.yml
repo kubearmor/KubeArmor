@@ -19,8 +19,12 @@ jobs:
   renovate:
     name: Renovate
     runs-on: ubuntu-latest
+
     permissions:
-      contents: read
+      contents: write
+      pull-requests: write
+      issues: write
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -32,3 +36,4 @@ jobs:
           RENOVATE_GIT_AUTHOR: "Renovate Bot <29139614+renovate[bot]@users.noreply.github.com>"
         with:
           token: ${{ secrets.RENOVATE_TOKEN }}
+          repository: Athang69/KubeArmor
