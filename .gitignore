@@ -45,3 +45,9 @@ deployHook
 
 # alow hook directory
 !**/hook/
+baseline_score.json
+baseline_score.txt
+kubearmor_1.6.18_linux-amd64.tar.gz
+kubearmor_1.6.18_linux-amd64.tar.gz.sigstore.json
+scorecard_5.5.0_linux_amd64.tar.gz
+scorecard_results.json
