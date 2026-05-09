@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright 2026 Authors of KubeArmor
 
-FROM docker.io/golang:1.26 AS builder
+FROM docker.io/golang:1.26@sha256:069cffa8011efba291595b8030af0f7edfb1d2b6d6e2b86327937cf75d03c6ac AS builder
 ARG GOARCH
 ARG GOOS
 
