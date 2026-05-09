@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright 2026 Authors of KubeArmor
 
-FROM docker.io/golang:1.25 AS builder
+FROM docker.io/golang:1.25@sha256:5e542d38d9638172d0b253c26d8507dca3d5fd6b9c018cf3de2a202d32c2ee17 AS builder
 ARG GOARCH
 ARG GOOS
 
@@ -45,7 +45,7 @@ RUN CGO_ENABLED=0 GOOS=${GOOS} GOARCH=${GOARCH} GO111MODULE=on go build -a -o op
 RUN CGO_ENABLED=0 GOOS=${GOOS} GOARCH=${GOARCH} GO111MODULE=on go build -a -o snitch cmd/snitch-cmd/main.go
 RUN CGO_ENABLED=0 GOOS=${GOOS} GOARCH=${GOARCH} GO111MODULE=on go build -a -o hook/hook ./hook
 
-FROM redhat/ubi10-minimal AS operator
+FROM redhat/ubi10-minimal@sha256:9f12217d6c94d0527c8e97d2a2a0d8de77f08276073b0c4226c07a973dc48eba AS operator
 
 ARG VERSION=latest
 
@@ -72,7 +72,7 @@ USER 1000
 
 ENTRYPOINT ["/operator"]
 
-FROM redhat/ubi10-minimal AS snitch
+FROM redhat/ubi10-minimal@sha256:9f12217d6c94d0527c8e97d2a2a0d8de77f08276073b0c4226c07a973dc48eba AS snitch
 
 ARG VERSION=latest
 

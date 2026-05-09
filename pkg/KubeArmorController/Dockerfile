@@ -2,7 +2,7 @@
 # Copyright 2026 Authors of KubeArmor
 
 # Build the manager binary
-FROM golang:1.25 AS builder
+FROM golang:1.25@sha256:5e542d38d9638172d0b253c26d8507dca3d5fd6b9c018cf3de2a202d32c2ee17 AS builder
 
 WORKDIR /workspace
 # Copy the Go Modules manifests
@@ -24,7 +24,7 @@ COPY common/ common/
 # Build
 RUN CGO_ENABLED=0 GO111MODULE=on go build -a -o manager cmd/main.go
 
-FROM redhat/ubi10-minimal AS controller
+FROM redhat/ubi10-minimal@sha256:9f12217d6c94d0527c8e97d2a2a0d8de77f08276073b0c4226c07a973dc48eba AS controller
 
 ARG VERSION=latest
 
