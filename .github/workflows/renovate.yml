@@ -34,6 +34,6 @@ jobs:
         env:
           LOG_LEVEL: ${{ inputs.logLevel || 'info' }}
           RENOVATE_GIT_AUTHOR: "Renovate Bot <29139614+renovate[bot]@users.noreply.github.com>"
+          RENOVATE_REPOSITORIES: "Athang69/KubeArmor"
         with:
           token: ${{ secrets.RENOVATE_TOKEN }}
-          repository: Athang69/KubeArmor
