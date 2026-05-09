@@ -1,67 +1,49 @@
-# This workflow uses actions that are not certified by GitHub. They are provided
-# by a third-party and are governed by separate terms of service, privacy
-# policy, and support documentation.
+name: OpenSSF Scorecard
 
-name: Scorecard supply-chain security
 on:
-  # For Branch-Protection check. Only the default branch is supported. See
-  # https://github.com/ossf/scorecard/blob/main/docs/checks.md#branch-protection
-  branch_protection_rule:
-  # To guarantee Maintained check is occasionally updated. See
-  # https://github.com/ossf/scorecard/blob/main/docs/checks.md#maintained
+  push:
+    branches:
+      - main
   schedule:
     - cron: '30 17 * * 5'
-  push:
-    branches: [ "main" ]
+  workflow_dispatch:
 
-# Declare default permissions as read only.
 permissions: read-all
 
 jobs:
-  analysis:
-    name: Scorecard analysis
+  scorecard:
+    name: Scorecard Analysis
     runs-on: ubuntu-latest
+
     permissions:
-      # Needed to upload the results to code-scanning dashboard.
       security-events: write
-      # Needed to publish results and get a badge (see publish_results below).
       id-token: write
-      # Uncomment the permissions below if installing in a private repository.
-      # contents: read
-      # actions: read
+      contents: read
+      actions: read
 
     steps:
-      - name: "Checkout code"
-        uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8 # v3.1.0
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           persist-credentials: false
 
-      - name: "Run analysis"
-        uses: ossf/scorecard-action@0864cf19026789058feabb7e87baa5f140aac736 # v2.3.1
+      - name: Run OpenSSF Scorecard
+        uses: ossf/scorecard-action@e4c4235b25a2eb2a3f98b95c8f91f2c34e5cbbbb
         with:
-          results_file: results.sarif
+          results_file: scorecard-results.sarif
           results_format: sarif
-
-          # Public repositories:
-          #   - Publish results to OpenSSF REST API for easy access by consumers
-          #   - Allows the repository to include the Scorecard badge.
-          #   - See https://github.com/ossf/scorecard-action#publishing-results.
-          # For private repositories:
-          #   - `publish_results` will always be set to `false`, regardless
-          #     of the value entered here.
           publish_results: true
+          repo_token: ${{ secrets.SCORECARD_TOKEN || secrets.GITHUB_TOKEN }}
 
-      # Upload the results as artifacts (optional). Commenting out will disable uploads of run results in SARIF
-      # format to the repository Actions tab.
-      - name: "Upload artifact"
-        uses: actions/upload-artifact@v4
+      - name: Upload SARIF results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@6db8d6351fd0be61f9ed8ebd12ccd35dcec1579c
         with:
-          name: SARIF file
-          path: results.sarif
-          retention-days: 5
+          sarif_file: scorecard-results.sarif
+          category: openssf-scorecard
 
-      # Upload the results to GitHub's code scanning dashboard.
-      - name: "Upload to code-scanning"
-        uses: github/codeql-action/upload-sarif@17573ee1cc1b9d061760f3a006fc4aac4f944fd5 # v2.2.4
+      - name: Upload Scorecard results as artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449da9423a0a59e66d804
         with:
-          sarif_file: results.sarif
+          name: scorecard-results-${{ github.run_number }}
+          path: scorecard-results.sarif
+          retention-days: 30

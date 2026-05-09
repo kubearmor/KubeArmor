@@ -51,6 +51,12 @@ archives:
         dst: /usr/lib/systemd/system/
         strip_parent: true
 
+sboms:
+  - artifacts: archive
+    args: ["$artifact", "--file", "$document", "--output", "spdx-json"]
+    documents:
+      - "{{ .ArtifactName }}.sbom.json"
+
 nfpms:
   - id: "kubearmor"
     builds:

@@ -1,0 +1,72 @@
+name: SLSA Provenance Generation
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to generate provenance for (e.g. v1.6.15)"
+        required: true
+
+permissions: read-all
+
+jobs:
+  collect-artifact-hashes:
+    name: Collect Release Artifact Hashes
+    runs-on: ubuntu-latest
+    outputs:
+      hashes: ${{ steps.hash.outputs.hashes }}
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 1
+
+      - name: Get release tag
+        id: tag
+        run: |
+          if [ "${{ github.event_name }}" = "release" ]; then
+            echo "TAG=${{ github.event.release.tag_name }}" >> $GITHUB_OUTPUT
+          else
+            echo "TAG=${{ github.event.inputs.tag }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Download release artifacts and compute hashes
+        id: hash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.tag.outputs.TAG }}
+        run: |
+          VERSION="${TAG#v}"
+
+          gh release download "${TAG}" \
+            --repo "${{ github.repository }}" \
+            --dir ./release-artifacts \
+            --pattern "*.tar.gz" \
+            --pattern "*.deb" \
+            --pattern "*.rpm" \
+            --skip-existing || true
+
+          cd ./release-artifacts
+          HASHES=$(sha256sum *.tar.gz *.deb *.rpm 2>/dev/null | base64 -w0)
+          echo "hashes=${HASHES}" >> $GITHUB_OUTPUT
+
+  generate-provenance:
+    name: Generate SLSA L3 Provenance Attestation
+    needs: [collect-artifact-hashes]
+    permissions:
+      id-token: write
+      contents: write
+      actions: read
+
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.0.0
+    with:
+      base64-subjects: ${{ needs.collect-artifact-hashes.outputs.hashes }}
+      upload-assets: true
+      upload-tag-name: ${{ github.event_name == 'release' && github.event.release.tag_name || github.event.inputs.tag }}
+      provenance-name: kubearmor.intoto.jsonl
