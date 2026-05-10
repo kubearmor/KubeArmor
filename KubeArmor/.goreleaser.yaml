@@ -30,7 +30,7 @@ signs:
     args:
       - sign-blob
       - "--bundle=${signature}"
-      - '${artifact}'
+      - "${artifact}"
       - --yes
     artifacts: all
     output: true

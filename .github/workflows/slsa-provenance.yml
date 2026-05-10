@@ -52,6 +52,13 @@ jobs:
             --pattern "*.rpm" \
             --skip-existing || true
 
+          # Check if artifacts exist before processing
+          if [ ! -d ./release-artifacts ] || [ -z "$(ls -A ./release-artifacts 2>/dev/null)" ]; then
+            echo "No release artifacts found - skipping provenance generation"
+            echo "hashes=" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
           cd ./release-artifacts
           HASHES=$(sha256sum *.tar.gz *.deb *.rpm 2>/dev/null | base64 -w0)
           echo "hashes=${HASHES}" >> $GITHUB_OUTPUT
