@@ -170,8 +170,13 @@ func (clusterWatcher *ClusterWatcher) checkJobStatus(job, runtime, nodename stri
 			}
 
 			for _, pod := range podsList.Items {
-				mountFailure := false
-				failedMount := ""
+				// Collect ALL failing mounts from events instead of just the first one.
+				// On distributions like Bottlerocket, multiple hostPath mounts
+				// (apparmor-path, hook-dir, kubearmor-dir) fail simultaneously.
+				// Removing them all in one retry avoids an infinite loop where
+				// the pod is terminated before the next poll can catch subsequent
+				// failures (fixes #2592).
+				var failedMounts []string
 				events, err := clusterWatcher.Client.CoreV1().Events(common.Namespace).List(context.TODO(), v1.ListOptions{
 					FieldSelector: fmt.Sprintf("involvedObject.name=%s", pod.Name),
 				})
@@ -185,24 +190,22 @@ func (clusterWatcher *ClusterWatcher) checkJobStatus(job, runtime, nodename stri
 						event.Reason == "FailedAttachVolume" ||
 						event.Reason == "VolumeMountsFailed") {
 						clusterWatcher.Log.Infof("Got Failed Event for job pod: %v", event.Message)
-						mountFailure = true
-						failedMount, _ = utils.ExtractVolumeFromMessage(event.Message)
-						clusterWatcher.Log.Infof("FailedMount: %s", failedMount)
-						break
+						if vol, ok := utils.ExtractVolumeFromMessage(event.Message); ok {
+							clusterWatcher.Log.Infof("FailedMount: %s", vol)
+							failedMounts = append(failedMounts, vol)
+						}
 					}
 
 					if event.Type == "Warning" && event.Reason == "Failed" && strings.Contains(event.Message, "mkdir") {
 						clusterWatcher.Log.Infof("Got Failed Event for job pod: %v", event.Message)
 						if path, readOnly := utils.ExtractPathFromMessage(event.Message); readOnly {
-							failedMount = path
-							mountFailure = true
-							clusterWatcher.Log.Infof("ReadOnly FS: %s", failedMount)
-							break
+							clusterWatcher.Log.Infof("ReadOnly FS: %s", path)
+							failedMounts = append(failedMounts, path)
 						}
 					}
 				}
 
-				if mountFailure {
+				if len(failedMounts) > 0 {
 					propogatePodDeletion := v1.DeletePropagationBackground
 					err := clusterWatcher.Client.BatchV1().Jobs(common.Namespace).Delete(context.TODO(), job, v1.DeleteOptions{
 						PropagationPolicy: &propogatePodDeletion,
@@ -216,26 +219,22 @@ func (clusterWatcher *ClusterWatcher) checkJobStatus(job, runtime, nodename stri
 					newJob.Spec.Template.Spec.Volumes = j.Spec.Template.Spec.Volumes
 					newJob.Spec.Template.Spec.Containers[0].VolumeMounts = j.Spec.Template.Spec.Containers[0].VolumeMounts
 
-					volumeToDelete := ""
-					for _, vol := range newJob.Spec.Template.Spec.Volumes {
-						if vol.HostPath.Path == failedMount || vol.Name == failedMount {
-							volumeToDelete = vol.Name
-							break
+					// Build a set of volume names to remove from ALL collected failures.
+					volumesToDelete := make(map[string]bool)
+					for _, fm := range failedMounts {
+						for _, vol := range newJob.Spec.Template.Spec.Volumes {
+							if vol.HostPath.Path == fm || vol.Name == fm {
+								volumesToDelete[vol.Name] = true
+							}
 						}
 					}
 
 					newJob.Spec.Template.Spec.Volumes = slices.DeleteFunc(newJob.Spec.Template.Spec.Volumes, func(vol corev1.Volume) bool {
-						if vol.Name == volumeToDelete {
-							return true
-						}
-						return false
+						return volumesToDelete[vol.Name]
 					})
 
 					newJob.Spec.Template.Spec.Containers[0].VolumeMounts = slices.DeleteFunc(newJob.Spec.Template.Spec.Containers[0].VolumeMounts, func(volMount corev1.VolumeMount) bool {
-						if volMount.Name == volumeToDelete {
-							return true
-						}
-						return false
+						return volumesToDelete[volMount.Name]
 					})
 
 					newJ, err := clusterWatcher.Client.BatchV1().Jobs(common.Namespace).Create(context.TODO(), newJob, v1.CreateOptions{})
