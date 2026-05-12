@@ -13,7 +13,8 @@ on:
       - ".github/workflows/ci-test-helm-charts.yml"
 
 # Declare default permissions as read only.
-permissions: read-all
+permissions:
+  contents: read
 
 jobs:
   lint:

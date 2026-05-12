@@ -19,7 +19,8 @@ on:
       - "pkg/KubeArmorOperator/**"
     
 # Declare default permissions as read only.
-permissions: read-all
+permissions:
+  contents: read
 
 jobs:
   go-fmt:

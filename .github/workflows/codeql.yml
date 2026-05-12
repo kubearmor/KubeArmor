@@ -20,7 +20,9 @@ on:
     - cron: '30 17 * * 5'
 
 # Declare default permissions as read only.
-permissions: read-all
+permissions:
+  contents: read
+  security-events: write
 
 jobs:
   analyze:

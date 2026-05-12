@@ -8,18 +8,13 @@ on:
     - cron: "30 17 * * 5"
   workflow_dispatch:
 
-permissions: read-all
+permissions:
+  security-events: write
+  id-token: write
+  contents: read
+  actions: read
 
 jobs:
-  scorecard:
-    name: Scorecard Analysis
-    runs-on: ubuntu-latest
-
-    permissions:
-      security-events: write
-      id-token: write
-      contents: read
-      actions: read
 
     steps:
       - name: Checkout repository

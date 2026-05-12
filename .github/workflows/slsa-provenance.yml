@@ -9,7 +9,10 @@ on:
         description: "Tag to generate provenance for (e.g. v1.6.15)"
         required: true
 
-permissions: read-all
+permissions:
+  id-token: write
+  contents: write
+  actions: read
 
 jobs:
   collect-artifact-hashes:

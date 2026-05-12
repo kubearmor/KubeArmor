@@ -22,7 +22,8 @@ on:
       - "deployments/helm/**"
 
 # Declare default permissions as read only.
-permissions: read-all
+permissions:
+  contents: read
 
 jobs:
   build:

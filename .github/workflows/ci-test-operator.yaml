@@ -18,7 +18,8 @@ on:
       - "KubeArmor/utils/**"
 
 # Declare default permissions as read only.
-permissions: read-all
+permissions:
+  contents: read
 
 jobs:
   kubearmor-operator-test:

@@ -9,7 +9,8 @@ on:
       - ".github/workflows/ci-test-controllers.yml"
 
 # Declare default permissions as read only.
-permissions: read-all
+permissions:
+  contents: read
 
 jobs:
   kubearmor-controller-test:

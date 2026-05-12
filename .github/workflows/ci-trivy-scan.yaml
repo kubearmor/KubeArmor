@@ -16,7 +16,9 @@ on:
     branches:
       - "v*"
 
-permissions: read-all
+permissions:
+  contents: read
+  security-events: write
 
 jobs:
   build:

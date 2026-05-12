@@ -17,7 +17,8 @@ on:
       - ".github/workflows/ci-test-systemd.yml"
 
 # Declare default permissions as read only.
-permissions: read-all
+permissions:
+  contents: read
 
 jobs:
   build:
