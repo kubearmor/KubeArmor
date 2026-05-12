@@ -24,7 +24,14 @@ COPY common/ common/
 # Build
 RUN CGO_ENABLED=0 GO111MODULE=on go build -a -o manager cmd/main.go
 
-FROM redhat/ubi10-minimal AS controller
+# Build controller with scratch as base image
+FROM scratch AS controller
+WORKDIR /
+COPY --from=builder /workspace/manager .
+ENTRYPOINT ["/manager"]
+
+# Build controller with ubi as base image
+FROM redhat/ubi10-minimal AS controller-ubi
 
 ARG VERSION=latest
 

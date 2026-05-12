@@ -45,7 +45,14 @@ RUN CGO_ENABLED=0 GOOS=${GOOS} GOARCH=${GOARCH} GO111MODULE=on go build -a -o op
 RUN CGO_ENABLED=0 GOOS=${GOOS} GOARCH=${GOARCH} GO111MODULE=on go build -a -o snitch cmd/snitch-cmd/main.go
 RUN CGO_ENABLED=0 GOOS=${GOOS} GOARCH=${GOARCH} GO111MODULE=on go build -a -o hook/hook ./hook
 
-FROM redhat/ubi10-minimal AS operator
+# Build operator image with scratch as base image
+FROM scratch AS operator
+ARG OPERATOR_DIR=pkg/KubeArmorOperator
+COPY --from=builder /KubeArmor/$OPERATOR_DIR/operator /operator
+ENTRYPOINT ["/operator"]
+
+# Build operator image with ubi as base image
+FROM redhat/ubi10-minimal AS operator-ubi
 
 ARG VERSION=latest
 
@@ -72,7 +79,15 @@ USER 1000
 
 ENTRYPOINT ["/operator"]
 
-FROM redhat/ubi10-minimal AS snitch
+# Build snitch with scratch as base image
+FROM scratch AS snitch
+ARG OPERATOR_DIR=pkg/KubeArmorOperator
+COPY --from=builder /KubeArmor/$OPERATOR_DIR/snitch /snitch
+COPY --from=builder /KubeArmor/$OPERATOR_DIR/hook/hook /hook
+ENTRYPOINT ["/snitch"]
+
+# Build snitch with ubi as base image
+FROM redhat/ubi10-minimal AS snitch-ubi
 
 ARG VERSION=latest
 
