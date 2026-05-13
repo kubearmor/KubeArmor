@@ -985,77 +985,109 @@ func KubeArmor() {
 	// == //
 
 	timeout, err := time.ParseDuration(cfg.GlobalCfg.InitTimeout)
-	if dm.K8sEnabled && cfg.GlobalCfg.Policy {
-		if err != nil {
-			dm.Logger.Warnf("Not a valid InitTimeout duration: %q, defaulting to '60s'", cfg.GlobalCfg.InitTimeout)
-			timeout = 60 * time.Second
-		}
-
-		// watch security policies
-		securityPoliciesSynced := dm.WatchSecurityPolicies()
-		if securityPoliciesSynced == nil {
-			// destroy the daemon
-			dm.DestroyKubeArmorDaemon()
-
-			return
-		}
-		dm.Logger.Print("Started to monitor security policies")
-
-		// watch cluster security policies
-		clusterSecurityPoliciesSynced := dm.WatchClusterSecurityPolicies(timeout)
-		if clusterSecurityPoliciesSynced == nil {
-			dm.Logger.Warn("error while monitoring cluster security policies, informer cache not synced")
-		} else {
-			dm.Logger.Print("Started to monitor cluster security policies")
-		}
-
-		// watch default posture
-		defaultPostureSynced := dm.WatchDefaultPosture()
-		if defaultPostureSynced == nil {
-			// destroy the daemon
-			dm.DestroyKubeArmorDaemon()
-
-			return
-		}
-		dm.Logger.Print("Started to monitor per-namespace default posture")
-
-		// watch kubearmor configmap
-		configMapSynced := dm.WatchConfigMap()
-		if configMapSynced == nil {
-			// destroy the daemon
-			dm.DestroyKubeArmorDaemon()
-
-			return
-		}
-		dm.Logger.Print("Watching for posture changes")
-
-		ctx, cancel := context.WithTimeout(context.Background(), timeout)
-		defer cancel()
-
-		synced := cache.WaitForCacheSync(ctx.Done(), securityPoliciesSynced, defaultPostureSynced, configMapSynced)
-		if !synced {
-			dm.Logger.Err("Failed to sync Kubernetes informers")
-
-			// destroy the daemon
-			dm.DestroyKubeArmorDaemon()
-
-			return
-		}
-
-		// watch k8s pods (function never returns, must be called in a
-		// goroutine)
-		go dm.WatchK8sPods()
-		dm.Logger.Print("Started to monitor Pod events")
+	if err != nil {
+		dm.Logger.Warnf("Not a valid InitTimeout duration: %q, defaulting to '60s'", cfg.GlobalCfg.InitTimeout)
+		timeout = 60 * time.Second
 	}
+	if dm.K8sEnabled {
 
-	if dm.K8sEnabled && cfg.GlobalCfg.HostPolicy {
-		// watch host security policies
-		go dm.WatchHostSecurityPolicies(timeout)
-	}
+		var syncFuncs []cache.InformerSynced
+		var (
+			securityPoliciesSynced        cache.InformerSynced
+			clusterSecurityPoliciesSynced cache.InformerSynced
+			hostSecurityPoliciesSynced    cache.InformerSynced
+			networkSecurityPoliciesSynced cache.InformerSynced
+			defaultPostureSynced          cache.InformerSynced
+			configMapSynced               cache.InformerSynced
+		)
 
-	if dm.K8sEnabled && cfg.GlobalCfg.NetworkPolicyEnforcer && dm.NetworkPolicyEnforcer != nil {
-		// watch network security policies
-		go dm.WatchNetworkSecurityPolicies(timeout)
+		if cfg.GlobalCfg.Policy {
+			// watch security policies
+			securityPoliciesSynced = dm.WatchSecurityPolicies(timeout)
+			if securityPoliciesSynced == nil {
+				// destroy the daemon
+				dm.DestroyKubeArmorDaemon()
+
+				return
+			}
+			dm.Logger.Print("Started to monitor security policies")
+			syncFuncs = append(syncFuncs, securityPoliciesSynced)
+
+			// watch cluster security policies
+			clusterSecurityPoliciesSynced = dm.WatchClusterSecurityPolicies(timeout)
+			if clusterSecurityPoliciesSynced == nil {
+				dm.Logger.Warn("error while monitoring cluster security policies, informer cache not synced")
+			} else {
+				dm.Logger.Print("Started to monitor cluster security policies")
+				syncFuncs = append(syncFuncs, clusterSecurityPoliciesSynced)
+			}
+
+			// watch default posture
+			defaultPostureSynced = dm.WatchDefaultPosture()
+			if defaultPostureSynced == nil {
+				// destroy the daemon
+				dm.DestroyKubeArmorDaemon()
+
+				return
+			}
+			dm.Logger.Print("Started to monitor per-namespace default posture")
+			syncFuncs = append(syncFuncs, defaultPostureSynced)
+
+			// watch kubearmor configmap
+			configMapSynced = dm.WatchConfigMap()
+			if configMapSynced == nil {
+				// destroy the daemon
+				dm.DestroyKubeArmorDaemon()
+
+				return
+			}
+			dm.Logger.Print("Watching for posture changes")
+			syncFuncs = append(syncFuncs, configMapSynced)
+		}
+
+		if cfg.GlobalCfg.HostPolicy {
+			// watch host security policies
+			hostSecurityPoliciesSynced = dm.WatchHostSecurityPolicies(timeout)
+			if hostSecurityPoliciesSynced == nil {
+				dm.Logger.Warn("error while monitoring host security policies, informer cache not synced")
+			} else {
+				dm.Logger.Print("Started to monitor host security policies")
+				syncFuncs = append(syncFuncs, hostSecurityPoliciesSynced)
+			}
+		}
+
+		if cfg.GlobalCfg.NetworkPolicyEnforcer && dm.NetworkPolicyEnforcer != nil {
+			// watch network security policies
+			networkSecurityPoliciesSynced = dm.WatchNetworkSecurityPolicies(timeout)
+			if networkSecurityPoliciesSynced == nil {
+				dm.Logger.Warn("error while monitoring network security policies, informer cache not synced")
+			} else {
+				dm.Logger.Print("Started to monitor network security policies")
+				syncFuncs = append(syncFuncs, networkSecurityPoliciesSynced)
+			}
+		}
+
+		if len(syncFuncs) > 0 {
+			ctx, cancel := context.WithTimeout(context.Background(), timeout)
+			defer cancel()
+
+			synced := cache.WaitForCacheSync(ctx.Done(), syncFuncs...)
+			if !synced {
+				dm.Logger.Err("Failed to sync Kubernetes informers")
+
+				// destroy the daemon
+				dm.DestroyKubeArmorDaemon()
+
+				return
+			}
+			dm.Logger.Print("All Kubernetes informer caches synced successfully")
+		}
+
+		// watch k8s pods (function never returns, must be called in a goroutine)
+		if cfg.GlobalCfg.Policy {
+			go dm.WatchK8sPods()
+			dm.Logger.Print("Started to monitor Pod events")
+		}
 	}
 
 	if !dm.K8sEnabled && (enableContainerPolicy || cfg.GlobalCfg.HostPolicy || (cfg.GlobalCfg.NetworkPolicyEnforcer && dm.NetworkPolicyEnforcer != nil)) {
