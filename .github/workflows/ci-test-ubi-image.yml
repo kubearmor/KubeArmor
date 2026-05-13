@@ -68,12 +68,12 @@ jobs:
       - name: Generate KubeArmor artifacts
         run: |
           export IS_COVERAGE=true
-          GITHUB_SHA=$GITHUB_SHA ./KubeArmor/build/build_kubearmor.sh
+          GITHUB_SHA=$GITHUB_SHA ./KubeArmor/build/build_kubearmor_ubi.sh
 
       - name: Build Kubearmor-Operator
         working-directory: pkg/KubeArmorOperator
         run: |
-          make docker-build
+          make docker-build-ubi
 
       - name: Build multiubuntu docker image
         working-directory: examples/multiubuntu/build
@@ -82,26 +82,26 @@ jobs:
 
       - name: Build KubeArmorController
         if: steps.filter.outputs.controller == 'true'
-        run: make -C pkg/KubeArmorController/ docker-build TAG=latest
+        run: make -C pkg/KubeArmorController/ docker-build-ubi TAG=latest
 
       - name: Run KubeArmor
         timeout-minutes: 7
         run: |
-          docker save kubearmor/kubearmor-test-init:latest | sudo podman load
-          sudo podman tag docker.io/kubearmor/kubearmor-test-init:latest kubearmor/kubearmor-test-init:latest
+          docker save kubearmor/kubearmor-init-ubi:latest | sudo podman load
+          sudo podman tag docker.io/kubearmor/kubearmor-init-ubi:latest kubearmor/kubearmor-init-ubi:latest
 
-          docker save kubearmor/kubearmor-ubi-test:latest | sudo podman load
-          sudo podman tag docker.io/kubearmor/kubearmor-ubi-test:latest kubearmor/kubearmor-ubi-test:latest
+          docker save kubearmor/kubearmor-ubi:latest | sudo podman load
+          sudo podman tag docker.io/kubearmor/kubearmor-ubi:latest kubearmor/kubearmor-ubi:latest
 
-          docker save kubearmor/kubearmor-operator:latest | sudo podman load
-          sudo podman tag docker.io/kubearmor/kubearmor-operator:latest kubearmor/kubearmor-operator:latest
+          docker save kubearmor/kubearmor-operator-ubi:latest | sudo podman load
+          sudo podman tag docker.io/kubearmor/kubearmor-operator-ubi:latest kubearmor/kubearmor-operator-ubi:latest
 
-          docker save kubearmor/kubearmor-snitch:latest | sudo podman load
-          sudo podman tag docker.io/kubearmor/kubearmor-snitch:latest kubearmor/kubearmor-snitch:latest
+          docker save kubearmor/kubearmor-snitch-ubi:latest | sudo podman load
+          sudo podman tag docker.io/kubearmor/kubearmor-snitch-ubi:latest kubearmor/kubearmor-snitch-ubi:latest
 
           if [ ${{ steps.filter.outputs.controller }} == 'true' ]; then
-            docker save kubearmor/kubearmor-controller:latest | sudo podman load
-            sudo podman tag docker.io/kubearmor/kubearmor-controller:latest kubearmor/kubearmor-controller:latest
+            docker save kubearmor/kubearmor-controller-ubi:latest | sudo podman load
+            sudo podman tag docker.io/kubearmor/kubearmor-controller-ubi:latest kubearmor/kubearmor-controller-ubi:latest
           fi
           if [[ ${{ steps.filter.outputs.multiubuntu }} == 'true' ]]; then
             docker save kubearmor/ubuntu-w-utils:latest | sudo podman load
@@ -110,10 +110,19 @@ jobs:
 
           docker system prune -a -f 
           docker buildx prune -a -f
-          helm upgrade --install kubearmor-operator ./deployments/helm/KubeArmorOperator -n kubearmor --create-namespace --set kubearmorOperator.image.tag=latest --set kubearmorOperator.annotateExisting=true
-          
+          helm upgrade --install kubearmor-operator ./deployments/helm/KubeArmorOperator -n kubearmor --create-namespace \
+          --set kubearmorOperator.annotateExisting=true \
+          --set imagePinning=true \
+          --set kubearmor.images.kubearmor.image=kubearmor-ubi \
+          --set kubearmor.images.kubearmor.tag=latest \
+          --set kubearmor.images.kubearmorInit.image=kubearmor-init-ubi \
+          --set kubearmor.images.kubearmorInit.tag=latest \
+          --set kubearmor.images.kubearmorController.image=kubearmor-controller-ubi \
+          --set kubearmor.images.kubearmorSnitch.image=kubearmor-snitch-ubi \
+          --set kubearmor.images.kubearmorOperator.image=kubearmor-operator-ubi
+
           kubectl rollout status --timeout=5m deployment -n kubearmor -l kubearmor-app=kubearmor-operator
-          
+
           kubectl get pods -A
           if [[ ${{ steps.filter.outputs.controller }} == 'true' ]]; then
             kubectl apply -f pkg/KubeArmorOperator/config/samples/kubearmor-ubi-test.yaml --dry-run=client -o json | \
@@ -133,37 +142,6 @@ jobs:
           done
 
           sleep 10
-          DAEMONSET_NAME=$(kubectl get daemonset -n kubearmor -o jsonpath='{.items[0].metadata.name}')
-          echo "DaemonSet: $DAEMONSET_NAME"
-
-          kubectl patch daemonset $DAEMONSET_NAME -n kubearmor --type='json' -p='[
-            {
-              "op": "add",
-              "path": "/spec/template/spec/volumes/-",
-              "value": {
-                "name": "coverage-storage",
-                "hostPath": {
-                  "path": "/coverage",
-                  "type": "DirectoryOrCreate"
-                }
-              }
-            },
-            {
-              "op": "add",
-              "path": "/spec/template/spec/containers/0/volumeMounts/-",
-              "value": {
-                "mountPath": "/coverage",
-                "name": "coverage-storage"
-              }
-            },
-            {
-              "op": "add",
-              "path": "/spec/template/spec/containers/0/args/-",
-              "value": "-test.coverprofile=/coverage/coverage_k8s_${{ matrix.os }}_${{ matrix.runtime }}.out"
-            }
-          ]'
-
-          sleep 15
 
       - name: make changes in multiubuntu-deployment
         working-directory: ./tests/k8s_env
@@ -206,18 +184,6 @@ jobs:
         env:
           POD_NAME: ${{ env.POD_NAME }}
 
-      - name: Extract coverage file
-        run: |
-          for i in {1..24}; do
-            if [ -f /coverage/coverage_k8s_${{ matrix.os }}_${{ matrix.runtime }}.out ]; then
-              cp /coverage/coverage_k8s_${{ matrix.os }}_${{ matrix.runtime }}.out coverage_k8s_${{ matrix.os }}_${{ matrix.runtime }}.out
-              break
-            fi
-            sleep 5
-          done
-          ls -l
-        working-directory: KubeArmor
-
       - name: Get karmor sysdump
         if: ${{ failure() }}
         run: |
@@ -233,32 +199,6 @@ jobs:
           path: |
             /tmp/kubearmor/
             /tmp/kubearmor.*
-
-      - name: Measure code coverage
-        if: ${{ always() }}
-        run: |
-          go install github.com/modocache/gover@latest
-          ls -l
-          if [ -f coverage_k8s_${{ matrix.os }}_${{ matrix.runtime }}.out ]; then
-            gover
-            go tool cover -func coverage_k8s_${{ matrix.os }}_${{ matrix.runtime }}.out
-          else
-            echo "Coverage file not found, skipping coverage report."
-          fi
-        working-directory: KubeArmor
-        env:
-          GOPATH: /home/vagrant/go
-      - uses: codecov/codecov-action@v3
-        if: ${{ always() }}
-        with:
-          files: ./KubeArmor/gover.coverprofile
-
-      - name: Upload coverage file
-        if: ${{ always() }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-k8s-${{ matrix.os }}-${{ matrix.runtime }}
-          path: KubeArmor/coverage_k8s_${{ matrix.os }}_${{ matrix.runtime }}.out
 
       - name: Run cleanup
         if: ${{ always() }}

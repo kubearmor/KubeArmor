@@ -31,7 +31,7 @@ jobs:
       - name: submit preflight results
         run: |
           repo="docker.io/kubearmor"
-          repositories=("kubearmor-controller" "kubearmor-ubi"  "kubearmor-init" "kubearmor-operator" "kubearmor-snitch")
+          repositories=("kubearmor-controller-ubi" "kubearmor-ubi"  "kubearmor-init-ubi" "kubearmor-operator-ubi" "kubearmor-snitch-ubi")
           tag=`cat STABLE-RELEASE`
           certids=("${{secrets.CONTROLLER_OSPID}}" "${{secrets.KUBEARMOR_UBI_OSPID}}" "${{secrets.KUBEARMOR_INIT_OSPID}}" "${{secrets.OPERATOR_OSPID}}" "${{secrets.SNITCH_OSPID}}")
           pyxis="${{secrets.OS_PYXIS}}"
