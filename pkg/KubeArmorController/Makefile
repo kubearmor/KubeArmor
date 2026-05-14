@@ -111,7 +111,7 @@ docker-build-ubi: build ## Build docker image with the manager.
 	docker build -t ${IMG}-ubi:${TAG} --target controller-ubi -t ${IMG}-ubi:latest --build-arg VERSION=${TAG} .
 
 docker-buildx-ubi: build ## Build docker image with the manager multiple archs.
-	docker buildx build --metadata-file kubearmor-controller-ubi.json --platform ${PLATFORM} --target controller-ubi --build-arg VERSION=${TAG} ${BUILD_MODE} -t ${IMG}:${TAG} .
+	docker buildx build --metadata-file kubearmor-controller-ubi.json --platform ${PLATFORM} --target controller-ubi --build-arg VERSION=${TAG} ${BUILD_MODE} -t ${IMG}-ubi:${TAG} .
 
 .PHONY: docker-push-ubi
 docker-push-ubi: ## Push docker image with the manager.
