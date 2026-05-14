@@ -28,9 +28,11 @@ signs:
   - cmd: cosign
     signature: "${artifact}.sigstore.json"
     args:
-      - sign-blob
+      - attest-blob
       - "--bundle=${signature}"
-      - '${artifact}'
+      - "--predicate={{ .Env.PREDICATE_FILE }}"
+      - "--type=slsaprovenance"
+      - "${artifact}"
       - --yes
     artifacts: all
     output: true
