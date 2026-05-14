@@ -111,8 +111,8 @@ docker-push-ubi: ## Push docker image with the manager.
 	docker push ${SNITCH_IMG}-ubi:${TAG}
 
 docker-buildx-ubi:
-	docker buildx build --metadata-file kubearmor-operator-ubi.json --platform ${PLATFORM} --build-arg VERSION=${TAG} ${BUILD_MODE} --target operator -t ${OPERATOR_IMG}-ubi:${TAG} -f ./Dockerfile ../../
-	docker buildx build --metadata-file kubearmor-snitch-ubi.json --platform ${PLATFORM} --build-arg VERSION=${TAG} ${BUILD_MODE} --target snitch -t ${SNITCH_IMG}-ubi:${TAG} -f ./Dockerfile ../../
+	docker buildx build --metadata-file kubearmor-operator-ubi.json --platform ${PLATFORM} --build-arg VERSION=${TAG} ${BUILD_MODE} --target operator-ubi -t ${OPERATOR_IMG}-ubi:${TAG} -f ./Dockerfile ../../
+	docker buildx build --metadata-file kubearmor-snitch-ubi.json --platform ${PLATFORM} --build-arg VERSION=${TAG} ${BUILD_MODE} --target snitch-ubi -t ${SNITCH_IMG}-ubi:${TAG} -f ./Dockerfile ../../
 
 KUSTOMIZE_VERSION ?= v5.2.1
 KUSTOMIZE = $(GOBIN)/kustomize

@@ -1,4 +1,4 @@
-name: ci-latest-release
+name: ci-latest-ubi-release
 
 on:
   workflow_dispatch:
