@@ -710,7 +710,7 @@ func (fd *Feeder) PushLog(log tp.Log) {
 		parts := strings.Split(log.Resource, " ") // policyName chain(INPUT/OUTPUT) action(Audit/Block)
 		direction := "INGRESS"
 		if len(parts) > 2 {
-			if parts[1] == "OUTPUT" {
+			if parts[1] == "OUTPUT" || strings.ToUpper(parts[1]) == "EGRESS" {
 				direction = "EGRESS"
 			}
 		}

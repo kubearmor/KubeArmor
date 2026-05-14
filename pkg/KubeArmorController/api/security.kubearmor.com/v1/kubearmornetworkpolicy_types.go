@@ -9,7 +9,11 @@ import (
 
 // KubeArmorNetworkPolicySpec defines the desired state of KubeArmorNetworkPolicy
 type KubeArmorNetworkPolicySpec struct {
-	NodeSelector NodeSelectorType `json:"nodeSelector"`
+	// +kubebuilder:validation:Optional
+	NodeSelector NodeSelectorType `json:"nodeSelector,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	Selector SelectorType `json:"selector,omitempty"`
 
 	Ingress []IngressType `json:"ingress,omitempty"`
 	Egress  []EgressType  `json:"egress,omitempty"`
