@@ -7,6 +7,8 @@ import (
 	"debug/buildinfo"
 	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
 	"strings"
+
+	"github.com/Masterminds/semver/v3"
 )
 
 // DefaultOffsetTable returns an offset table with sensible defaults for
@@ -103,13 +105,18 @@ func ApplyVersionOffsets(ot *GoOffsetTable, version string) {
 	// offsets will be adjusted when support is added
 }
 
-// versionGE does a simple lexicographic comparison of Go module version strings.
-// Both a and b must have a "v" prefix (e.g. "v1.60.0").
-// This is sufficient for gRPC versions which follow strict semver.
+// versionGE returns true if version a >= version b using proper semver comparison.
+// Both a and b may optionally have a "v" prefix (e.g. "v1.60.0").
 func versionGE(a, b string) bool {
-	a = strings.TrimPrefix(a, "v")
-	b = strings.TrimPrefix(b, "v")
-	return a >= b
+	va, err := semver.NewVersion(a)
+	if err != nil {
+		return false
+	}
+	vb, err := semver.NewVersion(b)
+	if err != nil {
+		return false
+	}
+	return !va.LessThan(vb)
 }
 
 // GetGrpcLibVersion attempts to detect the gRPC library version from the

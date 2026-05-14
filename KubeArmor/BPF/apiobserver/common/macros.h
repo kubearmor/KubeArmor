@@ -95,3 +95,56 @@
     __builtin_memcpy(&_w, (buf) + (offset), 4);                                \
     _w;                                                                        \
   })
+
+/* ---- Architecture-specific syscall argument access ---- */
+/*
+ * SYSCALL_ARG1..4 — read syscall arguments from the INNER pt_regs.
+ *
+ * On x86_64 with CONFIG_ARCH_HAS_SYSCALL_WRAPPER, kprobes on __x64_sys_*
+ * receive an outer pt_regs whose first parameter (PT_REGS_PARM1) points to
+ * the inner pt_regs containing the actual syscall arguments.
+ *
+ * Note: PT_REGS_PARM4 cannot be used for syscall arg4 on x86_64 because
+ * PT_REGS_PARM4 maps to rcx (function call ABI), but syscall arg4 is r10.
+ *
+ * On arm64, syscall arguments are in X0-X5 (same as function call ABI),
+ * accessed via regs[0]-regs[5]. We cast through struct user_pt_regs because
+ * vmlinux.h is generated from host (x86) BTF during cross-compilation and
+ * its struct pt_regs only contains x86 register fields.
+ */
+#if defined(__TARGET_ARCH_x86) || defined(__x86_64__)
+
+#define SYSCALL_ARG1(regs) ((regs)->di)
+#define SYSCALL_ARG2(regs) ((regs)->si)
+#define SYSCALL_ARG3(regs) ((regs)->dx)
+#define SYSCALL_ARG4(regs) ((regs)->r10)
+
+#elif defined(__TARGET_ARCH_arm64) || defined(__aarch64__)
+
+#define SYSCALL_ARG1(regs) (((struct user_pt_regs *)(regs))->regs[0])
+#define SYSCALL_ARG2(regs) (((struct user_pt_regs *)(regs))->regs[1])
+#define SYSCALL_ARG3(regs) (((struct user_pt_regs *)(regs))->regs[2])
+#define SYSCALL_ARG4(regs) (((struct user_pt_regs *)(regs))->regs[3])
+
+#else
+#error "Unsupported architecture for syscall argument access"
+#endif
+
+/* ---- Userspace struct offsets (POSIX, stable across LP64 architectures) ----
+ */
+/*
+ * struct iovec { void *iov_base; size_t iov_len; };  // 16 bytes on LP64
+ *   iov_base at offset 0 (8 bytes)
+ *   iov_len  at offset 8 (8 bytes)
+ *
+ * struct msghdr {
+ *   void         *msg_name;      // offset  0, 8 bytes
+ *   socklen_t     msg_namelen;    // offset  8, 4 bytes + 4 padding
+ *   struct iovec *msg_iov;        // offset 16, 8 bytes
+ *   ...
+ * };
+ *
+ * NOTE: These are userspace (POSIX/glibc) structs, NOT kernel-internal.
+ */
+#define UAPI_IOVEC_LEN_OFF 8   /* offsetof(struct iovec, iov_len)  */
+#define UAPI_MSGHDR_IOV_OFF 16 /* offsetof(struct msghdr, msg_iov) */

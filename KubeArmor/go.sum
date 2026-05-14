@@ -14,6 +14,8 @@ github.com/Microsoft/go-winio v0.6.2 h1:F2VQgta7ecxGYO8k3ZZz3RS8fVIXVxONVUPlNERo
 github.com/Microsoft/go-winio v0.6.2/go.mod h1:yd8OoFMLzJbo9gZq8j5qaps8bJ9aShtEA8Ipt1oGCvU=
 github.com/Microsoft/hcsshim v0.14.1 h1:CMuB3fqQVfPdhyXhUqYdUmPUIOhJkmghCx3dJet8Cqs=
 github.com/Microsoft/hcsshim v0.14.1/go.mod h1:VnzvPLyWUhxiPVsJ31P6XadxCcTogTguBFDy/1GR/OM=
+github.com/accuknox/SentryFlow/protobuf/golang v0.0.0-20260514050050-22a4d4f04e17 h1:7jturMtAx/IZKRy4uvEgZSlLArrUJkDXjELGm1Juzoo=
+github.com/accuknox/SentryFlow/protobuf/golang v0.0.0-20260514050050-22a4d4f04e17/go.mod h1:9DwSy8aPlq2d01FSpYOCXHlMx2CNWhTwdO7SelLpod0=
 github.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2 h1:DklsrG3dyBCFEj5IhUbnKptjxatkF07cF2ak3yi77so=
 github.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2/go.mod h1:WaHUgvxTVq04UNunO+XhnAqY/wQc+bxr74GqbsZ/Jqw=
 github.com/beorn7/perks v1.0.1 h1:VlbKKnNfV8bJzeqoa4cOKqO6bYr3WgKZxO8Z16+hsOM=

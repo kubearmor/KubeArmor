@@ -25,7 +25,7 @@ replace (
 require (
 	github.com/Masterminds/semver/v3 v3.4.0
 	github.com/Masterminds/sprig/v3 v3.3.0
-	github.com/accuknox/SentryFlow/protobuf/golang v0.0.0-20260301133930-7ac9c6659ed3
+	github.com/accuknox/SentryFlow/protobuf/golang v0.0.0-20260514050050-22a4d4f04e17
 	github.com/cilium/cilium v1.18.6
 	github.com/cilium/ebpf v0.20.0
 	github.com/containerd/containerd/api v1.10.0

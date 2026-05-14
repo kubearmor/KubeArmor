@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 
 	"net"
 	"path/filepath"
@@ -638,7 +639,7 @@ func (ao *APIObserver) enrichAndEmit(trace *events.CorrelatedTrace, ev *events.D
 	}
 
 	var statusCode int32
-	if n, err := strconv.Atoi(trace.Status); err == nil {
+	if n, err := strconv.Atoi(trace.Status); err == nil && n >= math.MinInt32 && n <= math.MaxInt32 {
 		statusCode = int32(n)
 	}
 
