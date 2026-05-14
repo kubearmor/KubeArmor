@@ -16,7 +16,7 @@ on:
       - "pkg/**"
       - "deployments/get/**"
       - "KubeArmor/utils/**"
-      - ".github/workflows/ci-operator-release.yaml"
+      - ".github/workflows/ci-operator-ubi-release.yaml"
   create:
     branches:
       - "v*"
@@ -92,7 +92,7 @@ jobs:
 
       - name: Build & Push KubeArmor Operator
         working-directory: ./pkg/KubeArmorOperator
-        run: PLATFORM=$PLATFORM make docker-buildx TAG=${{ steps.vars.outputs.tag }} BUILD_MODE=--push
+        run: PLATFORM=$PLATFORM make docker-buildx-ubi TAG=${{ steps.vars.outputs.tag }} BUILD_MODE=--push
 
 
       - name: Install Cosign
@@ -102,13 +102,13 @@ jobs:
         id: digest
         working-directory: ./pkg/KubeArmorOperator
         run: |
-          echo "operatordigest=$(jq -r '.["containerimage.digest"]' kubearmor-operator.json)" >> $GITHUB_OUTPUT
-          echo "snitchdigest=$(jq -r '.["containerimage.digest"]' kubearmor-snitch.json)" >> $GITHUB_OUTPUT
+          echo "operatordigest=$(jq -r '.["containerimage.digest"]' kubearmor-operator-ubi.json)" >> $GITHUB_OUTPUT
+          echo "snitchdigest=$(jq -r '.["containerimage.digest"]' kubearmor-snitch-ubi.json)" >> $GITHUB_OUTPUT
 
       - name: Sign the Container Images
         run: |
-          cosign sign -r kubearmor/kubearmor-operator@${{ steps.digest.outputs.operatordigest }} --yes
-          cosign sign -r kubearmor/kubearmor-snitch@${{ steps.digest.outputs.snitchdigest }} --yes
+          cosign sign -r kubearmor/kubearmor-operator-ubi@${{ steps.digest.outputs.operatordigest }} --yes
+          cosign sign -r kubearmor/kubearmor-snitch-ubi@${{ steps.digest.outputs.snitchdigest }} --yes
 
 
       - name: Install regctl
@@ -122,8 +122,8 @@ jobs:
         
       # - name: Generate the tag version of Operator and Snitch in ECR
       #   run: |
-      #     regctl image copy kubearmor/kubearmor-operator:${{ steps.vars.outputs.tag }} public.ecr.aws/k9v9d5v2/kubearmor/kubearmor-operator:${{ steps.vars.outputs.tag }} --digest-tags
-      #     regctl image copy kubearmor/kubearmor-snitch:${{ steps.vars.outputs.tag }} public.ecr.aws/k9v9d5v2/kubearmor/kubearmor-snitch:${{ steps.vars.outputs.tag }} --digest-tags
+      #     regctl image copy kubearmor/kubearmor-operator-ubi:${{ steps.vars.outputs.tag }} public.ecr.aws/k9v9d5v2/kubearmor/kubearmor-operator-ubi:${{ steps.vars.outputs.tag }} --digest-tags
+      #     regctl image copy kubearmor/kubearmor-snitch-ubi:${{ steps.vars.outputs.tag }} public.ecr.aws/k9v9d5v2/kubearmor/kubearmor-snitch-ubi:${{ steps.vars.outputs.tag }} --digest-tags
           
       - uses: actions/checkout@v4
         with:
@@ -143,13 +143,13 @@ jobs:
         if: steps.stable.outputs.match == 'true'
         run: |
           STABLE_VERSION=`cat STABLE-RELEASE`
-          regctl image copy kubearmor/kubearmor-operator:$STABLE_VERSION kubearmor/kubearmor-operator:stable --digest-tags
-          regctl image copy kubearmor/kubearmor-snitch:$STABLE_VERSION kubearmor/kubearmor-snitch:stable --digest-tags
+          regctl image copy kubearmor/kubearmor-operator-ubi:$STABLE_VERSION kubearmor/kubearmor-operator-ubi:stable --digest-tags
+          regctl image copy kubearmor/kubearmor-snitch-ubi:$STABLE_VERSION kubearmor/kubearmor-snitch-ubi:stable --digest-tags
 
       # - name: Generate the stable version of Operator and Snitch in ECR
       #   if: steps.stable.outputs.match == 'true'
       #   run: |
       #     STABLE_VERSION=`cat STABLE-RELEASE`
-      #     regctl image copy kubearmor/kubearmor-operator:$STABLE_VERSION public.ecr.aws/k9v9d5v2/kubearmor/kubearmor-operator:stable --digest-tags
-      #     regctl image copy kubearmor/kubearmor-snitch:$STABLE_VERSION public.ecr.aws/k9v9d5v2/kubearmor/kubearmor-snitch:stable --digest-tags
+      #     regctl image copy kubearmor/kubearmor-operator-ubi:$STABLE_VERSION public.ecr.aws/k9v9d5v2/kubearmor/kubearmor-operator-ubi:stable --digest-tags
+      #     regctl image copy kubearmor/kubearmor-snitch-ubi:$STABLE_VERSION public.ecr.aws/k9v9d5v2/kubearmor/kubearmor-snitch-ubi:stable --digest-tags
 
