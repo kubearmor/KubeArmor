@@ -227,6 +227,8 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 
 		slices.Sort(newPoint.Identities)
 
+		newPoint.PodIP = pod.PodIP
+
 		// update policy flag
 		switch pod.Annotations["kubearmor-policy"] {
 		case "enabled":
@@ -406,6 +408,8 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 
 			slices.Sort(newEndPoint.Identities)
 
+			newEndPoint.PodIP = pod.PodIP
+
 			// update policy flag
 			switch pod.Annotations["kubearmor-policy"] {
 			case "enabled":
@@ -577,6 +581,11 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 		}
 		dm.EndPointsLock.Unlock()
 	}
+
+	if cfg.GlobalCfg.NetworkPolicyEnforcer {
+		// enforce network security policies
+		dm.UpdateNetworkSecurityPolicies()
+	}
 }
 
 // HandleUnknownNamespaceNsMap Function
@@ -694,6 +703,9 @@ func (dm *KubeArmorDaemon) handlePodEvent(event string, obj *corev1.Pod) {
 			}
 		}
 	}
+
+	// Store pod IP from Kubernetes status
+	pod.PodIP = obj.Status.PodIP
 
 	// == Policy == //
 
@@ -3267,7 +3279,11 @@ func (dm *KubeArmorDaemon) UpdateNetworkSecurityPolicies() {
 	secPolicies := []tp.NetworkSecurityPolicy{}
 
 	for _, policy := range networkSecurityPoliciesCopy {
-		if kl.MatchIdentities(policy.Spec.NodeSelector.Identities, dm.Node.Identities) {
+		if len(policy.Spec.Selector.Identities) > 0 {
+			// Container policy: pass to networkPolicyEnforcer to filter by endpoint
+			secPolicies = append(secPolicies, policy)
+		} else if kl.MatchIdentities(policy.Spec.NodeSelector.Identities, dm.Node.Identities) {
+			// Host policy: only pass if it matches this node
 			secPolicies = append(secPolicies, policy)
 		}
 	}
@@ -3276,8 +3292,22 @@ func (dm *KubeArmorDaemon) UpdateNetworkSecurityPolicies() {
 		// update network security policies
 		dm.Logger.UpdateNetworkSecurityPolicies("UPDATED", secPolicies)
 
+		// copy endpoints
+		dm.EndPointsLock.RLock()
+		endpoints := make([]tp.EndPoint, len(dm.EndPoints))
+		copy(endpoints, dm.EndPoints)
+		dm.EndPointsLock.RUnlock()
+
+		// copy containers
+		dm.ContainersLock.RLock()
+		containers := make(map[string]tp.Container)
+		for k, v := range dm.Containers {
+			containers[k] = v
+		}
+		dm.ContainersLock.RUnlock()
+		fmt.Println("secpolicies: ", secPolicies)
 		// enforce network policies
-		dm.NetworkPolicyEnforcer.UpdateNetworkSecurityPolicies(secPolicies)
+		dm.NetworkPolicyEnforcer.UpdateNetworkSecurityPolicies(secPolicies, endpoints, containers)
 	}
 }
 
@@ -3315,6 +3345,14 @@ func (dm *KubeArmorDaemon) ParseAndUpdateNetworkSecurityPolicy(event tp.K8sKubeA
 	}
 
 	slices.Sort(secPolicy.Spec.NodeSelector.Identities)
+
+	secPolicy.Spec.Selector.Identities = []string{}
+
+	for k, v := range secPolicy.Spec.Selector.MatchLabels {
+		secPolicy.Spec.Selector.Identities = append(secPolicy.Spec.Selector.Identities, k+"="+v)
+	}
+
+	slices.Sort(secPolicy.Spec.Selector.Identities)
 
 	// add severities, tags, messages, and actions
 
@@ -3446,7 +3484,7 @@ func (dm *KubeArmorDaemon) ParseAndUpdateNetworkSecurityPolicy(event tp.K8sKubeA
 	dm.NetworkSecurityPoliciesLock.Unlock()
 
 	dm.Logger.Printf("Detected a Network Security Policy (%s/%s)", strings.ToLower(event.Type), secPolicy.Metadata["policyName"])
-
+	fmt.Println("got policy", secPolicy)
 	// apply network security policies to a host
 	dm.UpdateNetworkSecurityPolicies()
 

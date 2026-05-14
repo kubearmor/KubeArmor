@@ -87,6 +87,7 @@ type EndPoint struct {
 	Identities []string          `json:"identities"`
 
 	Containers       []string `json:"containers"`
+	PodIP            string   `json:"podIP,omitempty"`
 	AppArmorProfiles []string `json:"apparmorProfiles"`
 	SELinuxProfiles  []string `json:"selinuxProfiles"`
 
@@ -157,6 +158,7 @@ type K8sPod struct {
 	Labels          map[string]string
 	Containers      map[string]string
 	ContainerImages map[string]string
+	PodIP           string
 
 	// using two maps here as it is inefficient to
 	// obtain either from just one
@@ -740,6 +742,9 @@ type IngressType struct {
 	Interface []string      `json:"iface,omitempty"`
 	Ports     []PortType    `json:"ports,omitempty"`
 
+	Limit    string `json:"limit,omitempty"`
+	Duration string `json:"duration,omitempty"`
+
 	Severity int      `json:"severity,omitempty"`
 	Tags     []string `json:"tags,omitempty"`
 	Message  string   `json:"message,omitempty"`
@@ -752,6 +757,9 @@ type EgressType struct {
 	Interface []string      `json:"iface,omitempty"`
 	Ports     []PortType    `json:"ports,omitempty"`
 
+	Limit    string `json:"limit,omitempty"`
+	Duration string `json:"duration,omitempty"`
+
 	Severity int      `json:"severity,omitempty"`
 	Tags     []string `json:"tags,omitempty"`
 	Message  string   `json:"message,omitempty"`
@@ -761,6 +769,7 @@ type EgressType struct {
 // NetworkSecuritySpec Structure
 type NetworkSecuritySpec struct {
 	NodeSelector NodeSelectorType `json:"nodeSelector"`
+	Selector     SelectorType     `json:"selector"`
 
 	Ingress []IngressType `json:"ingress,omitempty"`
 	Egress  []EgressType  `json:"egress,omitempty"`

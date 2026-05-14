@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -37,6 +38,12 @@ type NetworkRule struct { // represents a single nftables rule entry
 	RuleContent string
 }
 
+// QuotaObj Structure
+type QuotaObj struct {
+	Name  string
+	Limit string // pre-formatted nft quota string, e.g. "500 mbytes"
+}
+
 // NetworkPolicyEnforcer Structure
 type NetworkPolicyEnforcer struct {
 	// logs
@@ -54,6 +61,26 @@ type NetworkPolicyEnforcer struct {
 	// Rate Limiting Cache
 	// Key: string (Flow Hash), Value: time.Time (Last Seen)
 	LogCache sync.Map
+
+	// Quotas
+	QuotaTimers map[string]*time.Ticker
+	QuotaCancel map[string]context.CancelFunc
+	PodIPs      map[string]string
+	QuotasLock  *sync.Mutex
+
+	// Endpoints cache for log contextualization
+	EndPoints     map[string]tp.EndPoint
+	EndPointsLock *sync.RWMutex
+
+	// Delta Engine Cache
+	ActiveRules  []NetworkRule
+	ActiveQuotas []QuotaObj
+	Initialized  bool
+
+	// Quota Log Silencer
+	// Key: "<podIP>-<logPrefix>", Value: struct{}{}
+	// Prevents repeated alerts within the same quota window.
+	QuotaSilencer sync.Map
 }
 
 // NewNetworkPolicyEnforcer Function
@@ -75,6 +102,17 @@ func NewNetworkPolicyEnforcer(logger *fd.Feeder) (*NetworkPolicyEnforcer, error)
 
 	ne.Rules = []NetworkRule{}
 	ne.RulesLock = &sync.RWMutex{}
+	ne.QuotaTimers = make(map[string]*time.Ticker)
+	ne.QuotaCancel = make(map[string]context.CancelFunc)
+	ne.PodIPs = make(map[string]string)
+	ne.QuotasLock = &sync.Mutex{}
+
+	ne.EndPoints = make(map[string]tp.EndPoint)
+	ne.EndPointsLock = new(sync.RWMutex)
+
+	ne.ActiveRules = []NetworkRule{}
+	ne.ActiveQuotas = []QuotaObj{}
+	ne.Initialized = false
 
 	ne.ticker = time.NewTicker(1 * time.Minute)
 	ne.tickerDone = make(chan bool, 1)
@@ -101,7 +139,7 @@ func NewNetworkPolicyEnforcer(logger *fd.Feeder) (*NetworkPolicyEnforcer, error)
 	// monitor logged packets
 	go ne.monitorLoggedPackets()
 
-	ne.UpdateNetworkSecurityPolicies([]tp.NetworkSecurityPolicy{})
+	ne.UpdateNetworkSecurityPolicies([]tp.NetworkSecurityPolicy{}, []tp.EndPoint{}, map[string]tp.Container{})
 
 	return ne, nil
 }
@@ -231,15 +269,43 @@ func (ne *NetworkPolicyEnforcer) monitorLoggedPackets() {
 			}
 		}
 
-		// Rate Limiting (10 Seconds)
-		flowKey := fmt.Sprintf("%s:%d->%s:%d/%d-%s", srcIP, srcPort, dstIP, dstPort, protocol, prefix)
-		if lastSeen, loaded := ne.LogCache.Load(flowKey); loaded {
-			if time.Since(lastSeen.(time.Time)) < 10*time.Second {
-				return 0 // SKIP LOGGING
-			}
+		// Extract targetIP early — needed for both silencing and metadata
+		parts := strings.Split(prefix, " ")
+		var targetIP, direction string
+		if len(parts) > 1 {
+			direction = parts[1]
+		}
+		if direction == "Egress" || direction == "OUTPUT" {
+			targetIP = srcIP
+		} else if direction == "Ingress" || direction == "INPUT" {
+			targetIP = dstIP
 		}
 
-		ne.LogCache.Store(flowKey, time.Now())
+		// Quota Log Silencer:
+		// For policy drops, emit ONE alert per quota window per pod+policy.
+		// The key is stable (podIP + prefix), ignoring ephemeral ports.
+		policyName := ""
+		if len(parts) > 0 {
+			policyName = parts[0]
+		}
+		isNamedPolicy := policyName != "" && policyName != "Default" && policyName != "Host"
+
+		if isNamedPolicy {
+			silencerKey := fmt.Sprintf("%s-%s", targetIP, prefix)
+			if _, silenced := ne.QuotaSilencer.Load(silencerKey); silenced {
+				return 0 // Already alerted for this quota window — drop silently
+			}
+			ne.QuotaSilencer.Store(silencerKey, struct{}{})
+		} else {
+			// For host/default rules, keep the 10-second flow rate limiter
+			flowKey := fmt.Sprintf("%s:%d->%s:%d/%d-%s", srcIP, srcPort, dstIP, dstPort, protocol, prefix)
+			if lastSeen, loaded := ne.LogCache.Load(flowKey); loaded {
+				if time.Since(lastSeen.(time.Time)) < 10*time.Second {
+					return 0
+				}
+			}
+			ne.LogCache.Store(flowKey, time.Now())
+		}
 
 		// Generate KubeArmor Log
 		log := tp.Log{}
@@ -251,8 +317,7 @@ func (ne *NetworkPolicyEnforcer) monitorLoggedPackets() {
 		log.Resource = prefix
 		log.Data = fmt.Sprintf("SourceIP=%s SourcePort=%d DestinationIP=%s DestinationPort=%d Protocol=%s", srcIP, srcPort, dstIP, dstPort, getProtocolName(protocol))
 
-		parts := strings.Split(prefix, " ")
-		action := "Audit" // default fallback
+		action := "Audit"
 		if len(parts) > 2 {
 			action = parts[2]
 		} else if strings.Contains(prefix, "Block") {
@@ -267,6 +332,32 @@ func (ne *NetworkPolicyEnforcer) monitorLoggedPackets() {
 		}
 
 		log.Enforcer = "NetworkPolicyEnforcer"
+
+		if isNamedPolicy {
+			log.Type = "MatchedPolicy"
+			log.PolicyName = policyName
+		} else if policyName == "Host" {
+			log.Type = "MatchedHostPolicy"
+		} else {
+			log.Type = "SystemLog"
+		}
+
+		// Attach Kubernetes Pod metadata
+		if targetIP != "" {
+			ne.EndPointsLock.RLock()
+			if ep, ok := ne.EndPoints[targetIP]; ok {
+				log.NamespaceName = ep.NamespaceName
+				log.PodName = ep.EndPointName
+
+				var labelSlice []string
+				for k, v := range ep.Labels {
+					labelSlice = append(labelSlice, k+"="+v)
+				}
+				sort.Strings(labelSlice)
+				log.Labels = strings.Join(labelSlice, ",")
+			}
+			ne.EndPointsLock.RUnlock()
+		}
 
 		ne.Logger.PushLog(log)
 
@@ -300,12 +391,32 @@ func (ne *NetworkPolicyEnforcer) monitorLoggedPackets() {
 	}
 }
 
-// UpdateHostSecurityPolicies Function
-func (ne *NetworkPolicyEnforcer) UpdateNetworkSecurityPolicies(secPolicies []tp.NetworkSecurityPolicy) {
+// UpdateNetworkSecurityPolicies Function
+func (ne *NetworkPolicyEnforcer) UpdateNetworkSecurityPolicies(secPolicies []tp.NetworkSecurityPolicy, endpoints []tp.EndPoint, containers map[string]tp.Container) {
+
+	ne.EndPointsLock.Lock()
+	ne.EndPoints = make(map[string]tp.EndPoint)
+	for _, ep := range endpoints {
+		if ep.PodIP != "" {
+			ne.EndPoints[ep.PodIP] = ep
+		}
+	}
+	ne.EndPointsLock.Unlock()
+
 	ne.RulesLock.Lock()
 	defer ne.RulesLock.Unlock()
 
+	// Clean up existing timers
+	ne.QuotasLock.Lock()
+	for _, cancel := range ne.QuotaCancel {
+		cancel()
+	}
+	ne.QuotaTimers = make(map[string]*time.Ticker)
+	ne.QuotaCancel = make(map[string]context.CancelFunc)
+	ne.QuotasLock.Unlock()
+
 	var newRules []NetworkRule
+	var allQuotas []QuotaObj
 	hasAllowPolicy := false
 
 	// generate Rules
@@ -317,8 +428,24 @@ func (ne *NetworkPolicyEnforcer) UpdateNetworkSecurityPolicies(secPolicies []tp.
 
 		policyName, _ := policy.Metadata["policyName"]
 
+		var podIPs []string
+		isPodPolicy := len(policy.Spec.Selector.Identities) > 0
+		if isPodPolicy {
+			// Find matching endpoints and collect their pod IPs
+			for _, ep := range endpoints {
+				matched := kl.MatchIdentities(policy.Spec.Selector.Identities, ep.Identities)
+				fmt.Printf("  Endpoint %s: matched=%v, ep.PodIP=%q\n", ep.EndPointName, matched, ep.PodIP)
+				if matched {
+					if ep.PodIP != "" {
+						podIPs = append(podIPs, ep.PodIP)
+					}
+				}
+			}
+		}
+		fmt.Println("Matched Pod IPs for policy", policyName, ":", podIPs)
+
 		// Ingress
-		for _, ingress := range policy.Spec.Ingress {
+		for idx, ingress := range policy.Spec.Ingress {
 			action := policy.Spec.Action
 			if action == "" {
 				action = "Block" // default action, if not specified in policy
@@ -327,11 +454,34 @@ func (ne *NetworkPolicyEnforcer) UpdateNetworkSecurityPolicies(secPolicies []tp.
 			if ingress.Action != "" {
 				action = ingress.Action
 			}
-			rules := generateRules("INPUT", ingress.From, ingress.Ports, ingress.Interface, action, policyName)
+			rules := generateRules("Ingress", ingress.From, ingress.Ports, ingress.Interface, action, policyName, ingress.Limit, ingress.Duration, idx, &allQuotas, podIPs, isPodPolicy)
 			newRules = append(newRules, rules...)
+
+			if ingress.Limit != "" && ingress.Duration != "" {
+				parsedLimit, err := parseLimitToNFT(ingress.Limit)
+				if err != nil {
+					ne.Logger.Errf("Policy %s ingress[%d] has invalid limit %q: %v", policyName, idx, ingress.Limit, err)
+				} else {
+					parsedDuration, err := parseDurationToSeconds(ingress.Duration)
+					if err != nil {
+						ne.Logger.Errf("Policy %s ingress[%d] has invalid duration %q: %v", policyName, idx, ingress.Duration, err)
+					} else if parsedDuration > 0 {
+						_ = parsedLimit // quota already registered inside generateRules
+						if isPodPolicy && len(podIPs) > 0 {
+							for _, ip := range podIPs {
+								quotaName := sanitizeQuotaName(fmt.Sprintf("quota_%s_Ingress_%d_%s", policyName, idx, ip))
+								ne.setupQuotaTimer(quotaName, parsedDuration)
+							}
+						} else {
+							quotaName := sanitizeQuotaName(fmt.Sprintf("quota_%s_Ingress_%d", policyName, idx))
+							ne.setupQuotaTimer(quotaName, parsedDuration)
+						}
+					}
+				}
+			}
 		}
 		// Egress
-		for _, egress := range policy.Spec.Egress {
+		for idx, egress := range policy.Spec.Egress {
 			action := policy.Spec.Action
 			if action == "" {
 				action = "Block" // default action, if not specified in policy
@@ -340,8 +490,31 @@ func (ne *NetworkPolicyEnforcer) UpdateNetworkSecurityPolicies(secPolicies []tp.
 			if egress.Action != "" {
 				action = egress.Action
 			}
-			rules := generateRules("OUTPUT", egress.To, egress.Ports, egress.Interface, action, policyName)
+			rules := generateRules("Egress", egress.To, egress.Ports, egress.Interface, action, policyName, egress.Limit, egress.Duration, idx, &allQuotas, podIPs, isPodPolicy)
 			newRules = append(newRules, rules...)
+
+			if egress.Limit != "" && egress.Duration != "" {
+				parsedLimit, err := parseLimitToNFT(egress.Limit)
+				if err != nil {
+					ne.Logger.Errf("Policy %s egress[%d] has invalid limit %q: %v", policyName, idx, egress.Limit, err)
+				} else {
+					parsedDuration, err := parseDurationToSeconds(egress.Duration)
+					if err != nil {
+						ne.Logger.Errf("Policy %s egress[%d] has invalid duration %q: %v", policyName, idx, egress.Duration, err)
+					} else if parsedDuration > 0 {
+						_ = parsedLimit // quota already registered inside generateRules
+						if isPodPolicy && len(podIPs) > 0 {
+							for _, ip := range podIPs {
+								quotaName := sanitizeQuotaName(fmt.Sprintf("quota_%s_Egress_%d_%s", policyName, idx, ip))
+								ne.setupQuotaTimer(quotaName, parsedDuration)
+							}
+						} else {
+							quotaName := sanitizeQuotaName(fmt.Sprintf("quota_%s_Egress_%d", policyName, idx))
+							ne.setupQuotaTimer(quotaName, parsedDuration)
+						}
+					}
+				}
+			}
 		}
 	}
 
@@ -382,13 +555,73 @@ func (ne *NetworkPolicyEnforcer) UpdateNetworkSecurityPolicies(secPolicies []tp.
 
 	ne.Rules = newRules
 
-	if err := ne.applyNFTables(hasAllowPolicy); err != nil {
+	if err := ne.applyNFTables(hasAllowPolicy, allQuotas); err != nil {
 		ne.Logger.Errf("Failed to apply network policies: %v", err)
 	}
 }
 
-func generateRules(chain string, peers []tp.NetworkPeer, ports []tp.PortType, ifaces []string, action, policyName string) []NetworkRule {
+func parseLimitToNFT(limit string) (string, error) {
+	if limit == "" {
+		return "", fmt.Errorf("empty limit")
+	}
+	limit = strings.TrimSpace(limit)
+
+	// Split numeric prefix from unit suffix
+	i := 0
+	for i < len(limit) && (limit[i] >= '0' && limit[i] <= '9') {
+		i++
+	}
+	if i == 0 {
+		return "", fmt.Errorf("invalid limit %q: no numeric prefix", limit)
+	}
+
+	value, err := strconv.ParseUint(limit[:i], 10, 64)
+	if err != nil {
+		return "", fmt.Errorf("invalid limit value %q: %v", limit[:i], err)
+	}
+
+	unit := strings.ToUpper(strings.TrimSpace(limit[i:]))
+
+	var bytes uint64
+	switch unit {
+	case "KB", "K":
+		bytes = value * 1024
+	case "MB", "M":
+		bytes = value * 1024 * 1024
+	case "GB", "G", "":
+		// default to GB if no unit given
+		bytes = value * 1024 * 1024 * 1024
+	default:
+		return "", fmt.Errorf("invalid limit unit %q: expected KB, MB, or GB", unit)
+	}
+
+	return fmt.Sprintf("%d bytes", bytes), nil
+}
+
+func parseDurationToSeconds(d string) (uint32, error) {
+	if d == "" {
+		return 0, nil
+	}
+	parsed, err := time.ParseDuration(d)
+	if err != nil {
+		return 0, err
+	}
+	return uint32(parsed.Seconds()), nil
+}
+
+// sanitizeQuotaName replaces characters that are invalid in nftables quota
+// object names (hyphens, spaces, dots, colons) with underscores.
+func sanitizeQuotaName(name string) string {
+	r := strings.NewReplacer("-", "_", " ", "_", ".", "_", ":", "_")
+	return r.Replace(name)
+}
+
+func generateRules(direction string, peers []tp.NetworkPeer, ports []tp.PortType, ifaces []string, action, policyName string, limit string, duration string, ruleIdx int, quotas *[]QuotaObj, podIPs []string, isPodPolicy bool) []NetworkRule {
 	var rules []NetworkRule
+
+	if isPodPolicy && len(podIPs) == 0 {
+		return rules // Do not generate any rules if it's a pod policy but no pods are scheduled on this node
+	}
 
 	// Allow -> accept (no log)
 	// Block -> log + drop
@@ -411,7 +644,7 @@ func generateRules(chain string, peers []tp.NetworkPeer, ports []tp.PortType, if
 		shouldLog = true
 	}
 
-	logPrefix := policyName + " " + chain + " " + action
+	logPrefix := policyName + " " + direction + " " + action
 
 	// Collect CIDRs
 	var ipv4CIDRs []string
@@ -425,6 +658,16 @@ func generateRules(chain string, peers []tp.NetworkPeer, ports []tp.PortType, if
 			ipv6CIDRs = append(ipv6CIDRs, peer.IPBlock.CIDR)
 		} else {
 			ipv4CIDRs = append(ipv4CIDRs, peer.IPBlock.CIDR)
+		}
+	}
+
+	var podIPv4s []string
+	var podIPv6s []string
+	for _, ip := range podIPs {
+		if strings.Contains(ip, ":") {
+			podIPv6s = append(podIPv6s, ip)
+		} else {
+			podIPv4s = append(podIPv4s, ip)
 		}
 	}
 
@@ -459,17 +702,39 @@ func generateRules(chain string, peers []tp.NetworkPeer, ports []tp.PortType, if
 		protoPorts[proto] = append(protoPorts[proto], finalPort)
 	}
 
-	buildRule := func(family string, cidrs []string) {
+	buildRule := func(tableFamily, addrFamily string, cidrs []string, pods []string) {
+		var chains []string
+		if isPodPolicy {
+			chains = []string{"FORWARD"}
+		} else {
+			if direction == "Ingress" {
+				chains = []string{"INPUT"}
+			} else {
+				chains = []string{"OUTPUT"}
+			}
+		}
+
+		hasQuota := false
+		parsedLimitStr := ""
+		if limit != "" && duration != "" {
+			parsedDuration, _ := parseDurationToSeconds(duration)
+			if parsedDuration > 0 {
+				parsed, err := parseLimitToNFT(limit)
+				if err == nil {
+					hasQuota = true
+					parsedLimitStr = parsed
+				}
+			}
+		}
 
 		// If no ports specified, build a single rule
 		if len(protoPorts) == 0 {
-
 			var parts []string
 
 			// Interface
 			if len(ifaceSet) > 0 {
 				op := "iifname"
-				if chain == "OUTPUT" {
+				if direction == "Egress" {
 					op = "oifname"
 				}
 
@@ -480,46 +745,134 @@ func generateRules(chain string, peers []tp.NetworkPeer, ports []tp.PortType, if
 				}
 			}
 
-			// CIDR
+			// CIDR (Peers) — use addrFamily prefix so it works in both ip and inet tables
 			if len(cidrs) > 0 {
-
 				dir := "saddr"
-				if chain == "OUTPUT" {
+				if direction == "Egress" {
 					dir = "daddr"
 				}
 
 				if len(cidrs) == 1 {
-					parts = append(parts, fmt.Sprintf("%s %s %s", family, dir, cidrs[0]))
+					parts = append(parts, fmt.Sprintf("%s %s %s", addrFamily, dir, cidrs[0]))
 				} else {
-					parts = append(parts, fmt.Sprintf("%s %s { %s }", family, dir, strings.Join(cidrs, ", ")))
+					parts = append(parts, fmt.Sprintf("%s %s { %s }", addrFamily, dir, strings.Join(cidrs, ", ")))
 				}
 			}
 
-			if shouldLog {
-				parts = append(parts, fmt.Sprintf("log prefix %q group 0", logPrefix))
+			// Pods — use addrFamily prefix
+			if len(pods) > 0 {
+				dir := "daddr"
+				if direction == "Egress" {
+					dir = "saddr"
+				}
+
+				if len(pods) == 1 {
+					parts = append(parts, fmt.Sprintf("%s %s %s", addrFamily, dir, pods[0]))
+				} else {
+					parts = append(parts, fmt.Sprintf("%s %s { %s }", addrFamily, dir, strings.Join(pods, ", ")))
+				}
 			}
 
-			parts = append(parts, nftAction)
+			if hasQuota {
+				if isPodPolicy && len(pods) > 0 {
+					for _, pod := range pods {
+						quotaName := sanitizeQuotaName(fmt.Sprintf("quota_%s_%s_%d_%s", policyName, direction, ruleIdx, pod))
 
-			rules = append(rules, NetworkRule{
-				TableFamily: family,
-				Chain:       chain,
-				RuleContent: strings.Join(parts, " "),
-			})
+						*quotas = append(*quotas, QuotaObj{Name: quotaName, Limit: parsedLimitStr})
+
+						var podParts []string
+						// Interface
+						if len(ifaceSet) > 0 {
+							op := "iifname"
+							if direction == "Egress" {
+								op = "oifname"
+							}
+							if len(ifaceSet) == 1 {
+								podParts = append(podParts, fmt.Sprintf("%s %s", op, ifaceSet[0]))
+							} else {
+								podParts = append(podParts, fmt.Sprintf("%s { %s }", op, strings.Join(ifaceSet, ", ")))
+							}
+						}
+
+						// CIDR
+						if len(cidrs) > 0 {
+							dir := "saddr"
+							if direction == "Egress" {
+								dir = "daddr"
+							}
+							if len(cidrs) == 1 {
+								podParts = append(podParts, fmt.Sprintf("%s %s %s", addrFamily, dir, cidrs[0]))
+							} else {
+								podParts = append(podParts, fmt.Sprintf("%s %s { %s }", addrFamily, dir, strings.Join(cidrs, ", ")))
+							}
+						}
+
+						// This specific pod
+						dir := "daddr"
+						if direction == "Egress" {
+							dir = "saddr"
+						}
+						podParts = append(podParts, fmt.Sprintf("%s %s %s", addrFamily, dir, pod))
+
+						overParts := append([]string(nil), podParts...)
+						overParts = append(overParts, fmt.Sprintf("quota name %q", quotaName))
+						if shouldLog {
+							overParts = append(overParts, fmt.Sprintf("log prefix %q group 0", logPrefix))
+						}
+						overParts = append(overParts, nftAction)
+
+						underParts := append([]string(nil), podParts...)
+						underParts = append(underParts, "accept")
+
+						for _, ch := range chains {
+							rules = append(rules, NetworkRule{TableFamily: tableFamily, Chain: ch, RuleContent: strings.Join(overParts, " ")})
+							rules = append(rules, NetworkRule{TableFamily: tableFamily, Chain: ch, RuleContent: strings.Join(underParts, " ")})
+						}
+					}
+				} else {
+					quotaName := sanitizeQuotaName(fmt.Sprintf("quota_%s_%s_%d", policyName, direction, ruleIdx))
+					*quotas = append(*quotas, QuotaObj{Name: quotaName, Limit: parsedLimitStr})
+
+					overParts := append([]string(nil), parts...)
+					overParts = append(overParts, fmt.Sprintf("quota name %q", quotaName))
+					if shouldLog {
+						overParts = append(overParts, fmt.Sprintf("log prefix %q group 0", logPrefix))
+					}
+					overParts = append(overParts, nftAction)
+
+					underParts := append([]string(nil), parts...)
+					underParts = append(underParts, "accept")
+
+					for _, ch := range chains {
+						rules = append(rules, NetworkRule{TableFamily: tableFamily, Chain: ch, RuleContent: strings.Join(overParts, " ")})
+						rules = append(rules, NetworkRule{TableFamily: tableFamily, Chain: ch, RuleContent: strings.Join(underParts, " ")})
+					}
+				}
+			} else {
+				if shouldLog {
+					parts = append(parts, fmt.Sprintf("log prefix %q group 0", logPrefix))
+				}
+				parts = append(parts, nftAction)
+				for _, ch := range chains {
+					rules = append(rules, NetworkRule{
+						TableFamily: tableFamily,
+						Chain:       ch,
+						RuleContent: strings.Join(parts, " "),
+					})
+				}
+			}
 
 			return
 		}
 
 		// Build rule per protocol
 		for proto, ports := range protoPorts {
-
 			var parts []string
 
 			// Interface
 			if len(ifaceSet) > 0 {
-
 				op := "iifname"
-				if chain == "OUTPUT" {
+				if direction == "Egress" {
 					op = "oifname"
 				}
 
@@ -530,18 +883,31 @@ func generateRules(chain string, peers []tp.NetworkPeer, ports []tp.PortType, if
 				}
 			}
 
-			// CIDR
+			// CIDR (Peers) — use addrFamily prefix so it works in both ip and inet tables
 			if len(cidrs) > 0 {
-
 				dir := "saddr"
-				if chain == "OUTPUT" {
+				if direction == "Egress" {
 					dir = "daddr"
 				}
 
 				if len(cidrs) == 1 {
-					parts = append(parts, fmt.Sprintf("%s %s %s", family, dir, cidrs[0]))
+					parts = append(parts, fmt.Sprintf("%s %s %s", addrFamily, dir, cidrs[0]))
 				} else {
-					parts = append(parts, fmt.Sprintf("%s %s { %s }", family, dir, strings.Join(cidrs, ", ")))
+					parts = append(parts, fmt.Sprintf("%s %s { %s }", addrFamily, dir, strings.Join(cidrs, ", ")))
+				}
+			}
+
+			// Pods — use addrFamily prefix
+			if len(pods) > 0 {
+				dir := "daddr"
+				if direction == "Egress" {
+					dir = "saddr"
+				}
+
+				if len(pods) == 1 {
+					parts = append(parts, fmt.Sprintf("%s %s %s", addrFamily, dir, pods[0]))
+				} else {
+					parts = append(parts, fmt.Sprintf("%s %s { %s }", addrFamily, dir, strings.Join(pods, ", ")))
 				}
 			}
 
@@ -552,34 +918,130 @@ func generateRules(chain string, peers []tp.NetworkPeer, ports []tp.PortType, if
 				parts = append(parts, fmt.Sprintf("%s dport { %s }", proto, strings.Join(ports, ", ")))
 			}
 
-			if shouldLog {
-				parts = append(parts, fmt.Sprintf("log prefix %q group 0", logPrefix))
+			if hasQuota {
+				if isPodPolicy && len(pods) > 0 {
+					for _, pod := range pods {
+						quotaName := sanitizeQuotaName(fmt.Sprintf("quota_%s_%s_%d_%s", policyName, direction, ruleIdx, pod))
+
+						// No need to append to quotas again; it was done in the first branch if it executed,
+						// wait, if we have multiple protoPorts, we might add the same quota multiple times!
+						// But nftables `add quota` is idempotent, so it's fine.
+						*quotas = append(*quotas, QuotaObj{Name: quotaName, Limit: parsedLimitStr})
+
+						var podParts []string
+						// Interface
+						if len(ifaceSet) > 0 {
+							op := "iifname"
+							if direction == "Egress" {
+								op = "oifname"
+							}
+							if len(ifaceSet) == 1 {
+								podParts = append(podParts, fmt.Sprintf("%s %s", op, ifaceSet[0]))
+							} else {
+								podParts = append(podParts, fmt.Sprintf("%s { %s }", op, strings.Join(ifaceSet, ", ")))
+							}
+						}
+
+						// CIDR
+						if len(cidrs) > 0 {
+							dir := "saddr"
+							if direction == "Egress" {
+								dir = "daddr"
+							}
+							if len(cidrs) == 1 {
+								podParts = append(podParts, fmt.Sprintf("%s %s %s", addrFamily, dir, cidrs[0]))
+							} else {
+								podParts = append(podParts, fmt.Sprintf("%s %s { %s }", addrFamily, dir, strings.Join(cidrs, ", ")))
+							}
+						}
+
+						// This specific pod
+						dir := "daddr"
+						if direction == "Egress" {
+							dir = "saddr"
+						}
+						podParts = append(podParts, fmt.Sprintf("%s %s %s", addrFamily, dir, pod))
+
+						// Ports
+						if len(ports) == 1 {
+							podParts = append(podParts, fmt.Sprintf("%s dport %s", proto, ports[0]))
+						} else {
+							podParts = append(podParts, fmt.Sprintf("%s dport { %s }", proto, strings.Join(ports, ", ")))
+						}
+
+						overParts := append([]string(nil), podParts...)
+						overParts = append(overParts, fmt.Sprintf("quota name %q", quotaName))
+						if shouldLog {
+							overParts = append(overParts, fmt.Sprintf("log prefix %q group 0", logPrefix))
+						}
+						overParts = append(overParts, nftAction)
+
+						underParts := append([]string(nil), podParts...)
+						underParts = append(underParts, "accept")
+
+						for _, ch := range chains {
+							rules = append(rules, NetworkRule{TableFamily: tableFamily, Chain: ch, RuleContent: strings.Join(overParts, " ")})
+							rules = append(rules, NetworkRule{TableFamily: tableFamily, Chain: ch, RuleContent: strings.Join(underParts, " ")})
+						}
+					}
+				} else {
+					quotaName := sanitizeQuotaName(fmt.Sprintf("quota_%s_%s_%d", policyName, direction, ruleIdx))
+					*quotas = append(*quotas, QuotaObj{Name: quotaName, Limit: parsedLimitStr})
+
+					overParts := append([]string(nil), parts...)
+					overParts = append(overParts, fmt.Sprintf("quota name %q", quotaName))
+					if shouldLog {
+						overParts = append(overParts, fmt.Sprintf("log prefix %q group 0", logPrefix))
+					}
+					overParts = append(overParts, nftAction)
+
+					underParts := append([]string(nil), parts...)
+					underParts = append(underParts, "accept")
+
+					for _, ch := range chains {
+						rules = append(rules, NetworkRule{TableFamily: tableFamily, Chain: ch, RuleContent: strings.Join(overParts, " ")})
+						rules = append(rules, NetworkRule{TableFamily: tableFamily, Chain: ch, RuleContent: strings.Join(underParts, " ")})
+					}
+				}
+			} else {
+				if shouldLog {
+					parts = append(parts, fmt.Sprintf("log prefix %q group 0", logPrefix))
+				}
+				parts = append(parts, nftAction)
+				for _, ch := range chains {
+					rules = append(rules, NetworkRule{TableFamily: tableFamily, Chain: ch, RuleContent: strings.Join(parts, " ")})
+				}
 			}
-
-			parts = append(parts, nftAction)
-
-			rules = append(rules, NetworkRule{
-				TableFamily: family,
-				Chain:       chain,
-				RuleContent: strings.Join(parts, " "),
-			})
 		}
 	}
 
-	if len(ipv4CIDRs) > 0 || len(peers) == 0 {
-		buildRule("ip", ipv4CIDRs)
+	hasQuota := limit != "" && duration != ""
+
+	if !isPodPolicy || len(podIPv4s) > 0 {
+		if hasQuota || isPodPolicy {
+			// Pod rules (quota or not) go to inet table
+			buildRule("inet", "ip", ipv4CIDRs, podIPv4s)
+		} else {
+			// Host-only rules stay in ip table
+			buildRule("ip", "ip", ipv4CIDRs, podIPv4s)
+		}
 	}
 
-	if len(ipv6CIDRs) > 0 || len(peers) == 0 {
-		buildRule("ip6", ipv6CIDRs)
+	if !isPodPolicy || len(podIPv6s) > 0 {
+		if hasQuota || isPodPolicy {
+			// Pod rules (quota or not) go to inet table
+			buildRule("inet", "ip6", ipv6CIDRs, podIPv6s)
+		} else {
+			// Host-only rules stay in ip6 table
+			buildRule("ip6", "ip6", ipv6CIDRs, podIPv6s)
+		}
 	}
 
 	return rules
 }
 
-func (ne *NetworkPolicyEnforcer) applyNFTables(hasAllowPolicy bool) error {
+func (ne *NetworkPolicyEnforcer) applyNFTables(hasAllowPolicy bool, quotas []QuotaObj) error {
 	chainPolicy := "accept"
-
 	if hasAllowPolicy {
 		if cfg.GlobalCfg.HostDefaultNetworkPosture == "audit" {
 			chainPolicy = "accept"
@@ -588,29 +1050,122 @@ func (ne *NetworkPolicyEnforcer) applyNFTables(hasAllowPolicy bool) error {
 		}
 	}
 
+	// 1. Compute Quota Delta
+	var inetQuotasToAdd []QuotaObj
+	var inetQuotasToDelete []QuotaObj
+
+	newQuotasMap := make(map[string]QuotaObj)
+	for _, q := range quotas {
+		newQuotasMap[q.Name] = q
+	}
+
+	activeQuotasMap := make(map[string]QuotaObj)
+	for _, q := range ne.ActiveQuotas {
+		activeQuotasMap[q.Name] = q
+	}
+
+	for name, newQ := range newQuotasMap {
+		if activeQ, exists := activeQuotasMap[name]; !exists {
+			inetQuotasToAdd = append(inetQuotasToAdd, newQ)
+		} else if activeQ.Limit != newQ.Limit {
+			inetQuotasToDelete = append(inetQuotasToDelete, activeQ)
+			inetQuotasToAdd = append(inetQuotasToAdd, newQ)
+		}
+	}
+	for name, activeQ := range activeQuotasMap {
+		if _, exists := newQuotasMap[name]; !exists {
+			inetQuotasToDelete = append(inetQuotasToDelete, activeQ)
+		}
+	}
+
+	// 2. We still declaratively rebuild Host and Pod rules
+	var ipv4Input, ipv4Output, ipv6Input, ipv6Output, inetForward, inetInput, inetOutput []string
+	for _, r := range ne.Rules {
+		if r.TableFamily == "ip" {
+			if r.Chain == "INPUT" {
+				ipv4Input = append(ipv4Input, r.RuleContent)
+			} else {
+				ipv4Output = append(ipv4Output, r.RuleContent)
+			}
+		} else if r.TableFamily == "ip6" {
+			if r.Chain == "INPUT" {
+				ipv6Input = append(ipv6Input, r.RuleContent)
+			} else {
+				ipv6Output = append(ipv6Output, r.RuleContent)
+			}
+		} else if r.TableFamily == "inet" {
+			if r.Chain == "FORWARD" {
+				inetForward = append(inetForward, r.RuleContent)
+			} else if r.Chain == "INPUT" {
+				inetInput = append(inetInput, r.RuleContent)
+			} else {
+				inetOutput = append(inetOutput, r.RuleContent)
+			}
+		}
+	}
+
 	const nftTemplate = `
-# 1. Define Tables
+# 1. Ensure tables exist
+add table ip kubearmor
+add table ip6 kubearmor
+add table inet kubearmor
+
+{{ if not .Initialized }}
+# 1a. First run: Wipe inet table to ensure a clean slate
+delete table inet kubearmor
+add table inet kubearmor
+{{ end }}
+
+# 2. Delete Host tables to cleanly rebuild them
+delete table ip kubearmor
+delete table ip6 kubearmor
+
+# 3. Create fresh Host tables
 add table ip kubearmor
 add table ip6 kubearmor
 
-# 2. Define Chains (ensures they exist so we can flush them)
+# 4. Host Chains
 add chain ip kubearmor INPUT { type filter hook input priority 0; policy {{.ChainPolicy}}; }
 add chain ip kubearmor OUTPUT { type filter hook output priority 0; policy {{.ChainPolicy}}; }
 add chain ip6 kubearmor INPUT { type filter hook input priority 0; policy {{.ChainPolicy}}; }
 add chain ip6 kubearmor OUTPUT { type filter hook output priority 0; policy {{.ChainPolicy}}; }
 
-# 3. Flush Old Rules
-flush chain ip kubearmor INPUT
-flush chain ip kubearmor OUTPUT
-flush chain ip6 kubearmor INPUT
-flush chain ip6 kubearmor OUTPUT
+# 5. Pod Chains (they persist, so we ensure they exist)
+add chain inet kubearmor FORWARD { type filter hook forward priority 1; policy accept; }
+add chain inet kubearmor INPUT { type filter hook input priority 1; policy accept; }
+add chain inet kubearmor OUTPUT { type filter hook output priority 1; policy accept; }
 
-# 4. Add New Rules
+# 6. Flush Pod Chains (Deletes all rules without deleting the table/quotas)
+flush chain inet kubearmor FORWARD
+flush chain inet kubearmor INPUT
+flush chain inet kubearmor OUTPUT
+
+# 7. Apply Quota Deletions (Delta)
+{{- range .InetQuotasToDelete }}
+delete quota inet kubearmor {{.Name}}
+{{- end }}
+
+# 8. Apply Quota Additions (Delta)
+{{- range .InetQuotasToAdd }}
+add quota inet kubearmor {{.Name}} { over {{.Limit}} }
+{{- end }}
+
+# 9. Rebuild Pod Rules (Declarative)
+{{- range .InetForward }}
+add rule inet kubearmor FORWARD {{ . }}
+{{- end }}
+{{- range .InetInput }}
+add rule inet kubearmor INPUT {{ . }}
+{{- end }}
+{{- range .InetOutput }}
+add rule inet kubearmor OUTPUT {{ . }}
+{{- end }}
+
+# 10. Rebuild Host Rules
 table ip kubearmor {
 	chain INPUT {
 		iifname "lo" accept
         ct state { established, related } accept
-
 		{{- range .IPv4Input }}
 		{{ . }}
 		{{- end }}
@@ -618,7 +1173,6 @@ table ip kubearmor {
 	chain OUTPUT {
 		oifname "lo" accept
         ct state { established, related } accept
-
 		{{- range .IPv4Output }}
 		{{ . }}
 		{{- end }}
@@ -629,7 +1183,6 @@ table ip6 kubearmor {
 	chain INPUT {
 		iifname "lo" accept
         ct state { established, related } accept
-		
 		{{- range .IPv6Input }}
 		{{ . }}
 		{{- end }}
@@ -637,7 +1190,6 @@ table ip6 kubearmor {
 	chain OUTPUT {
 		oifname "lo" accept
         ct state { established, related } accept
-
 		{{- range .IPv6Output }}
 		{{ . }}
 		{{- end }}
@@ -645,32 +1197,37 @@ table ip6 kubearmor {
 }
 `
 	data := struct {
-		ChainPolicy string
-		IPv4Input   []string
-		IPv4Output  []string
-		IPv6Input   []string
-		IPv6Output  []string
+		Initialized        bool
+		ChainPolicy        string
+		InetQuotasToAdd    []QuotaObj
+		InetQuotasToDelete []QuotaObj
+		IPv4Input          []string
+		IPv4Output         []string
+		IPv6Input          []string
+		IPv6Output         []string
+		InetForward        []string
+		InetInput          []string
+		InetOutput         []string
 	}{
-		ChainPolicy: chainPolicy,
+		Initialized:        ne.Initialized,
+		ChainPolicy:        chainPolicy,
+		InetQuotasToAdd:    inetQuotasToAdd,
+		InetQuotasToDelete: inetQuotasToDelete,
+		IPv4Input:          ipv4Input,
+		IPv4Output:         ipv4Output,
+		IPv6Input:          ipv6Input,
+		IPv6Output:         ipv6Output,
+		InetForward:        inetForward,
+		InetInput:          inetInput,
+		InetOutput:         inetOutput,
 	}
 
-	// Sort rules into categories
-	for _, rule := range ne.Rules {
-		switch rule.TableFamily {
-		case "ip":
-			if rule.Chain == "INPUT" {
-				data.IPv4Input = append(data.IPv4Input, rule.RuleContent)
-			} else {
-				data.IPv4Output = append(data.IPv4Output, rule.RuleContent)
-			}
-		case "ip6":
-			if rule.Chain == "INPUT" {
-				data.IPv6Input = append(data.IPv6Input, rule.RuleContent)
-			} else {
-				data.IPv6Output = append(data.IPv6Output, rule.RuleContent)
-			}
-		}
-	}
+	// Update Delta Engine Cache
+	ne.ActiveRules = make([]NetworkRule, len(ne.Rules))
+	copy(ne.ActiveRules, ne.Rules)
+	ne.ActiveQuotas = make([]QuotaObj, len(quotas))
+	copy(ne.ActiveQuotas, quotas)
+	ne.Initialized = true
 
 	t := template.Must(template.New("nft").Parse(nftTemplate))
 
@@ -700,6 +1257,40 @@ table ip6 kubearmor {
 	return nil
 }
 
+func (ne *NetworkPolicyEnforcer) setupQuotaTimer(quotaName string, durationSeconds uint32) {
+	if durationSeconds == 0 {
+		return
+	}
+
+	ne.QuotasLock.Lock()
+	defer ne.QuotasLock.Unlock()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	ne.QuotaCancel[quotaName] = cancel
+
+	ticker := time.NewTicker(time.Duration(durationSeconds) * time.Second)
+	ne.QuotaTimers[quotaName] = ticker
+
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				// Reset the kernel quota counter
+				exec.Command("nft", "reset", "quota", "inet", "kubearmor", quotaName).Run() // #nosec G204
+				// Re-arm the log silencer so the user gets alerted on the NEXT breach
+				ne.QuotaSilencer.Range(func(key, _ any) bool {
+					if strings.Contains(key.(string), quotaName) {
+						ne.QuotaSilencer.Delete(key)
+					}
+					return true
+				})
+			}
+		}
+	}()
+}
+
 func resolvePort(port string) string {
 	if _, err := strconv.Atoi(port); err == nil {
 		return port
@@ -727,19 +1318,24 @@ func (ne *NetworkPolicyEnforcer) DestroyNetworkPolicyEnforcer() error {
 	default:
 	}
 
+	ne.QuotasLock.Lock()
+	for _, t := range ne.QuotaTimers {
+		t.Stop()
+	}
+	for _, cancel := range ne.QuotaCancel {
+		cancel()
+	}
+	ne.QuotasLock.Unlock()
+
 	// nflog listener
 	if ne.cancelNflog != nil {
 		ne.cancelNflog()
 	}
 
-	// cleanup
-	cmdIPv4 := exec.Command("nft", "delete", "table", "ip", "kubearmor")
-	if err := cmdIPv4.Run(); err != nil {
-		return err
-	}
-	cmdIPv6 := exec.Command("nft", "delete", "table", "ip6", "kubearmor")
-	if err := cmdIPv6.Run(); err != nil {
-		return err
+	// cleanup nftables tables
+	for _, family := range []string{"ip", "ip6", "inet"} {
+		cmd := exec.Command("nft", "delete", "table", family, "kubearmor") // #nosec G204
+		_ = cmd.Run()                                                      // Ignore error if table doesn't exist
 	}
 
 	ne = nil
