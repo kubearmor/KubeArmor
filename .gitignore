@@ -43,5 +43,5 @@ go.work.sum
 hook
 deployHook
 
-# alow hook directory
+# allow hook directory
 !**/hook/

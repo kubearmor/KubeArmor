@@ -9,7 +9,7 @@
 K8s mounts the service account token as part of every pod by default. The service account token is a credential that can be used as a bearer token to access k8s APIs and gain access to other k8s entities. Many times there are no processes in the pod that use the service account tokens which means in such cases the k8s service account token is an unused asset that can be leveraged by the attacker.
 
 ### Attack Scenario
-It's important to note that attackers often look for ways to gain access to other entities within Kubernetes clusters. One common method is to check for credential accesses, such as service account tokens, in order to perform lateral movements. For instance, in many Kubernetes attacks, once the attacker gains entry into a pod, they may attempt to use a service account token to access other entities. <br />  **Attack type** Credential Access, Comand Injection <br />  **Actual Attack** Hildegard, BlackT, BlackCat RaaS
+It's important to note that attackers often look for ways to gain access to other entities within Kubernetes clusters. One common method is to check for credential accesses, such as service account tokens, in order to perform lateral movements. For instance, in many Kubernetes attacks, once the attacker gains entry into a pod, they may attempt to use a service account token to access other entities. <br />  **Attack type** Credential Access, Command Injection <br />  **Actual Attack** Hildegard, BlackT, BlackCat RaaS
 
 ### Compliance
 - CIS_Kubernetes_Benchmark_v1.27, Control-Id-5.1.6

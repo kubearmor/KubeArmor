@@ -310,7 +310,7 @@ The above command will install the AppArmor utilities in the kind-control-plane,
 
 After this, exit out of the node shell and follow the [getting-started guide](https://github.com/kubearmor/KubeArmor/blob/main/getting-started/deployment_guide.md).
 
-It might be possible that apart from the dockerized kubenetes environment AppArmor might not be available on the master node itself in the Kubernetes cluster. To check for the same you can run the below command to check for the AppArmor support in kernel config:
+It might be possible that apart from the dockerized kubernetes environment AppArmor might not be available on the master node itself in the Kubernetes cluster. To check for the same you can run the below command to check for the AppArmor support in kernel config:
 
 ```
 cat /boot/config-$(uname -r) | grep -e "APPARMOR"
