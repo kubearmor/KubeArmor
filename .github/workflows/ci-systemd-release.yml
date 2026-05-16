@@ -127,6 +127,41 @@ jobs:
           GORELEASER_CURRENT_TAG: ${{ steps.vars.outputs.GORELEASER_CURRENT_TAG }}
           ARCH: ${{ matrix.arch }}
 
+      # --- NEW SIGNING & UPLOAD BLOCKS ---
+      - name: Sign Release Artifacts with Cosign
+        working-directory: KubeArmor/dist
+        run: |
+          FILE="kubearmor_${{ steps.vars.outputs.tag }}_linux-${{ matrix.arch }}.tar.gz"
+          
+          # Edge Case check: Ensure Goreleaser actually created the file
+          if [ -f "$FILE" ]; then
+            echo "Artifact found. Signing $FILE..."
+            cosign sign-blob --yes \
+              --output-certificate ${FILE}.cert \
+              --output-signature ${FILE}.sig \
+              ${FILE}
+          else
+            echo "Error: Expected artifact $FILE was not found in KubeArmor/dist."
+            exit 1
+          fi
+
+      - name: Upload Signatures to GitHub Release
+        working-directory: KubeArmor/dist
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ steps.vars.outputs.GORELEASER_CURRENT_TAG }}
+        run: |
+          FILE="kubearmor_${{ steps.vars.outputs.tag }}_linux-${{ matrix.arch }}.tar.gz"
+          
+          if [ -f "${FILE}.sig" ] && [ -f "${FILE}.cert" ]; then
+            echo "Uploading signatures to GitHub Release: ${RELEASE_TAG}"
+            gh release upload ${RELEASE_TAG} ${FILE}.sig ${FILE}.cert
+          else
+            echo "Error: Signature files missing. Upload failed."
+            exit 1
+          fi
+      # --- END OF NEW SIGNING BLOCKS ---
+
       - name: Setup ORAS
         uses: oras-project/setup-oras@v1
         with:
