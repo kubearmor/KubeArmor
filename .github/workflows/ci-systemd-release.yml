@@ -116,6 +116,10 @@ jobs:
         run: |
            yq -i '.builds[0].goarch = ["${{ matrix.arch }}"]' /tmp/.goreleaser.yaml
 
+      - name: Install syft (for SBOM generation)
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin
+
       - name: Create SLSA predicate file
         id: predicate
         run: |
@@ -286,20 +290,31 @@ jobs:
 
       - name: Verify cosign blob attestations
         run: |
+          verified=0
           for artifact in dist/*.tar.gz dist/*.deb dist/*.rpm dist/*.sbom.spdx.json; do
-            [ -f "$artifact" ] && [ -f "${artifact}.sigstore.json" ] || continue
+            [ -f "$artifact" ] || continue
+            bundle="${artifact}.sigstore.json"
+            if [ ! -f "$bundle" ]; then
+              echo "ERROR: missing bundle for $artifact" >&2
+              exit 1
+            fi
             cosign verify-blob-attestation \
-              --bundle "${artifact}.sigstore.json" \
+              --bundle "$bundle" \
               --type slsaprovenance \
               --certificate-identity-regexp "https://github.com/${{ github.repository }}/.github/workflows/ci-systemd-release.yml@.*" \
               --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
               "$artifact"
             echo "Verified attestation: $(basename $artifact)"
+            verified=$((verified + 1))
           done
+          if [ "$verified" -eq 0 ]; then
+            echo "ERROR: no attestations were verified" >&2; exit 1
+          fi
+          echo "Total verified: $verified attestations"
 
       - name: Verify SLSA provenance
         run: |
-          provenance=$(ls dist/*.intoto.jsonl 2>/dev/null | head -1)
+          provenance=$(ls dist/multiple-linux-*.intoto.jsonl 2>/dev/null | head -1)
           if [ -z "$provenance" ]; then
             echo "No SLSA provenance file found" && exit 1
           fi

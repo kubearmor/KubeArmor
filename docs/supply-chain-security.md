@@ -66,6 +66,7 @@ A successful verification prints `Verified OK`.
 
 KubeArmor container images are published to Docker Hub and signed with cosign keyless signing in the CI/CD pipeline.
 
+**KubeArmor core images** (signed by `ci-latest-release.yml`):
 ```bash
 cosign verify \
   --certificate-identity-regexp \
@@ -74,22 +75,18 @@ cosign verify \
   docker.io/kubearmor/kubearmor:<TAG>
 ```
 
-Signed images include:
-- `kubearmor/kubearmor:<tag>`
-- `kubearmor/kubearmor-init:<tag>`
-- `kubearmor/kubearmor-controller:<tag>`
-- `kubearmor/kubearmor-operator:<tag>`
-- `kubearmor/kubearmor-snitch:<tag>`
+Signed images: `kubearmor/kubearmor:<tag>`, `kubearmor/kubearmor-init:<tag>`, `kubearmor/kubearmor-controller:<tag>`
 
-**Example — verify the latest image:**
-
+**Operator and snitch images** (signed by `ci-operator-release.yaml`):
 ```bash
 cosign verify \
   --certificate-identity-regexp \
-    "https://github.com/kubearmor/KubeArmor/.github/workflows/ci-latest-release.yml@.*" \
+    "https://github.com/kubearmor/KubeArmor/.github/workflows/ci-operator-release.yaml@.*" \
   --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
-  docker.io/kubearmor/kubearmor:latest
+  docker.io/kubearmor/kubearmor-operator:<TAG>
 ```
+
+Signed images: `kubearmor/kubearmor-operator:<tag>`, `kubearmor/kubearmor-snitch:<tag>`
 
 ---
 
@@ -102,15 +99,15 @@ Install the [slsa-verifier](https://github.com/slsa-framework/slsa-verifier) and
 ```bash
 VERSION=1.7.1
 
-# Download the artifact, provenance, and signature bundle
+# Download the artifact and its matching SLSA provenance
 gh release download "v${VERSION}" \
   --repo kubearmor/KubeArmor \
   --pattern "kubearmor_${VERSION}_linux-amd64.tar.gz" \
-  --pattern "*.intoto.jsonl" \
+  --pattern "multiple-linux-amd64.intoto.jsonl" \
   --dir ./dist
 
 slsa-verifier verify-artifact "dist/kubearmor_${VERSION}_linux-amd64.tar.gz" \
-  --provenance-path dist/*.intoto.jsonl \
+  --provenance-path "dist/multiple-linux-amd64.intoto.jsonl" \
   --source-uri "github.com/kubearmor/KubeArmor" \
   --source-tag "v${VERSION}"
 ```
@@ -122,8 +119,9 @@ slsa-verifier verify-artifact "dist/kubearmor_${VERSION}_linux-amd64.tar.gz" \
 Starting with releases that include SBOM files (`*.sbom.spdx.json`), the SBOM itself is also signed:
 
 ```bash
-cosign verify-blob \
+cosign verify-blob-attestation \
   --bundle "kubearmor_${VERSION}_linux-amd64.tar.gz.sbom.spdx.json.sigstore.json" \
+  --type slsaprovenance \
   --certificate-identity-regexp \
     "https://github.com/kubearmor/KubeArmor/.github/workflows/ci-systemd-release.yml@.*" \
   --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
@@ -164,7 +162,7 @@ KubeArmor is tracked on [OpenSSF Scorecard](https://scorecard.dev/viewer/?uri=gi
 | Check | Before | After |
 |---|---|---|
 | Pinned-Dependencies | 0/10 | Improved — all release workflow actions SHA-pinned |
-| Signed-Releases | 0/10 | Stable — signing already in place; SBOM signing added |
+| Signed-Releases | 0/10 | Improved — switched from `sign-blob` (messageSignature, 8/10 cap) to `attest-blob --new-bundle-format` (dsseEnvelope + SLSA provenance); uploads `multiple-linux-{arch}.intoto.jsonl` to each release for scorecard 10/10 |
 
 **Checks addressed by this PR:**
 - `ci-latest-release.yml`: All `uses:` directives pinned to commit SHA
