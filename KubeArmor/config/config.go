@@ -87,60 +87,57 @@ var GlobalCfg KubearmorConfig
 
 // Config const
 const (
-	PolicyDir                              string = "/opt/kubearmor/policies/"
-	PIDFilePath                            string = "/opt/kubearmor/kubearmor.pid"
-	ConfigCluster                          string = "cluster"
-	ConfigHost                             string = "host"
-	ConfigGRPC                             string = "gRPC"
-	ConfigTLSCertPath                      string = "tlsCertPath"
-	ConfigTLSCertProvider                  string = "tlsCertProvider"
-	SelfCertProvider                       string = "self"
-	ExternalCertProvider                   string = "external"
-	ConfigTLS                              string = "tlsEnabled"
-	ConfigLogPath                          string = "logPath"
-	ConfigSELinuxProfileDir                string = "seLinuxProfileDir"
-	ConfigCRISocket                        string = "criSocket"
-	ConfigNRISocket                        string = "nriSocket"
-	ConfigNRIIndex                         string = "nriIndex"
-	ConfigNRI                              string = "enableNRI"
-	ConfigVisibility                       string = "visibility"
-	ConfigHostVisibility                   string = "hostVisibility"
-	ConfigKubearmorPolicy                  string = "enableKubeArmorPolicy"
-	ConfigKubearmorHostPolicy              string = "enableKubeArmorHostPolicy"
-	ConfigKubearmorVM                      string = "enableKubeArmorVm"
-	ConfigDefaultFilePosture               string = "defaultFilePosture"
-	ConfigDefaultNetworkPosture            string = "defaultNetworkPosture"
-	ConfigDefaultCapabilitiesPosture       string = "defaultCapabilitiesPosture"
-	ConfigHostDefaultFilePosture           string = "hostDefaultFilePosture"
-	ConfigHostDefaultNetworkPosture        string = "hostDefaultNetworkPosture"
-	ConfigHostDefaultCapabilitiesPosture   string = "hostDefaultCapabilitiesPosture"
-	ConfigHostDefaultDevicePosture         string = "hostDefaultDevicePosture"
-	ConfigCoverageTest                     string = "coverageTest"
-	ConfigK8sEnv                           string = "k8s"
-	ConfigDebug                            string = "debug"
-	ConfigUntrackedNs                      string = "untrackedNs"
-	LsmOrder                               string = "lsm"
-	BPFFsPath                              string = "bpfFsPath"
-	EnforcerAlerts                         string = "enforcerAlerts"
-	ConfigDefaultPostureLogs               string = "defaultPostureLogs"
-	ConfigInitTimeout                      string = "initTimeout"
-	ConfigStateAgent                       string = "enableKubeArmorStateAgent"
-	ConfigAlertThrottling                  string = "alertThrottling"
-	ConfigMaxAlertPerSec                   string = "maxAlertPerSec"
-	ConfigThrottleSec                      string = "throttleSec"
-	ConfigAnnotateResources                string = "annotateResources"
-	ConfigProcFsMount                      string = "procfsMount"
-	ConfigDropResourceFromProcessLogs      string = "dropResourceFromProcessLogs"
-	ConfigMachineIDPath                    string = "machineIDPath"
-	UseOCIHooks                            string = "useOCIHooks"
-	ConfigEnableIma                        string = "enableIMA"
-	ConfigUSBDeviceHandler                 string = "enableUSBDeviceHandler"
-	ConfigArgMatching                      string = "matchArgs"
-	ConfigBatchAuditPoliciesMaxEntries     string = "batchAuditPoliciesMaxEntries"
-	ConfigBatchAuditAggregationsMaxEntries string = "batchAuditAggregationsMaxEntries"
-)
-
-const (
+	PolicyDir                               string = "/opt/kubearmor/policies/"
+	PIDFilePath                             string = "/opt/kubearmor/kubearmor.pid"
+	ConfigCluster                           string = "cluster"
+	ConfigHost                              string = "host"
+	ConfigGRPC                              string = "gRPC"
+	ConfigTLSCertPath                       string = "tlsCertPath"
+	ConfigTLSCertProvider                   string = "tlsCertProvider"
+	SelfCertProvider                        string = "self"
+	ExternalCertProvider                    string = "external"
+	ConfigTLS                               string = "tlsEnabled"
+	ConfigLogPath                           string = "logPath"
+	ConfigSELinuxProfileDir                 string = "seLinuxProfileDir"
+	ConfigCRISocket                         string = "criSocket"
+	ConfigNRISocket                         string = "nriSocket"
+	ConfigNRIIndex                          string = "nriIndex"
+	ConfigNRI                               string = "enableNRI"
+	ConfigVisibility                        string = "visibility"
+	ConfigHostVisibility                    string = "hostVisibility"
+	ConfigKubearmorPolicy                   string = "enableKubeArmorPolicy"
+	ConfigKubearmorHostPolicy               string = "enableKubeArmorHostPolicy"
+	ConfigKubearmorVM                       string = "enableKubeArmorVm"
+	ConfigDefaultFilePosture                string = "defaultFilePosture"
+	ConfigDefaultNetworkPosture             string = "defaultNetworkPosture"
+	ConfigDefaultCapabilitiesPosture        string = "defaultCapabilitiesPosture"
+	ConfigHostDefaultFilePosture            string = "hostDefaultFilePosture"
+	ConfigHostDefaultNetworkPosture         string = "hostDefaultNetworkPosture"
+	ConfigHostDefaultCapabilitiesPosture    string = "hostDefaultCapabilitiesPosture"
+	ConfigHostDefaultDevicePosture          string = "hostDefaultDevicePosture"
+	ConfigCoverageTest                      string = "coverageTest"
+	ConfigK8sEnv                            string = "k8s"
+	ConfigDebug                             string = "debug"
+	ConfigUntrackedNs                       string = "untrackedNs"
+	LsmOrder                                string = "lsm"
+	BPFFsPath                               string = "bpfFsPath"
+	EnforcerAlerts                          string = "enforcerAlerts"
+	ConfigDefaultPostureLogs                string = "defaultPostureLogs"
+	ConfigInitTimeout                       string = "initTimeout"
+	ConfigStateAgent                        string = "enableKubeArmorStateAgent"
+	ConfigAlertThrottling                   string = "alertThrottling"
+	ConfigMaxAlertPerSec                    string = "maxAlertPerSec"
+	ConfigThrottleSec                       string = "throttleSec"
+	ConfigAnnotateResources                 string = "annotateResources"
+	ConfigProcFsMount                       string = "procfsMount"
+	ConfigDropResourceFromProcessLogs       string = "dropResourceFromProcessLogs"
+	ConfigMachineIDPath                     string = "machineIDPath"
+	UseOCIHooks                             string = "useOCIHooks"
+	ConfigEnableIma                         string = "enableIMA"
+	ConfigUSBDeviceHandler                  string = "enableUSBDeviceHandler"
+	ConfigArgMatching                       string = "matchArgs"
+	ConfigBatchAuditPoliciesMaxEntries      string = "batchAuditPoliciesMaxEntries"
+	ConfigBatchAuditAggregationsMaxEntries  string = "batchAuditAggregationsMaxEntries"
 	DefaultBatchAuditPoliciesMaxEntries     uint32 = 1
 	DefaultBatchAuditAggregationsMaxEntries uint32 = 1
 )
@@ -312,12 +309,22 @@ func LoadConfig() error {
 	viper.AutomaticEnv()
 
 	// Read configuration from config file
-	cfgfile := os.Getenv("KUBEARMOR_CFG")
+	var cfgfile string
 	if cfgfile == "" {
-		cfgfile = "kubearmor.yaml"
+		possiblePath := []string{
+			os.Getenv("KUBEARMOR_CFG"),
+			"/opt/kubearmor/kubearmor.yaml",
+			"/opt/kubearmor/karmor.yaml",
+		}
+		for _, path := range possiblePath {
+			if _, err := os.Stat(path); err == nil { //#nosec G703
+				cfgfile = path
+				break
+			}
+		}
 	}
 
-	if _, err := os.Stat(cfgfile); err == nil { //#nosec G703
+	if cfgfile != "" {
 		kg.Printf("setting config from file [%s]", cfgfile)
 		viper.SetConfigFile(cfgfile)
 		err := viper.ReadInConfig()

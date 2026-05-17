@@ -83,7 +83,7 @@ type KubeArmorDaemon struct {
 	HostSecurityPolicies     []tp.HostSecurityPolicy
 	HostSecurityPoliciesLock *sync.RWMutex
 
-	//DefaultPosture (namespace -> postures)
+	// DefaultPosture (namespace -> postures)
 	DefaultPostures     map[string]tp.DefaultPosture
 	DefaultPosturesLock *sync.Mutex
 
@@ -199,7 +199,7 @@ func (dm *KubeArmorDaemon) DestroyKubeArmorDaemon() {
 	}
 
 	if dm.USBDeviceHandler != nil {
-		//close USB device handler
+		// close USB device handler
 		if dm.CloseUSBDeviceHandler() {
 			dm.Logger.Print("Stopped USB Device Handler")
 		}
@@ -212,7 +212,7 @@ func (dm *KubeArmorDaemon) DestroyKubeArmorDaemon() {
 	}
 
 	if dm.StateAgent != nil {
-		//go dm.StateAgent.PushNodeEvent(dm.Node, state.EventDeleted)
+		// go dm.StateAgent.PushNodeEvent(dm.Node, state.EventDeleted)
 		if err := dm.CloseStateAgent(); err != nil {
 			kg.Errf("Failed to destroy StateAgent: %s", err.Error())
 		} else {
@@ -621,8 +621,6 @@ func KubeArmor() {
 		go dm.StateAgent.PushNodeEvent(dm.Node, state.EventAdded)
 	}
 
-	// == //
-
 	// Containerized workloads with Host
 	if cfg.GlobalCfg.Policy || cfg.GlobalCfg.HostPolicy {
 		// initialize system monitor
@@ -730,7 +728,6 @@ func KubeArmor() {
 	}
 
 	if dm.K8sEnabled && cfg.GlobalCfg.Policy {
-
 		if cfg.GlobalCfg.UseOCIHooks &&
 			(strings.Contains(dm.Node.ContainerRuntimeVersion, "cri-o") ||
 				(strings.Contains(dm.Node.ContainerRuntimeVersion, "containerd") && dm.checkNRIAvailability() == nil)) {
@@ -945,7 +942,7 @@ func KubeArmor() {
 		}
 		pb.RegisterPolicyServiceServer(dm.Logger.LogServer, policyService)
 
-		//Enable grpc service to send kubearmor data to client in unorchestrated mode
+		// Enable grpc service to send kubearmor data to client in unorchestrated mode
 		probe := &Probe{}
 		probe.GetContainerData = dm.SetProbeContainerData
 		pb.RegisterProbeServiceServer(dm.Logger.LogServer, probe)

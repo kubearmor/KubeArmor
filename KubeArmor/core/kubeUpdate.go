@@ -3030,141 +3030,12 @@ func (dm *KubeArmorDaemon) WatchConfigMap() cache.InformerSynced {
 	registration, err := informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj any) {
 			if cm, ok := obj.(*corev1.ConfigMap); ok && cm.Namespace == cmNS {
-				cfg.GlobalCfg.HostVisibility = cm.Data[cfg.ConfigHostVisibility]
-				cfg.GlobalCfg.Visibility = cm.Data[cfg.ConfigVisibility]
-				cfg.GlobalCfg.Cluster = cm.Data[cfg.ConfigCluster]
-				cfg.GlobalCfg.DropResourceFromProcessLogs = (cm.Data[cfg.ConfigDropResourceFromProcessLogs] == "true")
-				dm.NodeLock.Lock()
-				dm.Node.ClusterName = cm.Data[cfg.ConfigCluster]
-				dm.NodeLock.Unlock()
-				if v, ok := cm.Data[cfg.ConfigUntrackedNs]; ok {
-					UpdateUntrackedNamespaces(v)
-				}
-				if _, ok := cm.Data[cfg.ConfigDefaultPostureLogs]; ok {
-					cfg.GlobalCfg.DefaultPostureLogs = (cm.Data[cfg.ConfigDefaultPostureLogs] == "true")
-				}
-				globalPosture := tp.DefaultPosture{
-					FileAction:         cm.Data[cfg.ConfigDefaultFilePosture],
-					NetworkAction:      cm.Data[cfg.ConfigDefaultNetworkPosture],
-					CapabilitiesAction: cm.Data[cfg.ConfigDefaultCapabilitiesPosture],
-					DeviceAction:       cm.Data[cfg.ConfigHostDefaultDevicePosture],
-				}
-				currentGlobalPosture := tp.DefaultPosture{
-					FileAction:         cfg.GlobalCfg.DefaultFilePosture,
-					NetworkAction:      cfg.GlobalCfg.DefaultNetworkPosture,
-					CapabilitiesAction: cfg.GlobalCfg.DefaultCapabilitiesPosture,
-					DeviceAction:       cfg.GlobalCfg.HostDefaultDevicePosture,
-				}
-				if _, ok := cm.Data[cfg.ConfigAlertThrottling]; ok {
-					cfg.GlobalCfg.AlertThrottling = (cm.Data[cfg.ConfigAlertThrottling] == "true")
-				}
-				if _, ok := cm.Data[cfg.ConfigMaxAlertPerSec]; ok {
-					maxAlertPerSec, err := strconv.ParseInt(cm.Data[cfg.ConfigMaxAlertPerSec], 10, 32)
-					if err != nil {
-						dm.Logger.Warnf("Error: %s", err)
-					}
-					cfg.GlobalCfg.MaxAlertPerSec = int32(maxAlertPerSec)
-				}
-				if _, ok := cm.Data[cfg.ConfigThrottleSec]; ok {
-					throttleSec, err := strconv.ParseInt(cm.Data[cfg.ConfigThrottleSec], 10, 32)
-					if err != nil {
-						dm.Logger.Warnf("Error: %s", err)
-					}
-					cfg.GlobalCfg.ThrottleSec = int32(throttleSec)
-				}
-				if _, ok := cm.Data[cfg.ConfigEnableIma]; ok {
-					enableIMA, err := strconv.ParseBool(cm.Data[cfg.ConfigEnableIma])
-					if err != nil {
-						dm.Logger.Warnf("Error parsing IMA config: %s", err)
-					} else {
-						cfg.GlobalCfg.EnableIMA = enableIMA
-					}
-				}
-				dm.SystemMonitor.UpdateThrottlingConfig()
-				if _, ok := cm.Data[cfg.ConfigArgMatching]; ok {
-					cfg.GlobalCfg.MatchArgs, _ = strconv.ParseBool(cm.Data[cfg.ConfigArgMatching])
-					fmt.Println("Updated Match argr in configmap ", cfg.GlobalCfg.MatchArgs)
-				}
-				dm.SystemMonitor.UpdateMatchArgsConfig()
-				dm.UpdateIMA(cfg.GlobalCfg.EnableIMA)
-				dm.UpdateUSBDeviceHandler(cfg.GlobalCfg.USBDeviceHandler)
-
-				dm.Logger.Printf("Current Global Posture is %v", currentGlobalPosture)
-				dm.UpdateGlobalPosture(globalPosture)
-
-				// update default posture for endpoints
-				dm.updatEndpointsWithCM(cm, addEvent)
-				// update visibility for namespaces
-				dm.updateVisibilityWithCM(cm, addEvent)
+				dm.handleConfigMapEvent(cm, addEvent)
 			}
 		},
 		UpdateFunc: func(oldObj, newObj any) {
 			if cm, ok := newObj.(*corev1.ConfigMap); ok && cm.Namespace == cmNS {
-				cfg.GlobalCfg.HostVisibility = cm.Data[cfg.ConfigHostVisibility]
-				cfg.GlobalCfg.Visibility = cm.Data[cfg.ConfigVisibility]
-
-				cfg.GlobalCfg.Cluster = cm.Data[cfg.ConfigCluster]
-				cfg.GlobalCfg.DropResourceFromProcessLogs = (cm.Data[cfg.ConfigDropResourceFromProcessLogs] == "true")
-				dm.Node.ClusterName = cm.Data[cfg.ConfigCluster]
-				if _, ok := cm.Data[cfg.ConfigDefaultPostureLogs]; ok {
-					cfg.GlobalCfg.DefaultPostureLogs = (cm.Data[cfg.ConfigDefaultPostureLogs] == "true")
-				}
-				globalPosture := tp.DefaultPosture{
-					FileAction:         cm.Data[cfg.ConfigDefaultFilePosture],
-					NetworkAction:      cm.Data[cfg.ConfigDefaultNetworkPosture],
-					CapabilitiesAction: cm.Data[cfg.ConfigDefaultCapabilitiesPosture],
-				}
-				currentGlobalPosture := tp.DefaultPosture{
-					FileAction:         cfg.GlobalCfg.DefaultFilePosture,
-					NetworkAction:      cfg.GlobalCfg.DefaultNetworkPosture,
-					CapabilitiesAction: cfg.GlobalCfg.DefaultCapabilitiesPosture,
-				}
-				dm.Logger.Printf("Current Global Posture is %v", currentGlobalPosture)
-				dm.UpdateGlobalPosture(globalPosture)
-
-				// update default posture for endpoints
-				dm.updatEndpointsWithCM(cm, updateEvent)
-
-				// forward untracked namespaces to SystemMonitor
-				if v, ok := cm.Data[cfg.ConfigUntrackedNs]; ok {
-					UpdateUntrackedNamespaces(v)
-				}
-
-				// visibility updates are already handled here
-				dm.updateVisibilityWithCM(cm, updateEvent)
-
-				if _, ok := cm.Data[cfg.ConfigAlertThrottling]; ok {
-					cfg.GlobalCfg.AlertThrottling = (cm.Data[cfg.ConfigAlertThrottling] == "true")
-				}
-
-				maxAlertPerSec, err := strconv.ParseInt(cm.Data[cfg.ConfigMaxAlertPerSec], 10, 32)
-				if err != nil {
-					dm.Logger.Warnf("Error: %s", err)
-				}
-				cfg.GlobalCfg.MaxAlertPerSec = int32(maxAlertPerSec)
-
-				throttleSec, err := strconv.ParseInt(cm.Data[cfg.ConfigThrottleSec], 10, 32)
-				if err != nil {
-					dm.Logger.Warnf("Error: %s", err)
-				}
-				cfg.GlobalCfg.ThrottleSec = int32(throttleSec)
-				dm.SystemMonitor.UpdateThrottlingConfig()
-
-				if _, ok := cm.Data[cfg.ConfigEnableIma]; ok {
-					enableIMA, err := strconv.ParseBool(cm.Data[cfg.ConfigEnableIma])
-					if err != nil {
-						dm.Logger.Warnf("Error parsing IMA config: %s", err)
-					} else {
-						cfg.GlobalCfg.EnableIMA = enableIMA
-					}
-				}
-				if _, ok := cm.Data[cfg.ConfigArgMatching]; ok {
-					cfg.GlobalCfg.MatchArgs, _ = strconv.ParseBool(cm.Data[cfg.ConfigArgMatching])
-					fmt.Println("Updated Match argr in configmap ", cfg.GlobalCfg.MatchArgs)
-				}
-				dm.SystemMonitor.UpdateMatchArgsConfig()
-				dm.UpdateIMA(cfg.GlobalCfg.EnableIMA)
-				dm.UpdateUSBDeviceHandler(cfg.GlobalCfg.USBDeviceHandler)
+				dm.handleConfigMapEvent(cm, updateEvent)
 			}
 		},
 		DeleteFunc: func(obj any) {
@@ -3178,6 +3049,107 @@ func (dm *KubeArmorDaemon) WatchConfigMap() cache.InformerSynced {
 
 	go factory.Start(StopChan)
 	return registration.HasSynced
+}
+
+func (dm *KubeArmorDaemon) handleConfigMapEvent(cm *corev1.ConfigMap, action string) {
+	if err := dm.applyConfigMapData(cm.Data); err != nil {
+		dm.Logger.Warnf("Error applying configmap data: %s", err)
+	}
+
+	globalPosture := tp.DefaultPosture{
+		FileAction:         cm.Data[cfg.ConfigDefaultFilePosture],
+		NetworkAction:      cm.Data[cfg.ConfigDefaultNetworkPosture],
+		CapabilitiesAction: cm.Data[cfg.ConfigDefaultCapabilitiesPosture],
+		DeviceAction:       cm.Data[cfg.ConfigHostDefaultDevicePosture],
+	}
+	currentGlobalPosture := tp.DefaultPosture{
+		FileAction:         cfg.GlobalCfg.DefaultFilePosture,
+		NetworkAction:      cfg.GlobalCfg.DefaultNetworkPosture,
+		CapabilitiesAction: cfg.GlobalCfg.DefaultCapabilitiesPosture,
+		DeviceAction:       cfg.GlobalCfg.HostDefaultDevicePosture,
+	}
+
+	if dm.SystemMonitor != nil {
+		dm.SystemMonitor.UpdateThrottlingConfig()
+		dm.SystemMonitor.UpdateMatchArgsConfig()
+	}
+
+	dm.UpdateIMA(cfg.GlobalCfg.EnableIMA)
+	dm.UpdateUSBDeviceHandler(cfg.GlobalCfg.USBDeviceHandler)
+
+	dm.Logger.Printf("Current Global Posture is %v", currentGlobalPosture)
+	dm.UpdateGlobalPosture(globalPosture)
+
+	dm.updatEndpointsWithCM(cm, action)
+	dm.updateVisibilityWithCM(cm, action)
+}
+
+func (dm *KubeArmorDaemon) applyConfigMapData(data map[string]string) error {
+	if v, ok := data[cfg.ConfigHostVisibility]; ok {
+		cfg.GlobalCfg.HostVisibility = v
+	}
+	if v, ok := data[cfg.ConfigVisibility]; ok {
+		cfg.GlobalCfg.Visibility = v
+	}
+	if v, ok := data[cfg.ConfigCluster]; ok {
+		cfg.GlobalCfg.Cluster = v
+		dm.NodeLock.Lock()
+		dm.Node.ClusterName = v
+		dm.NodeLock.Unlock()
+	}
+	if v, ok := data[cfg.ConfigUntrackedNs]; ok {
+		UpdateUntrackedNamespaces(v)
+	}
+	if err := updateConfigBool(data, cfg.ConfigDropResourceFromProcessLogs, &cfg.GlobalCfg.DropResourceFromProcessLogs); err != nil {
+		return err
+	}
+	if err := updateConfigBool(data, cfg.ConfigDefaultPostureLogs, &cfg.GlobalCfg.DefaultPostureLogs); err != nil {
+		return err
+	}
+	if err := updateConfigBool(data, cfg.ConfigAlertThrottling, &cfg.GlobalCfg.AlertThrottling); err != nil {
+		return err
+	}
+	if v, ok := data[cfg.ConfigMaxAlertPerSec]; ok {
+		maxAlertPerSec, err := strconv.ParseInt(v, 10, 32)
+		if err != nil {
+			return fmt.Errorf("parse %s: %w", cfg.ConfigMaxAlertPerSec, err)
+		}
+		cfg.GlobalCfg.MaxAlertPerSec = int32(maxAlertPerSec)
+	}
+	if v, ok := data[cfg.ConfigThrottleSec]; ok {
+		throttleSec, err := strconv.ParseInt(v, 10, 32)
+		if err != nil {
+			return fmt.Errorf("parse %s: %w", cfg.ConfigThrottleSec, err)
+		}
+		cfg.GlobalCfg.ThrottleSec = int32(throttleSec)
+	}
+	if err := updateConfigBool(data, cfg.ConfigEnableIma, &cfg.GlobalCfg.EnableIMA); err != nil {
+		return err
+	}
+	if err := updateConfigBool(data, cfg.ConfigArgMatching, &cfg.GlobalCfg.MatchArgs); err != nil {
+		return err
+	}
+	if v, ok := data[cfg.ConfigBatchAuditPoliciesMaxEntries]; ok {
+		maxEntries, err := strconv.ParseUint(v, 10, 32)
+		if err != nil {
+			return fmt.Errorf("parse %s: %w", cfg.ConfigBatchAuditPoliciesMaxEntries, err)
+		}
+		if maxEntries == 0 {
+			return fmt.Errorf("parse %s: value must be greater than zero", cfg.ConfigBatchAuditPoliciesMaxEntries)
+		}
+		cfg.GlobalCfg.BatchAuditPoliciesMaxEntries = uint32(maxEntries)
+	}
+	if v, ok := data[cfg.ConfigBatchAuditAggregationsMaxEntries]; ok {
+		maxEntries, err := strconv.ParseUint(v, 10, 32)
+		if err != nil {
+			return fmt.Errorf("parse %s: %w", cfg.ConfigBatchAuditAggregationsMaxEntries, err)
+		}
+		if maxEntries == 0 {
+			return fmt.Errorf("parse %s: value must be greater than zero", cfg.ConfigBatchAuditAggregationsMaxEntries)
+		}
+		cfg.GlobalCfg.BatchAuditAggregationsMaxEntries = uint32(maxEntries)
+	}
+	return nil
 }
 
 // UpdateIMA func updates the status of IMA module
@@ -3231,6 +3203,21 @@ func (dm *KubeArmorDaemon) GetConfigMapNS() string {
 		return "kubearmor"
 	}
 	return envNamespace
+}
+
+func updateConfigBool(data map[string]string, key string, target *bool) error {
+	v, ok := data[key]
+	if !ok {
+		return nil
+	}
+
+	parsed, err := strconv.ParseBool(v)
+	if err != nil {
+		return fmt.Errorf("parse %s: %w", key, err)
+	}
+
+	*target = parsed
+	return nil
 }
 
 // UpdateUntrackedNamespaces updates the runtime untracked namespaces list.
