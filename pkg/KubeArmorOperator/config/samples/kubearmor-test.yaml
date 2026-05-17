@@ -18,6 +18,8 @@ spec:
   alertThrottling: false
   maxAlertPerSec: 10
   throttleSec: 30
+  batchAuditPoliciesMaxEntries: 1
+  batchAuditAggregationsMaxEntries: 1
   matchArgs: true
   kubearmorImage:
     image: kubearmor/kubearmor:latest

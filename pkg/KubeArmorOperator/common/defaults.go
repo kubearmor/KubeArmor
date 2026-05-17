@@ -83,25 +83,27 @@ var (
 	EnableOCIHooks bool = false
 
 	// ConfigMap Data
-	ConfigGRPC                        string = "gRPC"
-	ConfigVisibility                  string = "visibility"
-	ConfigCluster                     string = "cluster"
-	ConfigDefaultFilePosture          string = "defaultFilePosture"
-	ConfigDefaultCapabilitiesPosture  string = "defaultCapabilitiesPosture"
-	ConfigDefaultNetworkPosture       string = "defaultNetworkPosture"
-	ConfigDefaultPostureLogs          string = "defaultPostureLogs"
-	ConfigAlertThrottling             string = "alertThrottling"
-	ConfigMaxAlertPerSec              string = "maxAlertPerSec"
-	ConfigThrottleSec                 string = "throttleSec"
-	ConfigEnableNRI                   string = "enableNRI"
-	ConfigDropResourceFromProcessLogs string = "dropResourceFromProcessLogs"
-	ConfigArgMatching                 string = "matchArgs"
+	ConfigGRPC                             string = "gRPC"
+	ConfigVisibility                       string = "visibility"
+	ConfigCluster                          string = "cluster"
+	ConfigDefaultFilePosture               string = "defaultFilePosture"
+	ConfigDefaultCapabilitiesPosture       string = "defaultCapabilitiesPosture"
+	ConfigDefaultNetworkPosture            string = "defaultNetworkPosture"
+	ConfigDefaultPostureLogs               string = "defaultPostureLogs"
+	ConfigAlertThrottling                  string = "alertThrottling"
+	ConfigMaxAlertPerSec                   string = "maxAlertPerSec"
+	ConfigThrottleSec                      string = "throttleSec"
+	ConfigBatchAuditPoliciesMaxEntries     string = "batchAuditPoliciesMaxEntries"
+	ConfigBatchAuditAggregationsMaxEntries string = "batchAuditAggregationsMaxEntries"
+	ConfigEnableNRI                        string = "enableNRI"
+	ConfigDropResourceFromProcessLogs      string = "dropResourceFromProcessLogs"
+	ConfigArgMatching                      string = "matchArgs"
 
 	GlobalImagePullSecrets []corev1.LocalObjectReference = []corev1.LocalObjectReference{}
 	GlobalTolerations      []corev1.Toleration           = []corev1.Toleration{}
 	GlobalNodeSelectors                                  = map[string]string{}
 	GlobalEnv                                            = []corev1.EnvVar{}
-	//KubearmorRelayEnvVariables
+	// KubearmorRelayEnvVariables
 
 	EnableStdOutAlerts string = "enableStdOutAlerts"
 	EnableStdOutLogs   string = "enableStdOutLogs"
@@ -168,11 +170,13 @@ var (
 	DefaultMode                    int32    = 420 // deciaml representation of octal value 644
 
 	// throttling
-	AlertThrottling       bool   = true
-	DefaultMaxAlertPerSec string = "10"
-	DefaultThrottleSec    string = "30"
+	AlertThrottling                         bool   = true
+	DefaultMaxAlertPerSec                   string = "10"
+	DefaultThrottleSec                      string = "30"
+	DefaultBatchAuditPoliciesMaxEntries     string = "1"
+	DefaultBatchAuditAggregationsMaxEntries string = "1"
 
-	//Match Args
+	// Match Args
 	MatchArgs bool = true
 
 	// recommend policies
@@ -213,18 +217,20 @@ var (
 var Pointer2True bool = true
 
 var ConfigMapData = map[string]string{
-	ConfigGRPC:                        "32767",
-	ConfigCluster:                     "default",
-	ConfigDefaultFilePosture:          "audit",
-	ConfigDefaultCapabilitiesPosture:  "audit",
-	ConfigDefaultNetworkPosture:       "audit",
-	ConfigDropResourceFromProcessLogs: "false",
-	ConfigVisibility:                  "process,network,capabilities",
-	ConfigDefaultPostureLogs:          "true",
-	ConfigAlertThrottling:             "true",
-	ConfigMaxAlertPerSec:              "10",
-	ConfigThrottleSec:                 "30",
-	ConfigArgMatching:                 "true",
+	ConfigGRPC:                             "32767",
+	ConfigCluster:                          "default",
+	ConfigDefaultFilePosture:               "audit",
+	ConfigDefaultCapabilitiesPosture:       "audit",
+	ConfigDefaultNetworkPosture:            "audit",
+	ConfigDropResourceFromProcessLogs:      "false",
+	ConfigVisibility:                       "process,network,capabilities",
+	ConfigDefaultPostureLogs:               "true",
+	ConfigAlertThrottling:                  "true",
+	ConfigMaxAlertPerSec:                   "10",
+	ConfigThrottleSec:                      "30",
+	ConfigBatchAuditPoliciesMaxEntries:     "1",
+	ConfigBatchAuditAggregationsMaxEntries: "1",
+	ConfigArgMatching:                      "true",
 }
 
 var ConfigDefaultSeccompEnabled = "false"
@@ -262,10 +268,12 @@ var ContainerRuntimeSocketMap = map[string][]string{
 
 var NRIEnabled = false
 
-var HostPathDirectory = corev1.HostPathDirectory
-var HostPathDirectoryOrCreate = corev1.HostPathDirectoryOrCreate
-var HostPathSocket = corev1.HostPathSocket
-var HostPathFile = corev1.HostPathFile
+var (
+	HostPathDirectory         = corev1.HostPathDirectory
+	HostPathDirectoryOrCreate = corev1.HostPathDirectoryOrCreate
+	HostPathSocket            = corev1.HostPathSocket
+	HostPathFile              = corev1.HostPathFile
+)
 
 var EnforcerVolumesMounts = map[string][]corev1.VolumeMount{
 	"apparmor": {

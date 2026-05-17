@@ -33,7 +33,6 @@ import (
 const (
 	PermissionDenied = -13
 	MaxStringLen     = 4096
-	PinPath          = "/sys/fs/bpf"
 	// kernel BPF object names are limited to BPF_OBJ_NAME_LEN (16) including
 	// the trailing null terminator
 	bpfObjNameMaxLen = 15
@@ -49,6 +48,9 @@ const (
 
 	traceRetStageFileAggregate = uint32(0)
 	traceRetStageSubmit        = uint32(1)
+
+	batchAuditPolicyMapName = "batch_audit_policies"
+	batchAuditAggMapName    = "batch_audit_aggregations"
 )
 
 // ======================= /=/
@@ -571,11 +573,14 @@ func (mon *SystemMonitor) InitBPF() error {
 	if err != nil {
 		return fmt.Errorf("cannot load bpf module specs %v", err)
 	}
+	if err := mon.configureBatchAuditMaps(bpfModuleSpec); err != nil {
+		return err
+	}
 	mon.BpfModule, err = cle.NewCollectionWithOptions(
 		bpfModuleSpec,
 		cle.CollectionOptions{
 			Maps: cle.MapOptions{
-				PinPath: PinPath,
+				PinPath: mon.PinPath,
 			},
 		},
 	)
@@ -706,6 +711,83 @@ func (mon *SystemMonitor) getBPFMap(name string) *cle.Map {
 			mon.Logger.Warnf("using truncated BPF map name %s for %s", trimmed, name)
 			return m
 		}
+	}
+
+	return nil
+}
+
+func (mon *SystemMonitor) configureBatchAuditMaps(spec *cle.CollectionSpec) error {
+	err := mon.configureBatchAuditMap(spec, batchAuditPolicyMapName, cfg.GlobalCfg.BatchAuditPoliciesMaxEntries)
+	if err != nil {
+		return err
+	}
+
+	err = mon.configureBatchAuditMap(spec, batchAuditAggMapName, cfg.GlobalCfg.BatchAuditAggregationsMaxEntries)
+	if err != nil {
+		return err
+	}
+
+	if mon.Logger != nil {
+		mon.Logger.Printf(
+			"Batch audit map sizes configured {%s:%d, %s:%d}",
+			batchAuditPolicyMapName,
+			cfg.GlobalCfg.BatchAuditPoliciesMaxEntries,
+			batchAuditAggMapName,
+			cfg.GlobalCfg.BatchAuditAggregationsMaxEntries,
+		)
+	}
+
+	return nil
+}
+
+func (mon *SystemMonitor) configureBatchAuditMap(spec *cle.CollectionSpec, name string, maxEntries uint32) error {
+	mapSpec, ok := spec.Maps[name]
+	if !ok {
+		return fmt.Errorf("batch audit map %q not found in collection spec", name)
+	}
+
+	mapSpec.MaxEntries = maxEntries
+
+	if err := mon.resetPinnedBatchAuditMap(mapSpec); err != nil {
+		return fmt.Errorf("configure batch audit map %q: %w", name, err)
+	}
+
+	return nil
+}
+
+func (mon *SystemMonitor) resetPinnedBatchAuditMap(spec *cle.MapSpec) error {
+	if spec.Pinning != cle.PinByName {
+		return nil
+	}
+
+	path := filepath.Join(mon.PinPath, spec.Name)
+	pinnedMap, err := cle.LoadPinnedMap(path, nil)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil
+		}
+		return fmt.Errorf("load pinned map: %w", err)
+	}
+	defer pinnedMap.Close()
+
+	compatErr := spec.Compatible(pinnedMap)
+	if compatErr == nil {
+		return nil
+	}
+	if !errors.Is(compatErr, cle.ErrMapIncompatible) {
+		return fmt.Errorf("check pinned map compatibility: %w", compatErr)
+	}
+
+	if err := pinnedMap.Unpin(); err != nil {
+		return fmt.Errorf("unpin incompatible map: %w", err)
+	}
+
+	if mon.Logger != nil {
+		mon.Logger.Printf(
+			"Removed incompatible pinned batch audit map %s to apply max entries %d",
+			spec.Name,
+			spec.MaxEntries,
+		)
 	}
 
 	return nil

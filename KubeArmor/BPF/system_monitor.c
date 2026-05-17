@@ -79,11 +79,11 @@
 #define MAX_BATCH_AUDIT_BUFFER_SIZE 1024
 
 // Memory utilization scale with the no. of entries. Finding a right balance is
-// hard as no two clusters are the same.
-// TODO: use sed magic in kubearmor-init container to change these values based
-// on the configuration provided in KubeArmorConfig CR.
-#define MAX_BATCH_AUDIT_POLICIES_ENTRIES 32768
-#define MAX_BATCH_AUDIT_AGGREGATED_ENTRIES 65536
+// hard as no two clusters/VMs are the same. We default the sizes to 1
+// (essentially disabled). These defaults are used when the Go loader does not
+// override the map sizes before loading the object.
+#define DEFAULT_BATCH_AUDIT_POLICIES_ENTRIES 1
+#define DEFAULT_BATCH_AUDIT_AGGREGATED_ENTRIES 1
 
 #define NONE_T 0UL
 #define INT_T 1UL
@@ -393,7 +393,7 @@ struct
     __uint(type, BPF_MAP_TYPE_HASH);
     __type(key, struct batch_audit_policy_key_t);
     __type(value, struct batch_audit_policy_val_t);
-    __uint(max_entries, MAX_BATCH_AUDIT_POLICIES_ENTRIES);
+    __uint(max_entries, DEFAULT_BATCH_AUDIT_POLICIES_ENTRIES);
     __uint(pinning, LIBBPF_PIN_BY_NAME);
 } batch_audit_policies SEC(".maps");
 
@@ -402,7 +402,7 @@ struct
     __uint(type, BPF_MAP_TYPE_LRU_HASH);
     __type(key, struct batch_audit_aggregation_key_t);
     __type(value, struct batch_audit_aggregation_val_t);
-    __uint(max_entries, MAX_BATCH_AUDIT_AGGREGATED_ENTRIES);
+    __uint(max_entries, DEFAULT_BATCH_AUDIT_AGGREGATED_ENTRIES);
     __uint(pinning, LIBBPF_PIN_BY_NAME);
 } batch_audit_aggregations SEC(".maps");
 

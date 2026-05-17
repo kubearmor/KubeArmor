@@ -22,6 +22,8 @@ kubearmorConfigMap:
   defaultCapabilitiesPosture: block
   defaultNetworkPosture: block
   visibility: process,file,network
+  batchAuditPoliciesMaxEntries: 1
+  batchAuditAggregationsMaxEntries: 1
 
 kubearmor:
   image:

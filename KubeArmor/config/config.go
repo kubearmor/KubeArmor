@@ -77,6 +77,9 @@ type KubearmorConfig struct {
 	USBDeviceHandler bool // enable USB device observability and enforcement
 
 	MatchArgs bool // enable argument rules for policy
+
+	BatchAuditPoliciesMaxEntries     uint32 // max entries for batch audit policy map
+	BatchAuditAggregationsMaxEntries uint32 // max entries for batch audit aggregation map
 }
 
 // GlobalCfg Global configuration for Kubearmor
@@ -84,55 +87,62 @@ var GlobalCfg KubearmorConfig
 
 // Config const
 const (
-	PolicyDir                            string = "/opt/kubearmor/policies/"
-	PIDFilePath                          string = "/opt/kubearmor/kubearmor.pid"
-	ConfigCluster                        string = "cluster"
-	ConfigHost                           string = "host"
-	ConfigGRPC                           string = "gRPC"
-	ConfigTLSCertPath                    string = "tlsCertPath"
-	ConfigTLSCertProvider                string = "tlsCertProvider"
-	SelfCertProvider                     string = "self"
-	ExternalCertProvider                 string = "external"
-	ConfigTLS                            string = "tlsEnabled"
-	ConfigLogPath                        string = "logPath"
-	ConfigSELinuxProfileDir              string = "seLinuxProfileDir"
-	ConfigCRISocket                      string = "criSocket"
-	ConfigNRISocket                      string = "nriSocket"
-	ConfigNRIIndex                       string = "nriIndex"
-	ConfigNRI                            string = "enableNRI"
-	ConfigVisibility                     string = "visibility"
-	ConfigHostVisibility                 string = "hostVisibility"
-	ConfigKubearmorPolicy                string = "enableKubeArmorPolicy"
-	ConfigKubearmorHostPolicy            string = "enableKubeArmorHostPolicy"
-	ConfigKubearmorVM                    string = "enableKubeArmorVm"
-	ConfigDefaultFilePosture             string = "defaultFilePosture"
-	ConfigDefaultNetworkPosture          string = "defaultNetworkPosture"
-	ConfigDefaultCapabilitiesPosture     string = "defaultCapabilitiesPosture"
-	ConfigHostDefaultFilePosture         string = "hostDefaultFilePosture"
-	ConfigHostDefaultNetworkPosture      string = "hostDefaultNetworkPosture"
-	ConfigHostDefaultCapabilitiesPosture string = "hostDefaultCapabilitiesPosture"
-	ConfigHostDefaultDevicePosture       string = "hostDefaultDevicePosture"
-	ConfigCoverageTest                   string = "coverageTest"
-	ConfigK8sEnv                         string = "k8s"
-	ConfigDebug                          string = "debug"
-	ConfigUntrackedNs                    string = "untrackedNs"
-	LsmOrder                             string = "lsm"
-	BPFFsPath                            string = "bpfFsPath"
-	EnforcerAlerts                       string = "enforcerAlerts"
-	ConfigDefaultPostureLogs             string = "defaultPostureLogs"
-	ConfigInitTimeout                    string = "initTimeout"
-	ConfigStateAgent                     string = "enableKubeArmorStateAgent"
-	ConfigAlertThrottling                string = "alertThrottling"
-	ConfigMaxAlertPerSec                 string = "maxAlertPerSec"
-	ConfigThrottleSec                    string = "throttleSec"
-	ConfigAnnotateResources              string = "annotateResources"
-	ConfigProcFsMount                    string = "procfsMount"
-	ConfigDropResourceFromProcessLogs    string = "dropResourceFromProcessLogs"
-	ConfigMachineIDPath                  string = "machineIDPath"
-	UseOCIHooks                          string = "useOCIHooks"
-	ConfigEnableIma                      string = "enableIMA"
-	ConfigUSBDeviceHandler               string = "enableUSBDeviceHandler"
-	ConfigArgMatching                    string = "matchArgs"
+	PolicyDir                              string = "/opt/kubearmor/policies/"
+	PIDFilePath                            string = "/opt/kubearmor/kubearmor.pid"
+	ConfigCluster                          string = "cluster"
+	ConfigHost                             string = "host"
+	ConfigGRPC                             string = "gRPC"
+	ConfigTLSCertPath                      string = "tlsCertPath"
+	ConfigTLSCertProvider                  string = "tlsCertProvider"
+	SelfCertProvider                       string = "self"
+	ExternalCertProvider                   string = "external"
+	ConfigTLS                              string = "tlsEnabled"
+	ConfigLogPath                          string = "logPath"
+	ConfigSELinuxProfileDir                string = "seLinuxProfileDir"
+	ConfigCRISocket                        string = "criSocket"
+	ConfigNRISocket                        string = "nriSocket"
+	ConfigNRIIndex                         string = "nriIndex"
+	ConfigNRI                              string = "enableNRI"
+	ConfigVisibility                       string = "visibility"
+	ConfigHostVisibility                   string = "hostVisibility"
+	ConfigKubearmorPolicy                  string = "enableKubeArmorPolicy"
+	ConfigKubearmorHostPolicy              string = "enableKubeArmorHostPolicy"
+	ConfigKubearmorVM                      string = "enableKubeArmorVm"
+	ConfigDefaultFilePosture               string = "defaultFilePosture"
+	ConfigDefaultNetworkPosture            string = "defaultNetworkPosture"
+	ConfigDefaultCapabilitiesPosture       string = "defaultCapabilitiesPosture"
+	ConfigHostDefaultFilePosture           string = "hostDefaultFilePosture"
+	ConfigHostDefaultNetworkPosture        string = "hostDefaultNetworkPosture"
+	ConfigHostDefaultCapabilitiesPosture   string = "hostDefaultCapabilitiesPosture"
+	ConfigHostDefaultDevicePosture         string = "hostDefaultDevicePosture"
+	ConfigCoverageTest                     string = "coverageTest"
+	ConfigK8sEnv                           string = "k8s"
+	ConfigDebug                            string = "debug"
+	ConfigUntrackedNs                      string = "untrackedNs"
+	LsmOrder                               string = "lsm"
+	BPFFsPath                              string = "bpfFsPath"
+	EnforcerAlerts                         string = "enforcerAlerts"
+	ConfigDefaultPostureLogs               string = "defaultPostureLogs"
+	ConfigInitTimeout                      string = "initTimeout"
+	ConfigStateAgent                       string = "enableKubeArmorStateAgent"
+	ConfigAlertThrottling                  string = "alertThrottling"
+	ConfigMaxAlertPerSec                   string = "maxAlertPerSec"
+	ConfigThrottleSec                      string = "throttleSec"
+	ConfigAnnotateResources                string = "annotateResources"
+	ConfigProcFsMount                      string = "procfsMount"
+	ConfigDropResourceFromProcessLogs      string = "dropResourceFromProcessLogs"
+	ConfigMachineIDPath                    string = "machineIDPath"
+	UseOCIHooks                            string = "useOCIHooks"
+	ConfigEnableIma                        string = "enableIMA"
+	ConfigUSBDeviceHandler                 string = "enableUSBDeviceHandler"
+	ConfigArgMatching                      string = "matchArgs"
+	ConfigBatchAuditPoliciesMaxEntries     string = "batchAuditPoliciesMaxEntries"
+	ConfigBatchAuditAggregationsMaxEntries string = "batchAuditAggregationsMaxEntries"
+)
+
+const (
+	DefaultBatchAuditPoliciesMaxEntries     uint32 = 1
+	DefaultBatchAuditAggregationsMaxEntries uint32 = 1
 )
 
 func readCmdLineParams() {
@@ -205,6 +215,9 @@ func readCmdLineParams() {
 	dropResourceFromProcessLogs := flag.Bool(ConfigDropResourceFromProcessLogs, false, "drop resource field from process logs")
 
 	matchArgs := flag.Bool(ConfigArgMatching, true, "enabling Argument matching")
+
+	batchAuditPoliciesMaxEntries := flag.Uint(ConfigBatchAuditPoliciesMaxEntries, uint(DefaultBatchAuditPoliciesMaxEntries), "maximum entries for the batch audit policy map")
+	batchAuditAggregationsMaxEntries := flag.Uint(ConfigBatchAuditAggregationsMaxEntries, uint(DefaultBatchAuditAggregationsMaxEntries), "maximum entries for the batch audit aggregation map")
 
 	flags := []string{}
 	flag.VisitAll(func(f *flag.Flag) {
@@ -285,6 +298,8 @@ func readCmdLineParams() {
 	viper.SetDefault(ConfigDropResourceFromProcessLogs, *dropResourceFromProcessLogs)
 
 	viper.SetDefault(ConfigArgMatching, *matchArgs)
+	viper.SetDefault(ConfigBatchAuditPoliciesMaxEntries, *batchAuditPoliciesMaxEntries)
+	viper.SetDefault(ConfigBatchAuditAggregationsMaxEntries, *batchAuditAggregationsMaxEntries)
 }
 
 // LoadConfig Load configuration
@@ -378,6 +393,18 @@ func LoadConfig() error {
 	GlobalCfg.MatchArgs = viper.GetBool(ConfigArgMatching)
 
 	GlobalCfg.SELinuxProfileDir = viper.GetString(ConfigSELinuxProfileDir)
+
+	policyEntries := viper.GetInt(ConfigBatchAuditPoliciesMaxEntries)
+	if policyEntries <= 0 {
+		return fmt.Errorf("load %s: value must be greater than zero", ConfigBatchAuditPoliciesMaxEntries)
+	}
+	GlobalCfg.BatchAuditPoliciesMaxEntries = uint32(policyEntries)
+
+	aggregationEntries := viper.GetInt(ConfigBatchAuditAggregationsMaxEntries)
+	if aggregationEntries <= 0 {
+		return fmt.Errorf("load %s: value must be greater than zero", ConfigBatchAuditAggregationsMaxEntries)
+	}
+	GlobalCfg.BatchAuditAggregationsMaxEntries = uint32(aggregationEntries)
 
 	LoadDynamicConfig()
 

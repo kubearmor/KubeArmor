@@ -33,7 +33,6 @@ type ImageSpec struct {
 }
 
 type Tls struct {
-
 	// +kubebuilder:default:=false
 	Enable bool `json:"enable,omitempty"`
 
@@ -120,6 +119,9 @@ type KubeArmorConfigSpec struct {
 	MaxAlertPerSec int `json:"maxAlertPerSec,omitempty"`
 
 	ThrottleSec int `json:"throttleSec,omitempty"`
+
+	BatchAuditPoliciesMaxEntries     int `json:"batchAuditPoliciesMaxEntries,omitempty"`
+	BatchAuditAggregationsMaxEntries int `json:"batchAuditAggregationsMaxEntries,omitempty"`
 
 	Adapters Adapters `json:"adapters,omitempty"`
 
