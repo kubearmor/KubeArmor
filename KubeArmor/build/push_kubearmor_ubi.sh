@@ -51,18 +51,18 @@ ARMOR_HOME=`dirname $(realpath "$0")`/..
 cd $ARMOR_HOME/build
 pwd
 
-# push $REPO
-echo "[INFO] Pushing $REPO:$VERSION"
-cd $ARMOR_HOME/..; docker buildx build --metadata-file kubearmor.json --platform $PLATFORMS --target kubearmor -t $REPO:$VERSION -f Dockerfile $BUILD_MODE $LABEL $STABEL_LABEL .
+# push $REPO-init-ubi
+echo "[INFO] Pushing $REPO-init-ubi:$VERSION"
+cd $ARMOR_HOME/..; docker buildx build --metadata-file kubearmor-init-ubi.json --platform $PLATFORMS --build-arg VERSION=$VERSION --target kubearmor-init-ubi -t $REPO-init-ubi:$VERSION -f Dockerfile.init $BUILD_MODE $LABEL $STABEL_LABEL .
 
-[[ $? -ne 0 ]] && echo "[FAILED] Failed to push $REPO:$VERSION" && exit 1
-echo "[PASSED] Pushed $REPO:$VERSION"
+[[ $? -ne 0 ]] && echo "[FAILED] Failed to push $REPO-init-ubi:$VERSION" && exit 1
+echo "[PASSED] Pushed $REPO-init-ubi:$VERSION"
 
-# push $REPO-init
-echo "[INFO] Pushing $REPO-init:$VERSION"
-cd $ARMOR_HOME/..; docker buildx build --metadata-file kubearmor-init.json --platform $PLATFORMS --build-arg VERSION=$VERSION -t $REPO-init:$VERSION -f Dockerfile.init $BUILD_MODE $LABEL $STABEL_LABEL .
+# push $REPO-ubi
+echo "[INFO] Pushing $REPO-ubi:$VERSION"
+cd $ARMOR_HOME/..; docker buildx build --metadata-file kubearmor-ubi.json --platform $PLATFORMS --build-arg VERSION=$VERSION --target kubearmor-ubi -t $REPO-ubi:$VERSION -f Dockerfile $BUILD_MODE $LABEL $STABEL_LABEL .
 
-[[ $? -ne 0 ]] && echo "[FAILED] Failed to push $REPO-init:$VERSION" && exit 1
-echo "[PASSED] Pushed $REPO-init:$VERSION"
+[[ $? -ne 0 ]] && echo "[FAILED] Failed to push $REPO-ubi:$VERSION" && exit 1
+echo "[PASSED] Pushed $REPO-ubi:$VERSION"
 
 exit 0

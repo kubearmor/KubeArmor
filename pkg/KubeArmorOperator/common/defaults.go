@@ -165,7 +165,7 @@ var (
 	KubeArmorClientSecretName      string   = "kubearmor-client-certs"
 	KubeArmorRelayServerSecretName string   = "kubearmor-relay-server-certs"
 	DefaultTlsCertPath             string   = "/var/lib/kubearmor/tls"
-	DefaultMode                    int32    = 420 // deciaml representation of octal value 644
+	DefaultMode                    int32    = 420 // decimal representation of octal value 644
 
 	// throttling
 	AlertThrottling       bool   = true

@@ -100,6 +100,20 @@ docker-buildx:
 	docker buildx build --metadata-file kubearmor-operator.json --platform ${PLATFORM} --build-arg VERSION=${TAG} ${BUILD_MODE} --target operator -t ${OPERATOR_IMG}:${TAG} -f ./Dockerfile ../../
 	docker buildx build --metadata-file kubearmor-snitch.json --platform ${PLATFORM} --build-arg VERSION=${TAG} ${BUILD_MODE} --target snitch -t ${SNITCH_IMG}:${TAG} -f ./Dockerfile ../../
 
+.PHONY: docker-build-ubi
+docker-build-ubi: ## Build docker image with the manager.
+	docker build -t ${OPERATOR_IMG}-ubi:${TAG} -t ${OPERATOR_IMG}-ubi:latest --build-arg VERSION=${TAG} --target operator-ubi -f ./Dockerfile ../../
+	docker build -t ${SNITCH_IMG}-ubi:${TAG} -t ${SNITCH_IMG}-ubi:latest --build-arg VERSION=${TAG} --target snitch-ubi -f ./Dockerfile ../../
+
+.PHONY: docker-push-ubi
+docker-push-ubi: ## Push docker image with the manager.
+	docker push ${OPERATOR_IMG}-ubi:${TAG}
+	docker push ${SNITCH_IMG}-ubi:${TAG}
+
+docker-buildx-ubi:
+	docker buildx build --metadata-file kubearmor-operator-ubi.json --platform ${PLATFORM} --build-arg VERSION=${TAG} ${BUILD_MODE} --target operator-ubi -t ${OPERATOR_IMG}-ubi:${TAG} -f ./Dockerfile ../../
+	docker buildx build --metadata-file kubearmor-snitch-ubi.json --platform ${PLATFORM} --build-arg VERSION=${TAG} ${BUILD_MODE} --target snitch-ubi -t ${SNITCH_IMG}-ubi:${TAG} -f ./Dockerfile ../../
+
 KUSTOMIZE_VERSION ?= v5.2.1
 KUSTOMIZE = $(GOBIN)/kustomize
 .PHONY: kustomize

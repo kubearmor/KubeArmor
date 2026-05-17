@@ -13,7 +13,7 @@ spec:
       container: ubuntu-3
   process:
     matchDirectories:
-    - dir: /bin/ # need some exectuables to test
+    - dir: /bin/ # need some executables to test
   file:
     matchPaths:
     - path: /root/.bashrc # used by root

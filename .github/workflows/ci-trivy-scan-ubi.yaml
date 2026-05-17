@@ -8,7 +8,7 @@ on:
     paths:
       - "KubeArmor/**"
       - "protobuf/**"
-      - ".github/workflows/ci-trivy-scan.yaml"
+      - ".github/workflows/ci-trivy-scan-ubi.yaml"
       - "pkg/**"
       - "!STABLE-RELEASE"
 
@@ -68,29 +68,29 @@ jobs:
             }      
   
       - name: Build KubeArmor images to Docker
-        run: GITHUB_SHA=$GITHUB_SHA ./KubeArmor/build/build_kubearmor.sh
+        run: GITHUB_SHA=$GITHUB_SHA ./KubeArmor/build/build_kubearmor_ubi.sh
       
       - name: Build Kubearmor controller 
         if: steps.filter.outputs.controller == 'true'
         working-directory: ./pkg/KubeArmorController
-        run: make docker-build
+        run: make docker-build-ubi
 
       - name: Build Kubearmor operator
         if: steps.filter.outputs.operator == 'true'
         working-directory: ./pkg/KubeArmorOperator
-        run: make docker-build
+        run: make docker-build-ubi
 
       - name: Save images to tar for Trivy Scan
         run: |
-          docker save -o kubearmor-init.tar kubearmor/kubearmor-init:latest
-          docker save -o kubearmor.tar kubearmor/kubearmor:latest
+          docker save -o kubearmor-init.tar kubearmor/kubearmor-init-ubi:latest
+          docker save -o kubearmor.tar kubearmor/kubearmor-ubi:latest
           if [[ ${{ steps.filter.outputs.operator }} == 'true' ]]; then
-            docker save -o kubearmor-operator.tar kubearmor/kubearmor-operator:latest
+            docker save -o kubearmor-operator.tar kubearmor/kubearmor-operator-ubi:latest
           fi
           if [[ ${{ steps.filter.outputs.controller }} == 'true' ]]; then
-            docker save -o kubearmor-controller.tar kubearmor/kubearmor-controller:latest
+            docker save -o kubearmor-controller.tar kubearmor/kubearmor-controller-ubi:latest
           fi
-          
+
       - name: Run Trivy vulnerability scanner on kubearmor-init
         id: scan_init
         uses: aquasecurity/trivy-action@0.35.0

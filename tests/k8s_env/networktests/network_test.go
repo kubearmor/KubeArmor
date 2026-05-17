@@ -50,7 +50,7 @@ var _ = Describe("Network Tests", func() {
 		})
 		Describe("Apply Network Policies", func() {
 
-			It("it can audit all network trafic on icmp protocol", func() {
+			It("it can audit all network traffic on icmp protocol", func() {
 				// multiubuntu_test_07, github_test_09
 
 				// Apply policy
