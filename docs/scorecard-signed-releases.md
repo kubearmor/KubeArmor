@@ -1,37 +1,58 @@
-Signed Releases Baseline
-========================
+Signed Releases Attestation Baseline
+====================================
 
-What I added
------------
+What was implemented
+--------------------
 
-- A minimal workflow `.github/workflows/signed-releases-baseline.yml` that:
-  - creates a tiny `release-manifest-<tag>.txt` when a release is created (or via manual dispatch),
-  - signs that manifest using `cosign sign-blob --keyless`, and
-  - uploads both the manifest and the signature as GitHub Release assets.
+- `.github/workflows/signed-releases-baseline.yml`
+  - builds `kubearmor-linux-amd64.tar.gz`,
+  - generates a minimal SLSA provenance predicate,
+  - creates keyless attestations with `cosign attest-blob --type slsaprovenance` for both manifest and binary,
+  - uploads DSSE bundles (`*.sigstore.json`) and a combined provenance file (`multiple.intoto.jsonl-linux-amd64`).
+   - pins all workflow actions used in this pipeline to immutable commit SHAs.
 
-- A verification workflow `.github/workflows/signed-releases-verify.yml` that triggers on `release.published`,
-  downloads the manifest and signature, installs `cosign`, and runs `cosign verify-blob --keyless` to ensure
-  the signature is valid.
+- `.github/workflows/signed-releases-verify.yml`
+  - downloads release assets,
+  - verifies blob attestations using `cosign verify-blob-attestation`,
+  - validates each JSONL line contains SLSA provenance payload (`predicateType == https://slsa.dev/provenance/v1`).
 
-Why this helps
---------------
+- `scripts/verify-release-artifacts.sh`
+  - reproducible local verification for a release tag,
+  - verifies attestation bundle and validates combined `.intoto.jsonl` payloads.
 
-OpenSSF Scorecard's Signed-Releases check looks for cryptographically-signed release artifacts attached to
-GitHub Releases. By ensuring a `.sig` file is attached alongside a release artifact (here a small manifest), the
-Signed-Releases check will detect the signed artifact and improve the Scorecard result.
+Why this is stronger
+--------------------
 
-How to test locally / on the repo
----------------------------------
+Blob signatures alone can improve Signed-Releases but typically cap the score. DSSE-based attestations and
+`.intoto.jsonl` provenance are the expected release assets to demonstrate provenance-aware signed releases and
+support the path to a full Signed-Releases score.
 
-1. Create a release in your fork (or run the `Signed Releases Baseline` workflow manually and provide a `tag`).
-2. Confirm the release has the signed release assets:
-   - `release-manifest-<tag>.txt`
-   - `release-manifest-<tag>.txt.sig`
-   - `release-manifest-<tag>.txt.pem`
-   - `kubearmor-linux-amd64.tar.gz`
-   - `kubearmor-linux-amd64.tar.gz.sig`
-   - `kubearmor-linux-amd64.tar.gz.pem`
-3. After the release is published, the `Signed Releases Verification` workflow will run and should pass the
-   `cosign verify-blob --keyless` check.
+Assets produced per release
+---------------------------
+
+- `release-manifest-<tag>.txt`
+- `release-manifest-<tag>.txt.sigstore.json`
+- `kubearmor-linux-amd64.tar.gz`
+- `kubearmor-linux-amd64.tar.gz.sigstore.json`
+- `multiple.intoto.jsonl-linux-amd64`
+
+How to run and verify
+---------------------
+
+1. Trigger baseline workflow manually (or create a release):
+
+   `gh workflow run "Signed Releases Baseline" -R <owner>/<repo> -f tag=<tag>`
+
+2. Verify workflow on release publish, or run manual verification workflow:
+
+   `gh workflow run "Signed Releases Verification" -R <owner>/<repo> -f tag=<tag>`
+
+3. Verify locally with script:
+
+   `bash scripts/verify-release-artifacts.sh <owner>/<repo> <tag>`
+
+4. Manual binary attestation verification example:
+
+   `cosign verify-blob-attestation --bundle kubearmor-linux-amd64.tar.gz.sigstore.json --type slsaprovenance --certificate-identity-regexp ".*" --certificate-oidc-issuer-regexp ".*" kubearmor-linux-amd64.tar.gz`
 
 
