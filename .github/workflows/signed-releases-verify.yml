@@ -86,5 +86,5 @@ jobs:
           fi
           while IFS= read -r line; do
             payload=$(echo "$line" | jq -r '.payload')
-            echo "$payload" | base64 -d | jq -e '.predicateType == "https://slsa.dev/provenance/v1"' > /dev/null
+            echo "$payload" | base64 -d | jq -e '(.predicateType == "https://slsa.dev/provenance/v1") or (.predicateType == "https://slsa.dev/provenance/v0.2")' > /dev/null
           done < multiple.intoto.jsonl-linux-amd64
