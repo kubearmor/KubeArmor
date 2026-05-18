@@ -32,8 +32,10 @@ Assets produced per release
 
 - `release-manifest-<tag>.txt`
 - `release-manifest-<tag>.txt.sigstore.json`
+- `release-manifest-<tag>.txt.attestation.json`
 - `kubearmor-linux-amd64.tar.gz`
 - `kubearmor-linux-amd64.tar.gz.sigstore.json`
+- `kubearmor-linux-amd64.tar.gz.attestation.json`
 - `multiple.intoto.jsonl-linux-amd64`
 
 How to run and verify
