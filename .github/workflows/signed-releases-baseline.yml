@@ -58,28 +58,37 @@ jobs:
         run: |
           cat > slsa-predicate.json <<'EOF'
           {
-            "buildDefinition": {
-              "buildType": "https://github.com/kubearmor/KubeArmor/.github/workflows/signed-releases-baseline.yml",
-              "externalParameters": {
-                "repo": "${{ github.repository }}",
-                "ref": "${{ github.ref }}",
-                "sha": "${{ github.sha }}",
+            "builder": {
+              "id": "https://github.com/${{ github.repository }}/.github/workflows/signed-releases-baseline.yml@${{ github.ref }}"
+            },
+            "buildType": "https://github.com/kubearmor/KubeArmor/signed-releases-baseline/v1",
+            "invocation": {
+              "configSource": {
+                "uri": "git+https://github.com/${{ github.repository }}@${{ github.ref }}",
+                "digest": {
+                  "sha1": "${{ github.sha }}"
+                },
+                "entryPoint": ".github/workflows/signed-releases-baseline.yml"
+              },
+              "parameters": {
                 "tag": "${{ steps.tag.outputs.tag }}"
               },
-              "internalParameters": {},
-              "resolvedDependencies": []
+              "environment": {}
             },
-            "runDetails": {
-              "builder": {
-                "id": "https://github.com/${{ github.repository }}/.github/workflows/signed-releases-baseline.yml@${{ github.ref }}"
+            "metadata": {
+              "buildInvocationID": "${{ github.run_id }}",
+              "completeness": {
+                "parameters": true,
+                "environment": false,
+                "materials": false
               },
-              "metadata": {
-                "invocationId": "${{ github.run_id }}"
-              },
-              "byproducts": []
-            }
+              "reproducible": false
+            },
+            "materials": []
           }
           EOF
+          # Validate JSON shape early to fail-fast before cosign runs.
+          jq -e '.builder.id and .buildType and .invocation and .metadata and (.materials | type == "array")' slsa-predicate.json > /dev/null
 
       - name: Install cosign
         uses: sigstore/cosign-installer@7e8b541eb2e61bf99390e1afd4be13a184e9ebc5
