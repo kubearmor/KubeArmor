@@ -15,7 +15,7 @@ permissions:
 
 jobs:
   verify-signature:
-    name: Verify signed release manifest
+    name: Verify signed release attestations
     runs-on: ubuntu-22.04
     steps:
       - name: Determine tag
@@ -39,21 +39,40 @@ jobs:
           jq -r '.assets[] | "\(.name):::\(.browser_download_url)"' release.json > assets.list || true
           cat assets.list
 
-      - name: Download manifest and signature
+      - name: Download release assets for verification
         run: |
-          MANIFEST_URL=$(grep "release-manifest-" assets.list | cut -d':::' -f2 | head -n1)
-          SIG_URL=$(grep "release-manifest-.*.txt.sig" assets.list | cut -d':::' -f2 | head -n1)
-          CERT_URL=$(grep "release-manifest-.*.txt.pem" assets.list | cut -d':::' -f2 | head -n1)
-          if [ -z "$MANIFEST_URL" ] || [ -z "$SIG_URL" ] || [ -z "$CERT_URL" ]; then
-            echo "Manifest, signature, or certificate asset not found"; exit 2;
+          MANIFEST_URL=$(grep "release-manifest-.*.txt:::" assets.list | cut -d':::' -f2 | head -n1)
+          MANIFEST_BUNDLE_URL=$(grep "release-manifest-.*.txt.sigstore.json" assets.list | cut -d':::' -f2 | head -n1)
+          BINARY_URL=$(grep "kubearmor-linux-amd64.tar.gz:::" assets.list | cut -d':::' -f2 | head -n1)
+          BINARY_BUNDLE_URL=$(grep "kubearmor-linux-amd64.tar.gz.sigstore.json" assets.list | cut -d':::' -f2 | head -n1)
+          INTOTO_URL=$(grep "multiple.intoto.jsonl-linux-amd64" assets.list | cut -d':::' -f2 | head -n1)
+          if [ -z "$MANIFEST_URL" ] || [ -z "$MANIFEST_BUNDLE_URL" ] || [ -z "$BINARY_URL" ] || [ -z "$BINARY_BUNDLE_URL" ] || [ -z "$INTOTO_URL" ]; then
+            echo "Required release assets not found"; exit 2;
           fi
           curl -L -H "Authorization: token $GITHUB_TOKEN" -o manifest.txt "$MANIFEST_URL"
-          curl -L -H "Authorization: token $GITHUB_TOKEN" -o manifest.txt.sig "$SIG_URL"
-          curl -L -H "Authorization: token $GITHUB_TOKEN" -o manifest.txt.pem "$CERT_URL"
+          curl -L -H "Authorization: token $GITHUB_TOKEN" -o manifest.txt.sigstore.json "$MANIFEST_BUNDLE_URL"
+          curl -L -H "Authorization: token $GITHUB_TOKEN" -o kubearmor-linux-amd64.tar.gz "$BINARY_URL"
+          curl -L -H "Authorization: token $GITHUB_TOKEN" -o kubearmor-linux-amd64.tar.gz.sigstore.json "$BINARY_BUNDLE_URL"
+          curl -L -H "Authorization: token $GITHUB_TOKEN" -o multiple.intoto.jsonl-linux-amd64 "$INTOTO_URL"
 
       - name: Install cosign
-        uses: sigstore/cosign-installer@v3.10.1
+        uses: sigstore/cosign-installer@7e8b541eb2e61bf99390e1afd4be13a184e9ebc5
 
-      - name: Verify signature (keyless)
+      - name: Verify manifest attestation (keyless)
         run: |
-          cosign verify-blob --signature manifest.txt.sig --certificate manifest.txt.pem --certificate-identity-regexp ".*" --certificate-oidc-issuer-regexp ".*" manifest.txt
+          cosign verify-blob-attestation --bundle manifest.txt.sigstore.json --type slsaprovenance --certificate-identity-regexp ".*" --certificate-oidc-issuer-regexp ".*" manifest.txt
+
+      - name: Verify binary attestation (keyless)
+        run: |
+          cosign verify-blob-attestation --bundle kubearmor-linux-amd64.tar.gz.sigstore.json --type slsaprovenance --certificate-identity-regexp ".*" --certificate-oidc-issuer-regexp ".*" kubearmor-linux-amd64.tar.gz
+
+      - name: Validate combined in-toto JSONL
+        run: |
+          line_count=$(wc -l < multiple.intoto.jsonl-linux-amd64)
+          if [ "$line_count" -lt 1 ]; then
+            echo "multiple.intoto.jsonl-linux-amd64 is empty"; exit 3
+          fi
+          while IFS= read -r line; do
+            payload=$(echo "$line" | jq -r '.payload')
+            echo "$payload" | base64 -d | jq -e '.predicateType == "https://slsa.dev/provenance/v1"' > /dev/null
+          done < multiple.intoto.jsonl-linux-amd64
