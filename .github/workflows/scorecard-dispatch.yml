@@ -10,7 +10,6 @@ on:
 
 permissions:
   contents: read
-  security-events: write
 
 jobs:
   run-scorecard:
@@ -24,7 +23,7 @@ jobs:
         with:
           results_file: results.sarif
           results_format: sarif
-          publish_results: true
+          publish_results: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
