@@ -17,6 +17,8 @@ jobs:
   verify-signature:
     name: Verify signed release attestations
     runs-on: ubuntu-22.04
+    env:
+      GITHUB_TOKEN: ${{ github.token }}
     steps:
       - name: Determine tag
         id: tag
