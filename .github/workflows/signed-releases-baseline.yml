@@ -95,15 +95,15 @@ jobs:
 
       - name: Attest manifest (keyless)
         run: |
-          cosign attest-blob --yes --type slsaprovenance --predicate slsa-predicate.json --bundle release-manifest-${{ steps.tag.outputs.tag }}.txt.sigstore.json release-manifest-${{ steps.tag.outputs.tag }}.txt
+          cosign attest-blob --yes --type slsaprovenance --predicate slsa-predicate.json --bundle release-manifest-${{ steps.tag.outputs.tag }}.txt.sigstore.json release-manifest-${{ steps.tag.outputs.tag }}.txt > release-manifest-${{ steps.tag.outputs.tag }}.txt.attestation.json
 
       - name: Attest binary tarball (keyless)
         run: |
-          cosign attest-blob --yes --type slsaprovenance --predicate slsa-predicate.json --bundle kubearmor-linux-amd64.tar.gz.sigstore.json kubearmor-linux-amd64.tar.gz
+          cosign attest-blob --yes --type slsaprovenance --predicate slsa-predicate.json --bundle kubearmor-linux-amd64.tar.gz.sigstore.json kubearmor-linux-amd64.tar.gz > kubearmor-linux-amd64.tar.gz.attestation.json
 
       - name: Create combined in-toto JSONL
         run: |
-          jq -c '.. | objects | select(has("payloadType") and .payloadType == "application/vnd.in-toto+json")' release-manifest-${{ steps.tag.outputs.tag }}.txt.sigstore.json kubearmor-linux-amd64.tar.gz.sigstore.json > multiple.intoto.jsonl-linux-amd64
+          jq -c 'select(.payloadType == "application/vnd.in-toto+json")' release-manifest-${{ steps.tag.outputs.tag }}.txt.attestation.json kubearmor-linux-amd64.tar.gz.attestation.json > multiple.intoto.jsonl-linux-amd64
           if [ ! -s multiple.intoto.jsonl-linux-amd64 ]; then
             echo "No DSSE envelopes were generated"; exit 1
           fi
@@ -118,6 +118,8 @@ jobs:
           files: |
             release-manifest-${{ steps.tag.outputs.tag }}.txt
             release-manifest-${{ steps.tag.outputs.tag }}.txt.sigstore.json
+            release-manifest-${{ steps.tag.outputs.tag }}.txt.attestation.json
             kubearmor-linux-amd64.tar.gz
             kubearmor-linux-amd64.tar.gz.sigstore.json
+            kubearmor-linux-amd64.tar.gz.attestation.json
             multiple.intoto.jsonl-linux-amd64
