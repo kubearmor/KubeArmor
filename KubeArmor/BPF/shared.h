@@ -27,6 +27,7 @@ char LICENSE[] SEC("license") = "Dual BSD/GPL";
 #define CAPABLE_KEY 200
 #define TTY_LEN 64
 #define MAX_STR_ARR_ELEM 20
+#define MAX_NESTED_DNS_LABELS 10
 
 #define READ_KERN(ptr)                                \
   ({                                                  \
@@ -100,7 +101,7 @@ struct
   __uint(type, BPF_MAP_TYPE_PERCPU_ARRAY);
   __type(key, u32);
   __type(value, bufs_k);
-  __uint(max_entries, 3);
+  __uint(max_entries, 4);
 } bufk SEC(".maps");
 
 //-- Maps structs for argument matching----/
