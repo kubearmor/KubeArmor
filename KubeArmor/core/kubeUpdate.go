@@ -582,7 +582,7 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 		dm.EndPointsLock.Unlock()
 	}
 
-	if cfg.GlobalCfg.NetworkPolicyEnforcer {
+	if cfg.GlobalCfg.NetworkPolicyEnforcer && dm.NetworkPolicyEnforcer != nil {
 		// enforce network security policies
 		dm.UpdateNetworkSecurityPolicies()
 	}
@@ -3288,7 +3288,7 @@ func (dm *KubeArmorDaemon) UpdateNetworkSecurityPolicies() {
 		}
 	}
 
-	if cfg.GlobalCfg.NetworkPolicyEnforcer {
+	if cfg.GlobalCfg.NetworkPolicyEnforcer && dm.NetworkPolicyEnforcer != nil {
 		// update network security policies
 		dm.Logger.UpdateNetworkSecurityPolicies("UPDATED", secPolicies)
 

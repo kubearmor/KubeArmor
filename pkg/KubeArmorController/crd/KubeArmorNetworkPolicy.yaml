@@ -60,6 +60,16 @@ spec:
                 - Audit
                 - Block
                 type: string
+              level:
+                description: |-
+                  Level defines the quota enforcement level.
+                  Accepts "pod" or "policy". Defaults to "pod" if not specified.
+                enum:
+                - pod
+                - policy
+                - Pod
+                - Policy
+                type: string
               egress:
                 items:
                   description: EgressType Structure

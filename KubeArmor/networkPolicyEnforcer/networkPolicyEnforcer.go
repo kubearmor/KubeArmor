@@ -163,6 +163,142 @@ func getProtocolName(p uint8) string {
 }
 
 // monitorLoggedPackets Function
+type packetInfo struct {
+	srcIP    string
+	dstIP    string
+	srcPort  uint16
+	dstPort  uint16
+	protocol uint8
+}
+
+func parsePacket(payload []byte, parser4, parser6 *gopacket.DecodingLayerParser, ip4 *layers.IPv4, ip6 *layers.IPv6, tcp *layers.TCP, udp *layers.UDP, sctp *layers.SCTP) packetInfo {
+	var info packetInfo
+	if len(payload) < 20 {
+		return info
+	}
+
+	decoded := []gopacket.LayerType{}
+	version := payload[0] >> 4
+	if version == 4 {
+		_ = parser4.DecodeLayers(payload, &decoded)
+	} else if version == 6 {
+		_ = parser6.DecodeLayers(payload, &decoded)
+	}
+
+	for _, layerType := range decoded {
+		switch layerType {
+		case layers.LayerTypeIPv4:
+			info.srcIP = ip4.SrcIP.String()
+			info.dstIP = ip4.DstIP.String()
+			info.protocol = uint8(ip4.Protocol)
+		case layers.LayerTypeIPv6:
+			info.srcIP = ip6.SrcIP.String()
+			info.dstIP = ip6.DstIP.String()
+			info.protocol = uint8(ip6.NextHeader)
+		case layers.LayerTypeTCP:
+			info.srcPort = uint16(tcp.SrcPort)
+			info.dstPort = uint16(tcp.DstPort)
+		case layers.LayerTypeUDP:
+			info.srcPort = uint16(udp.SrcPort)
+			info.dstPort = uint16(udp.DstPort)
+		case layers.LayerTypeSCTP:
+			info.srcPort = uint16(sctp.SrcPort)
+			info.dstPort = uint16(sctp.DstPort)
+		}
+	}
+	return info
+}
+
+func (ne *NetworkPolicyEnforcer) buildKubeArmorLog(info packetInfo, prefix string, parts []string) tp.Log {
+	log := tp.Log{}
+	timestamp, updatedTime := kl.GetDateTimeNow()
+
+	log.Timestamp = timestamp
+	log.UpdatedTime = updatedTime
+	log.Operation = "NetworkFirewall"
+	log.Resource = prefix
+
+	quotaLevel := ""
+	quotaLimit := ""
+	if len(parts) > 3 {
+		quotaLevel = parts[3]
+	}
+	if len(parts) > 4 {
+		quotaLimit = parts[4]
+	}
+
+	if quotaLevel != "" {
+		if quotaLimit != "" {
+			log.Data = fmt.Sprintf("SourceIP=%s SourcePort=%d DestinationIP=%s DestinationPort=%d Protocol=%s QuotaLevel=%s QuotaLimit=%s", info.srcIP, info.srcPort, info.dstIP, info.dstPort, getProtocolName(info.protocol), quotaLevel, quotaLimit)
+		} else {
+			log.Data = fmt.Sprintf("SourceIP=%s SourcePort=%d DestinationIP=%s DestinationPort=%d Protocol=%s QuotaLevel=%s", info.srcIP, info.srcPort, info.dstIP, info.dstPort, getProtocolName(info.protocol), quotaLevel)
+		}
+	} else {
+		log.Data = fmt.Sprintf("SourceIP=%s SourcePort=%d DestinationIP=%s DestinationPort=%d Protocol=%s", info.srcIP, info.srcPort, info.dstIP, info.dstPort, getProtocolName(info.protocol))
+	}
+
+	action := "Audit"
+	if len(parts) > 2 {
+		action = parts[2]
+	} else if strings.Contains(prefix, "Block") {
+		action = "Block"
+	}
+
+	log.Action = action
+	if action != "Block" {
+		log.Result = "Passed"
+	} else {
+		log.Result = "Permission denied"
+	}
+
+	log.Enforcer = "NetworkPolicyEnforcer"
+
+	policyName := ""
+	if len(parts) > 0 {
+		policyName = parts[0]
+	}
+	isNamedPolicy := policyName != "" && policyName != "Default" && policyName != "Host"
+
+	if isNamedPolicy {
+		log.Type = "MatchedPolicy"
+		log.PolicyName = policyName
+	} else if policyName == "Host" {
+		log.Type = "MatchedHostPolicy"
+	} else {
+		log.Type = "SystemLog"
+	}
+
+	// Determine targetIP for pod metadata mapping
+	var targetIP, direction string
+	if len(parts) > 1 {
+		direction = parts[1]
+	}
+	if direction == "Egress" || direction == "OUTPUT" {
+		targetIP = info.srcIP
+	} else if direction == "Ingress" || direction == "INPUT" {
+		targetIP = info.dstIP
+	}
+
+	// Attach Kubernetes Pod metadata
+	if targetIP != "" {
+		ne.EndPointsLock.RLock()
+		if ep, ok := ne.EndPoints[targetIP]; ok {
+			log.NamespaceName = ep.NamespaceName
+			log.PodName = ep.EndPointName
+
+			var labelSlice []string
+			for k, v := range ep.Labels {
+				labelSlice = append(labelSlice, k+"="+v)
+			}
+			sort.Strings(labelSlice)
+			log.Labels = strings.Join(labelSlice, ",")
+		}
+		ne.EndPointsLock.RUnlock()
+	}
+
+	return log
+}
+
 func (ne *NetworkPolicyEnforcer) monitorLoggedPackets() {
 
 	// Configure nflog
@@ -201,13 +337,15 @@ func (ne *NetworkPolicyEnforcer) monitorLoggedPackets() {
 	ne.cancelNflog = cancel
 
 	// Fast decoders for gopacket
-	var ip4 layers.IPv4
-	var ip6 layers.IPv6
-	var tcp layers.TCP
-	var udp layers.UDP
-	var sctp layers.SCTP
-	var icmp4 layers.ICMPv4
-	var icmp6 layers.ICMPv6
+	var (
+		ip4   layers.IPv4
+		ip6   layers.IPv6
+		tcp   layers.TCP
+		udp   layers.UDP
+		sctp  layers.SCTP
+		icmp4 layers.ICMPv4
+		icmp6 layers.ICMPv6
+	)
 
 	parser4 := gopacket.NewDecodingLayerParser(layers.LayerTypeIPv4, &ip4, &tcp, &udp, &sctp, &icmp4)
 	parser6 := gopacket.NewDecodingLayerParser(layers.LayerTypeIPv6, &ip6, &tcp, &udp, &sctp, &icmp6)
@@ -219,66 +357,29 @@ func (ne *NetworkPolicyEnforcer) monitorLoggedPackets() {
 	// hook that is called for every received packet
 	hook := func(attrs nflog.Attribute) int {
 		var payload []byte
-		prefix := ""
+		logPrefix := ""
 
 		if attrs.Payload != nil {
 			payload = *attrs.Payload
 		}
 		if attrs.Prefix != nil {
-			prefix = *attrs.Prefix
+			logPrefix = *attrs.Prefix
 		}
 
-		if len(payload) < 20 {
-			return 0 // Too short to be a valid IP packet
+		info := parsePacket(payload, parser4, parser6, &ip4, &ip6, &tcp, &udp, &sctp)
+		if info.srcIP == "" && info.dstIP == "" {
+			return 0
 		}
 
-		var srcIP, dstIP string
-		var srcPort, dstPort uint16
-		var protocol uint8
-
-		decoded := []gopacket.LayerType{}
-
-		// Check IP version
-		version := payload[0] >> 4
-		if version == 4 {
-			_ = parser4.DecodeLayers(payload, &decoded)
-		} else if version == 6 {
-			_ = parser6.DecodeLayers(payload, &decoded)
-		}
-
-		// Extract parsed data
-		for _, layerType := range decoded {
-			switch layerType {
-			case layers.LayerTypeIPv4:
-				srcIP = ip4.SrcIP.String()
-				dstIP = ip4.DstIP.String()
-				protocol = uint8(ip4.Protocol)
-			case layers.LayerTypeIPv6:
-				srcIP = ip6.SrcIP.String()
-				dstIP = ip6.DstIP.String()
-				protocol = uint8(ip6.NextHeader)
-			case layers.LayerTypeTCP:
-				srcPort = uint16(tcp.SrcPort)
-				dstPort = uint16(tcp.DstPort)
-			case layers.LayerTypeUDP:
-				srcPort = uint16(udp.SrcPort)
-				dstPort = uint16(udp.DstPort)
-			case layers.LayerTypeSCTP:
-				srcPort = uint16(sctp.SrcPort)
-				dstPort = uint16(sctp.DstPort)
-			}
-		}
-
-		// Extract targetIP early — needed for both silencing and metadata
-		parts := strings.Split(prefix, " ")
+		parts := strings.Split(logPrefix, " ")
 		var targetIP, direction string
 		if len(parts) > 1 {
 			direction = parts[1]
 		}
 		if direction == "Egress" || direction == "OUTPUT" {
-			targetIP = srcIP
+			targetIP = info.srcIP
 		} else if direction == "Ingress" || direction == "INPUT" {
-			targetIP = dstIP
+			targetIP = info.dstIP
 		}
 
 		// Quota Log Silencer:
@@ -291,14 +392,14 @@ func (ne *NetworkPolicyEnforcer) monitorLoggedPackets() {
 		isNamedPolicy := policyName != "" && policyName != "Default" && policyName != "Host"
 
 		if isNamedPolicy {
-			silencerKey := fmt.Sprintf("%s-%s", targetIP, prefix)
+			silencerKey := fmt.Sprintf("%s-%s", targetIP, logPrefix)
 			if _, silenced := ne.QuotaSilencer.Load(silencerKey); silenced {
 				return 0 // Already alerted for this quota window — drop silently
 			}
 			ne.QuotaSilencer.Store(silencerKey, struct{}{})
 		} else {
 			// For host/default rules, keep the 10-second flow rate limiter
-			flowKey := fmt.Sprintf("%s:%d->%s:%d/%d-%s", srcIP, srcPort, dstIP, dstPort, protocol, prefix)
+			flowKey := fmt.Sprintf("%s:%d->%s:%d/%d-%s", info.srcIP, info.srcPort, info.dstIP, info.dstPort, info.protocol, logPrefix)
 			if lastSeen, loaded := ne.LogCache.Load(flowKey); loaded {
 				if time.Since(lastSeen.(time.Time)) < 10*time.Second {
 					return 0
@@ -307,58 +408,7 @@ func (ne *NetworkPolicyEnforcer) monitorLoggedPackets() {
 			ne.LogCache.Store(flowKey, time.Now())
 		}
 
-		// Generate KubeArmor Log
-		log := tp.Log{}
-		timestamp, updatedTime := kl.GetDateTimeNow()
-
-		log.Timestamp = timestamp
-		log.UpdatedTime = updatedTime
-		log.Operation = "NetworkFirewall"
-		log.Resource = prefix
-		log.Data = fmt.Sprintf("SourceIP=%s SourcePort=%d DestinationIP=%s DestinationPort=%d Protocol=%s", srcIP, srcPort, dstIP, dstPort, getProtocolName(protocol))
-
-		action := "Audit"
-		if len(parts) > 2 {
-			action = parts[2]
-		} else if strings.Contains(prefix, "Block") {
-			action = "Block"
-		}
-
-		log.Action = action
-		if action != "Block" {
-			log.Result = "Passed"
-		} else {
-			log.Result = "Permission denied"
-		}
-
-		log.Enforcer = "NetworkPolicyEnforcer"
-
-		if isNamedPolicy {
-			log.Type = "MatchedPolicy"
-			log.PolicyName = policyName
-		} else if policyName == "Host" {
-			log.Type = "MatchedHostPolicy"
-		} else {
-			log.Type = "SystemLog"
-		}
-
-		// Attach Kubernetes Pod metadata
-		if targetIP != "" {
-			ne.EndPointsLock.RLock()
-			if ep, ok := ne.EndPoints[targetIP]; ok {
-				log.NamespaceName = ep.NamespaceName
-				log.PodName = ep.EndPointName
-
-				var labelSlice []string
-				for k, v := range ep.Labels {
-					labelSlice = append(labelSlice, k+"="+v)
-				}
-				sort.Strings(labelSlice)
-				log.Labels = strings.Join(labelSlice, ",")
-			}
-			ne.EndPointsLock.RUnlock()
-		}
-
+		log := ne.buildKubeArmorLog(info, logPrefix, parts)
 		ne.Logger.PushLog(log)
 
 		return 0
@@ -428,6 +478,11 @@ func (ne *NetworkPolicyEnforcer) UpdateNetworkSecurityPolicies(secPolicies []tp.
 
 		policyName, _ := policy.Metadata["policyName"]
 
+		policyLevel := "pod"
+		if strings.EqualFold(policy.Spec.Level, "policy") {
+			policyLevel = "policy"
+		}
+
 		var podIPs []string
 		isPodPolicy := len(policy.Spec.Selector.Identities) > 0
 		if isPodPolicy {
@@ -454,7 +509,7 @@ func (ne *NetworkPolicyEnforcer) UpdateNetworkSecurityPolicies(secPolicies []tp.
 			if ingress.Action != "" {
 				action = ingress.Action
 			}
-			rules := generateRules("Ingress", ingress.From, ingress.Ports, ingress.Interface, action, policyName, ingress.Limit, ingress.Duration, idx, &allQuotas, podIPs, isPodPolicy)
+			rules := generateRules("Ingress", ingress.From, ingress.Ports, ingress.Interface, action, policyName, ingress.Limit, ingress.Duration, idx, &allQuotas, podIPs, isPodPolicy, policyLevel)
 			newRules = append(newRules, rules...)
 
 			if ingress.Limit != "" && ingress.Duration != "" {
@@ -467,7 +522,7 @@ func (ne *NetworkPolicyEnforcer) UpdateNetworkSecurityPolicies(secPolicies []tp.
 						ne.Logger.Errf("Policy %s ingress[%d] has invalid duration %q: %v", policyName, idx, ingress.Duration, err)
 					} else if parsedDuration > 0 {
 						_ = parsedLimit // quota already registered inside generateRules
-						if isPodPolicy && len(podIPs) > 0 {
+						if isPodPolicy && len(podIPs) > 0 && policyLevel != "policy" {
 							for _, ip := range podIPs {
 								quotaName := sanitizeQuotaName(fmt.Sprintf("quota_%s_Ingress_%d_%s", policyName, idx, ip))
 								ne.setupQuotaTimer(quotaName, parsedDuration)
@@ -490,7 +545,7 @@ func (ne *NetworkPolicyEnforcer) UpdateNetworkSecurityPolicies(secPolicies []tp.
 			if egress.Action != "" {
 				action = egress.Action
 			}
-			rules := generateRules("Egress", egress.To, egress.Ports, egress.Interface, action, policyName, egress.Limit, egress.Duration, idx, &allQuotas, podIPs, isPodPolicy)
+			rules := generateRules("Egress", egress.To, egress.Ports, egress.Interface, action, policyName, egress.Limit, egress.Duration, idx, &allQuotas, podIPs, isPodPolicy, policyLevel)
 			newRules = append(newRules, rules...)
 
 			if egress.Limit != "" && egress.Duration != "" {
@@ -503,7 +558,7 @@ func (ne *NetworkPolicyEnforcer) UpdateNetworkSecurityPolicies(secPolicies []tp.
 						ne.Logger.Errf("Policy %s egress[%d] has invalid duration %q: %v", policyName, idx, egress.Duration, err)
 					} else if parsedDuration > 0 {
 						_ = parsedLimit // quota already registered inside generateRules
-						if isPodPolicy && len(podIPs) > 0 {
+						if isPodPolicy && len(podIPs) > 0 && policyLevel != "policy" {
 							for _, ip := range podIPs {
 								quotaName := sanitizeQuotaName(fmt.Sprintf("quota_%s_Egress_%d_%s", policyName, idx, ip))
 								ne.setupQuotaTimer(quotaName, parsedDuration)
@@ -616,7 +671,7 @@ func sanitizeQuotaName(name string) string {
 	return r.Replace(name)
 }
 
-func generateRules(direction string, peers []tp.NetworkPeer, ports []tp.PortType, ifaces []string, action, policyName string, limit string, duration string, ruleIdx int, quotas *[]QuotaObj, podIPs []string, isPodPolicy bool) []NetworkRule {
+func generateRules(direction string, peers []tp.NetworkPeer, ports []tp.PortType, ifaces []string, action, policyName string, limit string, duration string, ruleIdx int, quotas *[]QuotaObj, podIPs []string, isPodPolicy bool, policyLevel string) []NetworkRule {
 	var rules []NetworkRule
 
 	if isPodPolicy && len(podIPs) == 0 {
@@ -644,7 +699,10 @@ func generateRules(direction string, peers []tp.NetworkPeer, ports []tp.PortType
 		shouldLog = true
 	}
 
-	logPrefix := policyName + " " + direction + " " + action
+	logPrefix := policyName + " " + direction + " " + action + " " + policyLevel
+	if limit != "" {
+		logPrefix = logPrefix + " " + limit
+	}
 
 	// Collect CIDRs
 	var ipv4CIDRs []string
@@ -775,10 +833,20 @@ func generateRules(direction string, peers []tp.NetworkPeer, ports []tp.PortType
 
 			if hasQuota {
 				if isPodPolicy && len(pods) > 0 {
-					for _, pod := range pods {
-						quotaName := sanitizeQuotaName(fmt.Sprintf("quota_%s_%s_%d_%s", policyName, direction, ruleIdx, pod))
+					var sharedQuotaName string
+					if policyLevel == "policy" {
+						sharedQuotaName = sanitizeQuotaName(fmt.Sprintf("quota_%s_%s_%d", policyName, direction, ruleIdx))
+						*quotas = append(*quotas, QuotaObj{Name: sharedQuotaName, Limit: parsedLimitStr})
+					}
 
-						*quotas = append(*quotas, QuotaObj{Name: quotaName, Limit: parsedLimitStr})
+					for _, pod := range pods {
+						var quotaName string
+						if policyLevel == "policy" {
+							quotaName = sharedQuotaName
+						} else {
+							quotaName = sanitizeQuotaName(fmt.Sprintf("quota_%s_%s_%d_%s", policyName, direction, ruleIdx, pod))
+							*quotas = append(*quotas, QuotaObj{Name: quotaName, Limit: parsedLimitStr})
+						}
 
 						var podParts []string
 						// Interface
@@ -920,13 +988,20 @@ func generateRules(direction string, peers []tp.NetworkPeer, ports []tp.PortType
 
 			if hasQuota {
 				if isPodPolicy && len(pods) > 0 {
-					for _, pod := range pods {
-						quotaName := sanitizeQuotaName(fmt.Sprintf("quota_%s_%s_%d_%s", policyName, direction, ruleIdx, pod))
+					var sharedQuotaName string
+					if policyLevel == "policy" {
+						sharedQuotaName = sanitizeQuotaName(fmt.Sprintf("quota_%s_%s_%d", policyName, direction, ruleIdx))
+						*quotas = append(*quotas, QuotaObj{Name: sharedQuotaName, Limit: parsedLimitStr})
+					}
 
-						// No need to append to quotas again; it was done in the first branch if it executed,
-						// wait, if we have multiple protoPorts, we might add the same quota multiple times!
-						// But nftables `add quota` is idempotent, so it's fine.
-						*quotas = append(*quotas, QuotaObj{Name: quotaName, Limit: parsedLimitStr})
+					for _, pod := range pods {
+						var quotaName string
+						if policyLevel == "policy" {
+							quotaName = sharedQuotaName
+						} else {
+							quotaName = sanitizeQuotaName(fmt.Sprintf("quota_%s_%s_%d_%s", policyName, direction, ruleIdx, pod))
+							*quotas = append(*quotas, QuotaObj{Name: quotaName, Limit: parsedLimitStr})
+						}
 
 						var podParts []string
 						// Interface
@@ -1265,7 +1340,7 @@ func (ne *NetworkPolicyEnforcer) setupQuotaTimer(quotaName string, durationSecon
 	ne.QuotasLock.Lock()
 	defer ne.QuotasLock.Unlock()
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(context.Background()) // #nosec G118
 	ne.QuotaCancel[quotaName] = cancel
 
 	ticker := time.NewTicker(time.Duration(durationSeconds) * time.Second)
@@ -1278,11 +1353,41 @@ func (ne *NetworkPolicyEnforcer) setupQuotaTimer(quotaName string, durationSecon
 				return
 			case <-ticker.C:
 				// Reset the kernel quota counter
-				exec.Command("nft", "reset", "quota", "inet", "kubearmor", quotaName).Run() // #nosec G204
+				if err := exec.Command("nft", "reset", "quota", "inet", "kubearmor", quotaName).Run(); err != nil { // #nosec G204
+					ne.Logger.Warnf("failed to reset nftables quota %s: %v", quotaName, err)
+				}
 				// Re-arm the log silencer so the user gets alerted on the NEXT breach
 				ne.QuotaSilencer.Range(func(key, _ any) bool {
-					if strings.Contains(key.(string), quotaName) {
-						ne.QuotaSilencer.Delete(key)
+					keyStr := key.(string)
+					parts := strings.Split(keyStr, "-")
+					if len(parts) > 1 {
+						policyParts := strings.Split(parts[1], " ")
+						if len(policyParts) >= 2 {
+							policyName := sanitizeQuotaName(policyParts[0])
+							direction := policyParts[1]
+							if strings.Contains(quotaName, policyName) && strings.Contains(quotaName, direction) {
+								sanitizedPod := sanitizeQuotaName(parts[0])
+								// If the quotaName contains the pod IP, it must match this pod
+								if strings.Contains(quotaName, sanitizedPod) {
+									ne.QuotaSilencer.Delete(key)
+								} else {
+									// If it doesn't contain any pod IP (i.e. policy-level), delete it
+									// Let's check if the quotaName contains any other pod IP from active endpoints
+									isPodSpecific := false
+									ne.EndPointsLock.Lock()
+									for ip := range ne.EndPoints {
+										if strings.Contains(quotaName, sanitizeQuotaName(ip)) {
+											isPodSpecific = true
+											break
+										}
+									}
+									ne.EndPointsLock.Unlock()
+									if !isPodSpecific {
+										ne.QuotaSilencer.Delete(key)
+									}
+								}
+							}
+						}
 					}
 					return true
 				})
