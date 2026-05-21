@@ -524,7 +524,7 @@ func (dm *KubeArmorDaemon) UpdateContainerdContainer(ctx context.Context, contai
 			if dm.Presets != nil {
 				dm.Presets.RegisterContainer(container.ContainerID, container.PidNS, container.MntNS)
 			}
-		
+
 			if len(endPoint.SecurityPolicies) > 0 { // struct can be empty or no policies registered for the endPoint yet
 				dm.Logger.UpdateSecurityPolicies("ADDED", endPoint)
 				if dm.RuntimeEnforcer != nil && endPoint.PolicyEnabled == tp.KubeArmorPolicyEnabled {

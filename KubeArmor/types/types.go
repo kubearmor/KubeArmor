@@ -771,6 +771,8 @@ type NetworkSecuritySpec struct {
 	NodeSelector NodeSelectorType `json:"nodeSelector"`
 	Selector     SelectorType     `json:"selector"`
 
+	Level string `json:"level,omitempty"`
+
 	Ingress []IngressType `json:"ingress,omitempty"`
 	Egress  []EgressType  `json:"egress,omitempty"`
 
