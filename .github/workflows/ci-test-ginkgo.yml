@@ -64,6 +64,43 @@ jobs:
       - name: Setup a Kubernetes environment
         run: ./.github/workflows/install-k3s.sh
 
+      - name: Wait for k3s nodes and CoreDNS to be ready
+        run: |
+          set -Eeuo pipefail
+          dump_k3s_diagnostics() {
+            echo "::group::k3s diagnostics"
+            echo "Wait for k3s readiness failed; dumping cluster state..."
+            kubectl get nodes -o wide || true
+            kubectl -n kube-system get pods -o wide || true
+            kubectl get events -A --sort-by=.metadata.creationTimestamp | tail -n 100 || true
+            echo "::endgroup::"
+          }
+          trap 'dump_k3s_diagnostics' ERR
+          echo "Waiting for at least one Kubernetes node to be registered..."
+          for i in $(seq 1 60); do
+            if [ "$(kubectl get nodes --no-headers 2>/dev/null | wc -l)" -gt 0 ]; then
+              break
+            fi
+            sleep 5
+            if [ "$i" -eq 60 ]; then
+              echo "Timed out waiting for any Kubernetes node to be registered"
+              exit 1
+            fi
+          done
+          kubectl wait --for=condition=Ready node --all --timeout=5m
+          echo "Waiting for CoreDNS deployment to be created..."
+          for i in $(seq 1 60); do
+            if kubectl -n kube-system get deployment/coredns >/dev/null 2>&1; then
+              break
+            fi
+            sleep 5
+            if [ "$i" -eq 60 ]; then
+              echo "Timed out waiting for CoreDNS deployment to be created"
+              exit 1
+            fi
+          done
+          kubectl -n kube-system rollout status deployment/coredns --timeout=5m
+
       - name: Generate KubeArmor artifacts
         run: |
           #set the $IS_COVERAGE env var to 'true' to build the kubearmor-test image for coverage calculation
@@ -143,7 +180,7 @@ jobs:
           docker buildx prune -a -f
           helm upgrade --install kubearmor-operator ./deployments/helm/KubeArmorOperator -n kubearmor --create-namespace --set kubearmorOperator.image.tag=latest  --set kubearmorOperator.annotateExisting=true
           
-          kubectl rollout status --timeout=5m deployment -n kubearmor -l kubearmor-app=kubearmor-operator
+          kubectl rollout status --timeout=7m deployment -n kubearmor -l kubearmor-app=kubearmor-operator
           
           kubectl get pods -A
           if [[ ${{ steps.filter.outputs.controller }} == 'true' ]]; then
