@@ -109,28 +109,28 @@ var versionOffsets = map[string]GRPCCOffsets{
 //  1. ELF .rodata scan for an embedded version string.
 //  2. Filename/SONAME prefix match as fallback.
 func OffsetsForLib(libPath string) (GRPCCOffsets, error) {
-    ver, _ := versionStringFromELF(libPath)
-    if ver != "" {
-        if offsets, ok := lookupByVersion(ver); ok {
-            return offsets, nil
-        }
-    }
-    // Filename string fallback: "libgrpc.so.1.60.3" → matches "1.60" substring
-    base := filepath.Base(libPath)
-    if offsets, ok := lookupByFilename(base); ok {
-        return offsets, nil
-    }
-    // Soname integer fallback: "libgrpc.so.53.0.0" → soname 53 → "1.64"
-    if mapped := versionFromFilename(libPath); mapped != "" {
-        if offsets, ok := lookupByVersion(mapped); ok {
-            return offsets, nil
-        }
-    }
-    return GRPCCOffsets{}, fmt.Errorf(
-        "no known struct offsets for %s (detected version=%q); "+
-            "add an entry to grpcc.versionOffsets",
-        libPath, ver,
-    )
+	ver, _ := versionStringFromELF(libPath)
+	if ver != "" {
+		if offsets, ok := lookupByVersion(ver); ok {
+			return offsets, nil
+		}
+	}
+	// Filename string fallback: "libgrpc.so.1.60.3" → matches "1.60" substring
+	base := filepath.Base(libPath)
+	if offsets, ok := lookupByFilename(base); ok {
+		return offsets, nil
+	}
+	// Soname integer fallback: "libgrpc.so.53.0.0" → soname 53 → "1.64"
+	if mapped := versionFromFilename(libPath); mapped != "" {
+		if offsets, ok := lookupByVersion(mapped); ok {
+			return offsets, nil
+		}
+	}
+	return GRPCCOffsets{}, fmt.Errorf(
+		"no known struct offsets for %s (detected version=%q); "+
+			"add an entry to grpcc.versionOffsets",
+		libPath, ver,
+	)
 }
 
 // versionStringFromELF scans the .rodata section of the ELF binary for a
@@ -205,7 +205,7 @@ var ProcMapsPathFmt = "/proc/%d/maps"
 // memory map, or an error if none is found.
 func FindLibInProcMaps(pid int) (string, error) {
 	path := fmt.Sprintf(ProcMapsPathFmt, pid)
-	data, err := os.ReadFile(path)
+	data, err := os.ReadFile(path) // #nosec G304 -- path is ProcMapsPathFmt + validated integer PID
 	if err != nil {
 		return "", err
 	}

@@ -51,7 +51,7 @@ func InitSelfPID() {
 		// NSpid: <ns_pid> [<parent_ns_pid> ...] <host_pid>
 		// Last field is the root (host) namespace PID.
 		if len(fields) >= 3 { // need at least "NSpid:" + ns_pid + host_pid
-			fmt.Sscanf(fields[len(fields)-1], "%d", &SelfHostPID)
+			_, _ = fmt.Sscanf(fields[len(fields)-1], "%d", &SelfHostPID)
 		}
 		break
 	}
@@ -234,7 +234,7 @@ func ListContainerPIDs() ([]int, error) {
 		// Check if in a container: /proc/<pid>/cgroup contains
 		// "kubepods", "docker", "containerd", or "cri-containerd"
 		cgroupPath := fmt.Sprintf("%s/%d/cgroup", ProcRoot, pid)
-		data, err := os.ReadFile(cgroupPath)
+		data, err := os.ReadFile(cgroupPath) // #nosec G304 -- path is ProcRoot + validated integer PID
 		if err != nil {
 			continue
 		}

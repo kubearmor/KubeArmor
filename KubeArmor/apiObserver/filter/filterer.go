@@ -165,11 +165,11 @@ func (f *Filterer) ShouldTraceConnection(srcName, dstName, srcNS, dstNS string) 
 // and should never appear in user-facing API event streams. Traffic matching
 // these services is dropped early to reduce capture + processing overhead.
 var infraGRPCServices = []string{
-	"spire.api.server.",          // SPIRE server APIs (entry, bundle, agent, etc.)
-	"spire.api.agent.",           // SPIRE agent APIs
-	"spire.plugin.",              // SPIRE plugin interfaces (keymanager, nodeattestor, etc.)
-	"envoy.service.discovery.",   // Envoy xDS (ADS, CDS, LDS, etc.)
-	"envoy.service.ext_proc.",    // Envoy external processing
+	"spire.api.server.",        // SPIRE server APIs (entry, bundle, agent, etc.)
+	"spire.api.agent.",         // SPIRE agent APIs
+	"spire.plugin.",            // SPIRE plugin interfaces (keymanager, nodeattestor, etc.)
+	"envoy.service.discovery.", // Envoy xDS (ADS, CDS, LDS, etc.)
+	"envoy.service.ext_proc.",  // Envoy external processing
 }
 
 // infraAuthorities lists :authority header values (exact or prefix) that
@@ -211,4 +211,3 @@ func (f *Filterer) IsInfrastructureTraffic(authority, grpcService string) bool {
 	}
 	return false
 }
-

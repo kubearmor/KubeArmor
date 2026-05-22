@@ -74,8 +74,6 @@ type GoOffsetTable struct {
 	Offsets [GoOffMax]int64
 }
 
-
-
 // GoUProbeTarget is a Go binary that has gRPC / HTTP/2 symbols.
 type GoUProbeTarget struct {
 	// PID that uses this binary.
@@ -201,7 +199,7 @@ func ScanProc() ([]GoUProbeTarget, error) {
 		}
 
 		syms, err := resolveSymbols(ef, hostPath)
-		ef.Close()
+		_ = ef.Close() // #nosec G104 -- best-effort close of read-only ELF fd
 		if err != nil {
 			continue
 		}
@@ -255,8 +253,6 @@ func ScanProc() ([]GoUProbeTarget, error) {
 
 	return targets, nil
 }
-
-
 
 // isGoBinary checks if a binary contains Go build info.
 func isGoBinary(path string) bool {
@@ -318,4 +314,3 @@ func resolveSymbols(ef *elf.File, path string) (map[string]uint64, error) {
 
 	return result, nil
 }
-

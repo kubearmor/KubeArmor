@@ -2,7 +2,6 @@
 // Copyright 2026 Authors of KubeArmor
 // Package http2 implements HTTP/2 frame parsing for the API Observer.
 //
-//
 // The Parser maintains per-connection HPACK dynamic table state, so exactly
 // ONE Parser instance must exist per TCP connection.
 package http2

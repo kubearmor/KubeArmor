@@ -49,7 +49,7 @@ func ScanProc() ([]GRPCCTarget, error) {
 		}
 
 		mapsPath := fmt.Sprintf("/proc/%d/maps", pid)
-		data, err := os.ReadFile(mapsPath)
+		data, err := os.ReadFile(mapsPath) // #nosec G304 -- path is /proc/<integer PID>/maps
 		if err != nil {
 			continue // process may have exited between ReadDir and ReadFile
 		}

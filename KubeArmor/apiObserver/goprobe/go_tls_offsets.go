@@ -18,8 +18,8 @@ import (
 	"debug/elf"
 	"errors"
 	"fmt"
-	"io"
 	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
+	"io"
 	"os"
 	"regexp"
 	"runtime"
@@ -323,7 +323,7 @@ func findGoSymbolOffsets(fpath string, offsets map[string]*GoTlsExtendedOffset) 
 	goidOffset uint64, gStructOffset uint64,
 	netConnOffsets map[string]*NetConnOffset, err error) {
 
-	fd, err := os.Open(fpath)
+	fd, err := os.Open(fpath) // #nosec G304 -- fpath is a resolved binary path from /proc/<PID>/exe
 	if err != nil {
 		return 0, 0, nil, err
 	}
@@ -419,7 +419,7 @@ func findGoSymbolOffsets(fpath string, offsets map[string]*GoTlsExtendedOffset) 
 }
 
 func checkGoVersionFromBinary(fpath string, offset *GoTlsExtendedOffset) (bool, string, error) {
-	fd, err := os.Open(fpath)
+	fd, err := os.Open(fpath) // #nosec G304 -- fpath is a resolved binary path from /proc/<PID>/exe
 	if err != nil {
 		return false, "", err
 	}

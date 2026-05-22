@@ -640,7 +640,7 @@ func (ao *APIObserver) enrichAndEmit(trace *events.CorrelatedTrace, ev *events.D
 
 	var statusCode int32
 	if n, err := strconv.Atoi(trace.Status); err == nil && n >= math.MinInt32 && n <= math.MaxInt32 {
-		statusCode = int32(n)
+		statusCode = int32(n) // #nosec G109 -- overflow guarded by MinInt32/MaxInt32 check above
 	}
 
 	// Build pb.APIEvent.

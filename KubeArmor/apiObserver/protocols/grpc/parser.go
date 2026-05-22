@@ -22,8 +22,8 @@ import (
 	"strconv"
 	"strings"
 
-  "google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/encoding/protowire"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
@@ -261,8 +261,6 @@ func DecodePBToText(data []byte, isGzipped bool) string {
 
 	return text
 }
-
-
 
 // ParseMessage extracts a gRPC message from an HTTP/2 DATA frame body.
 // It performs LPM framing, decompression, and protobuf decoding.

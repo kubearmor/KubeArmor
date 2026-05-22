@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Authors of KubeArmor
+
 // Package http1 implements HTTP/1.x request and response frame parsing.
 //
 // Creates one parser per connection per direction:

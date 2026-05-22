@@ -69,11 +69,11 @@ func DefaultOffsetTable() GoOffsetTable {
 	ot.Offsets[GoOffHfieldSize] = 32    // sizeof(hpack.HeaderField)
 
 	// loopyWriter/encoder probe offsets (stable defaults from Pixie).
-	ot.Offsets[GoOffLoopyWriterFramer] = 40   // loopyWriter.framer offset (google.golang.org/grpc v1.60+)
-	ot.Offsets[GoOffH2SCHpackEncoder] = 120   // http2serverConn.hpackEncoder (net/http)
-	ot.Offsets[GoOffH2SCConn] = 16            // http2serverConn.conn (net.Conn interface)
-	ot.Offsets[GoOffWriteResStreamID] = 0     // http2writeResHeaders.streamID
-	ot.Offsets[GoOffWriteResEndStream] = 4    // http2writeResHeaders.endStream
+	ot.Offsets[GoOffLoopyWriterFramer] = 40 // loopyWriter.framer offset (google.golang.org/grpc v1.60+)
+	ot.Offsets[GoOffH2SCHpackEncoder] = 120 // http2serverConn.hpackEncoder (net/http)
+	ot.Offsets[GoOffH2SCConn] = 16          // http2serverConn.conn (net.Conn interface)
+	ot.Offsets[GoOffWriteResStreamID] = 0   // http2writeResHeaders.streamID
+	ot.Offsets[GoOffWriteResEndStream] = 4  // http2writeResHeaders.endStream
 
 	return ot
 }
@@ -135,5 +135,3 @@ func GetGrpcLibVersion(binaryPath string) string {
 	}
 	return ""
 }
-
-

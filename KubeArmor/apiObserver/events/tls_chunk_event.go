@@ -52,11 +52,11 @@ type TlsChunkEvent struct {
 	Flags     uint32
 
 	// Address info
-	Family uint32
-	SrcIP4 uint32
-	DstIP4 uint32
-	SrcIP6 [16]byte
-	DstIP6 [16]byte
+	Family  uint32
+	SrcIP4  uint32
+	DstIP4  uint32
+	SrcIP6  [16]byte
+	DstIP6  [16]byte
 	SrcPort uint16
 	DstPort uint16
 
