@@ -143,7 +143,7 @@ jobs:
       #     regctl image copy kubearmor/kubearmor-init:${{ steps.vars.outputs.tag }} public.ecr.aws/k9v9d5v2/kubearmor/kubearmor-init:${{ steps.vars.outputs.tag }} --digest-tags
         
       - name: Install Cosign
-        uses: sigstore/cosign-installer@main
+        uses: sigstore/cosign-installer@59acb6260d9c0ba8f4a2f9d9b48431a222b68e20 # v3.5.0
 
       - name: Get Image Digest
         id: digest
@@ -316,7 +316,7 @@ jobs:
       #     regctl image copy kubearmor/kubearmor-controller:${{ steps.tag.outputs.tag }} public.ecr.aws/k9v9d5v2/kubearmor/kubearmor-controller:${{ steps.tag.outputs.tag }}--digest-tags
 
       - name: Install Cosign
-        uses: sigstore/cosign-installer@main
+        uses: sigstore/cosign-installer@59acb6260d9c0ba8f4a2f9d9b48431a222b68e20 # v3.5.0
 
       - name: Get Image Digest
         id: digest
