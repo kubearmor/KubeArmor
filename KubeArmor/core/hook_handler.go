@@ -132,7 +132,7 @@ func (dm *KubeArmorDaemon) handleContainerCreate(container types.Container) {
 
 				// update apparmor profiles
 				if !kl.ContainsElement(endPoint.AppArmorProfiles, container.AppArmorProfile) {
-					// this path is expected to have a single componenet "apparmor-profile"
+					// this path is expected to have a single component "apparmor-profile"
 					// and this is to ensure that the filename has no path separators or parent directory references
 					if strings.Contains(container.AppArmorProfile, "/") || strings.Contains(container.AppArmorProfile, "\\") || strings.Contains(container.AppArmorProfile, "..") {
 						dm.Logger.Warnf("Invalid AppArmor profile name (%s)", container.AppArmorProfile)

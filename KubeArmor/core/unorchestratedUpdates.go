@@ -289,6 +289,7 @@ func (dm *KubeArmorDaemon) ParseAndUpdateContainerSecurityPolicy(event tp.K8sKub
 	}
 
 	kl.ObjCommaExpandFirstDupOthers(&secPolicy.Spec.Network.MatchProtocols)
+	kl.ObjCommaExpandFirstDupOthers(&secPolicy.Spec.Network.MatchDNSQueries)
 	kl.ObjCommaExpandFirstDupOthers(&secPolicy.Spec.Capabilities.MatchCapabilities)
 
 	switch secPolicy.Spec.Action {
@@ -589,6 +590,42 @@ func (dm *KubeArmorDaemon) ParseAndUpdateContainerSecurityPolicy(event tp.K8sKub
 		}
 	}
 
+	if len(secPolicy.Spec.Network.MatchDNSQueries) > 0 {
+		for idx, dns := range secPolicy.Spec.Network.MatchDNSQueries {
+			if dns.Severity == 0 {
+				if secPolicy.Spec.Network.Severity != 0 {
+					secPolicy.Spec.Network.MatchDNSQueries[idx].Severity = secPolicy.Spec.Network.Severity
+				} else {
+					secPolicy.Spec.Network.MatchDNSQueries[idx].Severity = secPolicy.Spec.Severity
+				}
+			}
+
+			if len(dns.Tags) == 0 {
+				if len(secPolicy.Spec.Network.Tags) > 0 {
+					secPolicy.Spec.Network.MatchDNSQueries[idx].Tags = secPolicy.Spec.Network.Tags
+				} else {
+					secPolicy.Spec.Network.MatchDNSQueries[idx].Tags = secPolicy.Spec.Tags
+				}
+			}
+
+			if len(dns.Message) == 0 {
+				if len(secPolicy.Spec.Network.Message) > 0 {
+					secPolicy.Spec.Network.MatchDNSQueries[idx].Message = secPolicy.Spec.Network.Message
+				} else {
+					secPolicy.Spec.Network.MatchDNSQueries[idx].Message = secPolicy.Spec.Message
+				}
+			}
+
+			if len(dns.Action) == 0 {
+				if len(secPolicy.Spec.Network.Action) > 0 {
+					secPolicy.Spec.Network.MatchDNSQueries[idx].Action = secPolicy.Spec.Network.Action
+				} else {
+					secPolicy.Spec.Network.MatchDNSQueries[idx].Action = secPolicy.Spec.Action
+				}
+			}
+		}
+	}
+
 	if len(secPolicy.Spec.Capabilities.MatchCapabilities) > 0 {
 		for idx, cap := range secPolicy.Spec.Capabilities.MatchCapabilities {
 			if cap.Severity == 0 {
@@ -666,7 +703,7 @@ func (dm *KubeArmorDaemon) ParseAndUpdateContainerSecurityPolicy(event tp.K8sKub
 		endPointIndex++
 
 		// update container rules if there exists another endpoint with same policy.Metadata["policyName"]
-		// this is for handling cases when an existing policy has been sent with modified identites - we delete security policies
+		// this is for handling cases when an existing policy has been sent with modified identities - we delete security policies
 		// from previously matched endpoint
 		for policyIndex, policy := range endPoint.SecurityPolicies {
 			if policy.Metadata["namespaceName"] == secPolicy.Metadata["namespaceName"] && policy.Metadata["policyName"] == secPolicy.Metadata["policyName"] && !kl.MatchIdentities(secPolicy.Spec.Selector.Identities, endPoint.Identities) {

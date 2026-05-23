@@ -5,6 +5,9 @@ environment:
   # The target environment to install KubeArmor in. Possible values: generic, GKE, EKS, BottleRocket, k0s, k3s, minikube, microk8s
   name: generic
 
+# Optional: override the GKE Autopilot matching-allowlist version. If empty, defaults to chart.majorMinorVersion.
+gkeAllowlistVersion: ""
+
 tls:
   enabled: false  
 

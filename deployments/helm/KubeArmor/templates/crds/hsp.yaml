@@ -314,6 +314,40 @@ spec:
                     - Audit
                     - Block
                     type: string
+                  matchDNSQueries:
+                    items:
+                      properties:
+                        action:
+                          enum:
+                          - Allow
+                          - Audit
+                          - Block
+                          type: string
+                        domain:
+                          type: string
+                        fromSource:
+                          items:
+                            properties:
+                              path:
+                                maxLength: 200
+                                pattern: ^\/+.*[^\/]$
+                                type: string
+                            type: object
+                          type: array
+                        message:
+                          type: string
+                        severity:
+                          maximum: 10
+                          minimum: 1
+                          type: integer
+                        tags:
+                          items:
+                            type: string
+                          type: array
+                      required:
+                      - domain
+                      type: object
+                    type: array
                   matchProtocols:
                     items:
                       properties:

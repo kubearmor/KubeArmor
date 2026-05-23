@@ -1276,7 +1276,6 @@ func (dm *KubeArmorDaemon) UpdateSecurityPolicy(action string, secPolicyType str
 // CreateSecurityPolicy - creates `KubeArmorPolicy` & `KubeArmorClusterPolicy` object from crd
 func (dm *KubeArmorDaemon) CreateSecurityPolicy(policyType string, securityPolicy any) (secPolicy tp.SecurityPolicy, err error) {
 	var namespace, name string
-
 	switch policyType {
 	case KubeArmorPolicy:
 		kubearmorPolicy := securityPolicy.(ksp.KubeArmorPolicy)
@@ -1390,6 +1389,7 @@ func (dm *KubeArmorDaemon) CreateSecurityPolicy(policyType string, securityPolic
 	secPolicy.Metadata["policyName"] = name
 
 	kl.ObjCommaExpandFirstDupOthers(&secPolicy.Spec.Network.MatchProtocols)
+	kl.ObjCommaExpandFirstDupOthers(&secPolicy.Spec.Network.MatchDNSQueries)
 	kl.ObjCommaExpandFirstDupOthers(&secPolicy.Spec.Capabilities.MatchCapabilities)
 
 	switch secPolicy.Spec.Action {
@@ -1652,6 +1652,42 @@ func (dm *KubeArmorDaemon) CreateSecurityPolicy(policyType string, securityPolic
 					secPolicy.Spec.Network.MatchProtocols[idx].Action = secPolicy.Spec.Network.Action
 				} else {
 					secPolicy.Spec.Network.MatchProtocols[idx].Action = secPolicy.Spec.Action
+				}
+			}
+		}
+	}
+
+	if len(secPolicy.Spec.Network.MatchDNSQueries) > 0 {
+		for idx, dns := range secPolicy.Spec.Network.MatchDNSQueries {
+			if dns.Severity == 0 {
+				if secPolicy.Spec.Network.Severity != 0 {
+					secPolicy.Spec.Network.MatchDNSQueries[idx].Severity = secPolicy.Spec.Network.Severity
+				} else {
+					secPolicy.Spec.Network.MatchDNSQueries[idx].Severity = secPolicy.Spec.Severity
+				}
+			}
+
+			if len(dns.Tags) == 0 {
+				if len(secPolicy.Spec.Network.Tags) > 0 {
+					secPolicy.Spec.Network.MatchDNSQueries[idx].Tags = secPolicy.Spec.Network.Tags
+				} else {
+					secPolicy.Spec.Network.MatchDNSQueries[idx].Tags = secPolicy.Spec.Tags
+				}
+			}
+
+			if len(dns.Message) == 0 {
+				if len(secPolicy.Spec.Network.Message) > 0 {
+					secPolicy.Spec.Network.MatchDNSQueries[idx].Message = secPolicy.Spec.Network.Message
+				} else {
+					secPolicy.Spec.Network.MatchDNSQueries[idx].Message = secPolicy.Spec.Message
+				}
+			}
+
+			if len(dns.Action) == 0 {
+				if len(secPolicy.Spec.Network.Action) > 0 {
+					secPolicy.Spec.Network.MatchDNSQueries[idx].Action = secPolicy.Spec.Network.Action
+				} else {
+					secPolicy.Spec.Network.MatchDNSQueries[idx].Action = secPolicy.Spec.Action
 				}
 			}
 		}
@@ -2013,6 +2049,7 @@ func (dm *KubeArmorDaemon) ParseAndUpdateHostSecurityPolicy(event tp.K8sKubeArmo
 	}
 
 	kl.ObjCommaExpandFirstDupOthers(&secPolicy.Spec.Network.MatchProtocols)
+	kl.ObjCommaExpandFirstDupOthers(&secPolicy.Spec.Network.MatchDNSQueries)
 	kl.ObjCommaExpandFirstDupOthers(&secPolicy.Spec.Capabilities.MatchCapabilities)
 
 	switch secPolicy.Spec.Action {
@@ -2285,6 +2322,42 @@ func (dm *KubeArmorDaemon) ParseAndUpdateHostSecurityPolicy(event tp.K8sKubeArmo
 					secPolicy.Spec.Network.MatchProtocols[idx].Action = secPolicy.Spec.Network.Action
 				} else {
 					secPolicy.Spec.Network.MatchProtocols[idx].Action = secPolicy.Spec.Action
+				}
+			}
+		}
+	}
+
+	if len(secPolicy.Spec.Network.MatchDNSQueries) > 0 {
+		for idx, dns := range secPolicy.Spec.Network.MatchDNSQueries {
+			if dns.Severity == 0 {
+				if secPolicy.Spec.Network.Severity != 0 {
+					secPolicy.Spec.Network.MatchDNSQueries[idx].Severity = secPolicy.Spec.Network.Severity
+				} else {
+					secPolicy.Spec.Network.MatchDNSQueries[idx].Severity = secPolicy.Spec.Severity
+				}
+			}
+
+			if len(dns.Tags) == 0 {
+				if len(secPolicy.Spec.Network.Tags) > 0 {
+					secPolicy.Spec.Network.MatchDNSQueries[idx].Tags = secPolicy.Spec.Network.Tags
+				} else {
+					secPolicy.Spec.Network.MatchDNSQueries[idx].Tags = secPolicy.Spec.Tags
+				}
+			}
+
+			if len(dns.Message) == 0 {
+				if len(secPolicy.Spec.Network.Message) > 0 {
+					secPolicy.Spec.Network.MatchDNSQueries[idx].Message = secPolicy.Spec.Network.Message
+				} else {
+					secPolicy.Spec.Network.MatchDNSQueries[idx].Message = secPolicy.Spec.Message
+				}
+			}
+
+			if len(dns.Action) == 0 {
+				if len(secPolicy.Spec.Network.Action) > 0 {
+					secPolicy.Spec.Network.MatchDNSQueries[idx].Action = secPolicy.Spec.Network.Action
+				} else {
+					secPolicy.Spec.Network.MatchDNSQueries[idx].Action = secPolicy.Spec.Action
 				}
 			}
 		}
@@ -2845,7 +2918,7 @@ func (dm *KubeArmorDaemon) updatEndpointsWithCM(cm *corev1.ConfigMap, action str
 		fp, fa := validateDefaultPosture("kubearmor-file-posture", &ns, cm.Data[cfg.ConfigDefaultFilePosture])
 		np, na := validateDefaultPosture("kubearmor-network-posture", &ns, cm.Data[cfg.ConfigDefaultNetworkPosture])
 		cp, ca := validateDefaultPosture("kubearmor-capabilities-posture", &ns, cm.Data[cfg.ConfigDefaultCapabilitiesPosture])
-		annotated := fa || na || ca      // if namespace is annotated for atleast one posture
+		annotated := fa || na || ca      // if namespace is annotated for at least one posture
 		fullyannotated := fa && na && ca // if namespace is fully annotated
 		posture := tp.DefaultPosture{
 			FileAction:         fp,
@@ -2876,7 +2949,7 @@ func (dm *KubeArmorDaemon) updatEndpointsWithCM(cm *corev1.ConfigMap, action str
 // UpdateDefaultPostureWithCM Function
 func (dm *KubeArmorDaemon) UpdateDefaultPostureWithCM(endPoint *tp.EndPoint, action string, namespace string, defaultPosture tp.DefaultPosture, annotated bool) {
 
-	// namespace is (partialy) annotated with posture annotation(s)
+	// namespace is (partially) annotated with posture annotation(s)
 	if annotated {
 		// update the dm.DefaultPosture[namespace]
 		dm.DefaultPostures[namespace] = defaultPosture
@@ -3034,7 +3107,7 @@ func (dm *KubeArmorDaemon) UpdateVisibility(action string, namespace string, vis
 				IMA:        visibility.IMA,
 			}
 		}
-		dm.Logger.Printf("Namespace %s visibiliy configured %+v", namespace, visibility)
+		dm.Logger.Printf("Namespace %s visibility configured %+v", namespace, visibility)
 	case deleteEvent:
 		if val, ok := dm.SystemMonitor.NamespacePidsMap[namespace]; ok {
 			for _, nskey := range val.NsKeys {

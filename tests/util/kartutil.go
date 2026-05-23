@@ -538,7 +538,7 @@ func K8sApplyFile(fileName string) error {
 		return err
 	}
 
-	// multiple yaml files seperate by ---
+	// multiple yaml files separate by ---
 	fileAsString := string(f[:])
 
 	for f := range strings.SplitSeq(fileAsString, "---") {
@@ -576,6 +576,7 @@ func K8sApplyFile(fileName string) error {
 			}
 			ksp.Spec.Network = kcV1.NetworkType{
 				MatchProtocols: append([]kcV1.MatchNetworkProtocolType{}, ksp.Spec.Network.MatchProtocols...),
+				MatchDNSQueries: append([]kcV1.MatchDNSQueryType{}, ksp.Spec.Network.MatchDNSQueries...),
 			}
 
 			result, err := k8sClient.KSPClientset.KubeArmorPolicies(ksp.Namespace).Create(context.TODO(), ksp, metav1.CreateOptions{})
@@ -595,6 +596,7 @@ func K8sApplyFile(fileName string) error {
 			}
 			csp.Spec.Network = kcV1.NetworkType{
 				MatchProtocols: append([]kcV1.MatchNetworkProtocolType{}, csp.Spec.Network.MatchProtocols...),
+				MatchDNSQueries: append([]kcV1.MatchDNSQueryType{}, csp.Spec.Network.MatchDNSQueries...),
 			}
 
 			result, err := k8sClient.KSPClientset.KubeArmorClusterPolicies().Create(context.TODO(), csp, metav1.CreateOptions{})
@@ -649,6 +651,7 @@ func K8sApplyFile(fileName string) error {
 			}
 			hsp.Spec.Network = kcV1.HostNetworkType{
 				MatchProtocols: append([]kcV1.MatchHostNetworkProtocolType{}, hsp.Spec.Network.MatchProtocols...),
+				MatchDNSQueries: append([]kcV1.MatchHostDNSQueryType{}, hsp.Spec.Network.MatchDNSQueries...),
 			}
 
 			result, err := kcClient.KubeArmorHostPolicies().Create(context.TODO(), hsp, metav1.CreateOptions{})
@@ -711,7 +714,7 @@ func K8sRuntime() string {
 	return splitStr[0]
 }
 
-// RunDockerCommand() executes docker commmands
+// RunDockerCommand() executes docker commands
 func RunDockerCommand(cmdParts []string) (string, error) {
 	if len(cmdParts) == 0 {
 		return "", errors.New("empty command")

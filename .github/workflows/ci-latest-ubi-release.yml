@@ -1,0 +1,329 @@
+name: ci-latest-ubi-release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag which has to be updated"
+        type: "string"
+        required: false
+  push: 
+    branches:
+      - "main"
+      - "v*"
+    paths:
+      - "KubeArmor/**"
+      - "protobuf/**"
+      - ".github/workflows/ci-latest-ubi-release.yml"
+      - "pkg/**"
+      - "!STABLE-RELEASE"
+
+  create:
+    branches:
+      - "v*"
+
+# Declare default permissions as read only.
+permissions: read-all
+
+jobs:
+  check:
+    name: Check what pkg were updated
+    if: github.repository == 'kubearmor/kubearmor'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    outputs:
+      kubearmor: ${{ steps.filter.outputs.kubearmor}}
+      controller: ${{ steps.filter.outputs.controller }}
+    steps:
+    - uses: actions/checkout@v4
+    - uses: dorny/paths-filter@v2
+      id: filter
+      with:
+        filters: |
+          kubearmor:
+            - "KubeArmor/**"
+            - "protobuf/**"
+          controller:
+            - 'pkg/KubeArmorController/**'
+  build:
+    name: Create KubeArmor latest release
+    needs: [check]
+    if: github.repository == 'kubearmor/kubearmor' && (needs.check.outputs.kubearmor == 'true' || ${{ github.ref }} != 'refs/heads/main')
+    runs-on: oracle-vm-16cpu-64gb-x86-64
+    permissions:
+      id-token: write
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: 'KubeArmor/go.mod'
+      - name: Install the latest LLVM toolchain
+        run: ./.github/workflows/install-llvm.sh
+
+      - name: Compile libbpf
+        run: ./.github/workflows/install-libbpf.sh
+
+      - name: Get release tag
+        id: vars
+        uses: actions/github-script@v7
+        with:
+          script: |
+            let tag;
+            if (context.eventName === 'workflow_dispatch') {
+              // Fetch tags from remote
+              tag = context.payload.inputs.tag;
+              if (tag && tag.trim().length > 0) {
+                  await exec.exec('git', ['fetch', '--tags']);
+                  core.info(`Checking out tag: ${tag}`);
+                  await exec.exec('git', ['checkout', tag]);
+              } else {
+                  const ref = context.ref;
+                  tag = ref === "refs/heads/main" ? "latest" : ref.replace(/^refs\/[^/]+\//, "");
+              }
+            } else {
+              const ref = context.ref;
+              tag = ref === "refs/heads/main" ? "latest" : ref.replace(/^refs\/[^/]+\//, "");
+            }
+            core.setOutput('tag', tag);
+            console.log(`Creating latest release with tag: ${tag}`);
+      - name: Set up Docker
+        uses: docker/setup-docker-action@v4
+        with:
+          daemon-config: |
+            {
+              "debug": true,
+              "features": {
+                "containerd-snapshotter": true
+              }
+            }      
+      - name: Login to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_AUTHTOK }}  
+
+      # - name: Set up AWS Credentials
+      #   uses: aws-actions/configure-aws-credentials@v6
+      #   with:
+      #     aws-access-key-id: ${{ secrets.AWS_ECR_ACCESS_ID }}
+      #     aws-secret-access-key: ${{ secrets.AWS_ECR_SECRET_ID }}
+      #     aws-region: us-east-1
+  
+      # - name: Login to AWS ECR
+      #   run: |
+      #     aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws/k9v9d5v2
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+        with:
+          platforms: linux/amd64,linux/arm64/v8
+
+      - name: Install regctl
+        run: |
+          curl -L https://github.com/regclient/regclient/releases/latest/download/regctl-linux-amd64 >regctl
+          chmod 755 regctl
+          mv regctl /usr/local/bin
+
+      - name: Check install
+        run: regctl version
+
+      - name: Build KubeArmor images to Docker
+        run: GITHUB_SHA=$GITHUB_SHA ./KubeArmor/build/push_kubearmor_ubi.sh ${{ steps.vars.outputs.tag }} --push
+
+      # - name: Generate the TAG of KubeArmor in ECR
+      #   run: |
+      #     regctl image copy kubearmor/kubearmor-ubi:${{ steps.vars.outputs.tag }} public.ecr.aws/k9v9d5v2/kubearmor/kubearmor-ubi:${{ steps.vars.outputs.tag }} --digest-tags
+      #     regctl image copy kubearmor/kubearmor-init-ubi:${{ steps.vars.outputs.tag }} public.ecr.aws/k9v9d5v2/kubearmor/kubearmor-init-ubi:${{ steps.vars.outputs.tag }} --digest-tags
+
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@main
+
+      - name: Get Image Digest
+        id: digest
+        run: |
+          echo "imagedigest=$(jq -r '.["containerimage.digest"]' kubearmor-ubi.json)" >> $GITHUB_OUTPUT
+          echo "initdigest=$(jq -r '.["containerimage.digest"]' kubearmor-init-ubi.json)" >> $GITHUB_OUTPUT
+
+      - name: Sign the Container Images
+        run: |
+          cosign sign -r kubearmor/kubearmor-ubi@${{ steps.digest.outputs.imagedigest }} --yes
+          cosign sign -r kubearmor/kubearmor-init-ubi@${{ steps.digest.outputs.initdigest }} --yes
+
+
+  push-stable-version:
+    name: Create KubeArmor stable release
+    needs: [build, check]
+    if: github.ref != 'refs/heads/main'
+    runs-on: ubuntu-22.04
+    permissions:
+      id-token: write
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Install regctl
+        run: |
+          curl -L https://github.com/regclient/regclient/releases/latest/download/regctl-linux-amd64 >regctl
+          chmod 755 regctl
+          mv regctl /usr/local/bin
+
+      - name: Check install
+        run: regctl version
+
+      - name: Get tag
+        id: match
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const stableBranch = fs.readFileSync('STABLE-RELEASE', 'utf8').trim();
+            const ref = context.ref;
+            const isMatch = ref === `refs/heads/${stableBranch}`;
+            core.setOutput('tag', isMatch.toString());
+
+
+      - name: Login to Docker Hub
+        if: steps.match.outputs.tag == 'true'
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_AUTHTOK }}
+              
+      # - name: Set up AWS Credentials
+      #   if: steps.match.outputs.tag == 'true'
+      #   uses: aws-actions/configure-aws-credentials@v6
+      #   with:
+      #     aws-access-key-id: ${{ secrets.AWS_ECR_ACCESS_ID }}
+      #     aws-secret-access-key: ${{ secrets.AWS_ECR_SECRET_ID }}
+      #     aws-region: us-east-1
+  
+      # - name: Login to AWS ECR
+      #   if: steps.match.outputs.tag == 'true'
+      #   run: |
+      #     aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws/k9v9d5v2
+            
+      - name: Generate the stable version of KubeArmor in Docker Hub
+        if: steps.match.outputs.tag == 'true'
+        run: |
+          STABLE_VERSION=`cat STABLE-RELEASE`
+          regctl image copy kubearmor/kubearmor-ubi:$STABLE_VERSION kubearmor/kubearmor-ubi:stable --digest-tags
+          regctl image copy kubearmor/kubearmor-init-ubi:$STABLE_VERSION kubearmor/kubearmor-init-ubi:stable --digest-tags
+
+      # - name: Generate the stable version of KubeArmor in ECR
+      #   if: steps.match.outputs.tag == 'true'
+      #   run: |
+      #     STABLE_VERSION=`cat STABLE-RELEASE`
+      #     regctl image copy kubearmor/kubearmor-ubi:$STABLE_VERSION public.ecr.aws/k9v9d5v2/kubearmor/kubearmor-ubi:stable --digest-tags
+      #     regctl image copy kubearmor/kubearmor-init-ubi:$STABLE_VERSION public.ecr.aws/k9v9d5v2/kubearmor/kubearmor-init-ubi:stable --digest-tags
+
+  kubearmor-controller-release:
+    name: Build & Push KubeArmorController
+    needs: [check]
+    if: github.repository == 'kubearmor/kubearmor' && (needs.check.outputs.controller == 'true' || ${{ github.ref }} != 'refs/heads/main')
+    defaults:
+      run:
+        working-directory: ./pkg/KubeArmorController
+    runs-on: oracle-vm-16cpu-64gb-x86-64
+    permissions:
+      id-token: write
+    timeout-minutes: 150    
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install regctl
+        run: |
+          curl -L https://github.com/regclient/regclient/releases/latest/download/regctl-linux-amd64 >regctl
+          chmod 755 regctl
+          mv regctl /usr/local/bin
+
+      - name: Check install
+        run: regctl version
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: 'KubeArmor/go.mod'
+      - name: Set up Docker
+        uses: docker/setup-docker-action@v4
+        with:
+          daemon-config: |
+            {
+              "debug": true,
+              "features": {
+                "containerd-snapshotter": true
+              }
+            }  
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+        with:
+          platforms: linux/amd64,linux/arm64/v8
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_AUTHTOK }}
+
+      # - name: Set up AWS Credentials
+      #   uses: aws-actions/configure-aws-credentials@v6
+      #   with:
+      #     aws-access-key-id: ${{ secrets.AWS_ECR_ACCESS_ID }}
+      #     aws-secret-access-key: ${{ secrets.AWS_ECR_SECRET_ID }}
+      #     aws-region: us-east-1
+  
+      # - name: Login to AWS ECR
+      #   run: |
+      #     aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws/k9v9d5v2
+
+      - name: Get tag
+        id: tag
+        uses: actions/github-script@v7
+        with:
+          script: |
+            let tag;
+            if (context.eventName === 'workflow_dispatch') {
+              // Fetch tags from remote
+              tag = context.payload.inputs.tag;
+              if (tag && tag.trim().length > 0) {
+                  await exec.exec('git', ['fetch', '--tags']);
+                  core.info(`Checking out tag: ${tag}`);
+                  await exec.exec('git', ['checkout', tag]);
+              } else {
+                  const ref = context.ref;
+                  tag = ref === "refs/heads/main" ? "latest" : ref.replace(/^refs\/[^/]+\//, "");
+              }
+            } else {
+              const ref = context.ref;
+              tag = ref === "refs/heads/main" ? "latest" : ref.replace(/^refs\/[^/]+\//, "");
+            }
+            core.setOutput('tag', tag);
+
+      - name: Build & Push KubeArmorController
+        run: make docker-buildx-ubi TAG=${{ steps.tag.outputs.tag }} BUILD_MODE=--push
+
+      # - name: Push KubeArmor controller to ECR
+      #   run: |
+      #     regctl image copy kubearmor/kubearmor-controller-ubi:${{ steps.tag.outputs.tag }} public.ecr.aws/k9v9d5v2/kubearmor/kubearmor-controller-ubi:${{ steps.tag.outputs.tag }}--digest-tags
+
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@main
+
+      - name: Get Image Digest
+        id: digest
+        run: |
+          echo "imagedigest=$(jq -r '.["containerimage.digest"]' kubearmor-controller-ubi.json)" >> $GITHUB_OUTPUT
+
+      - name: Sign the Container Images
+        run: |
+          cosign sign -r kubearmor/kubearmor-controller-ubi@${{ steps.digest.outputs.imagedigest }} --yes
+

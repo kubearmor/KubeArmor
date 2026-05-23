@@ -15,14 +15,16 @@ spec:
   defaultNetworkPosture: block
   defaultVisibility: process,file,network,capabilities
   kubearmorImage:
-    image: kubearmor/kubearmor-ubi-test:latest
+    image: kubearmor/kubearmor-ubi:latest
     imagePullPolicy: Never
   kubearmorInitImage:
-    image: kubearmor/kubearmor-test-init:latest
+    image: kubearmor/kubearmor-init-ubi:latest
     imagePullPolicy: Never
   kubearmorRelayImage:
+    # TODO: once relay ubi image workflow has been setup
+    # update here
     image: docker.io/kubearmor/kubearmor-relay-server:latest
     imagePullPolicy: Always
   kubearmorControllerImage:
-    image: docker.io/kubearmor/kubearmor-controller:latest
+    image: docker.io/kubearmor/kubearmor-controller-ubi:latest
     imagePullPolicy: Always

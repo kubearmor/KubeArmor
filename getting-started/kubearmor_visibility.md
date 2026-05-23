@@ -336,7 +336,7 @@ KubeArmor has the ability to let the user select what kind of events have to be 
   # ls
   ```
   Now, we can notice that no logs have been generated for the above command and logs with only `Operation: Network` are shown.
-  >**Note** If telemetry is disabled, the user wont get audit event even if there is an audit rule.
+ >**Note** If telemetry is disabled, the user won't get audit event even if there is an audit rule.
 
   >**Note** Only the logs are affected by changing the visibility, we still get all the alerts that are generated.
 

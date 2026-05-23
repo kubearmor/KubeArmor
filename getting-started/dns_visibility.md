@@ -8,11 +8,11 @@ To gain the visibility, it uses `kprobe/udp_sendmsg` to access the payload of a 
 2. destination address (dns server)
 3. qtype (DNS record type) [A: ipv4 address, AAAA: ipv6 address]
 
-To enable the dns visiblity kubearmor supports `dns` as a visiblity flag, user can enable it at pod, namespace or global level, see [here](./kubearmor_visibility.md) for more details.
+To enable the dns visibility kubearmor supports `dns` as a visibility flag, user can enable it at pod, namespace or global level, see [here](./kubearmor_visibility.md) for more details.
 
 ## Example:
 
-1. #### annotate namespace to enable dns visiblity
+1. #### annotate namespace to enable dns visibility
 
 ```shell
 kubectl annotate ns default kubearmor-visibility=process,network,dns

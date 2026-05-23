@@ -576,7 +576,7 @@ func (fd *Feeder) PushMessage(level, message string) {
 		default:
 			counter++
 			if counter == lenMsg {
-				// Default on the last uid in Messagestruct means the msg isnt pushed into Broadcast
+				// Default on the last uid in Messagestruct means the msg isn't pushed into Broadcast
 				kg.Printf("msg channel busy, msg dropped")
 			}
 
@@ -893,7 +893,7 @@ func (fd *Feeder) PushLog(log tp.Log) {
 			default:
 				counter++
 				if counter == lenAlert {
-					// Default on the last uid in Alterstruct means the Alert isnt pushed into Broadcast
+					// Default on the last uid in Alterstruct means the Alert isn't pushed into Broadcast
 					kg.Printf("log channel busy, alert dropped.")
 				}
 
@@ -915,7 +915,7 @@ func (fd *Feeder) PushLog(log tp.Log) {
 			default:
 				counter++
 				if counter == lenlog {
-					// Default on the last uid in Logstuct means the log isnt pushed into Broadcase
+					// Default on the last uid in Logstuct means the log isn't pushed into Broadcast
 					kg.Printf("log channel busy, log dropped.")
 				}
 			}

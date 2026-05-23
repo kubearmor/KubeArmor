@@ -35,7 +35,7 @@ jobs:
       kubearmor: ${{ steps.filter.outputs.kubearmor}}
       controller: ${{ steps.filter.outputs.controller }}
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - uses: dorny/paths-filter@v2
       id: filter
       with:
@@ -54,7 +54,7 @@ jobs:
       id-token: write
     timeout-minutes: 150
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           submodules: true
 
@@ -140,7 +140,6 @@ jobs:
       # - name: Generate the TAG of KubeArmor in ECR
       #   run: |
       #     regctl image copy kubearmor/kubearmor:${{ steps.vars.outputs.tag }} public.ecr.aws/k9v9d5v2/kubearmor/kubearmor:${{ steps.vars.outputs.tag }} --digest-tags
-      #     regctl image copy kubearmor/kubearmor-ubi:${{ steps.vars.outputs.tag }} public.ecr.aws/k9v9d5v2/kubearmor/kubearmor-ubi:${{ steps.vars.outputs.tag }} --digest-tags
       #     regctl image copy kubearmor/kubearmor-init:${{ steps.vars.outputs.tag }} public.ecr.aws/k9v9d5v2/kubearmor/kubearmor-init:${{ steps.vars.outputs.tag }} --digest-tags
         
       - name: Install Cosign
@@ -151,13 +150,11 @@ jobs:
         run: |
           echo "imagedigest=$(jq -r '.["containerimage.digest"]' kubearmor.json)" >> $GITHUB_OUTPUT
           echo "initdigest=$(jq -r '.["containerimage.digest"]' kubearmor-init.json)" >> $GITHUB_OUTPUT
-          echo "ubidigest=$(jq -r '.["containerimage.digest"]' kubearmor-ubi.json)" >> $GITHUB_OUTPUT
 
       - name: Sign the Container Images
         run: |
           cosign sign -r kubearmor/kubearmor@${{ steps.digest.outputs.imagedigest }} --yes
           cosign sign -r kubearmor/kubearmor-init@${{ steps.digest.outputs.initdigest }} --yes
-          cosign sign -r kubearmor/kubearmor-ubi@${{ steps.digest.outputs.ubidigest }} --yes
 
 
   push-stable-version:
@@ -169,7 +166,7 @@ jobs:
       id-token: write
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           ref: main
 
@@ -219,7 +216,6 @@ jobs:
         run: |
           STABLE_VERSION=`cat STABLE-RELEASE`
           regctl image copy kubearmor/kubearmor:$STABLE_VERSION kubearmor/kubearmor:stable --digest-tags
-          regctl image copy kubearmor/kubearmor-ubi:$STABLE_VERSION kubearmor/kubearmor-ubi:stable --digest-tags
           regctl image copy kubearmor/kubearmor-init:$STABLE_VERSION kubearmor/kubearmor-init:stable --digest-tags
 
       # - name: Generate the stable version of KubeArmor in ECR
@@ -227,7 +223,6 @@ jobs:
       #   run: |
       #     STABLE_VERSION=`cat STABLE-RELEASE`
       #     regctl image copy kubearmor/kubearmor:$STABLE_VERSION public.ecr.aws/k9v9d5v2/kubearmor/kubearmor:stable --digest-tags
-      #     regctl image copy kubearmor/kubearmor-ubi:$STABLE_VERSION public.ecr.aws/k9v9d5v2/kubearmor/kubearmor-ubi:stable --digest-tags
       #     regctl image copy kubearmor/kubearmor-init:$STABLE_VERSION public.ecr.aws/k9v9d5v2/kubearmor/kubearmor-init:stable --digest-tags
 
   kubearmor-controller-release:
@@ -242,7 +237,7 @@ jobs:
       id-token: write
     timeout-minutes: 150    
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Install regctl
         run: |

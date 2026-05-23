@@ -96,15 +96,27 @@ run: manifests generate fmt vet ## Run a controller from your host.
 
 .PHONY: docker-build
 docker-build: build ## Build docker image with the manager.
-	docker build -t ${IMG}:${TAG} -t ${IMG}:latest --build-arg VERSION=${TAG} .
+	docker build -t ${IMG}:${TAG} -t ${IMG}:latest --target controller --build-arg VERSION=${TAG} .
 
 docker-buildx: build ## Build docker image with the manager multiple archs.
-	docker buildx build --metadata-file kubearmor-controller.json --platform ${PLATFORM} --build-arg VERSION=${TAG} ${BUILD_MODE} -t ${IMG}:${TAG} .
+	docker buildx build --metadata-file kubearmor-controller.json --target controller --platform ${PLATFORM} --build-arg VERSION=${TAG} ${BUILD_MODE} -t ${IMG}:${TAG} .
 
 .PHONY: docker-push
 docker-push: ## Push docker image with the manager.
 	docker push ${IMG}:${TAG}
 	docker push ${IMG}:latest
+
+.PHONY: docker-build-ubi
+docker-build-ubi: build ## Build docker image with the manager.
+	docker build -t ${IMG}-ubi:${TAG} --target controller-ubi -t ${IMG}-ubi:latest --build-arg VERSION=${TAG} .
+
+docker-buildx-ubi: build ## Build docker image with the manager multiple archs.
+	docker buildx build --metadata-file kubearmor-controller-ubi.json --platform ${PLATFORM} --target controller-ubi --build-arg VERSION=${TAG} ${BUILD_MODE} -t ${IMG}-ubi:${TAG} .
+
+.PHONY: docker-push-ubi
+docker-push-ubi: ## Push docker image with the manager.
+	docker push ${IMG}-ubi:${TAG}
+	docker push ${IMG}-ubi:latest
 
 client/gen:
 	@echo "--> Running code-generator to generate clients"

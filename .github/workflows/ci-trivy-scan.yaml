@@ -8,7 +8,7 @@ on:
     paths:
       - "KubeArmor/**"
       - "protobuf/**"
-      - ".github/workflows/ci-latest-release.yml"
+      - ".github/workflows/ci-trivy-scan.yaml"
       - "pkg/**"
       - "!STABLE-RELEASE"
 
@@ -28,7 +28,7 @@ jobs:
     timeout-minutes: 150
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           submodules: true
 
@@ -83,7 +83,6 @@ jobs:
       - name: Save images to tar for Trivy Scan
         run: |
           docker save -o kubearmor-init.tar kubearmor/kubearmor-init:latest
-          docker save -o kubearmor-ubi.tar kubearmor/kubearmor-ubi:latest
           docker save -o kubearmor.tar kubearmor/kubearmor:latest
           if [[ ${{ steps.filter.outputs.operator }} == 'true' ]]; then
             docker save -o kubearmor-operator.tar kubearmor/kubearmor-operator:latest
@@ -102,19 +101,7 @@ jobs:
           ignore-unfixed: true
           vuln-type: 'os,library'
           severity: 'CRITICAL,HIGH'
-        continue-on-error: true  
-
-      - name: Run Trivy vulnerability scanner on kubearmor-ubi
-        id: scan_ubi
-        uses: aquasecurity/trivy-action@0.35.0
-        with:
-          input: kubearmor-ubi.tar
-          format: 'table'
-          exit-code: '1'
-          ignore-unfixed: true
-          vuln-type: 'os,library'
-          severity: 'CRITICAL,HIGH'  
-        continue-on-error: true    
+        continue-on-error: true 
 
       - name: Run Trivy vulnerability scanner on kubearmor
         id: scan_main
@@ -166,14 +153,6 @@ jobs:
             any_scan_failed=true
           else
             echo "✅ kubearmor-init: PASSED"
-          fi
-
-          # Check kubearmor-ubi scan result
-          if [[ "${{ steps.scan_ubi.outcome }}" == "failure" ]]; then
-            echo "❌ kubearmor-ubi: FAILED (Vulnerabilities found)"
-            any_scan_failed=true
-          else
-            echo "✅ kubearmor-ubi: PASSED"
           fi
 
           # Check kubearmor scan result
