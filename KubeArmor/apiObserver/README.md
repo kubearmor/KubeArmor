@@ -171,15 +171,15 @@ This batching reduces per-event gRPC overhead and mutex contention.
 
 ## Configuration
 
-| Parameter | CLI Flag | Default | Description |
-|-----------|----------|---------|-------------|
-| Enable | `--enableAPIObserver` | `false` | Master switch for the API Observer |
-| Excluded ports | `--apiObserverExcludedPorts` | K8s infra ports | Comma-separated port list for BPF-level filtering |
-| Untracked namespaces | ConfigMap `untrackedNs` | `kube-system, kubearmor, agents` | Namespaces excluded from tracing |
-| Blocked authorities | ConfigMap `apiBlockedAuthorities` | (none) | Additional `:authority` prefixes to filter |
-| Procfs mount | `--procfsMount` | `/proc` | Host procfs path for container environments |
+| Parameter | CLI Flag | Default | Runtime Configurable | Description |
+|-----------|----------|---------|---------------------|-------------|
+| Enable | `--enableAPIObserver` | `false` | restart required | Master switch for the API Observer |
+| Excluded ports | `--apiExcludedPorts` | (none) | Yes | Comma-separated port list for BPF-level filtering |
+| Blocked authorities | `--apiBlockedAuthorities` | (none) | Yes | Additional `:authority` prefixes to filter |
+| Untracked namespaces | ConfigMap `untrackedNs` | `kube-system, kubearmor, agents` | Yes | Namespaces excluded from tracing |
+| Procfs mount | `--procfsMount` | `/proc` | restart required | Host procfs path for container environments |
 
-See [Configurable Port Filter](docs/configurable-port-filter.md) for detailed port filtering documentation.
+Port exclusions and blocked authorities can be updated at runtime via ConfigMap changes or config file modifications — the BPF port exclusion map and connection filter cache are automatically re-synced.
 
 ## Output Format
 

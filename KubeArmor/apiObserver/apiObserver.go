@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"io"
 	"math"
-
 	"net"
 	"path/filepath"
 	"strconv"
@@ -72,7 +71,7 @@ type APIObserver struct {
 	goH2SingleHeaderEvents  *ringbuf.Reader
 	goH2SingleHeaderChannel chan []byte
 
-	// Kubeshark-style TLS chunk perf reader (ks_chunks_buffer).
+	// TLS chunk perf reader (ks_chunks_buffer).
 	ksTlsChunksReader *perf.Reader
 
 	// Pipeline components.
@@ -335,20 +334,32 @@ func (ao *APIObserver) attachKsFdTracepoints() error {
 		prog           *ebpf.Program
 		kprobeFallback []string
 	}{
-		{"syscalls", "sys_enter_read", ao.objs.KsSysEnterRead,
-			[]string{"__x64_sys_read", "ksys_read", "__arm64_sys_read"}},
-		{"syscalls", "sys_enter_write", ao.objs.KsSysEnterWrite,
-			[]string{"__x64_sys_write", "ksys_write", "__arm64_sys_write"}},
-		{"syscalls", "sys_enter_recvfrom", ao.objs.KsSysEnterRecvfrom,
-			[]string{"__x64_sys_recvfrom", "__arm64_sys_recvfrom"}},
-		{"syscalls", "sys_enter_sendto", ao.objs.KsSysEnterSendto,
-			[]string{"__x64_sys_sendto", "__arm64_sys_sendto"}},
+		{
+			"syscalls", "sys_enter_read", ao.objs.KsSysEnterRead,
+			[]string{"__x64_sys_read", "ksys_read", "__arm64_sys_read"},
+		},
+		{
+			"syscalls", "sys_enter_write", ao.objs.KsSysEnterWrite,
+			[]string{"__x64_sys_write", "ksys_write", "__arm64_sys_write"},
+		},
+		{
+			"syscalls", "sys_enter_recvfrom", ao.objs.KsSysEnterRecvfrom,
+			[]string{"__x64_sys_recvfrom", "__arm64_sys_recvfrom"},
+		},
+		{
+			"syscalls", "sys_enter_sendto", ao.objs.KsSysEnterSendto,
+			[]string{"__x64_sys_sendto", "__arm64_sys_sendto"},
+		},
 		// sendmsg/recvmsg: required for Java NIO (SocketChannelImpl)
 		// and gRPC-C which use these syscalls instead of write/read.
-		{"syscalls", "sys_enter_sendmsg", ao.objs.KsSysEnterSendmsg,
-			[]string{"__x64_sys_sendmsg", "__arm64_sys_sendmsg"}},
-		{"syscalls", "sys_enter_recvmsg", ao.objs.KsSysEnterRecvmsg,
-			[]string{"__x64_sys_recvmsg", "__arm64_sys_recvmsg"}},
+		{
+			"syscalls", "sys_enter_sendmsg", ao.objs.KsSysEnterSendmsg,
+			[]string{"__x64_sys_sendmsg", "__arm64_sys_sendmsg"},
+		},
+		{
+			"syscalls", "sys_enter_recvmsg", ao.objs.KsSysEnterRecvmsg,
+			[]string{"__x64_sys_recvmsg", "__arm64_sys_recvmsg"},
+		},
 	}
 
 	for _, tp := range fdEntryProbes {
@@ -366,10 +377,14 @@ func (ao *APIObserver) attachKsFdTracepoints() error {
 		prog           *ebpf.Program
 		kprobeFallback []string
 	}{
-		{"syscalls", "sys_exit_read", ao.objs.KsSysExitRead,
-			[]string{"__x64_sys_read", "ksys_read", "__arm64_sys_read"}},
-		{"syscalls", "sys_exit_write", ao.objs.KsSysExitWrite,
-			[]string{"__x64_sys_write", "ksys_write", "__arm64_sys_write"}},
+		{
+			"syscalls", "sys_exit_read", ao.objs.KsSysExitRead,
+			[]string{"__x64_sys_read", "ksys_read", "__arm64_sys_read"},
+		},
+		{
+			"syscalls", "sys_exit_write", ao.objs.KsSysExitWrite,
+			[]string{"__x64_sys_write", "ksys_write", "__arm64_sys_write"},
+		},
 	}
 
 	for _, tp := range fdExitProbes {
@@ -387,10 +402,14 @@ func (ao *APIObserver) attachKsFdTracepoints() error {
 		prog           *ebpf.Program
 		kprobeFallback []string
 	}{
-		{"syscalls", "sys_enter_accept4", ao.objs.KsSysEnterAccept4,
-			[]string{"__x64_sys_accept4", "__sys_accept4", "__arm64_sys_accept4"}},
-		{"syscalls", "sys_enter_connect", ao.objs.KsSysEnterConnect,
-			[]string{"__x64_sys_connect", "__arm64_sys_connect"}},
+		{
+			"syscalls", "sys_enter_accept4", ao.objs.KsSysEnterAccept4,
+			[]string{"__x64_sys_accept4", "__sys_accept4", "__arm64_sys_accept4"},
+		},
+		{
+			"syscalls", "sys_enter_connect", ao.objs.KsSysEnterConnect,
+			[]string{"__x64_sys_connect", "__arm64_sys_connect"},
+		},
 	}
 
 	for _, tp := range connEntryProbes {
@@ -408,10 +427,14 @@ func (ao *APIObserver) attachKsFdTracepoints() error {
 		prog           *ebpf.Program
 		kprobeFallback []string
 	}{
-		{"syscalls", "sys_exit_accept4", ao.objs.KsSysExitAccept4,
-			[]string{"__x64_sys_accept4", "__sys_accept4", "do_accept", "__arm64_sys_accept4"}},
-		{"syscalls", "sys_exit_connect", ao.objs.KsSysExitConnect,
-			[]string{"__x64_sys_connect", "__arm64_sys_connect"}},
+		{
+			"syscalls", "sys_exit_accept4", ao.objs.KsSysExitAccept4,
+			[]string{"__x64_sys_accept4", "__sys_accept4", "do_accept", "__arm64_sys_accept4"},
+		},
+		{
+			"syscalls", "sys_exit_connect", ao.objs.KsSysExitConnect,
+			[]string{"__x64_sys_connect", "__arm64_sys_connect"},
+		},
 	}
 
 	for _, tp := range connExitProbes {
@@ -856,7 +879,9 @@ func (ao *APIObserver) attachSSLUprobes() {
 	defer func() {
 		for _, info := range tracked {
 			for _, l := range info.links {
-				l.Close()
+				if err := l.Close(); err != nil {
+					ao.Logger.Err(err.Error())
+				}
 			}
 		}
 	}()
@@ -1134,10 +1159,15 @@ func (ao *APIObserver) cleanupDeadSSLPIDs(tracked map[uint64]*sslPidInfo) {
 		}
 		// Process is dead — close uprobe links.
 		for _, l := range info.links {
-			l.Close()
+			if err := l.Close(); err != nil {
+				ao.Logger.Err(err.Error())
+			}
 		}
 		// Remove per-TGID BPF map entries.
-		ao.objs.SslSymaddrs.Delete(uint32(info.pid))
+		err := ao.objs.SslSymaddrs.Delete(uint32(info.pid))
+		if err != nil {
+			ao.Logger.Err("Failed to delete SSL SymAddrs")
+		}
 		delete(tracked, key)
 		ao.Logger.Printf("SSL: cleaned up dead PID %d", info.pid)
 	}
@@ -1692,34 +1722,13 @@ func (ao *APIObserver) populateProtocolConfig() {
 	ao.Logger.Print("Protocol-aware capture config populated")
 }
 
-// defaultExcludedPorts lists Kubernetes control-plane and infrastructure ports
-// that should not be traced. Populated into BPF port_exclusion_map at startup.
-var defaultExcludedPorts = []uint16{
-	6443,  // kube-apiserver
-	2379,  // etcd client
-	2380,  // etcd peer
-	10250, // kubelet API
-	10255, // kubelet read-only
-	10256, // kube-proxy health
-	9091,  // prometheus pushgateway
-	9099,  // calico felix
-	9100,  // node-exporter
-}
-
-// populatePortExclusions writes default + user-configured excluded ports into
-// BPF port_exclusion_map. Called once at startup.
+// populatePortExclusions writes user-configured excluded ports into the BPF
+// port_exclusion_map. By default no ports are excluded — only ports explicitly
+// passed via the apiExcludedPorts flag/config are filtered.
 func (ao *APIObserver) populatePortExclusions() {
 	excluded := uint8(1)
 	count := 0
-	for _, port := range defaultExcludedPorts {
-		if err := ao.objs.PortExclusionMap.Put(port, excluded); err != nil {
-			ao.Logger.Warnf("Failed to set port_exclusion_map[%d]: %v", port, err)
-		} else {
-			count++
-		}
-	}
 
-	// Merge user-configured excluded ports from config.
 	if extra := cfg.GlobalCfg.ConfigApiExcludedPorts.Load(); extra != nil {
 		if list, ok := extra.([]string); ok {
 			for _, s := range list {
@@ -1742,6 +1751,38 @@ func (ao *APIObserver) populatePortExclusions() {
 	}
 
 	ao.Logger.Printf("Port exclusion map populated: %d ports excluded", count)
+}
+
+// SyncPortExclusions clears the BPF port_exclusion_map and connection_filter_cache,
+// then re-populates the exclusion map from the current runtime config. This allows
+// port exclusions to be changed at runtime without restarting KubeArmor.
+func (ao *APIObserver) SyncPortExclusions() {
+	if ao == nil {
+		return
+	}
+
+	// Clear the existing port exclusion map.
+	var key uint16
+	for {
+		if err := ao.objs.PortExclusionMap.NextKey(nil, &key); err != nil {
+			break
+		}
+		_ = ao.objs.PortExclusionMap.Delete(key)
+	}
+
+	// Clear the connection filter cache so existing connections are
+	// re-evaluated against the new exclusion set on their next packet.
+	var sockKey uint64
+	for {
+		if err := ao.objs.ConnectionFilterCache.NextKey(nil, &sockKey); err != nil {
+			break
+		}
+		_ = ao.objs.ConnectionFilterCache.Delete(sockKey)
+	}
+
+	// Re-populate from current config.
+	ao.populatePortExclusions()
+	ao.Logger.Print("Port exclusion map re-synced from runtime config")
 }
 
 // Lifecycle

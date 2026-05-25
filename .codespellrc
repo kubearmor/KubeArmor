@@ -1,4 +1,4 @@
 [codespell]
 skip = .git,vendor,*.pb.go,go.sum,*.svg,*.png,*.jpg,*.gif,*.ico,*.woff,*.woff2,*.ttf,*.eot
-ignore-words-list = NotIn,fpt,smpt,te,nam,aks,IST,MKE
+ignore-words-list = NotIn,fpt,smpt,te,nam,aks,IST,MKE,GoUP,GOUP,ot,OT,re-use
 quiet-level = 2

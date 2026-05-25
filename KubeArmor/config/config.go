@@ -381,14 +381,8 @@ func LoadConfig() error {
 
 	GlobalCfg.ConfigUntrackedNs.Store(strings.Split(viper.GetString(ConfigUntrackedNs), ","))
 
-	// API Observer: authority blocklist (user-supplied, merged with defaults in filterer).
-	if v := viper.GetString(ConfigApiBlockedAuthorities); v != "" {
-		GlobalCfg.ConfigApiBlockedAuthorities.Store(strings.Split(v, ","))
-	}
-	// API Observer: port exclusions (merged with defaults in apiObserver).
-	if v := viper.GetString(ConfigApiExcludedPorts); v != "" {
-		GlobalCfg.ConfigApiExcludedPorts.Store(strings.Split(v, ","))
-	}
+	// API Observer authority/port config is loaded via LoadDynamicConfig()
+	// so it can be updated at runtime without restart.
 
 	GlobalCfg.LsmOrder = strings.Split(viper.GetString(LsmOrder), ",")
 
@@ -413,6 +407,8 @@ func LoadConfig() error {
 	GlobalCfg.SELinuxProfileDir = viper.GetString(ConfigSELinuxProfileDir)
 
 	GlobalCfg.NetworkPolicyEnforcer = viper.GetBool(ConfigNetworkPolicyEnforcer)
+
+	GlobalCfg.EnableAPIObserver = viper.GetBool(ConfigEnableAPIObserver)
 
 	LoadDynamicConfig()
 
@@ -461,7 +457,13 @@ func LoadDynamicConfig() {
 
 	GlobalCfg.NetworkPolicyEnforcer = viper.GetBool(ConfigNetworkPolicyEnforcer)
 
-	GlobalCfg.EnableAPIObserver = viper.GetBool(ConfigEnableAPIObserver)
+	// API Observer: dynamically configurable filters.
+	if v := viper.GetString(ConfigApiBlockedAuthorities); v != "" {
+		GlobalCfg.ConfigApiBlockedAuthorities.Store(strings.Split(v, ","))
+	}
+	if v := viper.GetString(ConfigApiExcludedPorts); v != "" {
+		GlobalCfg.ConfigApiExcludedPorts.Store(strings.Split(v, ","))
+	}
 
 	kg.Printf("Final Configuration [%+v]", GlobalCfg)
 }

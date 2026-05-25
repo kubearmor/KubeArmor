@@ -3,7 +3,7 @@
  *
  * macros.h — Compile-time constants for the API Observer BPF programs. *
  * Compile-time constants defining the protocol API between BPF code and
- * usrespace code.
+ * userspace code.
  */
 
 #pragma once

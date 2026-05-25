@@ -290,6 +290,12 @@ func findChunkedEnd(buf []byte, offset int) (int, bool, bool) {
 			}
 			return 0, false, false
 		}
+		if chunkSize < 0 || chunkSize > int64(math.MaxInt) {
+			if pos-offset > maxBodyBytes {
+				return len(buf), true, true
+			}
+			return 0, false, false
+		}
 		pos += nl + 1
 
 		if chunkSize == 0 {
@@ -336,6 +342,9 @@ func decodeChunked(wire []byte) ([]byte, error) {
 		chunkSize, err := strconv.ParseInt(strings.TrimSpace(line), 16, 64)
 		if err != nil {
 			return nil, fmt.Errorf("bad chunk size %q: %w", line, err)
+		}
+		if chunkSize < 0 || chunkSize > int64(math.MaxInt) {
+			return nil, fmt.Errorf("chunk size overflow or negative: %d", chunkSize)
 		}
 
 		pos += nl + 1
