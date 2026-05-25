@@ -664,6 +664,7 @@ func (in *KubeArmorNetworkPolicyList) DeepCopyObject() runtime.Object {
 func (in *KubeArmorNetworkPolicySpec) DeepCopyInto(out *KubeArmorNetworkPolicySpec) {
 	*out = *in
 	in.NodeSelector.DeepCopyInto(&out.NodeSelector)
+	in.Selector.DeepCopyInto(&out.Selector)
 	if in.Ingress != nil {
 		in, out := &in.Ingress, &out.Ingress
 		*out = make([]IngressType, len(*in))
