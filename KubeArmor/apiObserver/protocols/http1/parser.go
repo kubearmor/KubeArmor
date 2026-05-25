@@ -283,8 +283,8 @@ func findChunkedEnd(buf []byte, offset int) (int, bool, bool) {
 		if semi := strings.IndexByte(line, ';'); semi >= 0 {
 			line = line[:semi]
 		}
-		chunkSize, err := strconv.ParseInt(strings.TrimSpace(line), 16, 64)
-		if err != nil || chunkSize < 0 || chunkSize > int64(math.MaxInt) {
+		chunkSize, err := strconv.ParseInt(strings.TrimSpace(line), 16, strconv.IntSize)
+		if err != nil || chunkSize < 0 {
 			if pos-offset > maxBodyBytes {
 				return len(buf), true, true
 			}
@@ -305,7 +305,7 @@ func findChunkedEnd(buf []byte, offset int) (int, bool, bool) {
 			return 0, false, false
 		}
 
-		dataEnd := pos + int(chunkSize) + 2 // #nosec G109 -- overflow guarded by MaxInt check above
+		dataEnd := pos + int(chunkSize) + 2
 		if len(buf) < dataEnd {
 			// Not enough data yet. Check if we're already over the cap.
 			if pos-offset > maxBodyBytes || dataEnd-offset > maxBodyBytes {
@@ -333,11 +333,11 @@ func decodeChunked(wire []byte) ([]byte, error) {
 			line = line[:semi]
 		}
 
-		chunkSize, err := strconv.ParseInt(strings.TrimSpace(line), 16, 64)
+		chunkSize, err := strconv.ParseInt(strings.TrimSpace(line), 16, strconv.IntSize)
 		if err != nil {
 			return nil, fmt.Errorf("bad chunk size %q: %w", line, err)
 		}
-		if chunkSize < 0 || chunkSize > int64(math.MaxInt) {
+		if chunkSize < 0 {
 			return nil, fmt.Errorf("chunk size out of range: %d", chunkSize)
 		}
 
@@ -346,7 +346,7 @@ func decodeChunked(wire []byte) ([]byte, error) {
 			break
 		}
 
-		endData := pos + int(chunkSize) // #nosec G109 -- overflow guarded by MaxInt check above
+		endData := pos + int(chunkSize)
 		if endData > len(wire) {
 			body = append(body, wire[pos:]...)
 			break // Truncated body
