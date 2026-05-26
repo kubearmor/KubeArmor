@@ -2,7 +2,7 @@
 # Copyright 2026 Authors of KubeArmor
 
 # Build the manager binary
-FROM golang:1.24 AS builder
+FROM golang:1.26 AS builder
 
 WORKDIR /workspace
 # Copy the Go Modules manifests
@@ -24,7 +24,14 @@ COPY common/ common/
 # Build
 RUN CGO_ENABLED=0 GO111MODULE=on go build -a -o manager cmd/main.go
 
-FROM redhat/ubi9-minimal AS controller
+# Build controller with scratch as base image
+FROM scratch AS controller
+WORKDIR /
+COPY --from=builder /workspace/manager .
+ENTRYPOINT ["/manager"]
+
+# Build controller with ubi as base image
+FROM redhat/ubi10-minimal AS controller-ubi
 
 ARG VERSION=latest
 

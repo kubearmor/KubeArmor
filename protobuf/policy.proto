@@ -35,10 +35,16 @@ message HostSecurityPolicies {
   repeated policy policyDataList = 2;
 }
 
+message NetworkSecurityPolicies {
+  repeated string policyList = 1;
+  repeated policy policyDataList = 2;
+}
+
 message ProbeResponse {
    repeated string containerList = 1;
    map<string, ContainerData> containerMap = 2;
    map<string , HostSecurityPolicies> hostMap = 3;
+   map<string , NetworkSecurityPolicies> networkMap = 4;
 }
 
 service ProbeService {
@@ -48,4 +54,5 @@ service ProbeService {
 service PolicyService {
     rpc containerPolicy (policy) returns (response);
     rpc hostPolicy (policy) returns (response);
+    rpc networkPolicy (policy) returns (response);
 }

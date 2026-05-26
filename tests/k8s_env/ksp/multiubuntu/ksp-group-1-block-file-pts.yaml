@@ -1,0 +1,17 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: ksp-group-1-block-file-pts
+  namespace: multiubuntu
+spec:
+  severity: 5
+  message: "block file read from pts"
+  selector:
+    matchLabels:
+      group: group-1
+  file:
+    matchPaths:
+    - path: /etc/hostname
+      pts: false
+  action:
+    Block

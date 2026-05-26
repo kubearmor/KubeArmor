@@ -1,0 +1,22 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: ksp-audit-file-pattern
+spec:
+  severity: 7
+  selector:
+    matchLabels:
+      kubearmor.io/container.name: wordpress-mysql
+  tags:
+    - host
+    - filesystem
+  message: file access detected
+  action: Audit
+
+  file:
+    severity: 4
+    tags:
+      - fs-monitor
+    message: file event
+    matchPatterns:
+      - pattern: /tmp/*

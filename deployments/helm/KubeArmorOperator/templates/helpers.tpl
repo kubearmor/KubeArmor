@@ -12,8 +12,8 @@
 {{- end }}
 
 {{- define "operatorImage" }}
-{{- if .Values.global.imagePinning }}
-{{- printf "%s/%s:%s" .Values.global.kubearmor.repo .Values.global.kubearmor.images.kubearmorOperator.image .Values.global.kubearmor.images.kubearmorOperator.tag }}
+{{- if .Values.imagePinning }}
+{{- printf "%s/%s:%s" .Values.kubearmor.repo .Values.kubearmor.images.kubearmorOperator.image .Values.kubearmor.images.kubearmorOperator.tag }}
 {{- else if eq .Values.kubearmorOperator.image.tag "" }}
 {{- printf "%s:%s" .Values.kubearmorOperator.image.repository .Chart.Version }}
 {{- else }}

@@ -31,13 +31,13 @@ spec:
     - path: [absolute executable path]
       ownerOnly: [true|false]              # --> optional
       fromSource:                          # --> optional
-      - path: [absolute exectuable path]
+      - path: [absolute executable path]
     matchDirectories:
     - dir: [absolute directory path]
       recursive: [true|false]              # --> optional
       ownerOnly: [true|false]              # --> optional
       fromSource:                          # --> optional
-      - path: [absolute exectuable path]
+      - path: [absolute executable path]
     matchPatterns:
     - pattern: [regex pattern]
       ownerOnly: [true|false]              # --> optional
@@ -48,14 +48,14 @@ spec:
       readOnly: [true|false]               # --> optional
       ownerOnly: [true|false]              # --> optional
       fromSource:                          # --> optional
-      - path: [absolute exectuable path]
+      - path: [absolute executable path]
     matchDirectories:
     - dir: [absolute directory path]
       recursive: [true|false]              # --> optional
       readOnly: [true|false]               # --> optional
       ownerOnly: [true|false]              # --> optional
       fromSource:                          # --> optional
-      - path: [absolute exectuable path]
+      - path: [absolute executable path]
     matchPatterns:
     - pattern: [regex pattern]
       readOnly: [true|false]               # --> optional
@@ -65,13 +65,13 @@ spec:
     matchProtocols:
     - protocol: [TCP|tcp|UDP|udp|ICMP|icmp]
       fromSource:                          # --> optional
-      - path: [absolute exectuable path]
+      - path: [absolute executable path]
 
   capabilities:
     matchCapabilities:
     - capability: [capability name]
       fromSource:                          # --> optional
-      - path: [absolute exectuable path]
+      - path: [absolute executable path]
   
   syscalls:
     matchSyscalls:
@@ -79,17 +79,17 @@ spec:
       - syscallX
       - syscallY
       fromSource:                            # --> optional
-      - path: [absolute exectuable path]
+      - path: [absolute executable path]
       - dir: [absolute directory path]
         recursive: [true|false]              # --> optional
     matchPaths:
-    - path: [absolute directory path | absolute exectuable path]
+    - path: [absolute directory path | absolute executable path]
       recursive: [true|false]                # --> optional
       - syscall:
         - syscallX
         - syscallY
       fromSource:                            # --> optional
-      - path: [absolute exectuable path]
+      - path: [absolute executable path]
       - dir: [absolute directory path]
         recursive: [true|false]              # --> optional
 
@@ -188,7 +188,7 @@ Now, we will briefly explain how to define a security policy.
         recursive: [true|false]            # --> optional
         ownerOnly: [true|false]            # --> optional
         fromSource:                        # --> optional
-        - path: [absolute exectuable path]
+        - path: [absolute executable path]
       matchPatterns:
       - pattern: [regex pattern]
         ownerOnly: [true|false]            # --> optional
@@ -282,17 +282,17 @@ syscalls:
     - syscallX
     - syscallY
     fromSource:                            # --> optional
-    - path: [absolute exectuable path]
+    - path: [absolute executable path]
     - dir: [absolute directory path]
       recursive: [true|false]              # --> optional
   matchPaths:
-  - path: [absolute directory path | absolute exectuable path]
+  - path: [absolute directory path | absolute executable path]
     recursive: [true|false]                # --> optional
     - syscall:
       - syscallX
       - syscallY
     fromSource:                            # --> optional
-    - path: [absolute exectuable path]
+    - path: [absolute executable path]
     - dir: [absolute directory path]
       recursive: [true|false]              # --> optional
 ```

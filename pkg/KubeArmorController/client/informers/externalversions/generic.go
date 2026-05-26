@@ -44,6 +44,8 @@ func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Security().V1().KubeArmorClusterPolicies().Informer()}, nil
 	case v1.SchemeGroupVersion.WithResource("kubearmorhostpolicies"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Security().V1().KubeArmorHostPolicies().Informer()}, nil
+	case v1.SchemeGroupVersion.WithResource("kubearmornetworkpolicies"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Security().V1().KubeArmorNetworkPolicies().Informer()}, nil
 	case v1.SchemeGroupVersion.WithResource("kubearmorpolicies"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Security().V1().KubeArmorPolicies().Informer()}, nil
 

@@ -43,7 +43,7 @@ func (dm *KubeArmorDaemon) ListenToNonK8sHook() {
 		return
 	}
 
-	// #nosec G302 Set the permissions of ka.sock to 777 so that rootless podman with user level priviledges can also communicate with the socket
+	// #nosec G302 Set the permissions of ka.sock to 777 so that rootless podman with user level privileges can also communicate with the socket
 	if err := os.Chmod(listenPath, 0777); err != nil {
 		dm.Logger.Warnf("Failed to set permissions on %s: %v", listenPath, err)
 	}

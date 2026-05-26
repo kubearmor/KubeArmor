@@ -262,6 +262,11 @@ func (mon *SystemMonitor) initBPFMaps() error {
 		}, cle.MapOptions{
 			PinPath: mon.PinPath,
 		})
+	if errviz != nil {
+		mon.Logger.Errf("Error Creating System Monitor Visibility Map : %s", errviz.Error())
+		// returning to avoid updates on nil visibility map
+		return errviz
+	}
 	mon.BpfNsVisibilityMap = visibilityMap
 	mon.UpdateVisibility()
 
@@ -277,15 +282,21 @@ func (mon *SystemMonitor) initBPFMaps() error {
 		}, cle.MapOptions{
 			PinPath: mon.PinPath,
 		})
+	if errconfig != nil {
+		mon.Logger.Errf("Error Creating System Monitor Config Map : %s", errconfig.Error())
+		// returning to avoid updates on nil config map
+		return errconfig
+
+	}
 	mon.BpfConfigMap = bpfConfigMap
 	if cfg.GlobalCfg.HostPolicy {
 		if err := mon.BpfConfigMap.Update(uint32(0), uint32(1), cle.UpdateAny); err != nil {
-			mon.Logger.Errf("Error Updating System Monitor Config Map to enable host visbility : %s", err.Error())
+			mon.Logger.Errf("Error Updating System Monitor Config Map to enable host visibility : %s", err.Error())
 		}
 	}
 	if cfg.GlobalCfg.Policy {
 		if err := mon.BpfConfigMap.Update(uint32(1), uint32(1), cle.UpdateAny); err != nil {
-			mon.Logger.Errf("Error Updating System Monitor Config Map to enable container visbility : %s", err.Error())
+			mon.Logger.Errf("Error Updating System Monitor Config Map to enable container visibility : %s", err.Error())
 		}
 	}
 
@@ -1038,7 +1049,7 @@ func (mon *SystemMonitor) TraceSyscall() {
 					default:
 						// channel is full, wait for a short time before retrying
 						time.Sleep(1 * time.Second)
-						mon.Logger.Warn("Event droped due to busy event channel")
+						mon.Logger.Warn("Event dropped due to busy event channel")
 					}
 
 				}
@@ -1055,7 +1066,7 @@ func (mon *SystemMonitor) TraceSyscall() {
 
 		case dataRaw, valid := <-mon.SyscallChannel:
 			if !valid {
-				mon.Logger.Debug("Invalid telemtry")
+				mon.Logger.Debug("Invalid telemetry")
 				continue
 			}
 

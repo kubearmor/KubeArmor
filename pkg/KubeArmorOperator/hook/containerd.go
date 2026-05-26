@@ -6,8 +6,8 @@ package main
 import (
 	"context"
 
-	"github.com/containerd/containerd"
-	"github.com/containerd/containerd/errdefs"
+	containerd "github.com/containerd/containerd/v2/client"
+	"github.com/containerd/errdefs"
 	"github.com/kubearmor/KubeArmor/KubeArmor/types"
 )
 

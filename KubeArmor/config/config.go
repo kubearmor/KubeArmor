@@ -23,7 +23,7 @@ type KubearmorConfig struct {
 	GRPC              string // gRPC Port to use
 	TLSEnabled        bool   // enable tls
 	TLSCertPath       string // tls certification path
-	TLSCertProvider   string // tls certficate provider
+	TLSCertProvider   string // tls certificate provider
 	LogPath           string // Log file to use
 	SELinuxProfileDir string // Directory to store SELinux profiles
 	CRISocket         string // Container runtime to use
@@ -80,6 +80,7 @@ type KubearmorConfig struct {
 
 	BatchAuditPoliciesMaxEntries     uint32 // max entries for batch audit policy map
 	BatchAuditAggregationsMaxEntries uint32 // max entries for batch audit aggregation map
+	NetworkPolicyEnforcer            bool   // enable network policy enforcement
 }
 
 // GlobalCfg Global configuration for Kubearmor
@@ -140,6 +141,7 @@ const (
 	ConfigBatchAuditAggregationsMaxEntries  string = "batchAuditAggregationsMaxEntries"
 	DefaultBatchAuditPoliciesMaxEntries     uint32 = 1
 	DefaultBatchAuditAggregationsMaxEntries uint32 = 1
+	ConfigNetworkPolicyEnforcer             string = "enableNetworkPolicyEnforcer"
 )
 
 func readCmdLineParams() {
@@ -215,6 +217,7 @@ func readCmdLineParams() {
 
 	batchAuditPoliciesMaxEntries := flag.Uint(ConfigBatchAuditPoliciesMaxEntries, uint(DefaultBatchAuditPoliciesMaxEntries), "maximum entries for the batch audit policy map")
 	batchAuditAggregationsMaxEntries := flag.Uint(ConfigBatchAuditAggregationsMaxEntries, uint(DefaultBatchAuditAggregationsMaxEntries), "maximum entries for the batch audit aggregation map")
+	networkPolicyEnforcer := flag.Bool(ConfigNetworkPolicyEnforcer, true, "Enable network policy enforcement")
 
 	flags := []string{}
 	flag.VisitAll(func(f *flag.Flag) {
@@ -297,6 +300,7 @@ func readCmdLineParams() {
 	viper.SetDefault(ConfigArgMatching, *matchArgs)
 	viper.SetDefault(ConfigBatchAuditPoliciesMaxEntries, *batchAuditPoliciesMaxEntries)
 	viper.SetDefault(ConfigBatchAuditAggregationsMaxEntries, *batchAuditAggregationsMaxEntries)
+	viper.SetDefault(ConfigNetworkPolicyEnforcer, *networkPolicyEnforcer)
 }
 
 // LoadConfig Load configuration
@@ -412,6 +416,7 @@ func LoadConfig() error {
 		return fmt.Errorf("load %s: value must be greater than zero", ConfigBatchAuditAggregationsMaxEntries)
 	}
 	GlobalCfg.BatchAuditAggregationsMaxEntries = uint32(aggregationEntries)
+	GlobalCfg.NetworkPolicyEnforcer = viper.GetBool(ConfigNetworkPolicyEnforcer)
 
 	LoadDynamicConfig()
 
@@ -457,6 +462,8 @@ func LoadDynamicConfig() {
 	GlobalCfg.EnableIMA = viper.GetBool(ConfigEnableIma)
 
 	GlobalCfg.USBDeviceHandler = viper.GetBool(ConfigUSBDeviceHandler)
+
+	GlobalCfg.NetworkPolicyEnforcer = viper.GetBool(ConfigNetworkPolicyEnforcer)
 
 	kg.Printf("Final Configuration [%+v]", GlobalCfg)
 }

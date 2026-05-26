@@ -1,0 +1,29 @@
+name: ci-codespell
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".codespellrc"
+      - ".github/workflows/ci-codespell.yml"
+      - "**/*.go"
+      - "**/*.md"
+      - "**/*.yaml"
+      - "**/*.yml"
+      - "**/*.sh"
+      - "**/*.txt"
+
+permissions: read-all
+
+jobs:
+  codespell:
+    name: Check misspelled words
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run codespell
+        uses: codespell-project/actions-codespell@v2
+        with:
+          check_hidden: true

@@ -95,11 +95,21 @@ func (ch *CrioHandler) GetContainerInfo(ctx context.Context, containerID, nodeID
 
 	container := tp.Container{}
 
+	if res == nil {
+		return tp.Container{}, fmt.Errorf("container status response is nil")
+	}
+
 	// == container base == //
 	resContainerStatus := res.Status
+	if resContainerStatus == nil {
+		return tp.Container{}, fmt.Errorf("container status is nil")
+	}
 
 	container.ContainerID = resContainerStatus.Id
-	container.ContainerName = resContainerStatus.Metadata.Name
+
+	if resContainerStatus.Metadata != nil {
+		container.ContainerName = resContainerStatus.Metadata.Name
+	}
 
 	container.NamespaceName = "Unknown"
 	container.EndPointName = "Unknown"
@@ -132,7 +142,9 @@ func (ch *CrioHandler) GetContainerInfo(ctx context.Context, containerID, nodeID
 	}
 
 	// path to container's root storage
-	container.AppArmorProfile = containerInfo.RuntimeSpec.Process.ApparmorProfile
+	if containerInfo.RuntimeSpec.Process != nil {
+		container.AppArmorProfile = containerInfo.RuntimeSpec.Process.ApparmorProfile
+	}
 	container.Privileged = containerInfo.Privileged
 
 	pid := strconv.Itoa(containerInfo.Pid)
@@ -168,8 +180,10 @@ func (ch *CrioHandler) GetCrioContainers() (map[string]struct{}, error) {
 	req := pb.ListContainersRequest{}
 
 	if containerList, err := ch.client.ListContainers(context.Background(), &req, grpc.MaxCallRecvMsgSize(kl.DefaultMaxRecvMaxSize)); err == nil {
-		for _, container := range containerList.Containers {
-			containers[container.Id] = struct{}{}
+		if containerList != nil {
+			for _, container := range containerList.Containers {
+				containers[container.Id] = struct{}{}
+			}
 		}
 
 		return containers, nil
@@ -284,7 +298,9 @@ func (dm *KubeArmorDaemon) UpdateCrioContainer(ctx context.Context, containerID,
 
 			// update NsMap
 			dm.SystemMonitor.AddContainerIDToNsMap(containerID, container.NamespaceName, container.PidNS, container.MntNS)
-			dm.RuntimeEnforcer.RegisterContainer(containerID, container.PidNS, container.MntNS)
+			if dm.RuntimeEnforcer != nil {
+				dm.RuntimeEnforcer.RegisterContainer(containerID, container.PidNS, container.MntNS)
+			}
 			if dm.Presets != nil {
 				dm.Presets.RegisterContainer(containerID, container.PidNS, container.MntNS)
 			}
@@ -349,7 +365,9 @@ func (dm *KubeArmorDaemon) UpdateCrioContainer(ctx context.Context, containerID,
 			delete(dm.SystemMonitor.Logger.ContainerNsKey, containerID)
 			// update NsMap
 			dm.SystemMonitor.DeleteContainerIDFromNsMap(containerID, container.NamespaceName, container.PidNS, container.MntNS)
-			dm.RuntimeEnforcer.UnregisterContainer(containerID)
+			if dm.RuntimeEnforcer != nil {
+				dm.RuntimeEnforcer.UnregisterContainer(containerID)
+			}
 		}
 
 		dm.Logger.Printf("Detected a container (removed/%.12s)", containerID)
@@ -380,7 +398,11 @@ func (dm *KubeArmorDaemon) MonitorCrioEvents() {
 		default:
 			containers, err := Crio.GetCrioContainers()
 			if err != nil {
-				return
+				kg.Warnf("Failed to list CRI-O containers: %v", err)
+				if !dm.reconnectCrio() {
+					return
+				}
+				continue
 			}
 
 			invalidContainers := []string{}
@@ -411,5 +433,41 @@ func (dm *KubeArmorDaemon) MonitorCrioEvents() {
 		}
 
 		time.Sleep(time.Millisecond * 50)
+	}
+}
+
+// reconnectCrio attempts to reconnect to CRI-O with backoff.
+// Returns true on success, false if StopChan is signaled during retry.
+func (dm *KubeArmorDaemon) reconnectCrio() bool {
+	const maxRetryInterval = 60 * time.Second
+	retryInterval := 5 * time.Second
+
+	for {
+		dm.Logger.Printf("Attempting to reconnect to CRI-O in %v...", retryInterval)
+
+		select {
+		case <-StopChan:
+			return false
+		case <-time.After(retryInterval):
+		}
+
+		newCrio := NewCrioHandler()
+		if newCrio == nil {
+			kg.Warn("Failed to reconnect to CRI-O")
+			retryInterval *= 2
+			if retryInterval > maxRetryInterval {
+				retryInterval = maxRetryInterval
+			}
+			continue
+		}
+
+		// Close old connection and replace handler
+		Crio.Close()
+		// Preserve the existing container map so we can diff correctly
+		newCrio.containers = Crio.containers
+		Crio = newCrio
+
+		dm.Logger.Print("Successfully reconnected to CRI-O")
+		return true
 	}
 }

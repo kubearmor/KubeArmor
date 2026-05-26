@@ -1,0 +1,15 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorHostPolicy
+metadata:
+  name: hsp-block-apt-commands
+spec:
+  nodeSelector:
+    matchLabels:
+      kubearmor.io/hostname: "*"
+  process:
+    matchPatterns:
+      - pattern: /usr/bin/apt*
+  action: Block
+  severity: 5
+  tags: [package-manager, test]
+  message: "All apt commands are blocked"

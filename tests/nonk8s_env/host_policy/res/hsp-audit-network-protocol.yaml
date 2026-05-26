@@ -1,0 +1,23 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorHostPolicy
+metadata:
+  name: hsp-audit-network-protocol
+spec:
+  nodeSelector:
+    matchLabels:
+      kubearmor.io/hostname: "*"
+
+  severity: 5
+  tags:
+    - global-tag
+  message: global-msg
+  action: Audit
+
+  network:
+    severity: 7
+    tags:
+      - network-tag
+    message: UDP is being monitored
+
+    matchProtocols:
+      - protocol: udp

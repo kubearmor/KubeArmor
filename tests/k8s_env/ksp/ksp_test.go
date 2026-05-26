@@ -332,7 +332,7 @@ var _ = Describe("Ksp", func() {
 			err = KarmorLogStart("system", "multiubuntu", "Process", ub1)
 			Expect(err).To(BeNil())
 
-			// /bin/bash -c pwd shoud passed as only /bin/ls is blocked by policy
+			// /bin/bash -c pwd should passed as only /bin/ls is blocked by policy
 
 			AssertCommand(ub1, "multiubuntu", []string{"bash", "-c", "/bin/dash -c pwd"},
 				MatchRegexp("/"), false,
@@ -377,7 +377,7 @@ var _ = Describe("Ksp", func() {
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
-			// Test 2: accesss to the permitted files and processes should be allowed
+			// Test 2: access to the permitted files and processes should be allowed
 			AssertCommand(ub3, "multiubuntu", []string{"bash", "-c", "cat /credentials/password"},
 				ContainSubstring("password file"), false,
 			)
@@ -605,9 +605,102 @@ var _ = Describe("Ksp", func() {
 
 			//ksp-group-1-allow-proc-args
 		})
+
+		It("it can block and allow process execution based on pts", func() {
+			if !strings.Contains(K8sRuntimeEnforcer(), "bpf") {
+				Skip("Skipping due to pts rule only supported by BPFLSM")
+			}
+			err := K8sApplyFile("multiubuntu/ksp-group-1-block-proc-pts.yaml")
+			Expect(err).To(BeNil())
+
+			// Test 1: Block process execution from pts
+			// Start KubeArmor Logs
+			err = KarmorLogStart("policy", "multiubuntu", "Process", ub1)
+			Expect(err).To(BeNil())
+
+			AssertCommand(ub1, "multiubuntu", []string{"bash", "-c", "sleep 1"},
+				MatchRegexp("sleep.*Permission denied"), true,
+			)
+
+			expectAlert := protobuf.Alert{
+				PolicyName: "ksp-group-1-block-proc-pts",
+				Action:     "Block",
+				Result:     "Permission denied",
+			}
+
+			resAlert, err := KarmorGetTargetAlert(5*time.Second, &expectAlert)
+			Expect(err).To(BeNil())
+			Expect(resAlert.Found).To(BeTrue())
+
+			// Test 2: Allow process execution when not spawned from pts
+			// Start KubeArmor Logs for system events (Passed executions)
+			err = KarmorLogStart("system", "multiubuntu", "Process", ub1)
+			Expect(err).To(BeNil())
+
+			AssertCommandWithoutTTY(ub1, "multiubuntu", []string{"bash", "-c", "sleep 1"},
+				MatchRegexp(".*"), false,
+			)
+
+			expectLog := protobuf.Log{
+				Resource: "/bin/sleep",
+				Result:   "Passed",
+			}
+
+			resLog, err := KarmorGetTargetLogs(5*time.Second, &expectLog)
+			Expect(err).To(BeNil())
+			Expect(resLog.Found).To(BeTrue())
+		})
 	})
 
 	Describe("Apply Files Policies", func() {
+
+		It("it can block and allow file read based on pts", func() {
+			if !strings.Contains(K8sRuntimeEnforcer(), "bpf") {
+				Skip("Skipping due to pts rule only supported by BPFLSM")
+			}
+
+			// Apply Policy
+			err := K8sApplyFile("multiubuntu/ksp-group-1-block-file-pts.yaml")
+			Expect(err).To(BeNil())
+
+			// Test 1: Block file read from pts
+			// Start KubeArmor Logs
+			err = KarmorLogStart("policy", "multiubuntu", "File", ub1)
+			Expect(err).To(BeNil())
+
+			AssertCommand(ub1, "multiubuntu", []string{"bash", "-c", "cat /etc/hostname"},
+				MatchRegexp("hostname.*Permission denied"), true,
+			)
+
+			expectAlert := protobuf.Alert{
+				PolicyName: "ksp-group-1-block-file-pts",
+				Action:     "Block",
+				Result:     "Permission denied",
+			}
+
+			resAlert, err := KarmorGetTargetAlert(5*time.Second, &expectAlert)
+			Expect(err).To(BeNil())
+			Expect(resAlert.Found).To(BeTrue())
+
+			// Test 2: Allow file read when not spawned from pts
+			// Start KubeArmor Logs
+			err = KarmorLogStart("system", "multiubuntu", "File", ub1)
+			Expect(err).To(BeNil())
+
+			AssertCommandWithoutTTY(ub1, "multiubuntu", []string{"bash", "-c", "cat /etc/hostname"},
+				MatchRegexp(".*"), false,
+			)
+
+			// verify allowed logs
+			expectLog := protobuf.Log{
+				Resource: "/etc/hostname",
+				Result:   "Passed",
+			}
+
+			resLog, err := KarmorGetTargetLogs(5*time.Second, &expectLog)
+			Expect(err).To(BeNil())
+			Expect(resLog.Found).To(BeTrue())
+		})
 
 		It("it can allow accessing a file from source path", func() {
 			// multiubuntu_test_17, github_test_05
@@ -962,7 +1055,7 @@ var _ = Describe("Ksp", func() {
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
-			// Test 2: readonly access by the owner shoudl be allowed
+			// Test 2: readonly access by the owner should be allowed
 
 			// Start KubeArmor Logs
 			err = KarmorLogStart("system", "multiubuntu", "File", ub1)
@@ -1069,7 +1162,7 @@ var _ = Describe("Ksp", func() {
 				ContainSubstring("key file 1"), false,
 			)
 
-			// Test 4: write operation by the non-owner shoudl also be blocked
+			// Test 4: write operation by the non-owner should also be blocked
 			// Start KubeArmor Logs
 			err = KarmorLogStart("policy", "multiubuntu", "File", ub3)
 			Expect(err).To(BeNil())
@@ -1172,7 +1265,7 @@ var _ = Describe("Ksp", func() {
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
-			// Test 3: write operation by the non-owner shoudl also be blocked
+			// Test 3: write operation by the non-owner should also be blocked
 			// Start KubeArmor Logs
 			err = KarmorLogStart("policy", "multiubuntu", "File", ub3)
 			Expect(err).To(BeNil())
@@ -1475,13 +1568,13 @@ var _ = Describe("Ksp", func() {
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
-			// Test 2: readonly access by the owner shoudl be allowed
+			// Test 2: readonly access by the owner should be allowed
 
 			AssertCommand(ub4, "multiubuntu", []string{"bash", "-c", "su - user1 -c 'cat /home/user1/secret_data1.txt'"},
 				MatchRegexp("secret file user1"), false,
 			)
 
-			// Test 3: access to some other file by the owner shoudl be blocked by default
+			// Test 3: access to some other file by the owner should be blocked by default
 
 			// Start KubeArmor Logs
 			err = KarmorLogStart("policy", "multiubuntu", "File", ub4)
@@ -1632,7 +1725,7 @@ var _ = Describe("Ksp", func() {
 				ContainSubstring("p"), true,
 			)
 
-			// Test 2: wrinting to the file even from source path shoould be denied
+			// Test 2: wrinting to the file even from source path should be denied
 
 			// Start KubeArmor Logs
 			err = KarmorLogStart("policy", "multiubuntu", "File", ub4)

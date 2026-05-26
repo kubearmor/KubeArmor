@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"path/filepath"
 	"reflect"
 	"regexp"
 	"strconv"
@@ -218,20 +219,24 @@ func genRuntimeVolumes(runtime, runtimeSocket, nriSocket string) (vol []corev1.V
 	// lookup socket
 	for _, socket := range common.ContainerRuntimeSocketMap[runtime] {
 		if strings.ReplaceAll(socket[1:], "/", "_") == runtimeSocket {
+			// Mount the socket's parent directory instead of the file.
+			// Socket files are recreated on runtime restart (new inode),
+			// so file mounts can become stale, while directory mounts stay valid.
+			socketDir := filepath.Dir(socket)
 			vol = append(vol, corev1.Volume{
 				Name: runtime + "-socket",
 				VolumeSource: corev1.VolumeSource{
 					HostPath: &corev1.HostPathVolumeSource{
-						Path: socket,
-						Type: &common.HostPathSocket,
+						Path: socketDir,
+						Type: &common.HostPathDirectory,
 					},
 				},
 			})
 
-			socket = common.RuntimeSocketLocation[runtime]
+			mountDir := filepath.Dir(common.RuntimeSocketLocation[runtime])
 			volMnt = append(volMnt, corev1.VolumeMount{
 				Name:      runtime + "-socket",
-				MountPath: socket,
+				MountPath: mountDir,
 				ReadOnly:  true,
 			})
 			break
@@ -241,20 +246,21 @@ func genRuntimeVolumes(runtime, runtimeSocket, nriSocket string) (vol []corev1.V
 		runtime = "nri"
 		for _, socket := range common.ContainerRuntimeSocketMap[runtime] {
 			if strings.ReplaceAll(socket[1:], "/", "_") == nriSocket {
+				socketDir := filepath.Dir(socket)
 				vol = append(vol, corev1.Volume{
 					Name: runtime + "-socket",
 					VolumeSource: corev1.VolumeSource{
 						HostPath: &corev1.HostPathVolumeSource{
-							Path: socket,
-							Type: &common.HostPathSocket,
+							Path: socketDir,
+							Type: &common.HostPathDirectory,
 						},
 					},
 				})
 
-				socket = common.RuntimeSocketLocation[runtime]
+				mountDir := filepath.Dir(common.RuntimeSocketLocation[runtime])
 				volMnt = append(volMnt, corev1.VolumeMount{
 					Name:      runtime + "-socket",
-					MountPath: socket,
+					MountPath: mountDir,
 					ReadOnly:  true,
 				})
 				break
@@ -279,6 +285,7 @@ func genSnitchRole() *rbacv1.ClusterRole {
 				},
 				Resources: []string{
 					"nodes",
+					"pods",
 				},
 			},
 		},
@@ -355,6 +362,18 @@ func deploySnitch(nodename string, runtime string) *batchv1.Job {
 							{
 								Name:  "KUBEARMOR_OCI_HOOKS",
 								Value: strconv.FormatBool(common.EnableOCIHooks),
+							},
+							{
+								Name: "POD_NAME",
+								ValueFrom: &corev1.EnvVarSource{FieldRef: &corev1.ObjectFieldSelector{
+									FieldPath: "metadata.name",
+								}},
+							},
+							{
+								Name: "POD_NAMESPACE",
+								ValueFrom: &corev1.EnvVarSource{FieldRef: &corev1.ObjectFieldSelector{
+									FieldPath: "metadata.namespace",
+								}},
 							},
 						},
 						ImagePullPolicy: corev1.PullIfNotPresent,
@@ -863,6 +882,14 @@ func (clusterWatcher *ClusterWatcher) WatchRequiredResources() {
 		if !utils.IsAlreadyExists(err) {
 			installErr = err
 			clusterWatcher.Log.Warnf("Cannot install Csp CRD, error=%s", err.Error())
+		}
+	}
+	nsp := crds.GetNspCRD()
+	nsp = addOwnership(nsp).(extv1.CustomResourceDefinition)
+	if _, err := clusterWatcher.ExtClient.ApiextensionsV1().CustomResourceDefinitions().Create(context.Background(), &nsp, metav1.CreateOptions{}); err != nil && !metav1errors.IsAlreadyExists(err) {
+		if !utils.IsAlreadyExists(err) {
+			installErr = err
+			clusterWatcher.Log.Warnf("Cannot install Nsp CRD, error=%s", err.Error())
 		}
 	}
 	// kubearmor-controller and relay-server deployments

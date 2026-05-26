@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/containerd/typeurl/v2"
 	"google.golang.org/protobuf/proto"
@@ -85,6 +86,9 @@ type ContainerdHandler struct {
 
 	k8sEventsCh    <-chan *events.Envelope
 	dockerEventsCh <-chan *events.Envelope
+
+	k8sErrCh    <-chan error
+	dockerErrCh <-chan error
 }
 
 // NewContainerdHandler Function
@@ -102,19 +106,50 @@ func NewContainerdHandler() *ContainerdHandler {
 	// Subscribe to containerd events
 
 	// docker namespace
-	ch.docker = context.Background()
 	ch.docker = namespaces.WithNamespace(context.Background(), "moby")
 
-	dockerEventsCh, _ := client.EventService().Subscribe(ch.docker, "")
+	dockerEventsCh, dockerErrCh := client.EventService().Subscribe(ch.docker, "")
 	ch.dockerEventsCh = dockerEventsCh
+	ch.dockerErrCh = dockerErrCh
 
 	// containerd namespace
 	ch.containerd = namespaces.WithNamespace(context.Background(), "k8s.io")
 
-	k8sEventsCh, _ := client.EventService().Subscribe(ch.containerd, "")
+	k8sEventsCh, k8sErrCh := client.EventService().Subscribe(ch.containerd, "")
 	ch.k8sEventsCh = k8sEventsCh
+	ch.k8sErrCh = k8sErrCh
 
 	return ch
+}
+
+// Reconnect re-establishes the containerd client connection and resubscribes to events
+func (ch *ContainerdHandler) Reconnect() error {
+	// Close existing client if present
+	if ch.client != nil {
+		if err := ch.client.Close(); err != nil {
+			kg.Warnf("Failed to close old containerd client connection: %v", err)
+		}
+	}
+
+	client, err := v2.New(strings.TrimPrefix(cfg.GlobalCfg.CRISocket, "unix://"))
+	if err != nil {
+		return fmt.Errorf("unable to reconnect to containerd: %v", err)
+	}
+	ch.client = client
+
+	// Resubscribe to docker namespace events
+	ch.docker = namespaces.WithNamespace(context.Background(), "moby")
+	dockerEventsCh, dockerErrCh := client.EventService().Subscribe(ch.docker, "")
+	ch.dockerEventsCh = dockerEventsCh
+	ch.dockerErrCh = dockerErrCh
+
+	// Resubscribe to k8s namespace events
+	ch.containerd = namespaces.WithNamespace(context.Background(), "k8s.io")
+	k8sEventsCh, k8sErrCh := client.EventService().Subscribe(ch.containerd, "")
+	ch.k8sEventsCh = k8sEventsCh
+	ch.k8sErrCh = k8sErrCh
+
+	return nil
 }
 
 // Close Function
@@ -612,13 +647,78 @@ func (dm *KubeArmorDaemon) MonitorContainerdEvents() {
 		case <-StopChan:
 			return
 
-		case envelope := <-Containerd.k8sEventsCh:
+		case err := <-Containerd.k8sErrCh:
+			kg.Warnf("Containerd k8s event subscription error: %v", err)
+			if !dm.reconnectContainerd() {
+				return
+			}
+
+		case err := <-Containerd.dockerErrCh:
+			kg.Warnf("Containerd docker event subscription error: %v", err)
+			if !dm.reconnectContainerd() {
+				return
+			}
+
+		case envelope, ok := <-Containerd.k8sEventsCh:
+			if !ok {
+				kg.Warn("Containerd k8s event channel closed")
+				if !dm.reconnectContainerd() {
+					return
+				}
+				continue
+			}
 			dm.handleContainerdEvent(envelope, Containerd.containerd)
 
-		case envelope := <-Containerd.dockerEventsCh:
+		case envelope, ok := <-Containerd.dockerEventsCh:
+			if !ok {
+				kg.Warn("Containerd docker event channel closed")
+				if !dm.reconnectContainerd() {
+					return
+				}
+				continue
+			}
 			dm.handleContainerdEvent(envelope, Containerd.docker)
 
 		}
+	}
+}
+
+// reconnectContainerd attempts to reconnect to containerd with backoff.
+// Returns true on success, false if StopChan is signaled during retry.
+func (dm *KubeArmorDaemon) reconnectContainerd() bool {
+	const maxRetryInterval = 60 * time.Second
+	retryInterval := 5 * time.Second
+
+	for {
+		dm.Logger.Printf("Attempting to reconnect to containerd in %v...", retryInterval)
+
+		select {
+		case <-StopChan:
+			return false
+		case <-time.After(retryInterval):
+		}
+
+		if err := Containerd.Reconnect(); err != nil {
+			kg.Warnf("Failed to reconnect to containerd: %v", err)
+			// exponential backoff
+			retryInterval *= 2
+			if retryInterval > maxRetryInterval {
+				retryInterval = maxRetryInterval
+			}
+			continue
+		}
+
+		dm.Logger.Print("Successfully reconnected to containerd")
+
+		// re-sync existing containers after reconnection
+		containers := Containerd.GetContainerdContainers()
+		for containerID, context := range containers {
+			if err := dm.UpdateContainerdContainer(context, containerID, 0, "start"); err != nil {
+				kg.Warnf("Failed to update containerd container %s after reconnect: %s", containerID, err.Error())
+			}
+		}
+
+		return true
 	}
 }
 

@@ -158,7 +158,7 @@ type K8sPod struct {
 	Containers      map[string]string
 	ContainerImages map[string]string
 
-	// using two maps here as it is inefficent to
+	// using two maps here as it is inefficient to
 	// obtain either from just one
 	// for storing privilegd container names
 	PrivilegedContainers map[string]struct{}
@@ -211,6 +211,24 @@ type K8sKubeArmorHostPolicy struct {
 // K8sKubeArmorHostPolicies Structure
 type K8sKubeArmorHostPolicies struct {
 	Items []K8sKubeArmorHostPolicy `json:"items"`
+}
+
+// K8sKubeArmorNetworkPolicyEvent Structure
+type K8sKubeArmorNetworkPolicyEvent struct {
+	Type   string                    `json:"type"`
+	Object K8sKubeArmorNetworkPolicy `json:"object"`
+}
+
+// K8sKubeArmorNetworkPolicy Structure
+type K8sKubeArmorNetworkPolicy struct {
+	Metadata metav1.ObjectMeta   `json:"metadata"`
+	Spec     NetworkSecuritySpec `json:"spec"`
+	Status   K8sPolicyStatus     `json:"status,omitempty"`
+}
+
+// K8sKubeArmorHostPolicies Structure
+type K8sKubeArmorNetworkPolicies struct {
+	Items []K8sKubeArmorNetworkPolicy `json:"items"`
 }
 
 // ExecEvent struct
@@ -320,6 +338,7 @@ type MatchPolicy struct {
 	OwnerOnly    bool
 	ReadOnly     bool
 	Recursive    bool
+	Pts          *bool
 
 	Regexp *regexp.Regexp
 	Native bool
@@ -381,6 +400,7 @@ type ProcessPathType struct {
 	OwnerOnly   bool              `json:"ownerOnly,omitempty"`
 	FromSource  []MatchSourceType `json:"fromSource,omitempty"`
 	AllowedArgs []string          `json:"allowedArgs,omitempty"`
+	Pts         *bool             `json:"pts,omitempty"`
 
 	Severity int      `json:"severity,omitempty"`
 	Tags     []string `json:"tags,omitempty"`
@@ -394,6 +414,7 @@ type ProcessDirectoryType struct {
 	Recursive  bool              `json:"recursive,omitempty"`
 	OwnerOnly  bool              `json:"ownerOnly,omitempty"`
 	FromSource []MatchSourceType `json:"fromSource,omitempty"`
+	Pts        *bool             `json:"pts,omitempty"`
 
 	Severity int      `json:"severity,omitempty"`
 	Tags     []string `json:"tags,omitempty"`
@@ -429,6 +450,7 @@ type FilePathType struct {
 	Path       string            `json:"path"`
 	ReadOnly   bool              `json:"readOnly,omitempty"`
 	OwnerOnly  bool              `json:"ownerOnly,omitempty"`
+	Pts        *bool             `json:"pts,omitempty"`
 	FromSource []MatchSourceType `json:"fromSource,omitempty"`
 
 	Severity int      `json:"severity,omitempty"`
@@ -443,6 +465,7 @@ type FileDirectoryType struct {
 	ReadOnly   bool              `json:"readOnly,omitempty"`
 	Recursive  bool              `json:"recursive,omitempty"`
 	OwnerOnly  bool              `json:"ownerOnly,omitempty"`
+	Pts        *bool             `json:"pts,omitempty"`
 	FromSource []MatchSourceType `json:"fromSource,omitempty"`
 
 	Severity int      `json:"severity,omitempty"`
@@ -479,16 +502,27 @@ type FileType struct {
 type NetworkProtocolType struct {
 	Protocol   string            `json:"protocol"`
 	FromSource []MatchSourceType `json:"fromSource,omitempty"`
+	Pts        *bool             `json:"pts,omitempty"`
+	Severity   int               `json:"severity,omitempty"`
+	Tags       []string          `json:"tags,omitempty"`
+	Message    string            `json:"message,omitempty"`
+	Action     string            `json:"action,omitempty"`
+}
 
-	Severity int      `json:"severity,omitempty"`
-	Tags     []string `json:"tags,omitempty"`
-	Message  string   `json:"message,omitempty"`
-	Action   string   `json:"action,omitempty"`
+// MatchDNSQueryType Structure
+type MatchDNSQueryType struct {
+	Domain     string            `json:"domain"`
+	FromSource []MatchSourceType `json:"fromSource,omitempty"`
+	Severity   int               `json:"severity,omitempty"`
+	Tags       []string          `json:"tags,omitempty"`
+	Message    string            `json:"message,omitempty"`
+	Action     string            `json:"action,omitempty"`
 }
 
 // NetworkType Structure
 type NetworkType struct {
-	MatchProtocols []NetworkProtocolType `json:"matchProtocols,omitempty"`
+	MatchProtocols  []NetworkProtocolType `json:"matchProtocols,omitempty"`
+	MatchDNSQueries []MatchDNSQueryType   `json:"matchDNSQueries,omitempty"`
 
 	Severity int      `json:"severity,omitempty"`
 	Tags     []string `json:"tags,omitempty"`
@@ -675,7 +709,7 @@ type HostSecurityPolicy struct {
 type DefaultPosture struct {
 	FileAction         string `json:"file,omitempty"`
 	NetworkAction      string `json:"network,omitempty"`
-	CapabilitiesAction string `json:"capabilties,omitempty"`
+	CapabilitiesAction string `json:"capabilities,omitempty"`
 	DeviceAction       string `json:"device,omitempty"`
 }
 
@@ -684,9 +718,73 @@ type Visibility struct {
 	File         bool `json:"file,omitempty"`
 	Process      bool `json:"process,omitempty"`
 	Network      bool `json:"network,omitempty"`
-	Capabilities bool `json:"capabilties,omitempty"`
+	Capabilities bool `json:"capabilities,omitempty"`
 	DNS          bool `json:"dns,omitempty"`
 	IMA          bool `json:"ima,omitempty"`
+}
+
+// ============================= //
+// == Network Security Policy == //
+// ============================= //
+
+// IPBlock Structure
+type IPBlock struct {
+	CIDR string `json:"cidr,omitempty"`
+}
+
+// NetworkPeer Structure
+type NetworkPeer struct {
+	IPBlock *IPBlock `json:"ipBlock,omitempty"`
+}
+
+// PortType Structure
+type PortType struct {
+	Port     string `json:"port,omitempty"`
+	EndPort  *int32 `json:"endPort,omitempty"`
+	Protocol string `json:"protocol,omitempty"`
+}
+
+// IngressType Structure
+type IngressType struct {
+	From      []NetworkPeer `json:"from,omitempty"`
+	Interface []string      `json:"iface,omitempty"`
+	Ports     []PortType    `json:"ports,omitempty"`
+
+	Severity int      `json:"severity,omitempty"`
+	Tags     []string `json:"tags,omitempty"`
+	Message  string   `json:"message,omitempty"`
+	Action   string   `json:"action"`
+}
+
+// EgressType Structure
+type EgressType struct {
+	To        []NetworkPeer `json:"to,omitempty"`
+	Interface []string      `json:"iface,omitempty"`
+	Ports     []PortType    `json:"ports,omitempty"`
+
+	Severity int      `json:"severity,omitempty"`
+	Tags     []string `json:"tags,omitempty"`
+	Message  string   `json:"message,omitempty"`
+	Action   string   `json:"action"`
+}
+
+// NetworkSecuritySpec Structure
+type NetworkSecuritySpec struct {
+	NodeSelector NodeSelectorType `json:"nodeSelector"`
+
+	Ingress []IngressType `json:"ingress,omitempty"`
+	Egress  []EgressType  `json:"egress,omitempty"`
+
+	Severity int      `json:"severity,omitempty"`
+	Tags     []string `json:"tags,omitempty"`
+	Message  string   `json:"message,omitempty"`
+	Action   string   `json:"action"`
+}
+
+// NetworkSecurityPolicy Structure
+type NetworkSecurityPolicy struct {
+	Metadata map[string]string   `json:"metadata"`
+	Spec     NetworkSecuritySpec `json:"spec"`
 }
 
 // ================== //

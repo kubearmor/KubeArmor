@@ -1,0 +1,15 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: ksp-audit-file-access
+spec:
+  severity: 7
+  selector:
+    matchLabels:
+      kubearmor.io/container.name: wordpress-mysql
+  file:
+    matchPaths:
+    - path: /etc/passwd
+    - path: /etc/shadow
+  action:
+    Audit

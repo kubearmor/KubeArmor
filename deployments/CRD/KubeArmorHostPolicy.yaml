@@ -218,6 +218,8 @@ spec:
                           type: string
                         ownerOnly:
                           type: boolean
+                        pts:
+                          type: boolean
                         readOnly:
                           type: boolean
                         recursive:
@@ -261,6 +263,8 @@ spec:
                           maxLength: 200
                           pattern: ^\/+.*[^\/]$
                           type: string
+                        pts:
+                          type: boolean
                         readOnly:
                           type: boolean
                         severity:
@@ -327,6 +331,41 @@ spec:
                     - BatchAudit
                     - Block
                     type: string
+                  matchDNSQueries:
+                    items:
+                      properties:
+                        action:
+                          enum:
+                          - Allow
+                          - Audit
+                          - BatchAudit
+                          - Block
+                          type: string
+                        domain:
+                          type: string
+                        fromSource:
+                          items:
+                            properties:
+                              path:
+                                maxLength: 200
+                                pattern: ^\/+.*[^\/]$
+                                type: string
+                            type: object
+                          type: array
+                        message:
+                          type: string
+                        severity:
+                          maximum: 10
+                          minimum: 1
+                          type: integer
+                        tags:
+                          items:
+                            type: string
+                          type: array
+                      required:
+                      - domain
+                      type: object
+                    type: array
                   matchProtocols:
                     items:
                       properties:
@@ -417,6 +456,8 @@ spec:
                           type: string
                         ownerOnly:
                           type: boolean
+                        pts:
+                          type: boolean
                         recursive:
                           type: boolean
                         severity:
@@ -466,6 +507,8 @@ spec:
                           maxLength: 200
                           pattern: ^\/+.*[^\/]$
                           type: string
+                        pts:
+                          type: boolean
                         severity:
                           maximum: 10
                           minimum: 1

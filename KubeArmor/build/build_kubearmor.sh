@@ -4,8 +4,6 @@
 
 [[ "$REPO" == "" ]] && REPO="kubearmor/kubearmor"
 
-UBIREPO="kubearmor/kubearmor-ubi"
-
 realpath() {
     CURR=$PWD
 
@@ -69,17 +67,6 @@ if [[ "$IS_COVERAGE" == "true" ]]; then
         exit 1
     fi
     echo "[PASSED] Built $REPO-init:$VERSION"
-
-    # build kubearmor-ubi-test image
-    DTAGUBITEST="-t $UBIREPO-test:$VERSION"
-    echo "[INFO] Building $DTAGUBITEST"
-    cd $ARMOR_HOME/..; docker build $DTAGUBITEST -f Dockerfile --target kubearmor-ubi-test . $LABEL
-
-    if [ $? != 0 ]; then
-        echo "[FAILED] Failed to build $DTAGUBITEST:$VERSION"
-        exit 1
-    fi
-    echo "[PASSED] Built $DTAGUBITEST:$VERSION"
     
     exit 0
 fi
@@ -105,16 +92,5 @@ if [ $? != 0 ]; then
     exit 1
 fi
 echo "[PASSED] Built $REPO-init:$VERSION"
-
-# build a kubearmor-ubi image
-DTAGUBI="-t $UBIREPO:$VERSION"
-echo "[INFO] Building $UBIREPO"
-cd $ARMOR_HOME/..; docker build $DTAGUBI -f Dockerfile --build-arg VERSION=$VERSION --target kubearmor-ubi . $LABEL
-
-if [ $? != 0 ]; then
-    echo "[FAILED] Failed to build $DTAGUBI:$VERSION"
-    exit 1
-fi
-echo "[PASSED] Built $DTAGUBI:$VERSION"
 
 exit 0

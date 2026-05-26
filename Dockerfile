@@ -3,9 +3,9 @@
 
 ### Builder
 
-FROM golang:1.24-alpine3.22 AS builder
+FROM golang:1.26-alpine3.22 AS builder
 
-RUN apk --no-cache update
+RUN apk --no-cache update && apk upgrade --no-cache libcrypto3 libssl3 zlib libexpat
 RUN apk add --no-cache git clang llvm make gcc protobuf protobuf-dev curl elfutils-dev
 
 WORKDIR /usr/src/KubeArmor
@@ -47,10 +47,16 @@ RUN CGO_ENABLED=0 go test -covermode=atomic -coverpkg=./... -c . -o kubearmor-te
 
 FROM alpine:3.22 AS kubearmor
 
-RUN echo "@community http://dl-cdn.alpinelinux.org/alpine/edge/community" | tee -a /etc/apk/repositories
 
-RUN apk --no-cache update
-RUN apk add apparmor@community apparmor-utils@community bash
+# Upgrade packages with known CVEs. musl (CVE-2026-40200) and perl (CVE-2026-4176)
+# fixes only landed in v3.23/main, so pin those explicitly using the @v323main tag.
+RUN echo "@v323main https://dl-cdn.alpinelinux.org/alpine/v3.23/main" >> /etc/apk/repositories && \
+    echo "https://dl-cdn.alpinelinux.org/alpine/v3.23/community" >> /etc/apk/repositories
+RUN apk --no-cache update && \
+    apk upgrade --no-cache libcrypto3 libssl3 zlib libexpat && \
+    apk add --no-cache musl@v323main musl-utils@v323main perl@v323main
+
+RUN apk add --no-cache apparmor apparmor-utils bash nftables
 
 COPY --from=builder /usr/src/KubeArmor/KubeArmor/kubearmor /KubeArmor/kubearmor
 COPY --from=builder /usr/src/KubeArmor/BPF/*.o /opt/kubearmor/BPF/
@@ -75,7 +81,7 @@ ENTRYPOINT ["/KubeArmor/kubearmor-test"]
 
 ### Make UBI-based executable image
 
-FROM redhat/ubi9-minimal AS kubearmor-ubi
+FROM redhat/ubi10-minimal AS kubearmor-ubi
 
 ARG VERSION=latest
 ENV KUBEARMOR_UBI=true
@@ -91,7 +97,7 @@ LABEL name="kubearmor" \
                   at the system level."
 
 RUN microdnf -y update && \
-    microdnf -y install --nodocs --setopt=install_weak_deps=0 --setopt=keepcache=0 shadow-utils procps libcap && \
+    microdnf -y install --nodocs --setopt=install_weak_deps=0 --setopt=keepcache=0 shadow-utils procps libcap nftables && \
     microdnf clean all
 
 RUN groupadd --gid 1000 default \
@@ -106,13 +112,13 @@ COPY --from=builder --chown=default:default /usr/src/KubeArmor/KubeArmor/templat
 # COPY --from=apparmor-builder /tmp/apparmor/apparmor_parser /usr/sbin/
 # RUN chmod u+s /usr/sbin/apparmor_parser
 
-RUN setcap "cap_sys_admin=ep cap_sys_ptrace=ep cap_ipc_lock=ep cap_sys_resource=ep cap_dac_override=ep cap_dac_read_search=ep" /KubeArmor/kubearmor
+RUN setcap "cap_sys_admin=ep cap_sys_ptrace=ep cap_ipc_lock=ep cap_sys_resource=ep cap_dac_override=ep cap_dac_read_search=ep cap_net_admin=ep" /KubeArmor/kubearmor
 
 USER 1000
 ENTRYPOINT ["/KubeArmor/kubearmor"]
 
 ### Make UBI-based test executable image for coverage calculation
-FROM redhat/ubi9-minimal AS kubearmor-ubi-test
+FROM redhat/ubi10-minimal AS kubearmor-ubi-test
 
 ARG VERSION=latest
 ENV KUBEARMOR_UBI=true
@@ -128,7 +134,7 @@ LABEL name="kubearmor" \
                   at the system level."
 
 RUN microdnf -y update && \
-    microdnf -y install --nodocs --setopt=install_weak_deps=0 --setopt=keepcache=0 shadow-utils procps libcap && \
+    microdnf -y install --nodocs --setopt=install_weak_deps=0 --setopt=keepcache=0 shadow-utils procps libcap nftables && \
     microdnf clean all
 
 RUN groupadd --gid 1000 default \
@@ -140,7 +146,7 @@ COPY --from=builder --chown=default:default /usr/src/KubeArmor/BPF/*.o /opt/kube
 COPY --from=builder --chown=default:default /usr/src/KubeArmor/KubeArmor/templates/* /KubeArmor/templates/
 COPY --from=builder-test --chown=default:default /usr/src/KubeArmor/KubeArmor/kubearmor-test /KubeArmor/kubearmor-test
 
-RUN setcap "cap_sys_admin=ep cap_sys_ptrace=ep cap_ipc_lock=ep cap_sys_resource=ep cap_dac_override=ep cap_dac_read_search=ep" /KubeArmor/kubearmor-test
+RUN setcap "cap_sys_admin=ep cap_sys_ptrace=ep cap_ipc_lock=ep cap_sys_resource=ep cap_dac_override=ep cap_dac_read_search=ep cap_net_admin=ep" /KubeArmor/kubearmor-test
 
 USER 1000
 ENTRYPOINT ["/KubeArmor/kubearmor-test"]

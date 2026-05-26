@@ -64,7 +64,7 @@ func GetClusterRole() *rbacv1.ClusterRole {
 			},
 			{
 				APIGroups: []string{"security.kubearmor.com"},
-				Resources: []string{"kubearmorpolicies", "kubearmorclusterpolicies", "kubearmorhostpolicies"},
+				Resources: []string{"kubearmorpolicies", "kubearmorclusterpolicies", "kubearmorhostpolicies", "kubearmornetworkpolicies"},
 				Verbs:     []string{"get", "list", "watch", "update", "delete"},
 			},
 			{
@@ -431,6 +431,7 @@ func GenerateDaemonSet(env, namespace string) *appsv1.DaemonSet {
 										"SYS_ADMIN",
 										"SYS_PTRACE",
 										"MAC_ADMIN",
+										"NET_ADMIN",
 										"SYS_RESOURCE",
 										"IPC_LOCK",
 										"CAP_DAC_OVERRIDE",
@@ -450,14 +451,16 @@ func GenerateDaemonSet(env, namespace string) *appsv1.DaemonSet {
 								ProbeHandler: corev1.ProbeHandler{
 									Exec: &corev1.ExecAction{
 										Command: []string{
-											"/bin/bash",
+											"/bin/sh",
 											"-c",
-											"if [ -z $(pgrep kubearmor) ]; then exit 1; fi;",
+											"pgrep -f kubearmor >/dev/null",
 										},
 									},
 								},
 								InitialDelaySeconds: 60,
-								PeriodSeconds:       10,
+								PeriodSeconds:       20,
+								TimeoutSeconds:      5,
+								FailureThreshold:    5,
 							},
 							TerminationMessagePolicy: "File",
 							TerminationMessagePath:   "/dev/termination-log",

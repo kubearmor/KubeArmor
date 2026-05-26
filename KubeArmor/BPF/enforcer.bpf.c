@@ -5,6 +5,8 @@
 #include "shared.h"
 #include "syscalls.h"
 #include "arg_matching_helpers.h"
+#include <bpf/bpf_endian.h>
+
 SEC("lsm/bprm_check_security")
 int BPF_PROG(enforce_proc, struct linux_binprm *bprm, int ret)
 {
@@ -57,11 +59,18 @@ int BPF_PROG(enforce_proc, struct linux_binprm *bprm, int ret)
   if (path_offset == NULL)
     return 0;
 
-  void *path_ptr = &path_buf->buf[*path_offset];
+  u32 path_off = 0;
+  if (!valid_buf_and_off(path_buf, path_offset, &path_off))
+    return 0;
+
+  void *path_ptr = &path_buf->buf[path_off];
+  if (!path_ptr)
+    return 0;
+
   bpf_probe_read_str(store->path, MAX_STRING_SIZE, path_ptr);
 
   struct data_t *val = bpf_map_lookup_elem(inner, store);
-  struct data_t *dirval;
+  struct data_t *dirval = NULL;
   bool recursivebuthint = false;
   bool fromSourceCheck = true;
   bool goToDecision = false;
@@ -74,21 +83,34 @@ int BPF_PROG(enforce_proc, struct linux_binprm *bprm, int ret)
   bufs_t *src_buf = get_buf(PATH_BUFFER);
   if (src_buf == NULL)
     fromSourceCheck = false;
-  struct path f_src = BPF_CORE_READ(file_p, f_path);
-  if (!prepend_path(&f_src, src_buf))
-    fromSourceCheck = false;
+  if (fromSourceCheck)
+  {
+    struct path f_src = BPF_CORE_READ(file_p, f_path);
+    if (!prepend_path(&f_src, src_buf))
+      fromSourceCheck = false;
+  }
 
   u32 *src_offset = get_buf_off(PATH_BUFFER);
   if (src_offset == NULL)
     fromSourceCheck = false;
 
-  void *src_ptr;
-  if (src_buf->buf[*src_offset])
+  void *src_ptr = NULL;
+
+  if (fromSourceCheck)
   {
-    src_ptr = &src_buf->buf[*src_offset];
+    u32 src_off = 0;
+
+    if (!valid_buf_and_off(src_buf, src_offset, &src_off))
+    {
+      fromSourceCheck = false;
+    }
+    else
+    {
+      src_ptr = &src_buf->buf[src_off];
+      if (!src_ptr)
+        fromSourceCheck = false;
+    }
   }
-  if (src_ptr == NULL)
-    fromSourceCheck = false;
 
   if (fromSourceCheck)
   {
@@ -113,8 +135,12 @@ int BPF_PROG(enforce_proc, struct linux_binprm *bprm, int ret)
 
         match = false;
 
-        bpf_probe_read_str(pk->path, i + 2, store->path);
+        u32 len = i + 2;
+        if (len > MAX_STRING_SIZE)
+          len = MAX_STRING_SIZE;
+
         // Check Subdir with From Source
+        bpf_probe_read_str(pk->path, len, store->path);
         bpf_probe_read_str(pk->source, MAX_STRING_SIZE, store->source);
         dirval = bpf_map_lookup_elem(inner, pk);
         if (dirval)
@@ -124,16 +150,14 @@ int BPF_PROG(enforce_proc, struct linux_binprm *bprm, int ret)
           {
             match = true;
             if ((dirval->processmask & RULE_RECURSIVE) &&
-                (~dirval->processmask &
-                 RULE_HINT))
+                (~dirval->processmask & RULE_HINT))
             { // true directory match and not a hint suggests
               // there are no possibility of child dir
               val = dirval;
               goToDecision = true; // to please the holy verifier
               break;
             }
-            else if (dirval->processmask &
-                     RULE_RECURSIVE)
+            else if (dirval->processmask & RULE_RECURSIVE)
             { // It's a directory match but also a
               // hint, it's possible that a
               // subdirectory exists that can also
@@ -161,13 +185,10 @@ int BPF_PROG(enforce_proc, struct linux_binprm *bprm, int ret)
       match = true;
       goto decision;
     }
-    if (match)
-    {
-      if (dirval)
-      { // to please the holy verifier
-        val = dirval;
-        goto decision;
-      }
+    if (match && dirval)
+    { // to please the holy verifier
+      val = dirval;
+      goto decision;
     }
   }
   bpf_map_update_elem(&bufk, &two, z, BPF_ANY);
@@ -182,8 +203,8 @@ int BPF_PROG(enforce_proc, struct linux_binprm *bprm, int ret)
   }
 
   // match exec name
-  struct qstr d_name;
-  d_name = BPF_CORE_READ(f_path.dentry, d_name);
+  struct qstr d_name = BPF_CORE_READ(f_path.dentry, d_name);
+
   bpf_map_update_elem(&bufk, &two, z, BPF_ANY);
   bpf_probe_read_str(pk->path, MAX_STRING_SIZE, d_name.name);
 
@@ -209,7 +230,11 @@ int BPF_PROG(enforce_proc, struct linux_binprm *bprm, int ret)
 
       match = false;
 
-      bpf_probe_read_str(pk->path, i + 2, store->path);
+      u32 len = i + 2;
+      if (len > MAX_STRING_SIZE)
+        len = MAX_STRING_SIZE;
+
+      bpf_probe_read_str(pk->path, len, store->path);
       dirval = bpf_map_lookup_elem(inner, pk);
       if (dirval)
       {
@@ -218,8 +243,7 @@ int BPF_PROG(enforce_proc, struct linux_binprm *bprm, int ret)
         {
           match = true;
           if ((dirval->processmask & RULE_RECURSIVE) &&
-              (~dirval->processmask &
-               RULE_HINT))
+              (~dirval->processmask & RULE_HINT))
           { // true directory match and not a hint suggests
             // there are no possibility of child dir match
             val = dirval;
@@ -275,6 +299,13 @@ decision:
         return 0;
       }
     }
+    if (val && (val->processmask & RULE_PTS))
+    {
+      if (is_pts(t))
+      {
+        retval = -EPERM;
+      }
+    }
     if (val && (val->processmask & RULE_OWNER))
     {
       if (!is_owner(bprm->file))
@@ -312,7 +343,7 @@ decision:
         return 0;
       }
     }
-    if (val && (val->processmask & RULE_DENY))
+    if (val && ((val->processmask & RULE_DENY) && !(val->processmask & RULE_PTS)))
     {
       retval = -EPERM;
     }
@@ -336,6 +367,20 @@ decision:
         retval = -EPERM;
       }
       goto ringbuf;
+    }
+    else
+    {
+      if (val && (val->processmask & RULE_PTS))
+      {
+        if (is_pts(t))
+        {
+          retval = -EPERM;
+        }
+      }
+      else
+      {
+        retval = -EPERM;
+      }
     }
   }
 
@@ -526,8 +571,19 @@ decision:
   {
     if (val && (val->processmask & RULE_DENY))
     {
-      retval = -EPERM;
-      goto ringbuf;
+      if (val && (val->processmask & RULE_PTS))
+      {
+        if (is_pts(t))
+        {
+          retval = -EPERM;
+          goto ringbuf;
+        }
+      }
+      else
+      {
+        retval = -EPERM;
+        goto ringbuf;
+      }
     }
   }
 
@@ -545,6 +601,20 @@ decision:
         retval = -EPERM;
       }
       goto ringbuf;
+    }
+    else
+    {
+      if (allow && allow->processmask == BLOCK_POSTURE)
+      {
+        if (val && (val->processmask & RULE_PTS))
+        {
+          if (is_pts(t))
+          {
+            retval = -EPERM;
+          }
+        }
+        goto ringbuf;
+      }
     }
   }
 
@@ -762,4 +832,189 @@ ringbuf:
   task_info->retval = retval;
   bpf_ringbuf_submit(task_info, 0);
   return retval;
+}
+
+static inline int match_dns_rules(char *dns_name, u32 eventID)
+{
+  event *task_info;
+  int retval = 0;
+  bool match = false;
+
+  struct task_struct *t = (struct task_struct *)bpf_get_current_task();
+
+  struct outer_key okey;
+  get_outer_key(&okey, t);
+
+  u32 *inner = bpf_map_lookup_elem(&kubearmor_containers, &okey);
+  if (!inner)
+  {
+    return 0;
+  }
+
+  u32 zero = 0, one = 1, two = 2;
+  bufs_k *z = bpf_map_lookup_elem(&bufk, &zero);
+  if (z == NULL)
+    return 0;
+  bufs_k *p = bpf_map_lookup_elem(&bufk, &one);
+  if (p == NULL)
+    return 0;
+  bufs_k *store = bpf_map_lookup_elem(&bufk, &two);
+  if (store == NULL)
+    return 0;
+
+  bpf_map_update_elem(&bufk, &one, z, BPF_ANY);
+
+  bpf_probe_read_str(p->path, MAX_STRING_SIZE, dns_name);
+
+  struct data_t *val = NULL;
+  bool fromSourceCheck = true;
+
+  struct file *file_p = get_task_file(t);
+  if (file_p == NULL)
+    fromSourceCheck = false;
+
+  bufs_t *src_buf = get_buf(PATH_BUFFER);
+  if (src_buf == NULL)
+    fromSourceCheck = false;
+
+  if (fromSourceCheck)
+  {
+    struct path f_src = BPF_CORE_READ(file_p, f_path);
+    if (!prepend_path(&f_src, src_buf))
+      fromSourceCheck = false;
+  }
+
+  u32 *src_offset = NULL;
+  if (fromSourceCheck)
+  {
+    src_offset = get_buf_off(PATH_BUFFER);
+    if (src_offset == NULL)
+      fromSourceCheck = false;
+  }
+
+  if (fromSourceCheck)
+  {
+    bpf_map_update_elem(&bufk, &one, z, BPF_ANY);
+    bpf_probe_read_str(p->path, MAX_STRING_SIZE, dns_name);
+    void *src_ptr = &src_buf->buf[*src_offset];
+    bpf_probe_read_str(p->source, MAX_STRING_SIZE, src_ptr);
+    bpf_probe_read_str(store->source, MAX_STRING_SIZE, p->source);
+
+    val = bpf_map_lookup_elem(inner, p);
+    if (val)
+    {
+      match = true;
+      goto decision;
+    }
+  }
+
+  bpf_map_update_elem(&bufk, &one, z, BPF_ANY);
+  bpf_probe_read_str(p->path, MAX_STRING_SIZE, dns_name);
+  val = bpf_map_lookup_elem(inner, p);
+  if (val)
+  {
+    match = true;
+    goto decision;
+  }
+
+decision:
+  bpf_probe_read_str(store->path, MAX_STRING_SIZE, p->path);
+
+  if (match)
+  {
+    if (val && (val->processmask & RULE_DENY))
+    {
+      retval = -EPERM;
+      goto ringbuf;
+    }
+  }
+
+  bpf_map_update_elem(&bufk, &one, z, BPF_ANY);
+  p->path[0] = ddns;
+
+  struct data_t *allow = bpf_map_lookup_elem(inner, p);
+  if (allow)
+  {
+    if (!match && allow->processmask == BLOCK_POSTURE)
+    {
+      retval = -EPERM;
+    }
+    goto ringbuf;
+  }
+
+  return 0;
+
+ringbuf:
+  if (get_kubearmor_config(_ALERT_THROTTLING) && should_drop_alerts_per_container(okey))
+    return retval;
+
+  task_info = bpf_ringbuf_reserve(&kubearmor_events, sizeof(event), 0);
+  if (!task_info)
+    return retval;
+
+  __builtin_memset(task_info->data.path, 0, sizeof(task_info->data.path));
+  __builtin_memset(task_info->data.source, 0, sizeof(task_info->data.source));
+
+  init_context(task_info);
+  bpf_probe_read_str(&task_info->data.path, MAX_STRING_SIZE, store->path);
+  bpf_probe_read_str(&task_info->data.source, MAX_STRING_SIZE, store->source);
+
+  task_info->event_id = eventID;
+  task_info->retval = retval;
+  bpf_ringbuf_submit(task_info, 0);
+
+  return retval;
+}
+
+SEC("lsm/socket_sendmsg")
+int BPF_PROG(enforce_dns, struct socket *sock, struct msghdr *msg, int size)
+{
+  struct sock *sk = BPF_CORE_READ(sock, sk);
+  if (!sk)
+    return 0;
+
+  __u16 dport = 0;
+  bpf_probe_read(&dport, sizeof(dport), &sk->__sk_common.skc_dport);
+  if (bpf_ntohs(dport) != 53)
+    return 0;
+
+  void *iov_ptr = NULL;
+  void *data = NULL;
+
+  // Handle __iov / iov field rename across kernel versions
+  struct iov_iter___new *iter = (void *)&msg->msg_iter;
+  if (bpf_core_field_exists(iter->__iov))
+  {
+    bpf_probe_read_kernel(&iov_ptr, sizeof(iov_ptr), &iter->__iov);
+  }
+  else
+  {
+    bpf_probe_read_kernel(&iov_ptr, sizeof(iov_ptr), &iter->iov);
+  }
+
+  if (!iov_ptr)
+    return 0;
+
+  // ITER_IOVEC: iov_ptr → kernel iovec array (read normally).
+  // ITER_UBUF: iov_ptr → user buffer directly (kernel read fails, use as-is)
+  struct iovec first_iov = {};
+  bpf_probe_read_kernel(&first_iov, sizeof(first_iov), iov_ptr);
+
+  if (first_iov.iov_base)
+    data = first_iov.iov_base;
+  else
+    data = iov_ptr;
+
+  if (!data)
+  {
+    return 0;
+  }
+
+  if (size > 512) // ignore oversized / malformed packets
+    return 0;
+
+  char name[64] = {};
+  extract_dns_name(data, name);
+
+  return match_dns_rules(name, _SOCKET_SENDMSG);
 }

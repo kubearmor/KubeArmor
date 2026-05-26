@@ -6,12 +6,10 @@ package core
 
 import (
 	"context"
-	"crypto/hmac"
-	"crypto/sha256"
-	"encoding/hex"
 	"fmt"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strings"
 	"sync"
 	"syscall"
@@ -34,6 +32,7 @@ import (
 	fd "github.com/kubearmor/KubeArmor/KubeArmor/feeder"
 	kvm "github.com/kubearmor/KubeArmor/KubeArmor/kvmAgent"
 	mon "github.com/kubearmor/KubeArmor/KubeArmor/monitor"
+	ne "github.com/kubearmor/KubeArmor/KubeArmor/networkPolicyEnforcer"
 	dvc "github.com/kubearmor/KubeArmor/KubeArmor/usbDeviceHandler"
 	pb "github.com/kubearmor/KubeArmor/protobuf"
 )
@@ -83,6 +82,10 @@ type KubeArmorDaemon struct {
 	HostSecurityPolicies     []tp.HostSecurityPolicy
 	HostSecurityPoliciesLock *sync.RWMutex
 
+	// Network Security policies
+	NetworkSecurityPolicies     []tp.NetworkSecurityPolicy
+	NetworkSecurityPoliciesLock *sync.RWMutex
+
 	// DefaultPosture (namespace -> postures)
 	DefaultPostures     map[string]tp.DefaultPosture
 	DefaultPosturesLock *sync.Mutex
@@ -120,6 +123,9 @@ type KubeArmorDaemon struct {
 
 	// USB device handler
 	USBDeviceHandler *dvc.USBDeviceHandler
+
+	// Network Policy Enforcer
+	NetworkPolicyEnforcer *ne.NetworkPolicyEnforcer
 }
 
 // NewKubeArmorDaemon Function
@@ -145,6 +151,9 @@ func NewKubeArmorDaemon() *KubeArmorDaemon {
 	dm.HostSecurityPolicies = []tp.HostSecurityPolicy{}
 	dm.HostSecurityPoliciesLock = new(sync.RWMutex)
 
+	dm.NetworkSecurityPolicies = []tp.NetworkSecurityPolicy{}
+	dm.NetworkSecurityPoliciesLock = new(sync.RWMutex)
+
 	dm.DefaultPostures = map[string]tp.DefaultPosture{}
 	dm.DefaultPosturesLock = new(sync.Mutex)
 
@@ -156,6 +165,7 @@ func NewKubeArmorDaemon() *KubeArmorDaemon {
 	dm.RuntimeEnforcer = nil
 	dm.KVMAgent = nil
 	dm.USBDeviceHandler = nil
+	dm.NetworkPolicyEnforcer = nil
 
 	dm.WgDaemon = sync.WaitGroup{}
 
@@ -202,6 +212,15 @@ func (dm *KubeArmorDaemon) DestroyKubeArmorDaemon() {
 		// close USB device handler
 		if dm.CloseUSBDeviceHandler() {
 			dm.Logger.Print("Stopped USB Device Handler")
+		}
+	}
+
+	if dm.NetworkPolicyEnforcer != nil {
+		// close network policy enforcer
+		if err := dm.CloseNetworkPolicyEnforcer(); err != nil {
+			kg.Errf("Failed to destroy Network Policy Enforcer: %s", err.Error())
+		} else {
+			dm.Logger.Print("Stopped Network Policy Enforcer")
 		}
 	}
 
@@ -353,6 +372,28 @@ func (dm *KubeArmorDaemon) CloseUSBDeviceHandler() bool {
 		return false
 	}
 	return true
+}
+
+// ============================= //
+// == Network Policy Enforcer == //
+// ============================= //
+
+// InitNetworkPolicyEnforcer Function
+func (dm *KubeArmorDaemon) InitNetworkPolicyEnforcer() error {
+	var err error
+	dm.NetworkPolicyEnforcer, err = ne.NewNetworkPolicyEnforcer(dm.Logger)
+	if err != nil {
+		return fmt.Errorf("failed to create network policy enforcer: %v", err)
+	}
+	return nil
+}
+
+// CloseNetworkPolicyEnforcer Function
+func (dm *KubeArmorDaemon) CloseNetworkPolicyEnforcer() error {
+	if err := dm.NetworkPolicyEnforcer.DestroyNetworkPolicyEnforcer(); err != nil {
+		return fmt.Errorf("Failed to destroy KubeArmor Network Policy Enforcer (%w)", err)
+	}
+	return nil
 }
 
 // ============= //
@@ -548,17 +589,26 @@ func KubeArmor() {
 		}
 	}
 
-	protectedID := func(id, key string) string {
-		mac := hmac.New(sha256.New, []byte(id))
-		mac.Write([]byte(key))
-		return hex.EncodeToString(mac.Sum(nil))
+	machineIDPaths := []string{
+		cfg.GlobalCfg.MachineIDPath,
+		"/var/lib/dbus/machine-id",
 	}
 
 	if dm.Node.NodeID == "" {
-		id, _ := os.ReadFile(cfg.GlobalCfg.MachineIDPath)
-		dm.Node.NodeID = strings.TrimSuffix(string(id), "\n")
+		for _, path := range machineIDPaths {
+			if id, err := os.ReadFile(filepath.Clean(path)); err == nil {
+				cleanID := strings.TrimSpace(string(id))
+				if cleanID != "" {
+					dm.Node.NodeID = cleanID
+					break
+				}
+			}
+		}
 	}
-	dm.Node.NodeID = protectedID(dm.Node.NodeID, dm.Node.NodeName)
+
+	if dm.Node.NodeID == "" {
+		dm.Node.NodeID = dm.Node.NodeName
+	}
 
 	kg.Printf("Node Name: %s", dm.Node.NodeName)
 	kg.Printf("Node IP: %s", dm.Node.NodeIP)
@@ -727,6 +777,13 @@ func KubeArmor() {
 		}
 	}
 
+	var runtimeLabel, socketLabel string
+	if v, ok := dm.Node.Labels["kubearmor.io/runtime"]; ok {
+		runtimeLabel = v
+	}
+	if v, ok := dm.Node.Labels["kubearmor.io/socket"]; ok {
+		socketLabel = v
+	}
 	if dm.K8sEnabled && cfg.GlobalCfg.Policy {
 		if cfg.GlobalCfg.UseOCIHooks &&
 			(strings.Contains(dm.Node.ContainerRuntimeVersion, "cri-o") ||
@@ -765,6 +822,63 @@ func KubeArmor() {
 			}
 
 			dm.Logger.Printf("Using %s for monitoring containers", cfg.GlobalCfg.CRISocket)
+
+		} else if runtimeLabel != "" && socketLabel != "" { // use runtime and CRI socket detected by snitch
+
+			dm.Logger.Print("Using runtime and CRI socket detected by snitch")
+
+			// Whatever the socket file path detected by snitch is, when mounting it to daemonset the operator standardizes it with a default path
+			var podMountPaths = map[string]string{
+				"docker":     "/var/run/docker.sock",
+				"containerd": "/var/run/containerd/containerd.sock",
+				"cri-o":      "/var/run/crio/crio.sock",
+			}
+			socketFilePath, ok := podMountPaths[runtimeLabel]
+			if ok {
+				cfg.GlobalCfg.CRISocket = "unix://" + socketFilePath
+			}
+
+			switch runtimeLabel {
+			case "docker":
+				if _, err := os.Stat(socketFilePath); err == nil {
+					// update already deployed containers
+					dm.GetAlreadyDeployedDockerContainers()
+
+					// monitor docker events
+					go dm.MonitorDockerEvents()
+				} else {
+					dm.Logger.Err("Failed to monitor containers (Docker socket file is not accessible)")
+
+					// destroy the daemon
+					dm.DestroyKubeArmorDaemon()
+
+					return
+				}
+			case "containerd":
+				if _, err := os.Stat(socketFilePath); err == nil {
+					// monitor containerd events
+					go dm.MonitorContainerdEvents()
+				} else {
+					dm.Logger.Err("Failed to monitor containers (Containerd socket file is not accessible)")
+
+					// destroy the daemon
+					dm.DestroyKubeArmorDaemon()
+
+					return
+				}
+			case "cri-o":
+				if _, err := os.Stat(socketFilePath); err == nil {
+					// monitor cri-o events
+					go dm.MonitorCrioEvents()
+				} else {
+					dm.Logger.Err("Failed to monitor containers (CRI-O socket file is not accessible)")
+
+					// destroy the daemon
+					dm.DestroyKubeArmorDaemon()
+
+					return
+				}
+			}
 
 		} else { // CRI socket not set, we'll have to auto detect
 			dm.Logger.Print("CRI socket not set. Trying to detect.")
@@ -857,6 +971,17 @@ func KubeArmor() {
 
 	// == //
 
+	// Init Network Policy Enforcer
+	if cfg.GlobalCfg.NetworkPolicyEnforcer {
+		if err := dm.InitNetworkPolicyEnforcer(); err != nil {
+			dm.Logger.Warnf("Failed to initialize KubeArmor Network Policy Enforcer: %v", err)
+		} else {
+			dm.Logger.Print("Initialized KubeArmor Network Policy Enforcer")
+		}
+	}
+
+	// == //
+
 	timeout, err := time.ParseDuration(cfg.GlobalCfg.InitTimeout)
 	if dm.K8sEnabled && cfg.GlobalCfg.Policy {
 		if err != nil {
@@ -926,10 +1051,16 @@ func KubeArmor() {
 		go dm.WatchHostSecurityPolicies(timeout)
 	}
 
-	if !dm.K8sEnabled && (enableContainerPolicy || cfg.GlobalCfg.HostPolicy) {
+	if dm.K8sEnabled && cfg.GlobalCfg.NetworkPolicyEnforcer && dm.NetworkPolicyEnforcer != nil {
+		// watch network security policies
+		go dm.WatchNetworkSecurityPolicies(timeout)
+	}
+
+	if !dm.K8sEnabled && (enableContainerPolicy || cfg.GlobalCfg.HostPolicy || (cfg.GlobalCfg.NetworkPolicyEnforcer && dm.NetworkPolicyEnforcer != nil)) {
 		policyService := &policy.PolicyServer{
 			ContainerPolicyEnabled: enableContainerPolicy,
 			HostPolicyEnabled:      cfg.GlobalCfg.HostPolicy,
+			NetworkPolicyEnabled:   cfg.GlobalCfg.NetworkPolicyEnforcer,
 		}
 		if enableContainerPolicy {
 			policyService.UpdateContainerPolicy = dm.ParseAndUpdateContainerSecurityPolicy
@@ -939,6 +1070,10 @@ func KubeArmor() {
 			policyService.UpdateHostPolicy = dm.ParseAndUpdateHostSecurityPolicy
 			dm.Node.PolicyEnabled = tp.KubeArmorPolicyEnabled
 			dm.Logger.Print("Started to monitor host security policies on gRPC")
+		}
+		if cfg.GlobalCfg.NetworkPolicyEnforcer && dm.NetworkPolicyEnforcer != nil {
+			policyService.UpdateNetworkPolicy = dm.ParseAndUpdateNetworkSecurityPolicy
+			dm.Logger.Print("Started to monitor network security policies on gRPC")
 		}
 		pb.RegisterPolicyServiceServer(dm.Logger.LogServer, policyService)
 
@@ -970,7 +1105,7 @@ func KubeArmor() {
 	// == //
 
 	if cfg.GlobalCfg.KVMAgent || !dm.K8sEnabled {
-		// Restore and apply all kubearmor host security policies
+		// Restore and apply all kubearmor host and network security policies
 		dm.restoreKubeArmorPolicies()
 	}
 	// == //

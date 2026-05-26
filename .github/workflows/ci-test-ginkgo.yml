@@ -37,7 +37,7 @@ jobs:
         os: [oracle-vm-16cpu-64gb-x86-64]
         runtime: ["containerd", "crio"]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           submodules: true
 
@@ -142,7 +142,9 @@ jobs:
           docker system prune -a -f 
           docker buildx prune -a -f
           helm upgrade --install kubearmor-operator ./deployments/helm/KubeArmorOperator -n kubearmor --create-namespace --set kubearmorOperator.image.tag=latest  --set kubearmorOperator.annotateExisting=true
-          kubectl wait --for=condition=ready --timeout=5m -n kubearmor pod -l kubearmor-app=kubearmor-operator
+          
+          kubectl rollout status --timeout=5m deployment -n kubearmor -l kubearmor-app=kubearmor-operator
+          
           kubectl get pods -A
           if [[ ${{ steps.filter.outputs.controller }} == 'true' ]]; then
             kubectl apply -f pkg/KubeArmorOperator/config/samples/kubearmor-coverage.yaml --dry-run=client -o json | \
@@ -209,7 +211,7 @@ jobs:
         working-directory: ./tests/k8s_env
         timeout-minutes: 30
 
-      - name: Kill KubeArmor prcoess in the pod
+      - name: Kill KubeArmor process in the pod
         run: |
           KUBEARMOR_PID=$(kubectl exec ${{ env.POD_NAME }} -n kubearmor -c kubearmor -- sh -c "ps aux | grep '[K]ubeArmor/kubearmor-test' | awk '{print \$1}'")
           kubectl exec ${{ env.POD_NAME }} -n kubearmor -c kubearmor -- sh -c "kill -s SIGINT $KUBEARMOR_PID"

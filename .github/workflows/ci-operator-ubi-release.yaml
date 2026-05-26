@@ -1,0 +1,155 @@
+name: ci-release-operator-ubi
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag which has to be updated"
+        type: "string"
+        required: false
+  push:
+    branches:
+      - "main"
+      - "v*"
+    paths:
+      # release on any dependency change
+      - "pkg/**"
+      - "deployments/get/**"
+      - "KubeArmor/utils/**"
+      - ".github/workflows/ci-operator-ubi-release.yaml"
+  create:
+    branches:
+      - "v*"
+
+# Declare default permissions as read only.
+permissions: read-all
+
+env:
+  PLATFORM: linux/amd64,linux/arm64/v8
+
+jobs:
+  kubearmor-operator-release:
+    name: Build & Push KubeArmor Operator
+    if: github.repository == 'kubearmor/kubearmor'     
+    runs-on: ubuntu-22.04
+    permissions:
+      id-token: write
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: 'KubeArmor/go.mod'
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+        with:
+          platforms: linux/amd64,linux/arm64/v8
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_AUTHTOK }} 
+
+      # - name: Set up AWS Credentials
+      #   uses: aws-actions/configure-aws-credentials@v6
+      #   with:
+      #     aws-access-key-id: ${{ secrets.AWS_ECR_ACCESS_ID }}
+      #     aws-secret-access-key: ${{ secrets.AWS_ECR_SECRET_ID }}
+      #     aws-region: us-east-1
+  
+      # - name: Login to AWS ECR
+      #   run: |
+      #     aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws/k9v9d5v2
+
+      - name: Get Tag
+        id: vars
+        uses: actions/github-script@v7
+        with:
+          script: |
+            let tag;
+            if (context.eventName === 'workflow_dispatch') {
+                tag = context.payload.inputs.tag;
+                if (tag && tag.trim().length > 0) {
+                  await exec.exec('git', ['fetch', '--tags']);
+                  core.info(`Checking out tag: ${tag}`);
+                  await exec.exec('git', ['checkout', tag]);
+                } else {
+                    const ref = context.ref;
+                    tag = ref === "refs/heads/main" ? "latest" : ref.replace(/^refs\/[^/]+\//, "");
+                }
+            } else {
+              const ref = context.ref;
+              tag = ref === "refs/heads/main" ? "latest" : ref.replace(/^refs\/[^/]+\//, "");
+            }
+            core.setOutput('tag', tag);
+            console.log(`Creating operator release with tag: ${tag}`);
+
+      - name: Build & Push KubeArmor Operator
+        working-directory: ./pkg/KubeArmorOperator
+        run: PLATFORM=$PLATFORM make docker-buildx-ubi TAG=${{ steps.vars.outputs.tag }} BUILD_MODE=--push
+
+
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@main
+
+      - name: Get Image Digest
+        id: digest
+        working-directory: ./pkg/KubeArmorOperator
+        run: |
+          echo "operatordigest=$(jq -r '.["containerimage.digest"]' kubearmor-operator-ubi.json)" >> $GITHUB_OUTPUT
+          echo "snitchdigest=$(jq -r '.["containerimage.digest"]' kubearmor-snitch-ubi.json)" >> $GITHUB_OUTPUT
+
+      - name: Sign the Container Images
+        run: |
+          cosign sign -r kubearmor/kubearmor-operator-ubi@${{ steps.digest.outputs.operatordigest }} --yes
+          cosign sign -r kubearmor/kubearmor-snitch-ubi@${{ steps.digest.outputs.snitchdigest }} --yes
+
+
+      - name: Install regctl
+        run: |
+          curl -L https://github.com/regclient/regclient/releases/latest/download/regctl-linux-amd64 >regctl
+          chmod 755 regctl
+          mv regctl /usr/local/bin
+  
+      - name: Check install
+        run: regctl version
+        
+      # - name: Generate the tag version of Operator and Snitch in ECR
+      #   run: |
+      #     regctl image copy kubearmor/kubearmor-operator-ubi:${{ steps.vars.outputs.tag }} public.ecr.aws/k9v9d5v2/kubearmor/kubearmor-operator-ubi:${{ steps.vars.outputs.tag }} --digest-tags
+      #     regctl image copy kubearmor/kubearmor-snitch-ubi:${{ steps.vars.outputs.tag }} public.ecr.aws/k9v9d5v2/kubearmor/kubearmor-snitch-ubi:${{ steps.vars.outputs.tag }} --digest-tags
+          
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      
+      - name: Get and Match Stable Tag
+        id: stable
+        run: |
+          value=`cat STABLE-RELEASE`
+          if [ ${{ github.ref }} == "refs/heads/$value" ]; then
+            echo "match=true" >> $GITHUB_OUTPUT
+          else
+            echo "match=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Generate the stable version of Operator and Snitch in Docker Hub
+        if: steps.stable.outputs.match == 'true'
+        run: |
+          STABLE_VERSION=`cat STABLE-RELEASE`
+          regctl image copy kubearmor/kubearmor-operator-ubi:$STABLE_VERSION kubearmor/kubearmor-operator-ubi:stable --digest-tags
+          regctl image copy kubearmor/kubearmor-snitch-ubi:$STABLE_VERSION kubearmor/kubearmor-snitch-ubi:stable --digest-tags
+
+      # - name: Generate the stable version of Operator and Snitch in ECR
+      #   if: steps.stable.outputs.match == 'true'
+      #   run: |
+      #     STABLE_VERSION=`cat STABLE-RELEASE`
+      #     regctl image copy kubearmor/kubearmor-operator-ubi:$STABLE_VERSION public.ecr.aws/k9v9d5v2/kubearmor/kubearmor-operator-ubi:stable --digest-tags
+      #     regctl image copy kubearmor/kubearmor-snitch-ubi:$STABLE_VERSION public.ecr.aws/k9v9d5v2/kubearmor/kubearmor-snitch-ubi:stable --digest-tags
+

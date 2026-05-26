@@ -24,15 +24,15 @@ import (
 func GetProtocolFromName(proto string) string {
 	switch strings.ToLower(proto) {
 	case "tcp":
-		return "protocol=TCP,type=SOCK_STREAM"
+		return "protocol=TCP type=SOCK_STREAM"
 	case "udp":
-		return "protocol=UDP,type=SOCK_DGRAM"
+		return "protocol=UDP type=SOCK_DGRAM"
 	case "icmp":
-		return "protocol=ICMP,type=SOCK_RAW"
-	case "icmpv6":
-		return "protocol=ICMPv6,type=SOCK_RAW"
+		return "protocol=ICMP type=SOCK_RAW"
+	case "ipv6-icmp":
+		return "protocol=IPv6-ICMP type=SOCK_RAW"
 	case "sctp":
-		return "protocol=SCTP,type=SOCK_STREAM|SOCK_SEQPACKET"
+		return "protocol=SCTP type=SOCK_STREAM|SOCK_SEQPACKET"
 	default:
 		return proto
 	}
@@ -64,14 +64,14 @@ func fetchProtocol(resource string) string {
 		return "tcp"
 	} else if strings.Contains(resource, "protocol=UDP") || (strings.Contains(resource, "SOCK_DGRAM") && strings.Contains(resource, "protocol=HOPOPT")) {
 		return "udp"
+	} else if strings.Contains(resource, "protocol=IPv6-ICMP") {
+		return "icmpv6"
 	} else if strings.Contains(resource, "protocol=ICMP") {
 		return "icmp"
-	} else if strings.Contains(resource, "SOCK_RAW") {
-		return "raw"
-	} else if strings.Contains(resource, "protocol=ICMPv6") {
-		return "icmpv6"
 	} else if strings.Contains(resource, "protocol=SCTP") {
 		return "sctp"
+	} else if strings.Contains(resource, "SOCK_RAW") {
+		return "raw"
 	} else if strings.Contains(resource, "SOCK_STREAM") {
 		return "stream"
 	} else if strings.Contains(resource, "SOCK_DGRAM") {
@@ -214,6 +214,11 @@ func (fd *Feeder) newMatchPolicy(policyEnabled int, policyName, src string, mp a
 
 		match.OwnerOnly = ppt.OwnerOnly
 
+		if ppt.Pts != nil {
+			match.Pts = new(bool)
+			*match.Pts = *ppt.Pts
+		}
+
 		if policyEnabled == tp.KubeArmorPolicyAudited && ppt.Action == "Allow" {
 			match.Action = "Audit (" + ppt.Action + ")"
 		} else if policyEnabled == tp.KubeArmorPolicyAudited && ppt.Action == "Block" {
@@ -232,6 +237,11 @@ func (fd *Feeder) newMatchPolicy(policyEnabled int, policyName, src string, mp a
 
 		match.OwnerOnly = pdt.OwnerOnly
 		match.Recursive = pdt.Recursive
+
+		if pdt.Pts != nil {
+			match.Pts = new(bool)
+			*match.Pts = *pdt.Pts
+		}
 
 		if policyEnabled == tp.KubeArmorPolicyAudited && pdt.Action == "Allow" {
 			match.Action = "Audit (" + pdt.Action + ")"
@@ -270,6 +280,11 @@ func (fd *Feeder) newMatchPolicy(policyEnabled int, policyName, src string, mp a
 		match.OwnerOnly = fpt.OwnerOnly
 		match.ReadOnly = fpt.ReadOnly
 
+		if fpt.Pts != nil {
+			match.Pts = new(bool)
+			*match.Pts = *fpt.Pts
+		}
+
 		if policyEnabled == tp.KubeArmorPolicyAudited && fpt.Action == "Allow" {
 			match.Action = "Audit (" + fpt.Action + ")"
 		} else if policyEnabled == tp.KubeArmorPolicyAudited && fpt.Action == "Block" {
@@ -289,6 +304,11 @@ func (fd *Feeder) newMatchPolicy(policyEnabled int, policyName, src string, mp a
 		match.OwnerOnly = fdt.OwnerOnly
 		match.ReadOnly = fdt.ReadOnly
 		match.Recursive = fdt.Recursive
+
+		if fdt.Pts != nil {
+			match.Pts = new(bool)
+			*match.Pts = *fdt.Pts
+		}
 
 		if policyEnabled == tp.KubeArmorPolicyAudited && fdt.Action == "Allow" {
 			match.Action = "Audit (" + fdt.Action + ")"
@@ -324,6 +344,11 @@ func (fd *Feeder) newMatchPolicy(policyEnabled int, policyName, src string, mp a
 		match.Resource = strings.ToLower(npt.Protocol)
 		match.ResourceType = "Protocol"
 
+		if npt.Pts != nil {
+			match.Pts = new(bool)
+			*match.Pts = *npt.Pts
+		}
+
 		// TODO: Handle cases where AppArmor network enforcement is not present
 		// https://github.com/kubearmor/KubeArmor/issues/1285
 		if policyEnabled == tp.KubeArmorPolicyAudited && npt.Action == "Allow" {
@@ -332,6 +357,22 @@ func (fd *Feeder) newMatchPolicy(policyEnabled int, policyName, src string, mp a
 			match.Action = "Audit (" + npt.Action + ")"
 		} else {
 			match.Action = npt.Action
+		}
+	} else if ndns, ok := mp.(tp.MatchDNSQueryType); ok {
+		match.Severity = strconv.Itoa(ndns.Severity)
+		match.Tags = ndns.Tags
+		match.Message = ndns.Message
+
+		match.Operation = "Network"
+		match.Resource = strings.ToLower(ndns.Domain)
+		match.ResourceType = "DNS"
+
+		if policyEnabled == tp.KubeArmorPolicyAudited && ndns.Action == "Allow" {
+			match.Action = "Audit (" + ndns.Action + ")"
+		} else if policyEnabled == tp.KubeArmorPolicyAudited && ndns.Action == "Block" {
+			match.Action = "Audit (" + ndns.Action + ")"
+		} else {
+			match.Action = ndns.Action
 		}
 	} else if cct, ok := mp.(tp.CapabilitiesCapabilityType); ok {
 		match.Severity = strconv.Itoa(cct.Severity)
@@ -379,6 +420,22 @@ func (fd *Feeder) newMatchPolicy(policyEnabled int, policyName, src string, mp a
 		match.Action = dmt.Action
 		match.Resource = getDeviceResource(dmt.Class, dmt.SubClass, dmt.Protocol, dmt.Level)
 		match.ResourceType = "USB Device"
+	} else if ing, ok := mp.(tp.IngressType); ok {
+		match.Severity = strconv.Itoa(ing.Severity)
+		match.Tags = ing.Tags
+		match.Message = ing.Message
+		match.Operation = "NetworkFirewall"
+		match.Action = ing.Action
+		match.Resource = ""
+		match.ResourceType = "Ingress"
+	} else if egr, ok := mp.(tp.EgressType); ok {
+		match.Severity = strconv.Itoa(egr.Severity)
+		match.Tags = egr.Tags
+		match.Message = egr.Message
+		match.Operation = "NetworkFirewall"
+		match.Action = egr.Action
+		match.Resource = ""
+		match.ResourceType = "Egress"
 	} else {
 		return tp.MatchPolicy{}
 	}
@@ -569,6 +626,38 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, endPoint tp.EndPoint) {
 				matches.Policies = append(matches.Policies, match)
 			}
 
+		}
+
+		for _, dns := range secPolicy.Spec.Network.MatchDNSQueries {
+			if len(dns.Domain) == 0 {
+				continue
+			}
+
+			fromSource := ""
+
+			if len(dns.FromSource) == 0 {
+				match := fd.newMatchPolicy(endPoint.PolicyEnabled, policyName, fromSource, dns)
+				if len(match.Resource) == 0 {
+					continue
+				}
+				matches.Policies = append(matches.Policies, match)
+				continue
+			}
+
+			for _, src := range dns.FromSource {
+				if len(src.Path) > 0 {
+					fromSource = src.Path
+				} else {
+					continue
+				}
+
+				match := fd.newMatchPolicy(endPoint.PolicyEnabled, policyName, fromSource, dns)
+				if len(match.Resource) == 0 {
+					continue
+				}
+				match.IsFromSource = len(fromSource) > 0
+				matches.Policies = append(matches.Policies, match)
+			}
 		}
 
 		for _, cap := range secPolicy.Spec.Capabilities.MatchCapabilities {
@@ -894,6 +983,38 @@ func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.Hos
 			}
 		}
 
+		for _, dns := range secPolicy.Spec.Network.MatchDNSQueries {
+			if len(dns.Domain) == 0 {
+				continue
+			}
+
+			fromSource := ""
+
+			if len(dns.FromSource) == 0 {
+				match := fd.newMatchPolicy(fd.Node.PolicyEnabled, policyName, fromSource, dns)
+				if len(match.Resource) == 0 {
+					continue
+				}
+				matches.Policies = append(matches.Policies, match)
+				continue
+			}
+
+			for _, src := range dns.FromSource {
+				if len(src.Path) > 0 {
+					fromSource = src.Path
+				} else {
+					continue
+				}
+
+				match := fd.newMatchPolicy(fd.Node.PolicyEnabled, policyName, fromSource, dns)
+				if len(match.Resource) == 0 {
+					continue
+				}
+				match.IsFromSource = len(fromSource) > 0
+				matches.Policies = append(matches.Policies, match)
+			}
+		}
+
 		for _, device := range secPolicy.Spec.Device.MatchDevice {
 			if len(device.Class) == 0 {
 				continue
@@ -1043,6 +1164,42 @@ func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.Hos
 	fd.SecurityPoliciesLock.Unlock()
 }
 
+// =============================== //
+// == Network Security Policies == //
+// =============================== //
+
+// UpdateNetworkSecurityPolicies Function
+func (fd *Feeder) UpdateNetworkSecurityPolicies(action string, secPolicies []tp.NetworkSecurityPolicy) {
+	if action == "DELETED" {
+		delete(fd.SecurityPolicies, fd.Node.NodeName)
+		return
+	}
+
+	// ADDED | MODIFIED
+	matches := tp.MatchPolicies{}
+
+	for _, secPolicy := range secPolicies {
+		policyName := secPolicy.Metadata["policyName"]
+
+		// ingress
+		for _, in := range secPolicy.Spec.Ingress {
+			match := fd.newMatchPolicy(fd.Node.PolicyEnabled, policyName, "", in)
+			matches.Policies = append(matches.Policies, match)
+		}
+
+		// egress
+		for _, eg := range secPolicy.Spec.Egress {
+			match := fd.newMatchPolicy(fd.Node.PolicyEnabled, policyName, "", eg)
+			matches.Policies = append(matches.Policies, match)
+		}
+	}
+
+	fd.SecurityPoliciesLock.Lock()
+	fd.SecurityPolicies[fd.Node.NodeName] = matches
+	fd.SecurityPoliciesLock.Unlock()
+
+}
+
 // ===================== //
 // == Default Posture == //
 // ===================== //
@@ -1187,30 +1344,38 @@ func getDevicePolicySpecificity(secPolicy tp.MatchPolicy) int {
 }
 
 // Update Log Fields based on default posture and visibility configuration and return false if no updates
-func setLogFields(log *tp.Log, existAllowPolicy bool, defaultPosture string, visibility, containerEvent bool) bool {
+func setLogFields(log *tp.Log, existAllowPolicy bool, defaultPosture string, visibility, containerEvent, networkfwEvent bool) bool {
 	if existAllowPolicy && defaultPosture == "audit" && (*log).Result == "Passed" {
-		if containerEvent {
-			(*log).Type = "MatchedPolicy"
-		} else {
-			(*log).Type = "MatchedHostPolicy"
-		}
 
 		(*log).PolicyName = "DefaultPosture"
 		(*log).Enforcer = "eBPF Monitor"
 		(*log).Action = "Audit"
 
-		return true
-	}
-	if existAllowPolicy && defaultPosture == "block" && (*log).Result != "Passed" {
 		if containerEvent {
 			(*log).Type = "MatchedPolicy"
+		} else if networkfwEvent {
+			(*log).Type = "MatchedNetworkPolicy"
+			(*log).Enforcer = "NetworkPolicyEnforcer"
 		} else {
 			(*log).Type = "MatchedHostPolicy"
 		}
 
+		return true
+	}
+	if existAllowPolicy && defaultPosture == "block" && (*log).Result != "Passed" {
+
 		(*log).PolicyName = "DefaultPosture"
 		(*log).Enforcer = "eBPF Monitor"
 		(*log).Action = "Block"
+
+		if containerEvent {
+			(*log).Type = "MatchedPolicy"
+		} else if networkfwEvent {
+			(*log).Type = "MatchedNetworkPolicy"
+			(*log).Enforcer = "NetworkPolicyEnforcer"
+		} else {
+			(*log).Type = "MatchedHostPolicy"
+		}
 
 		return true
 	}
@@ -1248,6 +1413,7 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 	existNetworkAllowPolicy := false
 	existCapabilitiesAllowPolicy := false
 	existUSBDeviceAllowPolicy := false
+	existNetworkFirewallAllowPolicy := false
 	fd.DefaultPosturesLock.Lock()
 	defer fd.DefaultPosturesLock.Unlock()
 	if log.Result == "Passed" || log.Result == "Operation not permitted" || log.Result == "Permission denied" {
@@ -1280,6 +1446,8 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 					existCapabilitiesAllowPolicy = true
 				} else if secPolicy.Operation == "Device" {
 					existUSBDeviceAllowPolicy = true
+				} else if secPolicy.Operation == "NetworkFirewall" {
+					existNetworkFirewallAllowPolicy = true
 				}
 
 				if fd.DefaultPostures[log.NamespaceName].FileAction == "allow" {
@@ -1342,6 +1510,12 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 							if log.UID == log.OID && strings.Contains(secPolicy.Action, "Allow") {
 								matchedFlags = true
 							} else if log.UID != log.OID {
+								matchedFlags = true
+							}
+						} else if secPolicy.Pts != nil && !*secPolicy.Pts {
+							if log.TTY == "" {
+								matchedFlags = false
+							} else {
 								matchedFlags = true
 							}
 						} else {
@@ -1527,13 +1701,44 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 				if skip {
 					break // break, so that once source is matched for a log it doesn't look for other cases
 				}
+
 				// match sources
 				if (!secPolicy.IsFromSource) || (secPolicy.IsFromSource && (strings.HasPrefix(log.Source, secPolicy.Source+" ") || secPolicy.Source == log.ProcessName)) {
 					matchedFlags := false
 
-					protocol := fetchProtocol(log.Resource)
-					if protocol == secPolicy.Resource || secPolicy.Resource == "all" {
-						matchedFlags = true
+					protocol := "unknown"
+					switch secPolicy.ResourceType {
+					case "Protocol":
+						protocol = fetchProtocol(log.Resource)
+						if protocol == secPolicy.Resource || secPolicy.Resource == "all" {
+							matchedFlags = true
+						}
+						if secPolicy.Pts != nil && !*secPolicy.Pts {
+							if log.TTY == "" {
+								matchedFlags = false
+							} else {
+								matchedFlags = true
+							}
+						}
+					case "DNS":
+						// For BPFLSM events, log.Resource is the domain.
+						// For kprobe (udp_sendmsg) audit events, the domain is embedded in log.Data (e.g., "domain=google.com").
+						resource := strings.ToLower(log.Resource)
+						if strings.Contains(log.Data, "domain=") {
+							for _, part := range strings.Split(log.Data, " ") {
+								if strings.HasPrefix(part, "domain=") {
+									resource = strings.ToLower(strings.TrimPrefix(part, "domain="))
+									break
+								}
+							}
+						}
+
+						// Match exact domain or K8s search-path expansions (e.g. google.com.svc.cluster.local)
+						domain := strings.ToLower(secPolicy.Resource)
+						if resource == domain || strings.HasPrefix(resource, domain+".") {
+							log.Resource = secPolicy.Resource // normalize log resource to the policy resource
+							matchedFlags = true
+						}
 					}
 
 					if matchedFlags {
@@ -1623,7 +1828,7 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 						}
 					}
 					// if protocol is unknown we skip the audit alert event
-					if protocol == "unknown" {
+					if protocol == "unknown" && secPolicy.ResourceType == "Protocol" {
 						log.Type = "MatchedPolicy"
 						log.Action = "Allow"
 						continue
@@ -1794,6 +1999,52 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 
 						specificity = sp
 						continue
+					}
+				}
+
+			case "NetworkFirewall":
+				if secPolicy.Operation != log.Operation {
+					continue
+				}
+
+				parts := strings.Split(log.Resource, " ") // policyName chain(INPUT/OUTPUT) action(Audit/Block)
+				action := "Block"
+
+				if secPolicy.PolicyName == parts[0] {
+					log.Type = "MatchedPolicy"
+
+					log.PolicyName = secPolicy.PolicyName
+					log.Severity = secPolicy.Severity
+
+					if len(secPolicy.Tags) > 0 {
+						log.Tags = strings.Join(secPolicy.Tags[:], ",")
+						log.ATags = secPolicy.Tags
+					}
+
+					if len(secPolicy.Message) > 0 {
+						log.Message = secPolicy.Message
+					}
+
+					log.Enforcer = "NetworkPolicyEnforcer"
+
+					log.Action = action
+					if len(parts) > 2 {
+						log.Action = parts[2]
+					}
+				} else if parts[0] == "Default" { // Default Posture
+					log.Type = "MatchedPolicy"
+
+					log.PolicyName = "DefaultPosture"
+
+					log.Severity = ""
+					log.Tags = ""
+					log.Message = ""
+
+					log.Enforcer = "NetworkPolicyEnforcer"
+
+					log.Action = action
+					if len(parts) > 2 {
+						log.Action = parts[2]
 					}
 				}
 
@@ -2037,23 +2288,23 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 			}
 
 			if log.Operation == "Process" {
-				if setLogFields(&log, existFileAllowPolicy, fd.DefaultPostures[log.NamespaceName].FileAction, log.ProcessVisibilityEnabled, true) {
+				if setLogFields(&log, existFileAllowPolicy, fd.DefaultPostures[log.NamespaceName].FileAction, log.ProcessVisibilityEnabled, true, false) {
 					return log
 				}
 			} else if log.Operation == "File" {
-				if setLogFields(&log, existFileAllowPolicy, fd.DefaultPostures[log.NamespaceName].FileAction, log.FileVisibilityEnabled, true) {
+				if setLogFields(&log, existFileAllowPolicy, fd.DefaultPostures[log.NamespaceName].FileAction, log.FileVisibilityEnabled, true, false) {
 					return log
 				}
 			} else if log.Operation == "Network" {
-				if setLogFields(&log, existNetworkAllowPolicy, fd.DefaultPostures[log.NamespaceName].NetworkAction, log.NetworkVisibilityEnabled, true) {
+				if setLogFields(&log, existNetworkAllowPolicy, fd.DefaultPostures[log.NamespaceName].NetworkAction, log.NetworkVisibilityEnabled, true, false) {
 					return log
 				}
 			} else if log.Operation == "Capabilities" {
-				if setLogFields(&log, existCapabilitiesAllowPolicy, fd.DefaultPostures[log.NamespaceName].CapabilitiesAction, log.CapabilitiesVisibilityEnabled, true) {
+				if setLogFields(&log, existCapabilitiesAllowPolicy, fd.DefaultPostures[log.NamespaceName].CapabilitiesAction, log.CapabilitiesVisibilityEnabled, true, false) {
 					return log
 				}
 			} else if log.Operation == "Syscall" {
-				if setLogFields(&log, false, "", true, true) {
+				if setLogFields(&log, false, "", true, true, false) {
 					return log
 				}
 			}
@@ -2069,23 +2320,27 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 		if log.Type == "" {
 			// host log
 			if log.Operation == "Process" {
-				if setLogFields(&log, existFileAllowPolicy, cfg.GlobalCfg.DefaultFilePosture, fd.Node.ProcessVisibilityEnabled, false) {
+				if setLogFields(&log, existFileAllowPolicy, cfg.GlobalCfg.DefaultFilePosture, fd.Node.ProcessVisibilityEnabled, false, false) {
 					return log
 				}
 			} else if log.Operation == "File" {
-				if setLogFields(&log, existFileAllowPolicy, cfg.GlobalCfg.DefaultFilePosture, fd.Node.FileVisibilityEnabled, false) {
+				if setLogFields(&log, existFileAllowPolicy, cfg.GlobalCfg.DefaultFilePosture, fd.Node.FileVisibilityEnabled, false, false) {
 					return log
 				}
 			} else if log.Operation == "Network" {
-				if setLogFields(&log, existNetworkAllowPolicy, cfg.GlobalCfg.DefaultNetworkPosture, fd.Node.NetworkVisibilityEnabled, false) {
+				if setLogFields(&log, existNetworkAllowPolicy, cfg.GlobalCfg.DefaultNetworkPosture, fd.Node.NetworkVisibilityEnabled, false, false) {
 					return log
 				}
 			} else if log.Operation == "Capabilities" {
-				if setLogFields(&log, existCapabilitiesAllowPolicy, cfg.GlobalCfg.DefaultCapabilitiesPosture, fd.Node.CapabilitiesVisibilityEnabled, false) {
+				if setLogFields(&log, existCapabilitiesAllowPolicy, cfg.GlobalCfg.DefaultCapabilitiesPosture, fd.Node.CapabilitiesVisibilityEnabled, false, false) {
 					return log
 				}
 			} else if log.Operation == "Device" {
-				if setLogFields(&log, existUSBDeviceAllowPolicy, cfg.GlobalCfg.HostDefaultDevicePosture, true, false) {
+				if setLogFields(&log, existUSBDeviceAllowPolicy, cfg.GlobalCfg.HostDefaultDevicePosture, true, false, false) {
+					return log
+				}
+			} else if log.Operation == "NetworkFirewall" {
+				if setLogFields(&log, existNetworkFirewallAllowPolicy, cfg.GlobalCfg.HostDefaultNetworkPosture, true, false, true) {
 					return log
 				}
 			}

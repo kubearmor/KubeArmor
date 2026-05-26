@@ -507,7 +507,7 @@ func (ae *AppArmorEnforcer) UpdateAppArmorProfile(endPoint tp.EndPoint, appArmor
 	ae.AppArmorPrivilegedProfilesLock.Unlock()
 
 	if policyCount, newProfile, ok := ae.GenerateAppArmorProfile(appArmorProfile, securityPolicies, endPoint.DefaultPosture, privileged); ok {
-		// this path is expected to have a single componenet "apparmor-profile"
+		// this path is expected to have a single component "apparmor-profile"
 		// and this is to ensure that the filename has no path separators or parent directory references
 		if strings.Contains(appArmorProfile, "/") || strings.Contains(appArmorProfile, "\\") || strings.Contains(appArmorProfile, "..") {
 			ae.Logger.Warnf("Invalid AppArmor profile name (%s)", appArmorProfile)

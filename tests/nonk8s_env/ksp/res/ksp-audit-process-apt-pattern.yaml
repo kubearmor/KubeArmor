@@ -1,0 +1,14 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: ksp-audit-process-apt-pattern
+spec:
+  severity: 7
+  selector:
+    matchLabels:
+      kubearmor.io/container.name: wordpress-mysql
+  process:
+    matchPatterns:
+      - pattern: /usr/bin/apt*
+  action: Audit
+  tags: [package-manager, test]

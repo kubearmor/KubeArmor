@@ -10,6 +10,7 @@ data:
   batchAuditPoliciesMaxEntries: {{ .Values.kubearmorConfigMap.batchAuditPoliciesMaxEntries | quote }}
   batchAuditAggregationsMaxEntries: {{ .Values.kubearmorConfigMap.batchAuditAggregationsMaxEntries | quote }}
   matchArgs: {{ .Values.kubearmorConfigMap.matchArgs | quote }}
+  karmor.yaml: | {{ toYaml .Values.kubearmorConfigMap | nindent 4 }}
 kind: ConfigMap
 metadata:
   labels:

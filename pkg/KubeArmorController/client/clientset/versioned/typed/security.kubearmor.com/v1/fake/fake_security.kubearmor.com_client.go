@@ -23,6 +23,10 @@ func (c *FakeSecurityV1) KubeArmorHostPolicies() v1.KubeArmorHostPolicyInterface
 	return &FakeKubeArmorHostPolicies{c}
 }
 
+func (c *FakeSecurityV1) KubeArmorNetworkPolicies() v1.KubeArmorNetworkPolicyInterface {
+	return &FakeKubeArmorNetworkPolicies{c}
+}
+
 func (c *FakeSecurityV1) KubeArmorPolicies(namespace string) v1.KubeArmorPolicyInterface {
 	return &FakeKubeArmorPolicies{c, namespace}
 }

@@ -1,0 +1,17 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: ksp-group-1-block-proc-pts
+  namespace: multiubuntu
+spec:
+  severity: 5
+  message: "block /bin/sleep from pts"
+  selector:
+    matchLabels:
+      group: group-1
+  process:
+    matchPaths:
+    - path: /bin/sleep
+      pts: false
+  action:
+    Block

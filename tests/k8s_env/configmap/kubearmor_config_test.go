@@ -138,7 +138,7 @@ var _ = Describe("KubeArmor-Config", func() {
 			err = KarmorLogStart("policy", "unannotated", "File", unannotated)
 			Expect(err).To(BeNil())
 
-			// initialy global defaults posture is audit
+			// initially global defaults posture is audit
 			sout, _, err := K8sExecInPodWithContainer(unannotated, "unannotated", "ubuntu-1", []string{"bash", "-c", "cat /credentials/keys/priv.key"})
 			Expect(err).To(BeNil())
 			fmt.Printf("---START---\n%s---END---\n", sout)
@@ -164,7 +164,7 @@ var _ = Describe("KubeArmor-Config", func() {
 		})
 	})
 
-	Describe("Partialy Annotated", Label("partial"), func() {
+	Describe("Partially Annotated", Label("partial"), func() {
 
 		It("default posture will be set to global config posture for unannotated posture only", func() {
 
@@ -175,7 +175,7 @@ var _ = Describe("KubeArmor-Config", func() {
 			err = KarmorLogStart("policy", "partialyannotated", "File", partialyAnnotated)
 			Expect(err).To(BeNil())
 
-			// initialy namespace defaults posture (annotated) is audit for File
+			// initially namespace defaults posture (annotated) is audit for File
 			sout, _, err := K8sExecInPodWithContainer(partialyAnnotated, "partialyannotated", "ubuntu-1", []string{"bash", "-c", "cat /credentials/keys/priv.key"})
 			Expect(err).To(BeNil())
 			fmt.Printf("---START---\n%s---END---\n", sout)
@@ -259,7 +259,7 @@ var _ = Describe("KubeArmor-Config", func() {
 			err = KarmorLogStart("policy", "fullyannotated", "Network", fullyAnnotated)
 			Expect(err).To(BeNil())
 
-			// initialy namespace defaults posture is block (annotated fully)
+			// initially namespace defaults posture is block (annotated fully)
 			sout, _, err := K8sExecInPodWithContainer(fullyAnnotated, "fullyannotated", "ubuntu-1", []string{"bash", "-c", "curl google.com"})
 			Expect(err).To(BeNil())
 			fmt.Printf("---START---\n%s---END---\n", sout)

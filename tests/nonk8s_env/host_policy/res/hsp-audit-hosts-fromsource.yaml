@@ -1,0 +1,16 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorHostPolicy
+metadata:
+  name: hsp-audit-hosts-fromsource
+spec:
+  nodeSelector:
+    matchLabels:
+      kubearmor.io/hostname: "*"
+  file:
+    matchPaths:
+      - path: /etc/hosts
+        fromSource:
+          - path: /usr/bin/cat
+  action: Audit
+  severity: 7
+  message: "Process /usr/bin/cat cat attempted to read /etc/hosts"

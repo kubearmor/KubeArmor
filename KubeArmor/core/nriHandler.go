@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/containerd/nri/pkg/api"
 	"github.com/containerd/nri/pkg/stub"
@@ -52,6 +53,10 @@ type NRIHandler struct {
 
 	handleDeletedContainer func(tp.Container)
 	handleNewContainer     func(tp.Container)
+
+	// disconnectChan is closed/sent-to when the NRI stub connection is lost,
+	// signalling MonitorNRIEvents to create a fresh handler.
+	disconnectChan chan struct{}
 }
 
 // NewNRIHandler creates a new NRIHandler with the given event callbacks.
@@ -59,14 +64,20 @@ func (dm *KubeArmorDaemon) NewNRIHandler(
 	handleDeletedContainer func(tp.Container),
 	handleNewContainer func(tp.Container),
 ) *NRIHandler {
-	nri := &NRIHandler{dm: dm}
+	nri := &NRIHandler{
+		dm:             dm,
+		disconnectChan: make(chan struct{}, 1),
+	}
 
 	opts := []stub.Option{
 		stub.WithSocketPath(cfg.GlobalCfg.NRISocket),
 		stub.WithPluginIdx(cfg.GlobalCfg.NRIIndex),
 		stub.WithOnClose(func() {
-			kg.Printf("restarting NRI")
-			nri.Start()
+			// Signal MonitorNRIEvents that the connection was lost so it can attempt reconnection. WithOnClose may not fire if the connection was never fully established, so we also signal disconnectChan in the goroutine running stub.Run() to ensure MonitorNRIEvents always wakes up to retry.
+			select {
+			case nri.disconnectChan <- struct{}{}:
+			default:
+			}
 		}),
 	}
 
@@ -91,6 +102,12 @@ func (nh *NRIHandler) Start() {
 		err := nh.stub.Run(context.Background())
 		if err != nil {
 			kg.Errf("Failed to connect to NRI: %s", err.Error())
+		}
+		// Signal disconnectChan when stub.Run() exits (error or clean close).
+		// Ensures reconnect loop wakes up even if WithOnClose doesn’t fire.
+		select {
+		case nh.disconnectChan <- struct{}{}:
+		default:
 		}
 	}()
 }
@@ -434,13 +451,59 @@ func (dm *KubeArmorDaemon) MonitorNRIEvents() {
 	}
 
 	NRI = dm.NewNRIHandler(handleDeletedContainer, handleNewContainer)
-
-	// check if NRI exists
 	if NRI == nil {
 		return
 	}
-
 	NRI.Start()
-
 	dm.Logger.Print("Started to monitor NRI events")
+
+	for {
+		select {
+		case <-StopChan:
+			return
+		case <-NRI.disconnectChan:
+			kg.Warn("NRI connection lost")
+			if !dm.reconnectNRI(handleDeletedContainer, handleNewContainer) {
+				return
+			}
+		}
+	}
+}
+
+// reconnectNRI attempts to reconnect to the NRI socket with exponential backoff.
+// Returns true on success, false if StopChan is signalled during retry.
+func (dm *KubeArmorDaemon) reconnectNRI(
+	handleDeletedContainer func(tp.Container),
+	handleNewContainer func(tp.Container),
+) bool {
+	const maxRetryInterval = 60 * time.Second
+	retryInterval := 5 * time.Second
+
+	for {
+		dm.Logger.Printf("Attempting to reconnect to NRI in %v...", retryInterval)
+
+		select {
+		case <-StopChan:
+			return false
+		case <-time.After(retryInterval):
+		}
+
+		// Stop the old stub BEFORE creating a new one.
+		NRI.Close()
+
+		newNRI := dm.NewNRIHandler(handleDeletedContainer, handleNewContainer)
+		if newNRI == nil {
+			kg.Warnf("Failed to create NRI handler")
+			retryInterval *= 2
+			if retryInterval > maxRetryInterval {
+				retryInterval = maxRetryInterval
+			}
+			continue
+		}
+
+		NRI = newNRI
+		NRI.Start()
+		dm.Logger.Print("Successfully reconnected to NRI")
+		return true
+	}
 }

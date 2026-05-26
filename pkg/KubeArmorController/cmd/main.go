@@ -156,7 +156,7 @@ func main() {
 
 	client, err := kubernetes.NewForConfig(mgr.GetConfig())
 	if err != nil {
-		setupLog.Error(err, "Cannot init kuberntes client")
+		setupLog.Error(err, "Cannot init kubernetes client")
 		os.Exit(1)
 	}
 
