@@ -56,6 +56,11 @@ func (dm *KubeArmorDaemon) WatchConfigChanges() {
 		dm.Logger.Printf("Config file changed: %s", e.Name)
 		cfg.LoadDynamicConfig()
 
+		// Re-sync API Observer BPF port exclusion map if running.
+		if dm.APIObserver != nil {
+			dm.APIObserver.SyncPortExclusions()
+		}
+
 		// Update the default posture
 		globalPosture := tp.DefaultPosture{
 			FileAction:         validateGlobalDefaultPosture(cfg.GlobalCfg.DefaultFilePosture),
