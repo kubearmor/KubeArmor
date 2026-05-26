@@ -37,7 +37,7 @@ require (
 	github.com/kubearmor/KubeArmor/pkg/KubeArmorController v0.0.0-20260406102335-87edc770f8bf
 	github.com/kubearmor/KubeArmor/protobuf v0.0.0-20260406102335-87edc770f8bf
 	github.com/mdlayher/netlink v1.10.0
-	github.com/moby/moby/api v1.54.1
+	github.com/moby/moby/api v1.54.2
 	github.com/moby/moby/client v0.4.0
 	github.com/opencontainers/runtime-spec v1.3.0
 	github.com/spf13/viper v1.21.0
