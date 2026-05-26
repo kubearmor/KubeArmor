@@ -64,7 +64,8 @@ type KubeArmorPolicySpec struct {
 	Syscalls     SyscallsType     `json:"syscalls,omitempty"`
 	Presets      []PresetType     `json:"presets,omitempty"`
 
-	AppArmor string `json:"apparmor,omitempty"`
+	AppArmor   string         `json:"apparmor,omitempty"`
+	BatchAudit BatchAuditType `json:"batchAudit,omitempty"`
 
 	// +kubebuilder:validation:optional
 	Severity SeverityType `json:"severity,omitempty"`

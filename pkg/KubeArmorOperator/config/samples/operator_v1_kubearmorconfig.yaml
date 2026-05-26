@@ -9,4 +9,5 @@ metadata:
     app.kubernetes.io/created-by: kubearmoroperator
   name: kubearmorconfig-sample
 spec:
-  # TODO(user): Add fields here
+  batchAuditPoliciesMaxEntries: 1
+  batchAuditAggregationsMaxEntries: 1

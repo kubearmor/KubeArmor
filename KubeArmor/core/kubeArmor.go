@@ -322,6 +322,7 @@ func (dm *KubeArmorDaemon) MonitorSystemEvents() {
 		go dm.SystemMonitor.TraceSyscall()
 		go dm.SystemMonitor.UpdateLogs()
 		go dm.SystemMonitor.CleanUpExitedHostPids()
+		go dm.SystemMonitor.PollBatchAuditEvents()
 	}
 }
 
@@ -670,8 +671,6 @@ func KubeArmor() {
 		go dm.StateAgent.PushNodeEvent(dm.Node, state.EventAdded)
 	}
 
-	// == //
-
 	// Containerized workloads with Host
 	if cfg.GlobalCfg.Policy || cfg.GlobalCfg.HostPolicy {
 		// initialize system monitor
@@ -785,7 +784,6 @@ func KubeArmor() {
 	if v, ok := dm.Node.Labels["kubearmor.io/socket"]; ok {
 		socketLabel = v
 	}
-
 	if dm.K8sEnabled && cfg.GlobalCfg.Policy {
 		if cfg.GlobalCfg.UseOCIHooks &&
 			(strings.Contains(dm.Node.ContainerRuntimeVersion, "cri-o") ||

@@ -4,6 +4,7 @@
 resources:
 - bases/security.kubearmor.com_kubearmorhostpolicies.yaml
 - bases/security.kubearmor.com_kubearmorpolicies.yaml
+- bases/security.kubearmor.com_kubearmorclusterpolicies.yaml
 #+kubebuilder:scaffold:crdkustomizeresource
 
 patchesStrategicMerge:

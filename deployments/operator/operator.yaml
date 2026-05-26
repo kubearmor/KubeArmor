@@ -71,8 +71,10 @@ spec:
                 type: object
               alertThrottling:
                 type: boolean
-              matchArgs:
-                type: boolean
+              batchAuditAggregationsMaxEntries:
+                type: integer
+              batchAuditPoliciesMaxEntries:
+                type: integer
               controllerPort:
                 type: integer
               defaultCapabilitiesPosture:
@@ -1489,6 +1491,8 @@ spec:
                       type: object
                     type: array
                 type: object
+              matchArgs:
+                type: boolean
               maxAlertPerSec:
                 type: integer
               recommendedPolicies:

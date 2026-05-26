@@ -3,7 +3,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.19.0
+    controller-gen.kubebuilder.io/version: v0.16.5
   name: kubearmorpolicies.security.kubearmor.com
 spec:
   group: security.kubearmor.com
@@ -57,16 +57,25 @@ spec:
                 enum:
                 - Allow
                 - Audit
+                - BatchAudit
                 - Block
                 type: string
               apparmor:
                 type: string
+              batchAudit:
+                properties:
+                  intervalSeconds:
+                    format: int32
+                    minimum: 1
+                    type: integer
+                type: object
               capabilities:
                 properties:
                   action:
                     enum:
                     - Allow
                     - Audit
+                    - BatchAudit
                     - Block
                     type: string
                   matchCapabilities:
@@ -76,6 +85,7 @@ spec:
                           enum:
                           - Allow
                           - Audit
+                          - BatchAudit
                           - Block
                           type: string
                         capability:
@@ -121,6 +131,7 @@ spec:
                     enum:
                     - Allow
                     - Audit
+                    - BatchAudit
                     - Block
                     type: string
                   matchDirectories:
@@ -130,6 +141,7 @@ spec:
                           enum:
                           - Allow
                           - Audit
+                          - BatchAudit
                           - Block
                           type: string
                         dir:
@@ -173,6 +185,7 @@ spec:
                           enum:
                           - Allow
                           - Audit
+                          - BatchAudit
                           - Block
                           type: string
                         fromSource:
@@ -215,6 +228,7 @@ spec:
                           enum:
                           - Allow
                           - Audit
+                          - BatchAudit
                           - Block
                           type: string
                         message:
@@ -256,6 +270,7 @@ spec:
                     enum:
                     - Allow
                     - Audit
+                    - BatchAudit
                     - Block
                     type: string
                   matchDNSQueries:
@@ -265,6 +280,7 @@ spec:
                           enum:
                           - Allow
                           - Audit
+                          - BatchAudit
                           - Block
                           type: string
                         domain:
@@ -299,6 +315,7 @@ spec:
                           enum:
                           - Allow
                           - Audit
+                          - BatchAudit
                           - Block
                           type: string
                         fromSource:
@@ -347,6 +364,7 @@ spec:
                       enum:
                       - Allow
                       - Audit
+                      - BatchAudit
                       - Block
                       type: string
                     name:
@@ -359,6 +377,7 @@ spec:
                     enum:
                     - Allow
                     - Audit
+                    - BatchAudit
                     - Block
                     type: string
                   matchDirectories:
@@ -368,6 +387,7 @@ spec:
                           enum:
                           - Allow
                           - Audit
+                          - BatchAudit
                           - Block
                           type: string
                         dir:
@@ -409,6 +429,7 @@ spec:
                           enum:
                           - Allow
                           - Audit
+                          - BatchAudit
                           - Block
                           type: string
                         allowedArgs:
@@ -455,6 +476,7 @@ spec:
                           enum:
                           - Allow
                           - Audit
+                          - BatchAudit
                           - Block
                           type: string
                         message:

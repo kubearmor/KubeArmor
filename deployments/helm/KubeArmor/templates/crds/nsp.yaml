@@ -3,7 +3,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.19.0
+    controller-gen.kubebuilder.io/version: v0.16.5
   name: kubearmornetworkpolicies.security.kubearmor.com
 spec:
   group: security.kubearmor.com
@@ -58,6 +58,7 @@ spec:
                 enum:
                 - Allow
                 - Audit
+                - BatchAudit
                 - Block
                 type: string
               egress:
@@ -68,6 +69,7 @@ spec:
                       enum:
                       - Allow
                       - Audit
+                      - BatchAudit
                       - Block
                       type: string
                     iface:
@@ -132,6 +134,7 @@ spec:
                       enum:
                       - Allow
                       - Audit
+                      - BatchAudit
                       - Block
                       type: string
                     from:

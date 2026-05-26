@@ -12,7 +12,7 @@ import (
 )
 
 var (
-	hookBinaryPath	string
+	hookBinaryPath string
 )
 
 func applyPodmanHook() error {

@@ -42,6 +42,8 @@ const (
 	addEvent    string = "ADDED"
 	updateEvent string = "MODIFIED"
 	deleteEvent string = "DELETED"
+
+	batchAuditDefaultIntervalSeconds = 60
 )
 
 // ================= //
@@ -202,7 +204,6 @@ func (dm *KubeArmorDaemon) WatchK8sNodes() {
 	go factory.Start(StopChan)
 	factory.WaitForCacheSync(StopChan)
 	kg.Print("Started watching node information")
-
 }
 
 // ================ //
@@ -376,6 +377,14 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 				}
 			}
 		}
+		if dm.SystemMonitor != nil {
+			for _, endpoint := range endpoints {
+				if err := dm.SystemMonitor.UpdateBatchAuditPoliciesForEndpoint(endpoint); err != nil {
+					dm.Logger.Warnf("Failed to update batch audit policies for endpoint %s/%s: %s",
+						endpoint.NamespaceName, endpoint.EndPointName, err)
+				}
+			}
+		}
 
 	} else if action == updateEvent {
 		newEndPoint := tp.EndPoint{}
@@ -385,7 +394,6 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 		for _, endPoint := range dm.EndPoints {
 			if pod.Metadata["namespaceName"] == endPoint.NamespaceName && pod.Metadata["podName"] == endPoint.EndPointName {
 				endpoints = append(endpoints, endPoint)
-				break
 			}
 		}
 		dm.EndPointsLock.RUnlock()
@@ -393,7 +401,6 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 			// No endpoints were added as containers ID have been just added
 			// Same logic as ADDED
 			dm.UpdateEndPointWithPod(addEvent, pod)
-
 		} else {
 			newEndPoint.NamespaceName = pod.Metadata["namespaceName"]
 			newEndPoint.EndPointName = pod.Metadata["podName"]
@@ -562,6 +569,14 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 					}
 				}
 			}
+			if dm.SystemMonitor != nil {
+				for _, endpoint := range endpoints {
+					if err := dm.SystemMonitor.UpdateBatchAuditPoliciesForEndpoint(endpoint); err != nil {
+						dm.Logger.Warnf("Failed to update batch audit policies for endpoint %s/%s: %s",
+							endpoint.NamespaceName, endpoint.EndPointName, err)
+					}
+				}
+			}
 		}
 
 	} else { // DELETED
@@ -654,7 +669,7 @@ func (dm *KubeArmorDaemon) handlePodEvent(event string, obj *corev1.Pod) {
 	}
 	dm.OwnerInfoLock.Unlock()
 
-	//get the owner , then check if that owner has owner if...do it recusivelt until you get the no owner
+	// get the owner , then check if that owner has owner if...do it recusivelt until you get the no owner
 
 	pod.Annotations = map[string]string{}
 	maps.Copy(pod.Annotations, obj.Annotations)
@@ -826,7 +841,6 @@ func (dm *KubeArmorDaemon) handlePodEvent(event string, obj *corev1.Pod) {
 				}
 
 			}
-
 		}
 		dm.OwnerInfoLock.RUnlock()
 
@@ -869,7 +883,6 @@ func (dm *KubeArmorDaemon) handlePodEvent(event string, obj *corev1.Pod) {
 			dm.RuntimeEnforcer.UpdateAppArmorProfiles(pod.Metadata["podName"], addEvent, appArmorAnnotations, pod.PrivilegedAppArmorProfiles)
 			dm.OwnerInfoLock.RLock()
 			if updateAppArmor && pod.Annotations["kubearmor-policy"] == "enabled" && dm.OwnerInfo[pod.Metadata["podName"]].Ref != "Pod" {
-
 				// patch deployments only when kubearmor-controller is not present
 				if dm.OwnerInfo[pod.Metadata["podName"]].Name != "" && cfg.GlobalCfg.AnnotateResources {
 					deploymentName := dm.OwnerInfo[pod.Metadata["podName"]].Name
@@ -895,7 +908,6 @@ func (dm *KubeArmorDaemon) handlePodEvent(event string, obj *corev1.Pod) {
 					}
 
 					if updateAppArmor && prevPolicyEnabled != "enabled" && pod.Annotations["kubearmor-policy"] == "enabled" && dm.OwnerInfo[pod.Metadata["podName"]].Ref != "Pod" {
-
 						// patch deployments only when kubearmor-controller is not present
 						if dm.OwnerInfo[pod.Metadata["podName"]].Name != "" && cfg.GlobalCfg.AnnotateResources {
 							deploymentName := dm.OwnerInfo[pod.Metadata["podName"]].Name
@@ -972,7 +984,6 @@ func (dm *KubeArmorDaemon) handlePodEvent(event string, obj *corev1.Pod) {
 
 // WatchK8sPods Function
 func (dm *KubeArmorDaemon) WatchK8sPods() {
-
 	if !kl.IsK8sEnv() {
 		dm.Logger.Print("not in a k8s environment")
 		return
@@ -1015,7 +1026,6 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 
 	go factory.Start(StopChan)
 	dm.Logger.Print("Started watching pod information")
-
 }
 
 // updateNamespaceListforCSP - in case of NotIn operator for namespace key, a new ns might be added later
@@ -1037,7 +1047,6 @@ func updateNamespaceListforCSP(policy *tp.SecurityPolicy) {
 					if !kl.ContainsElement(policy.Spec.Selector.NamespaceList, value) {
 						policy.Spec.Selector.NamespaceList = append(policy.Spec.Selector.NamespaceList, value)
 					}
-
 				}
 			} else if matchExpression.Operator == "NotIn" && !hasInOperator {
 				for _, value := range matchExpression.Values {
@@ -1183,6 +1192,12 @@ func (dm *KubeArmorDaemon) UpdateSecurityPolicy(action string, secPolicyType str
 								}
 							}
 						}
+						if dm.SystemMonitor != nil {
+							if err := dm.SystemMonitor.UpdateBatchAuditPoliciesForEndpoint(dm.EndPoints[idx]); err != nil {
+								dm.Logger.Warnf("Failed to update batch audit policies for endpoint %s/%s: %s",
+									dm.EndPoints[idx].NamespaceName, dm.EndPoints[idx].EndPointName, err)
+							}
+						}
 						break
 					}
 				}
@@ -1264,6 +1279,12 @@ func (dm *KubeArmorDaemon) UpdateSecurityPolicy(action string, secPolicyType str
 								}
 							}
 						}
+						if dm.SystemMonitor != nil {
+							if err := dm.SystemMonitor.UpdateBatchAuditPoliciesForEndpoint(dm.EndPoints[idx]); err != nil {
+								dm.Logger.Warnf("Failed to update batch audit policies for endpoint %s/%s: %s",
+									dm.EndPoints[idx].NamespaceName, dm.EndPoints[idx].EndPointName, err)
+							}
+						}
 						break
 					}
 				}
@@ -1298,7 +1319,6 @@ func (dm *KubeArmorDaemon) CreateSecurityPolicy(policyType string, securityPolic
 						if len(container) > 0 {
 							secPolicy.Spec.Selector.Containers = append(secPolicy.Spec.Selector.Containers, strings.TrimSpace(container))
 						}
-
 					}
 				}
 			} else {
@@ -1397,6 +1417,11 @@ func (dm *KubeArmorDaemon) CreateSecurityPolicy(policyType string, securityPolic
 		secPolicy.Spec.Action = "Allow"
 	case "audit":
 		secPolicy.Spec.Action = "Audit"
+	case "batchAudit":
+		secPolicy.Spec.Action = "BatchAudit"
+		if secPolicy.Spec.BatchAudit.IntervalSeconds <= 0 {
+			secPolicy.Spec.BatchAudit.IntervalSeconds = batchAuditDefaultIntervalSeconds
+		}
 	case "block":
 		secPolicy.Spec.Action = "Block"
 	case "":
@@ -1835,6 +1860,14 @@ func (dm *KubeArmorDaemon) WatchSecurityPolicies() cache.InformerSynced {
 			},
 			UpdateFunc: func(oldObj, newObj any) {
 				if policy, ok := newObj.(*ksp.KubeArmorPolicy); ok {
+					var oldSecPolicy tp.SecurityPolicy
+					var oldPolicyAvailable bool
+					if oldPolicy, ok := oldObj.(*ksp.KubeArmorPolicy); ok {
+						var oldErr error
+						oldSecPolicy, oldErr = dm.CreateSecurityPolicy(KubeArmorPolicy, *oldPolicy)
+						oldPolicyAvailable = oldErr == nil
+					}
+
 					secPolicy, err := dm.CreateSecurityPolicy(KubeArmorPolicy, *policy)
 					if err != nil {
 						return
@@ -1853,6 +1886,9 @@ func (dm *KubeArmorDaemon) WatchSecurityPolicies() cache.InformerSynced {
 
 					// apply security policies to pods
 					dm.UpdateSecurityPolicy(updateEvent, KubeArmorPolicy, secPolicy)
+					if oldPolicyAvailable && oldSecPolicy.Spec.Action == "BatchAudit" && secPolicy.Spec.Action != "BatchAudit" && dm.SystemMonitor != nil {
+						dm.SystemMonitor.HandleBatchAuditPolicyDelete(oldSecPolicy)
+					}
 				}
 			},
 			DeleteFunc: func(obj any) {
@@ -1874,6 +1910,9 @@ func (dm *KubeArmorDaemon) WatchSecurityPolicies() cache.InformerSynced {
 
 					// apply security policies to pods
 					dm.UpdateSecurityPolicy(deleteEvent, KubeArmorPolicy, secPolicy)
+					if dm.SystemMonitor != nil {
+						dm.SystemMonitor.HandleBatchAuditPolicyDelete(secPolicy)
+					}
 				}
 			},
 		},
@@ -1942,6 +1981,14 @@ func (dm *KubeArmorDaemon) WatchClusterSecurityPolicies(timeout time.Duration) c
 			},
 			UpdateFunc: func(oldObj, newObj any) {
 				if policy, ok := newObj.(*ksp.KubeArmorClusterPolicy); ok {
+					var oldSecPolicy tp.SecurityPolicy
+					var oldPolicyAvailable bool
+					if oldPolicy, ok := oldObj.(*ksp.KubeArmorClusterPolicy); ok {
+						var oldErr error
+						oldSecPolicy, oldErr = dm.CreateSecurityPolicy(KubeArmorClusterPolicy, *oldPolicy)
+						oldPolicyAvailable = oldErr == nil
+					}
+
 					secPolicy, err := dm.CreateSecurityPolicy(KubeArmorClusterPolicy, *policy)
 					if err != nil {
 						return
@@ -1960,6 +2007,9 @@ func (dm *KubeArmorDaemon) WatchClusterSecurityPolicies(timeout time.Duration) c
 
 					// apply security policies to pods
 					dm.UpdateSecurityPolicy(updateEvent, KubeArmorClusterPolicy, secPolicy)
+					if oldPolicyAvailable && oldSecPolicy.Spec.Action == "BatchAudit" && secPolicy.Spec.Action != "BatchAudit" && dm.SystemMonitor != nil {
+						dm.SystemMonitor.HandleBatchAuditPolicyDelete(oldSecPolicy)
+					}
 				}
 			},
 			DeleteFunc: func(obj any) {
@@ -1981,6 +2031,9 @@ func (dm *KubeArmorDaemon) WatchClusterSecurityPolicies(timeout time.Duration) c
 
 					// apply security policies to pods
 					dm.UpdateSecurityPolicy(deleteEvent, KubeArmorClusterPolicy, secPolicy)
+					if dm.SystemMonitor != nil {
+						dm.SystemMonitor.HandleBatchAuditPolicyDelete(secPolicy)
+					}
 				}
 			},
 		},
@@ -2017,6 +2070,11 @@ func (dm *KubeArmorDaemon) UpdateHostSecurityPolicies() {
 	if cfg.GlobalCfg.HostPolicy {
 		// update host security policies
 		dm.Logger.UpdateHostSecurityPolicies("UPDATED", secPolicies)
+		if dm.SystemMonitor != nil {
+			if err := dm.SystemMonitor.UpdateBatchAuditPoliciesForHost(secPolicies); err != nil {
+				dm.Logger.Warnf("Failed to update host batch audit policies: %s", err)
+			}
+		}
 
 		if dm.RuntimeEnforcer != nil {
 			if dm.Node.PolicyEnabled == tp.KubeArmorPolicyEnabled {
@@ -2057,6 +2115,11 @@ func (dm *KubeArmorDaemon) ParseAndUpdateHostSecurityPolicy(event tp.K8sKubeArmo
 		secPolicy.Spec.Action = "Allow"
 	case "audit":
 		secPolicy.Spec.Action = "Audit"
+	case "batchAudit":
+		secPolicy.Spec.Action = "BatchAudit"
+		if secPolicy.Spec.BatchAudit.IntervalSeconds <= 0 {
+			secPolicy.Spec.BatchAudit.IntervalSeconds = batchAuditDefaultIntervalSeconds
+		}
 	case "block":
 		secPolicy.Spec.Action = "Block"
 	case "":
@@ -2496,11 +2559,15 @@ func (dm *KubeArmorDaemon) ParseAndUpdateHostSecurityPolicy(event tp.K8sKubeArmo
 	// update a security policy into the policy list
 
 	dm.HostSecurityPoliciesLock.Lock()
+	oldActionWasBatchAudit := false
 
 	if event.Type == addEvent {
 		new := true
 		for idx, policy := range dm.HostSecurityPolicies {
 			if policy.Metadata["policyName"] == secPolicy.Metadata["policyName"] {
+				if policy.Spec.Action == "BatchAudit" {
+					oldActionWasBatchAudit = true
+				}
 				if reflect.DeepEqual(policy, secPolicy) {
 					kg.Debugf("No updates to policy %s", policy.Metadata["policyName"])
 					dm.HostSecurityPoliciesLock.Unlock()
@@ -2519,6 +2586,9 @@ func (dm *KubeArmorDaemon) ParseAndUpdateHostSecurityPolicy(event tp.K8sKubeArmo
 	} else if event.Type == updateEvent {
 		for idx, policy := range dm.HostSecurityPolicies {
 			if policy.Metadata["policyName"] == secPolicy.Metadata["policyName"] {
+				if policy.Spec.Action == "BatchAudit" {
+					oldActionWasBatchAudit = true
+				}
 				if reflect.DeepEqual(policy, secPolicy) {
 					kg.Debugf("No updates to policy %s", policy.Metadata["policyName"])
 					dm.HostSecurityPoliciesLock.Unlock()
@@ -2534,6 +2604,9 @@ func (dm *KubeArmorDaemon) ParseAndUpdateHostSecurityPolicy(event tp.K8sKubeArmo
 		policymatch := false
 		for idx, policy := range dm.HostSecurityPolicies {
 			if policy.Metadata["policyName"] == secPolicy.Metadata["policyName"] {
+				if policy.Spec.Action == "BatchAudit" {
+					oldActionWasBatchAudit = true
+				}
 				dm.HostSecurityPolicies = append(dm.HostSecurityPolicies[:idx], dm.HostSecurityPolicies[idx+1:]...)
 				policymatch = true
 				break
@@ -2547,6 +2620,17 @@ func (dm *KubeArmorDaemon) ParseAndUpdateHostSecurityPolicy(event tp.K8sKubeArmo
 	}
 
 	dm.HostSecurityPoliciesLock.Unlock()
+
+	if dm.SystemMonitor != nil {
+		if event.Type == deleteEvent {
+			if secPolicy.Spec.Action == "BatchAudit" || oldActionWasBatchAudit {
+				dm.SystemMonitor.HandleBatchAuditHostPolicyDelete(secPolicy)
+			}
+		}
+		if event.Type == updateEvent && oldActionWasBatchAudit && secPolicy.Spec.Action != "BatchAudit" {
+			dm.SystemMonitor.HandleBatchAuditHostPolicyDelete(secPolicy)
+		}
+	}
 
 	dm.Logger.Printf("Detected a Host Security Policy (%s/%s)", strings.ToLower(event.Type), secPolicy.Metadata["policyName"])
 
@@ -2948,7 +3032,6 @@ func (dm *KubeArmorDaemon) updatEndpointsWithCM(cm *corev1.ConfigMap, action str
 
 // UpdateDefaultPostureWithCM Function
 func (dm *KubeArmorDaemon) UpdateDefaultPostureWithCM(endPoint *tp.EndPoint, action string, namespace string, defaultPosture tp.DefaultPosture, annotated bool) {
-
 	// namespace is (partially) annotated with posture annotation(s)
 	if annotated {
 		// update the dm.DefaultPosture[namespace]
@@ -2972,7 +3055,6 @@ func (dm *KubeArmorDaemon) UpdateDefaultPostureWithCM(endPoint *tp.EndPoint, act
 			}
 		}
 	}
-
 }
 
 // returns default posture and a boolean value states, if annotation is set or not
@@ -3051,7 +3133,6 @@ func (dm *KubeArmorDaemon) UpdateDefaultPosture(action string, namespace string,
 						} else {
 							dm.Logger.Warnf("Policy cannot be enforced in untracked namespace %s", endPoint.NamespaceName)
 						}
-
 					}
 				}
 			}
@@ -3121,7 +3202,6 @@ func (dm *KubeArmorDaemon) UpdateVisibility(action string, namespace string, vis
 var visibilityKey string = "kubearmor-visibility"
 
 func (dm *KubeArmorDaemon) updateVisibilityWithCM(cm *corev1.ConfigMap, _ string) {
-
 	dm.SystemMonitor.UpdateVisibility() // update host and global default bpf maps
 
 	// get all namespaces
@@ -3134,7 +3214,7 @@ func (dm *KubeArmorDaemon) updateVisibilityWithCM(cm *corev1.ConfigMap, _ string
 	for _, ns := range nsList.Items {
 		// 1. If namespace is untracked → explicitly remove visibility
 		if kl.ContainsElement(cfg.GlobalCfg.ConfigUntrackedNs.Load().([]string), ns.Name) {
-			//update visibility to empty for untracked namespaces
+			// update visibility to empty for untracked namespaces
 			dm.UpdateVisibility(updateEvent, ns.Name, tp.Visibility{})
 			continue
 		}
@@ -3174,7 +3254,6 @@ func (dm *KubeArmorDaemon) UpdateGlobalPosture(posture tp.DefaultPosture) {
 		cfg.GlobalCfg.DefaultCapabilitiesPosture,
 		cfg.GlobalCfg.DefaultNetworkPosture,
 		cfg.GlobalCfg.HostDefaultDevicePosture)
-
 }
 
 // WatchDefaultPosture Function
@@ -3290,139 +3369,12 @@ func (dm *KubeArmorDaemon) WatchConfigMap() cache.InformerSynced {
 	registration, err := informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj any) {
 			if cm, ok := obj.(*corev1.ConfigMap); ok && cm.Namespace == cmNS {
-				cfg.GlobalCfg.HostVisibility = cm.Data[cfg.ConfigHostVisibility]
-				cfg.GlobalCfg.Visibility = cm.Data[cfg.ConfigVisibility]
-				cfg.GlobalCfg.Cluster = cm.Data[cfg.ConfigCluster]
-				cfg.GlobalCfg.DropResourceFromProcessLogs = (cm.Data[cfg.ConfigDropResourceFromProcessLogs] == "true")
-				dm.NodeLock.Lock()
-				dm.Node.ClusterName = cm.Data[cfg.ConfigCluster]
-				dm.NodeLock.Unlock()
-				if v, ok := cm.Data[cfg.ConfigUntrackedNs]; ok {
-					UpdateUntrackedNamespaces(v)
-				}
-				if _, ok := cm.Data[cfg.ConfigDefaultPostureLogs]; ok {
-					cfg.GlobalCfg.DefaultPostureLogs = (cm.Data[cfg.ConfigDefaultPostureLogs] == "true")
-				}
-				globalPosture := tp.DefaultPosture{
-					FileAction:         cm.Data[cfg.ConfigDefaultFilePosture],
-					NetworkAction:      cm.Data[cfg.ConfigDefaultNetworkPosture],
-					CapabilitiesAction: cm.Data[cfg.ConfigDefaultCapabilitiesPosture],
-					DeviceAction:       cm.Data[cfg.ConfigHostDefaultDevicePosture],
-				}
-				currentGlobalPosture := tp.DefaultPosture{
-					FileAction:         cfg.GlobalCfg.DefaultFilePosture,
-					NetworkAction:      cfg.GlobalCfg.DefaultNetworkPosture,
-					CapabilitiesAction: cfg.GlobalCfg.DefaultCapabilitiesPosture,
-					DeviceAction:       cfg.GlobalCfg.HostDefaultDevicePosture,
-				}
-				if _, ok := cm.Data[cfg.ConfigAlertThrottling]; ok {
-					cfg.GlobalCfg.AlertThrottling = (cm.Data[cfg.ConfigAlertThrottling] == "true")
-				}
-				if _, ok := cm.Data[cfg.ConfigMaxAlertPerSec]; ok {
-					maxAlertPerSec, err := strconv.ParseInt(cm.Data[cfg.ConfigMaxAlertPerSec], 10, 32)
-					if err != nil {
-						dm.Logger.Warnf("Error: %s", err)
-					}
-					cfg.GlobalCfg.MaxAlertPerSec = int32(maxAlertPerSec)
-				}
-				if _, ok := cm.Data[cfg.ConfigThrottleSec]; ok {
-					throttleSec, err := strconv.ParseInt(cm.Data[cfg.ConfigThrottleSec], 10, 32)
-					if err != nil {
-						dm.Logger.Warnf("Error: %s", err)
-					}
-					cfg.GlobalCfg.ThrottleSec = int32(throttleSec)
-				}
-				if _, ok := cm.Data[cfg.ConfigEnableIma]; ok {
-					enableIMA, err := strconv.ParseBool(cm.Data[cfg.ConfigEnableIma])
-					if err != nil {
-						dm.Logger.Warnf("Error parsing IMA config: %s", err)
-					} else {
-						cfg.GlobalCfg.EnableIMA = enableIMA
-					}
-				}
-				dm.SystemMonitor.UpdateThrottlingConfig()
-				if _, ok := cm.Data[cfg.ConfigArgMatching]; ok {
-					cfg.GlobalCfg.MatchArgs, _ = strconv.ParseBool(cm.Data[cfg.ConfigArgMatching])
-				}
-				dm.SystemMonitor.UpdateMatchArgsConfig()
-				dm.UpdateIMA(cfg.GlobalCfg.EnableIMA)
-				dm.UpdateUSBDeviceHandler(cfg.GlobalCfg.USBDeviceHandler)
-
-				dm.Logger.Printf("Current Global Posture is %v", currentGlobalPosture)
-				dm.UpdateGlobalPosture(globalPosture)
-
-				// update default posture for endpoints
-				dm.updatEndpointsWithCM(cm, addEvent)
-				// update visibility for namespaces
-				dm.updateVisibilityWithCM(cm, addEvent)
+				dm.handleConfigMapEvent(cm, addEvent)
 			}
 		},
 		UpdateFunc: func(oldObj, newObj any) {
 			if cm, ok := newObj.(*corev1.ConfigMap); ok && cm.Namespace == cmNS {
-				cfg.GlobalCfg.HostVisibility = cm.Data[cfg.ConfigHostVisibility]
-				cfg.GlobalCfg.Visibility = cm.Data[cfg.ConfigVisibility]
-
-				cfg.GlobalCfg.Cluster = cm.Data[cfg.ConfigCluster]
-				cfg.GlobalCfg.DropResourceFromProcessLogs = (cm.Data[cfg.ConfigDropResourceFromProcessLogs] == "true")
-				dm.Node.ClusterName = cm.Data[cfg.ConfigCluster]
-				if _, ok := cm.Data[cfg.ConfigDefaultPostureLogs]; ok {
-					cfg.GlobalCfg.DefaultPostureLogs = (cm.Data[cfg.ConfigDefaultPostureLogs] == "true")
-				}
-				globalPosture := tp.DefaultPosture{
-					FileAction:         cm.Data[cfg.ConfigDefaultFilePosture],
-					NetworkAction:      cm.Data[cfg.ConfigDefaultNetworkPosture],
-					CapabilitiesAction: cm.Data[cfg.ConfigDefaultCapabilitiesPosture],
-				}
-				currentGlobalPosture := tp.DefaultPosture{
-					FileAction:         cfg.GlobalCfg.DefaultFilePosture,
-					NetworkAction:      cfg.GlobalCfg.DefaultNetworkPosture,
-					CapabilitiesAction: cfg.GlobalCfg.DefaultCapabilitiesPosture,
-				}
-				dm.Logger.Printf("Current Global Posture is %v", currentGlobalPosture)
-				dm.UpdateGlobalPosture(globalPosture)
-
-				// update default posture for endpoints
-				dm.updatEndpointsWithCM(cm, updateEvent)
-
-				// forward untracked namespaces to SystemMonitor
-				if v, ok := cm.Data[cfg.ConfigUntrackedNs]; ok {
-					UpdateUntrackedNamespaces(v)
-				}
-
-				// visibility updates are already handled here
-				dm.updateVisibilityWithCM(cm, updateEvent)
-
-				if _, ok := cm.Data[cfg.ConfigAlertThrottling]; ok {
-					cfg.GlobalCfg.AlertThrottling = (cm.Data[cfg.ConfigAlertThrottling] == "true")
-				}
-
-				maxAlertPerSec, err := strconv.ParseInt(cm.Data[cfg.ConfigMaxAlertPerSec], 10, 32)
-				if err != nil {
-					dm.Logger.Warnf("Error: %s", err)
-				}
-				cfg.GlobalCfg.MaxAlertPerSec = int32(maxAlertPerSec)
-
-				throttleSec, err := strconv.ParseInt(cm.Data[cfg.ConfigThrottleSec], 10, 32)
-				if err != nil {
-					dm.Logger.Warnf("Error: %s", err)
-				}
-				cfg.GlobalCfg.ThrottleSec = int32(throttleSec)
-				dm.SystemMonitor.UpdateThrottlingConfig()
-
-				if _, ok := cm.Data[cfg.ConfigEnableIma]; ok {
-					enableIMA, err := strconv.ParseBool(cm.Data[cfg.ConfigEnableIma])
-					if err != nil {
-						dm.Logger.Warnf("Error parsing IMA config: %s", err)
-					} else {
-						cfg.GlobalCfg.EnableIMA = enableIMA
-					}
-				}
-				if _, ok := cm.Data[cfg.ConfigArgMatching]; ok {
-					cfg.GlobalCfg.MatchArgs, _ = strconv.ParseBool(cm.Data[cfg.ConfigArgMatching])
-				}
-				dm.SystemMonitor.UpdateMatchArgsConfig()
-				dm.UpdateIMA(cfg.GlobalCfg.EnableIMA)
-				dm.UpdateUSBDeviceHandler(cfg.GlobalCfg.USBDeviceHandler)
+				dm.handleConfigMapEvent(cm, updateEvent)
 			}
 		},
 		DeleteFunc: func(obj any) {
@@ -3436,6 +3388,107 @@ func (dm *KubeArmorDaemon) WatchConfigMap() cache.InformerSynced {
 
 	go factory.Start(StopChan)
 	return registration.HasSynced
+}
+
+func (dm *KubeArmorDaemon) handleConfigMapEvent(cm *corev1.ConfigMap, action string) {
+	if err := dm.applyConfigMapData(cm.Data); err != nil {
+		dm.Logger.Warnf("Error applying configmap data: %s", err)
+	}
+
+	globalPosture := tp.DefaultPosture{
+		FileAction:         cm.Data[cfg.ConfigDefaultFilePosture],
+		NetworkAction:      cm.Data[cfg.ConfigDefaultNetworkPosture],
+		CapabilitiesAction: cm.Data[cfg.ConfigDefaultCapabilitiesPosture],
+		DeviceAction:       cm.Data[cfg.ConfigHostDefaultDevicePosture],
+	}
+	currentGlobalPosture := tp.DefaultPosture{
+		FileAction:         cfg.GlobalCfg.DefaultFilePosture,
+		NetworkAction:      cfg.GlobalCfg.DefaultNetworkPosture,
+		CapabilitiesAction: cfg.GlobalCfg.DefaultCapabilitiesPosture,
+		DeviceAction:       cfg.GlobalCfg.HostDefaultDevicePosture,
+	}
+
+	if dm.SystemMonitor != nil {
+		dm.SystemMonitor.UpdateThrottlingConfig()
+		dm.SystemMonitor.UpdateMatchArgsConfig()
+	}
+
+	dm.UpdateIMA(cfg.GlobalCfg.EnableIMA)
+	dm.UpdateUSBDeviceHandler(cfg.GlobalCfg.USBDeviceHandler)
+
+	dm.Logger.Printf("Current Global Posture is %v", currentGlobalPosture)
+	dm.UpdateGlobalPosture(globalPosture)
+
+	dm.updatEndpointsWithCM(cm, action)
+	dm.updateVisibilityWithCM(cm, action)
+}
+
+func (dm *KubeArmorDaemon) applyConfigMapData(data map[string]string) error {
+	if v, ok := data[cfg.ConfigHostVisibility]; ok {
+		cfg.GlobalCfg.HostVisibility = v
+	}
+	if v, ok := data[cfg.ConfigVisibility]; ok {
+		cfg.GlobalCfg.Visibility = v
+	}
+	if v, ok := data[cfg.ConfigCluster]; ok {
+		cfg.GlobalCfg.Cluster = v
+		dm.NodeLock.Lock()
+		dm.Node.ClusterName = v
+		dm.NodeLock.Unlock()
+	}
+	if v, ok := data[cfg.ConfigUntrackedNs]; ok {
+		UpdateUntrackedNamespaces(v)
+	}
+	if err := updateConfigBool(data, cfg.ConfigDropResourceFromProcessLogs, &cfg.GlobalCfg.DropResourceFromProcessLogs); err != nil {
+		return err
+	}
+	if err := updateConfigBool(data, cfg.ConfigDefaultPostureLogs, &cfg.GlobalCfg.DefaultPostureLogs); err != nil {
+		return err
+	}
+	if err := updateConfigBool(data, cfg.ConfigAlertThrottling, &cfg.GlobalCfg.AlertThrottling); err != nil {
+		return err
+	}
+	if v, ok := data[cfg.ConfigMaxAlertPerSec]; ok {
+		maxAlertPerSec, err := strconv.ParseInt(v, 10, 32)
+		if err != nil {
+			return fmt.Errorf("parse %s: %w", cfg.ConfigMaxAlertPerSec, err)
+		}
+		cfg.GlobalCfg.MaxAlertPerSec = int32(maxAlertPerSec)
+	}
+	if v, ok := data[cfg.ConfigThrottleSec]; ok {
+		throttleSec, err := strconv.ParseInt(v, 10, 32)
+		if err != nil {
+			return fmt.Errorf("parse %s: %w", cfg.ConfigThrottleSec, err)
+		}
+		cfg.GlobalCfg.ThrottleSec = int32(throttleSec)
+	}
+	if err := updateConfigBool(data, cfg.ConfigEnableIma, &cfg.GlobalCfg.EnableIMA); err != nil {
+		return err
+	}
+	if err := updateConfigBool(data, cfg.ConfigArgMatching, &cfg.GlobalCfg.MatchArgs); err != nil {
+		return err
+	}
+	if v, ok := data[cfg.ConfigBatchAuditPoliciesMaxEntries]; ok {
+		maxEntries, err := strconv.ParseUint(v, 10, 32)
+		if err != nil {
+			return fmt.Errorf("parse %s: %w", cfg.ConfigBatchAuditPoliciesMaxEntries, err)
+		}
+		if maxEntries == 0 {
+			return fmt.Errorf("parse %s: value must be greater than zero", cfg.ConfigBatchAuditPoliciesMaxEntries)
+		}
+		cfg.GlobalCfg.BatchAuditPoliciesMaxEntries = uint32(maxEntries)
+	}
+	if v, ok := data[cfg.ConfigBatchAuditAggregationsMaxEntries]; ok {
+		maxEntries, err := strconv.ParseUint(v, 10, 32)
+		if err != nil {
+			return fmt.Errorf("parse %s: %w", cfg.ConfigBatchAuditAggregationsMaxEntries, err)
+		}
+		if maxEntries == 0 {
+			return fmt.Errorf("parse %s: value must be greater than zero", cfg.ConfigBatchAuditAggregationsMaxEntries)
+		}
+		cfg.GlobalCfg.BatchAuditAggregationsMaxEntries = uint32(maxEntries)
+	}
+	return nil
 }
 
 // UpdateIMA func updates the status of IMA module
@@ -3489,6 +3542,21 @@ func (dm *KubeArmorDaemon) GetConfigMapNS() string {
 		return "kubearmor"
 	}
 	return envNamespace
+}
+
+func updateConfigBool(data map[string]string, key string, target *bool) error {
+	v, ok := data[key]
+	if !ok {
+		return nil
+	}
+
+	parsed, err := strconv.ParseBool(v)
+	if err != nil {
+		return fmt.Errorf("parse %s: %w", key, err)
+	}
+
+	*target = parsed
+	return nil
 }
 
 // UpdateUntrackedNamespaces updates the runtime untracked namespaces list.
