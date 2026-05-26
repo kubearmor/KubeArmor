@@ -627,10 +627,13 @@ func (clusterWatcher *ClusterWatcher) deployControllerDeployment(deployment *app
 		}
 	} else {
 		if (common.IfNodeWithSecurtiyFs && controller.Spec.Template.Spec.NodeSelector == nil) ||
-			(!common.IfNodeWithSecurtiyFs && controller.Spec.Template.Spec.NodeSelector != nil) || !reflect.DeepEqual(controller.Spec.Template.Spec.Containers[0].Args, deployment.Spec.Template.Spec.Containers[0].Args) {
+			(!common.IfNodeWithSecurtiyFs && controller.Spec.Template.Spec.NodeSelector != nil) ||
+			!reflect.DeepEqual(controller.Spec.Template.Spec.Containers[0].Args, deployment.Spec.Template.Spec.Containers[0].Args) ||
+			!reflect.DeepEqual(controller.Spec.Template.Spec.Tolerations, controller.Spec.Template.Spec.Tolerations) {
 			clusterWatcher.Log.Infof("Updating deployment %s", controller.Name)
 			controller.Spec.Template.Spec.NodeSelector = deployment.Spec.Template.Spec.NodeSelector
 			controller.Spec.Template.Spec.Containers = deployment.Spec.Template.Spec.Containers
+			controller.Spec.Template.Spec.Tolerations = deployment.Spec.Template.Spec.Tolerations
 			clusterWatcher.Log.Infoln("updated deployment", controller)
 			_, err = clusterWatcher.Client.AppsV1().Deployments(common.Namespace).Update(context.Background(), controller, metav1.UpdateOptions{})
 			if err != nil {
