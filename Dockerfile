@@ -47,14 +47,9 @@ RUN CGO_ENABLED=0 go test -covermode=atomic -coverpkg=./... -c . -o kubearmor-te
 
 FROM alpine:3.22 AS kubearmor
 
-
-# Upgrade packages with known CVEs. musl (CVE-2026-40200) and perl (CVE-2026-4176)
-# fixes only landed in v3.23/main, so pin those explicitly using the @v323main tag.
-RUN echo "@v323main https://dl-cdn.alpinelinux.org/alpine/v3.23/main" >> /etc/apk/repositories && \
-    echo "https://dl-cdn.alpinelinux.org/alpine/v3.23/community" >> /etc/apk/repositories
 RUN apk --no-cache update && \
     apk upgrade --no-cache libcrypto3 libssl3 zlib libexpat && \
-    apk add --no-cache musl@v323main musl-utils@v323main perl@v323main
+    apk add --no-cache musl musl-utils perl
 
 RUN apk add --no-cache apparmor apparmor-utils bash nftables
 
