@@ -6,11 +6,9 @@ FROM alpine:3.22 AS kubearmor-init
 
 RUN apk --no-cache update
 
-RUN echo "@v323main https://dl-cdn.alpinelinux.org/alpine/v3.23/main" >> /etc/apk/repositories && \
-    echo "https://dl-cdn.alpinelinux.org/alpine/v3.23/community" >> /etc/apk/repositories
 RUN apk --no-cache update && \
     apk upgrade --no-cache libcrypto3 libssl3 zlib libexpat && \
-    apk add --no-cache musl@v323main musl-utils@v323main perl@v323main
+    apk add --no-cache musl musl-utils perl
 
 RUN apk --no-cache update
 RUN apk --no-cache add bash git clang llvm make gcc bpftool
@@ -33,7 +31,10 @@ LABEL name="kubearmor-init" \
       description="kubearmor-init image for kubearmor init container image"
 
 RUN microdnf -y update && \
-    microdnf -y install --nodocs --setopt=install_weak_deps=0 --setopt=keepcache=0 shadow-utils git clang llvm make gcc libbpf tar gzip && \
+    microdnf -y install --nodocs --setopt=install_weak_deps=0 --setopt=keepcache=0 \
+        glibc-devel && \
+    microdnf -y install --nodocs --setopt=install_weak_deps=0 --setopt=keepcache=0 \
+        shadow-utils git clang llvm make gcc libbpf tar gzip && \
     microdnf clean all
 
 # install bpftool  
