@@ -70,9 +70,8 @@
 #define HTTP2_FRAME_CONTINUATION 0x09
 #define HTTP2_MAX_FRAME_TYPE 0x09
 
-// Maximum gRPC method string length captured by the BPF uprobe.
-// Must be a power of 2 for the BPF verifier's dynamic-size masking.
-#define GRPCC_MAX_METHOD_SIZE  64
+// Maximum gRPC path string length captured by the gRPC-C BPF uprobe.
+#define GRPC_MAX_PATH_SIZE  128
 
 // HTTP method first-4-bytes as uint32
 #define HTTP_GET_INT 0x20544547  /* "GET "  */

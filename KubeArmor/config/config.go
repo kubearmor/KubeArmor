@@ -38,10 +38,12 @@ type KubearmorConfig struct {
 
 	EnableIMA bool // Enable/Disable file integrity IMA hash
 
-	Policy     bool // Enable/Disable policy enforcement
-	HostPolicy bool // Enable/Disable host policy enforcement
-	KVMAgent   bool // Enable/Disable KVM Agent
-	K8sEnv     bool // Is k8s env ?
+	Policy      bool   // Enable/Disable policy enforcement
+	EnablePPROF bool   // Enable pprof to be used
+	PPROFPort   string // pprof Port to use
+	HostPolicy  bool   // Enable/Disable host policy enforcement
+	KVMAgent    bool   // Enable/Disable KVM Agent
+	K8sEnv      bool   // Is k8s env ?
 
 	Debug bool // Enable/Disable KubeArmor debug mode
 
@@ -81,6 +83,9 @@ type KubearmorConfig struct {
 
 	EnableAPIObserver bool // Enable/Disable API Observer for HTTP/gRPC observability
 
+	ApiAllowNamespaces string // API Observer: K8s namespaces to trace (allowlist, comma-separated)
+	ApiBlockNamespaces string // API Observer: K8s namespaces to block (blocklist, comma-separated; "host" for host NS)
+
 	USBDeviceHandler bool // enable USB device observability and enforcement
 
 	MatchArgs bool // enable argument rules for policy
@@ -100,6 +105,8 @@ const (
 	PIDFilePath                          string = "/opt/kubearmor/kubearmor.pid"
 	ConfigCluster                        string = "cluster"
 	ConfigHost                           string = "host"
+	ConfigEnablePPROF                    string = "pprofEnable"
+	ConfigPPROFPort                      string = "pprofPort"
 	ConfigGRPC                           string = "gRPC"
 	ConfigGRPCHealthPort                 string = "gRPCHealthPort"
 	ConfigTLSCertPath                    string = "tlsCertPath"
@@ -153,6 +160,8 @@ const (
 	ConfigEnablePprof                    string = "enablePprof"
 	ConfigPprofAddr                      string = "pprofAddr"
 	ConfigEnableAPIObserver              string = "enableAPIObserver"
+	ConfigApiAllowNamespaces             string = "apiAllowNamespaces"
+	ConfigApiBlockNamespaces             string = "apiBlockNamespaces"
 )
 
 func readCmdLineParams() {
@@ -176,6 +185,8 @@ func readCmdLineParams() {
 	hostVisStr := flag.String(ConfigHostVisibility, "default", "Host Visibility to use [process,file,network,capabilities,none] (default \"none\" for k8s, \"process,file,network,capabilities\" for VM)")
 
 	policyB := flag.Bool(ConfigKubearmorPolicy, true, "enabling KubeArmorPolicy")
+	pprofEnableB := flag.Bool(ConfigEnablePPROF, false, "enables pprof to be used")
+	pprofPortStr := flag.String(ConfigPPROFPort, "8080", "PPROF port number")
 	hostPolicyB := flag.Bool(ConfigKubearmorHostPolicy, false, "enabling KubeArmorHostPolicy")
 	kvmAgentB := flag.Bool(ConfigKubearmorVM, false, "enabling KubeArmorVM")
 	k8sEnvB := flag.Bool(ConfigK8sEnv, true, "is k8s env?")
@@ -238,6 +249,9 @@ func readCmdLineParams() {
 	pprofAddr := flag.String(ConfigPprofAddr, "localhost:6060", "address for pprof profiling server")
 	enableAPIObserver := flag.Bool(ConfigEnableAPIObserver, false, "enable eBPF-based API Observer for HTTP/gRPC observability")
 
+	apiAllowNamespaces := flag.String(ConfigApiAllowNamespaces, "", "API Observer: comma-separated K8s namespaces to trace (allowlist)")
+	apiBlockNamespaces := flag.String(ConfigApiBlockNamespaces, "", "API Observer: comma-separated K8s namespaces to block (blocklist); 'host' for host namespace")
+
 	flags := []string{}
 	flag.VisitAll(func(f *flag.Flag) {
 		kv := fmt.Sprintf("%s:%v", f.Name, f.Value)
@@ -269,6 +283,9 @@ func readCmdLineParams() {
 	viper.SetDefault(ConfigKubearmorHostPolicy, *hostPolicyB)
 	viper.SetDefault(ConfigKubearmorVM, *kvmAgentB)
 	viper.SetDefault(ConfigK8sEnv, *k8sEnvB)
+
+	viper.SetDefault(ConfigEnablePPROF, *pprofEnableB)
+	viper.SetDefault(ConfigPPROFPort, *pprofPortStr)
 
 	viper.SetDefault(ConfigDebug, *debugB)
 
@@ -328,6 +345,9 @@ func readCmdLineParams() {
 	viper.SetDefault(ConfigEnablePprof, *enablePprof)
 	viper.SetDefault(ConfigPprofAddr, *pprofAddr)
 	viper.SetDefault(ConfigEnableAPIObserver, *enableAPIObserver)
+
+	viper.SetDefault(ConfigApiAllowNamespaces, *apiAllowNamespaces)
+	viper.SetDefault(ConfigApiBlockNamespaces, *apiBlockNamespaces)
 }
 
 // LoadConfig Load configuration
@@ -431,6 +451,8 @@ func LoadConfig() error {
 	GlobalCfg.EnablePprof = viper.GetBool(ConfigEnablePprof)
 	GlobalCfg.PprofAddr = viper.GetString(ConfigPprofAddr)
 	GlobalCfg.EnableAPIObserver = viper.GetBool(ConfigEnableAPIObserver)
+	GlobalCfg.EnablePPROF = viper.GetBool(ConfigEnablePPROF)
+	GlobalCfg.PPROFPort = viper.GetString(ConfigPPROFPort)
 
 	LoadDynamicConfig()
 
@@ -488,6 +510,9 @@ func LoadDynamicConfig() {
 	if v := viper.GetString(ConfigApiExcludedPorts); v != "" {
 		GlobalCfg.ConfigApiExcludedPorts.Store(strings.Split(v, ","))
 	}
+
+	GlobalCfg.ApiAllowNamespaces = viper.GetString(ConfigApiAllowNamespaces)
+	GlobalCfg.ApiBlockNamespaces = viper.GetString(ConfigApiBlockNamespaces)
 
 	kg.Printf("Final Configuration [%+v]", GlobalCfg)
 }

@@ -64,7 +64,7 @@ func (b *DataStreamBuffer) Write(data []byte) {
 
 	// Phase 2: GC consumed bytes
 	if b.consumed > 0 {
-		b.buf = append([]byte(nil), b.buf[b.consumed:]...)
+		b.buf = b.buf[:copy(b.buf, b.buf[b.consumed:])]
 		b.consumed = 0
 	}
 
@@ -111,7 +111,15 @@ func (b *DataStreamBuffer) SkipNextBytes(n int) {
 // SetRemaining replaces the unconsumed portion with the given bytes.
 // Used by HTTP/2 and gRPC parsers that return a `remaining` slice.
 func (b *DataStreamBuffer) SetRemaining(remaining []byte) {
-	b.buf = append([]byte(nil), remaining...)
+	// Reuse existing backing array if it has sufficient capacity.
+	if cap(b.buf) >= len(remaining) {
+		b.buf = b.buf[:len(remaining)]
+		copy(b.buf, remaining)
+	} else {
+		buf := make([]byte, len(remaining), b.capacity)
+		copy(buf, remaining)
+		b.buf = buf
+	}
 	b.consumed = 0
 }
 

@@ -59,6 +59,10 @@ func (fh *FrameHeader) IsEndHeaders() bool {
 // We use 4KB for richer schemaless protobuf decoding.
 const maxBodyBytes = 4096
 
+// maxConcurrentStreams caps the number of active streams per connection
+// to bound memory growth from high-throughput HTTP/2 connections.
+const maxConcurrentStreams = 256
+
 // Message is one complete HTTP/2 stream message (request or response).
 // Aggregated from HEADERS + DATA + optional TRAILERS frames.
 type Message struct {
@@ -344,6 +348,16 @@ func (p *Parser) getOrCreateStream(streamID uint32) *StreamState {
 	defer p.mu.Unlock()
 	if s, ok := p.streams[streamID]; ok {
 		return s
+	}
+	// Evict oldest (lowest ID) stream if at capacity.
+	if len(p.streams) >= maxConcurrentStreams {
+		var minID uint32 = ^uint32(0)
+		for id := range p.streams {
+			if id < minID {
+				minID = id
+			}
+		}
+		delete(p.streams, minID)
 	}
 	s := &StreamState{
 		StreamID: streamID,

@@ -423,6 +423,8 @@ type apiObserverMapSpecs struct {
 	KubearmorContainers        *ebpf.MapSpec `ebpf:"kubearmor_containers"`
 	KubearmorEvents            *ebpf.MapSpec `ebpf:"kubearmor_events"`
 	KubearmorExecPids          *ebpf.MapSpec `ebpf:"kubearmor_exec_pids"`
+	NsCgroupMap                *ebpf.MapSpec `ebpf:"ns_cgroup_map"`
+	NsFilterConfig             *ebpf.MapSpec `ebpf:"ns_filter_config"`
 	OngoingGrpcClientRequests  *ebpf.MapSpec `ebpf:"ongoing_grpc_client_requests"`
 	OngoingGrpcRequestStatus   *ebpf.MapSpec `ebpf:"ongoing_grpc_request_status"`
 	OngoingGrpcServerRequests  *ebpf.MapSpec `ebpf:"ongoing_grpc_server_requests"`
@@ -507,6 +509,8 @@ type apiObserverMaps struct {
 	KubearmorContainers        *ebpf.Map `ebpf:"kubearmor_containers"`
 	KubearmorEvents            *ebpf.Map `ebpf:"kubearmor_events"`
 	KubearmorExecPids          *ebpf.Map `ebpf:"kubearmor_exec_pids"`
+	NsCgroupMap                *ebpf.Map `ebpf:"ns_cgroup_map"`
+	NsFilterConfig             *ebpf.Map `ebpf:"ns_filter_config"`
 	OngoingGrpcClientRequests  *ebpf.Map `ebpf:"ongoing_grpc_client_requests"`
 	OngoingGrpcRequestStatus   *ebpf.Map `ebpf:"ongoing_grpc_request_status"`
 	OngoingGrpcServerRequests  *ebpf.Map `ebpf:"ongoing_grpc_server_requests"`
@@ -566,6 +570,8 @@ func (m *apiObserverMaps) Close() error {
 		m.KubearmorContainers,
 		m.KubearmorEvents,
 		m.KubearmorExecPids,
+		m.NsCgroupMap,
+		m.NsFilterConfig,
 		m.OngoingGrpcClientRequests,
 		m.OngoingGrpcRequestStatus,
 		m.OngoingGrpcServerRequests,

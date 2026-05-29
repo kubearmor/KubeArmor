@@ -279,3 +279,23 @@ struct {
   __type(key, __u32);
   __type(value, __u32);
 } ks_tgid_last_socket_fd SEC(".maps");
+
+/* Namespace filter: cgroup ID map.
+ * Userspace populates with cgroup IDs of containers belonging to
+ * targeted/blocked K8s namespaces. Semantics depend on ns_filter_config.
+ * Key: cgroup ID (u64), Value: u8 marker (1 = present). */
+struct {
+  __uint(type, BPF_MAP_TYPE_HASH);
+  __uint(max_entries, 16384);
+  __type(key, __u64);
+  __type(value, __u8);
+} ns_cgroup_map SEC(".maps");
+
+/* Namespace filter mode: 0=disabled, 1=allowlist, 2=blocklist.
+ * Single-element array, written once at startup by userspace. */
+struct {
+  __uint(type, BPF_MAP_TYPE_ARRAY);
+  __uint(max_entries, 1);
+  __type(key, __u32);
+  __type(value, __u8);
+} ns_filter_config SEC(".maps");

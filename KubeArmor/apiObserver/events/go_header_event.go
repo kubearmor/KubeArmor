@@ -18,8 +18,6 @@ const (
 // GoGRPCRequestEvent is the Go-side representation of struct go_grpc_request_event
 // emitted by the BPF ring buffer. It contains the full gRPC path and latency info.
 //
-// BPF struct layout (must match go_http2_trace.h):
-//
 //	struct go_grpc_request_event {
 //	  u64 start_ns;      // offset 0
 //	  u64 end_ns;        // offset 8

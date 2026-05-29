@@ -14,6 +14,10 @@ data:
   apiBlockedAuthorities: {{ .Values.kubearmorConfigMap.apiBlockedAuthorities | quote }}
   # API Observer: comma-separated ports to exclude from capture
   apiExcludedPorts: {{ .Values.kubearmorConfigMap.apiExcludedPorts | quote }}
+  # API Observer: comma-separated K8s namespaces to observe (allowlist — mutually exclusive with apiBlockNamespaces)
+  apiAllowNamespaces: {{ .Values.kubearmorConfigMap.apiAllowNamespaces | quote }}
+  # API Observer: comma-separated K8s namespaces to exclude (blocklist — mutually exclusive with apiAllowNamespaces)
+  apiBlockNamespaces: {{ .Values.kubearmorConfigMap.apiBlockNamespaces | quote }}
 kind: ConfigMap
 metadata:
   labels:
