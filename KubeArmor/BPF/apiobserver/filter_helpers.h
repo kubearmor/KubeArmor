@@ -77,3 +77,25 @@ static __attribute__((always_inline)) int should_trace_port(u16 port) {
   u8 *excluded = bpf_map_lookup_elem(&port_exclusion_map, &port);
   return excluded == NULL;  // trace if NOT excluded
 }
+
+// Namespace (K8s) filter — cgroup-ID based.
+// Returns 1 (drop) if the current task's cgroup should be filtered,
+// 0 (allow) otherwise. When filter is disabled, always returns 0.
+#define NS_FILTER_DISABLED  0
+#define NS_FILTER_ALLOWLIST 1
+#define NS_FILTER_BLOCKLIST 2
+
+static __attribute__((always_inline)) int is_ns_filtered(void) {
+  __u32 zero = 0;
+  __u8 *mode = bpf_map_lookup_elem(&ns_filter_config, &zero);
+  if (!mode || *mode == NS_FILTER_DISABLED)
+    return 0;
+
+  __u64 cgroup_id = bpf_get_current_cgroup_id();
+  __u8 *found = bpf_map_lookup_elem(&ns_cgroup_map, &cgroup_id);
+
+  if (*mode == NS_FILTER_ALLOWLIST)
+    return found == NULL ? 1 : 0;
+
+  return found != NULL ? 1 : 0;
+}

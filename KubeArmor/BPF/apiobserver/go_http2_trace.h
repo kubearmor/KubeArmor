@@ -23,9 +23,6 @@
 #include "go_http2_symaddrs.h"
 #include "go_types.h"
 
-/* ---- Constants ---- */
-#define GRPC_MAX_PATH_SIZE 160
-
 /* ---- Go register ABI parameter access (Go 1.17+ ABIInternal) ---- */
 /*
  * Go ABIInternal integer register assignment:

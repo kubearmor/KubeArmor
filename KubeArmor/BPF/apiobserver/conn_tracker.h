@@ -10,6 +10,7 @@
 #include "common/macros.h"
 #include "common/maps.h"
 #include "common/structs.h"
+#include "filter_helpers.h"
 #include "protocol_inference.h"
 
 struct inet_sock_set_state_args {
@@ -186,6 +187,11 @@ handle_inet_sock_set_state(struct inet_sock_set_state_args *ctx) {
     return 0;
   }
 
+  // Namespace filter: skip connection tracking for filtered cgroups.
+  if (is_ns_filtered()) {
+    return 0;
+  }
+
   u64 sock_ptr = (u64)ctx->skaddr;
 
   if (ctx->newstate == TCP_ESTABLISHED) {
@@ -198,7 +204,6 @@ handle_inet_sock_set_state(struct inet_sock_set_state_args *ctx) {
       bpf_probe_read_kernel(sv6, sizeof(sv6), ctx->saddr_v6);
       bpf_probe_read_kernel(dv6, sizeof(dv6), ctx->daddr_v6);
 
-      /* Accept IPv4-mapped only; pure IPv6 deferred to Task 7. */
       int mapped = 1;
 #pragma unroll
       for (int i = 0; i < 10; i++) {
@@ -248,7 +253,7 @@ handle_connect_entry(struct pt_regs *ctx) {
   // pt_regs pointer.
   struct pt_regs *regs = (struct pt_regs *)PT_REGS_PARM1(ctx);
   u64 fd_val = 0;
-  bpf_probe_read_kernel(&fd_val, sizeof(fd_val), &regs->di);
+  bpf_probe_read_kernel(&fd_val, sizeof(fd_val), &SYSCALL_ARG1(regs));
   struct connect_args args = {.fd = (u32)fd_val};
   bpf_map_update_elem(&active_connect_args, &pid_tgid, &args, BPF_ANY);
   return 0;
@@ -311,7 +316,7 @@ handle_close_entry(struct pt_regs *ctx) {
 
   struct pt_regs *regs = (struct pt_regs *)PT_REGS_PARM1(ctx);
   u64 fd_val = 0;
-  bpf_probe_read_kernel(&fd_val, sizeof(fd_val), &regs->di);
+  bpf_probe_read_kernel(&fd_val, sizeof(fd_val), &SYSCALL_ARG1(regs));
   u32 fd = (u32)fd_val;
   struct conn_id cid = {.tgid = (u32)(pid_tgid >> 32), .fd = fd};
 

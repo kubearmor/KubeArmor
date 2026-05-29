@@ -497,6 +497,11 @@ func (dm *KubeArmorDaemon) GetAlreadyDeployedDockerContainers() {
 				}
 
 				dm.Logger.Printf("Detected a container (added/%.12s)", container.ContainerID)
+
+				// Notify API Observer of new container for namespace filtering.
+				if dm.APIObserver != nil && container.PidNS > 0 {
+					dm.APIObserver.OnContainerAdded(container.ContainerID, container.NamespaceName, container.PidNS)
+				}
 			}
 		}
 	} else {
@@ -705,6 +710,11 @@ func (dm *KubeArmorDaemon) UpdateDockerContainer(containerID, action string) {
 
 		dm.Logger.Printf("Detected a container (added/%.12s)", containerID)
 
+		// Notify API Observer of new container for namespace filtering.
+		if dm.APIObserver != nil && container.PidNS > 0 {
+			dm.APIObserver.OnContainerAdded(container.ContainerID, container.NamespaceName, container.PidNS)
+		}
+
 	} else if action == "stop" || action == "destroy" {
 		// case 1: kill -> die -> stop
 		// case 2: kill -> die -> destroy
@@ -778,6 +788,11 @@ func (dm *KubeArmorDaemon) UpdateDockerContainer(containerID, action string) {
 		}
 
 		dm.Logger.Printf("Detected a container (removed/%.12s)", containerID)
+
+		// Notify API Observer of removed container for namespace filtering.
+		if dm.APIObserver != nil {
+			dm.APIObserver.OnContainerRemoved(containerID)
+		}
 	} else if action == "die" && cfg.GlobalCfg.StateAgent {
 		// handle die - keep map but update state
 		dm.ContainersLock.Lock()

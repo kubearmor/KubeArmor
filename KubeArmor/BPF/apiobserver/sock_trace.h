@@ -31,6 +31,11 @@
  *   • stats accounting */
 static __attribute__((always_inline)) int emit_data_event(u64 sock_ptr,
                                                           u8 direction) {
+  // Namespace filter: drop events from filtered cgroups.
+  if (is_ns_filtered()) {
+    return 0;
+  }
+
   u8 *cached = bpf_map_lookup_elem(&connection_filter_cache, &sock_ptr);
   if (cached && *cached == 0) {
     update_stats(PROTO_UNKNOWN, 1);

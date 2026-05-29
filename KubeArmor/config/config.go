@@ -79,6 +79,9 @@ type KubearmorConfig struct {
 
 	EnableAPIObserver bool // Enable/Disable API Observer for HTTP/gRPC observability
 
+	ApiAllowNamespaces string // API Observer: K8s namespaces to trace (allowlist, comma-separated)
+	ApiBlockNamespaces string // API Observer: K8s namespaces to block (blocklist, comma-separated; "host" for host NS)
+
 	USBDeviceHandler bool // enable USB device observability and enforcement
 
 	MatchArgs bool // enable argument rules for policy
@@ -144,6 +147,8 @@ const (
 	ConfigArgMatching                    string = "matchArgs"
 	ConfigNetworkPolicyEnforcer          string = "enableNetworkPolicyEnforcer"
 	ConfigEnableAPIObserver              string = "enableAPIObserver"
+	ConfigApiAllowNamespaces             string = "apiAllowNamespaces"
+	ConfigApiBlockNamespaces             string = "apiBlockNamespaces"
 )
 
 func readCmdLineParams() {
@@ -223,6 +228,9 @@ func readCmdLineParams() {
 	networkPolicyEnforcer := flag.Bool(ConfigNetworkPolicyEnforcer, true, "Enable network policy enforcement")
 
 	enableAPIObserver := flag.Bool(ConfigEnableAPIObserver, false, "enable eBPF-based API Observer for HTTP/gRPC observability")
+
+	apiAllowNamespaces := flag.String(ConfigApiAllowNamespaces, "", "API Observer: comma-separated K8s namespaces to trace (allowlist)")
+	apiBlockNamespaces := flag.String(ConfigApiBlockNamespaces, "", "API Observer: comma-separated K8s namespaces to block (blocklist); 'host' for host namespace")
 
 	flags := []string{}
 	flag.VisitAll(func(f *flag.Flag) {
@@ -309,6 +317,9 @@ func readCmdLineParams() {
 	viper.SetDefault(ConfigNetworkPolicyEnforcer, *networkPolicyEnforcer)
 
 	viper.SetDefault(ConfigEnableAPIObserver, *enableAPIObserver)
+
+	viper.SetDefault(ConfigApiAllowNamespaces, *apiAllowNamespaces)
+	viper.SetDefault(ConfigApiBlockNamespaces, *apiBlockNamespaces)
 }
 
 // LoadConfig Load configuration
@@ -464,6 +475,9 @@ func LoadDynamicConfig() {
 	if v := viper.GetString(ConfigApiExcludedPorts); v != "" {
 		GlobalCfg.ConfigApiExcludedPorts.Store(strings.Split(v, ","))
 	}
+
+	GlobalCfg.ApiAllowNamespaces = viper.GetString(ConfigApiAllowNamespaces)
+	GlobalCfg.ApiBlockNamespaces = viper.GetString(ConfigApiBlockNamespaces)
 
 	kg.Printf("Final Configuration [%+v]", GlobalCfg)
 }
