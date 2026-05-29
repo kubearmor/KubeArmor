@@ -14,23 +14,20 @@ import (
 //
 // Wire layout (little-endian, LP64, no padding holes):
 //
-//	offset  0 : u32  pid       (4 bytes)
-//	offset  4 : u32  fd        (4 bytes)
-//	offset  8 : u32  stream_id (4 bytes)
-//	offset 12 : u8   _pad      (1 byte)
-//	offset 13 : u8[64] method  (64 bytes)  — null-terminated, up to 63 chars
-//
-// Total: 77 bytes. The [64]byte array is the critical fix vs. a scalar byte:
-// binary.Read requires a fixed-size array to match the BPF ring-buffer layout.
+//	offset  0 : u32    pid       (4 bytes)
+//	offset  4 : u32    fd        (4 bytes)
+//	offset  8 : u32    stream_id (4 bytes)
+//	offset 12 : u8     _pad      (1 byte)
+//	offset 13 : u8[128] path    (128 bytes) — null-terminated gRPC :path value
 type GRPCCHeaderEvent struct {
 	PID      uint32
 	FD       uint32
 	StreamID uint32
 	Pad      uint8
-	Method   [64]byte
+	Path     [128]byte
 }
 
-const grpccHeaderEventSize = 4 + 4 + 4 + 1 + 64 // = 77
+const grpccHeaderEventSize = 4 + 4 + 4 + 1 + 128 // = 141
 
 // ParseGRPCCHeaderEvent decodes a raw BPF ring-buffer record into a
 // GRPCCHeaderEvent. Returns an error if the slice is too short.
@@ -43,15 +40,15 @@ func ParseGRPCCHeaderEvent(data []byte) (GRPCCHeaderEvent, error) {
 	ev.FD = binary.LittleEndian.Uint32(data[4:8])
 	ev.StreamID = binary.LittleEndian.Uint32(data[8:12])
 	ev.Pad = data[12]
-	copy(ev.Method[:], data[13:13+64])
+	copy(ev.Path[:], data[13:grpccHeaderEventSize])
 	return ev, nil
 }
 
-// MethodString returns the gRPC ":path" value as a Go string,
+// PathString returns the gRPC ":path" value as a Go string,
 // stripping trailing null bytes written by the BPF probe.
-func (e GRPCCHeaderEvent) MethodString() string {
-	if idx := bytes.IndexByte(e.Method[:], 0); idx >= 0 {
-		return string(e.Method[:idx])
+func (e GRPCCHeaderEvent) PathString() string {
+	if idx := bytes.IndexByte(e.Path[:], 0); idx >= 0 {
+		return string(e.Path[:idx])
 	}
-	return string(e.Method[:])
+	return string(e.Path[:])
 }

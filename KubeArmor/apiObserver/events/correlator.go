@@ -92,7 +92,7 @@ type Correlator interface {
 	// InjectGRPCCEvent patches the :path for a pending HTTP/2 stream captured
 	// via gRPC-C uprobes (Python, C++, Ruby, PHP, C# services).
 	// Uses pid+fd+streamID as the lookup key; takes the mutex internally.
-	InjectGRPCCEvent(pid uint32, fd uint32, streamID uint32, method string)
+	InjectGRPCCEvent(pid uint32, fd uint32, streamID uint32, path string)
 
 	// InjectGoGRPCEvent injects a complete gRPC request event from the
 	// Go uprobe pipeline. Unlike InjectGoHTTP2Headers which provides only
@@ -505,8 +505,8 @@ func (c *defaultCorrelator) InjectGoHTTP2Headers(
 //     patch its URL only if currently empty or the fallback "*".
 //   - If no request exists yet, create a placeholder so the response can still
 //     be matched when it arrives.
-func (c *defaultCorrelator) InjectGRPCCEvent(pid, fd, streamID uint32, method string) {
-	if method == "" || method == "*" {
+func (c *defaultCorrelator) InjectGRPCCEvent(pid, fd, streamID uint32, path string) {
+	if path == "" || path == "*" {
 		return
 	}
 	key := ConnectionKey{PID: pid, FD: fd}
@@ -531,9 +531,9 @@ func (c *defaultCorrelator) InjectGRPCCEvent(pid, fd, streamID uint32, method st
 
 	// Patch URL only when the kprobe data is absent or contains the fallback.
 	if req.URL == "" || req.URL == "*" || req.URL == "null" {
-		req.URL = method
-		log.Debugf("gRPC-C uprobe: patched :path pid=%d fd=%d stream_id=%d method=%s",
-			pid, fd, streamID, method)
+		req.URL = path
+		log.Debugf("gRPC-C uprobe: patched :path pid=%d fd=%d stream_id=%d path=%s",
+			pid, fd, streamID, path)
 	}
 	// gRPC is always POST; set if kprobe hasn't populated it yet.
 	if req.Method == "" {

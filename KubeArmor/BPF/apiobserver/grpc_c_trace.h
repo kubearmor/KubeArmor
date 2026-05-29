@@ -55,7 +55,7 @@ struct grpcc_header_event {
   u32 fd;
   u32 stream_id;
   u8 _pad;
-  u8 method[GRPCC_MAX_METHOD_SIZE]; /* null-terminated, up to 64 bytes   */
+  u8 method[GRPC_MAX_PATH_SIZE]; /* null-terminated, up to 64 bytes   */
 };
 
 /* ── Architecture-portable argument access ──────────────────────────────── */
@@ -102,10 +102,10 @@ static __always_inline u32 read_grpc_slice(void *slice_ptr, u8 *dst,
       return 0;
     u32 to_copy = length < max_size ? length : max_size - 1;
     if (bpf_probe_read_user(
-            dst, to_copy & (GRPCC_MAX_METHOD_SIZE - 1),
+            dst, to_copy & (GRPC_MAX_PATH_SIZE - 1),
             (void *)((u64)slice_ptr + GRPCC_SLICE_INLINED_DAT_OFF)) != 0)
       return 0;
-    dst[to_copy & (GRPCC_MAX_METHOD_SIZE - 1)] = '\0';
+    dst[to_copy & (GRPC_MAX_PATH_SIZE - 1)] = '\0';
     return to_copy;
   }
 
@@ -124,10 +124,10 @@ static __always_inline u32 read_grpc_slice(void *slice_ptr, u8 *dst,
     return 0;
   u32 to_copy = (u32)length < max_size ? (u32)length : max_size - 1;
   /* Mask to keep the BPF verifier happy with the dynamic size. */
-  if (bpf_probe_read_user(dst, to_copy & (GRPCC_MAX_METHOD_SIZE - 1),
+  if (bpf_probe_read_user(dst, to_copy & (GRPC_MAX_PATH_SIZE - 1),
                           bytes_ptr) != 0)
     return 0;
-  dst[to_copy & (GRPCC_MAX_METHOD_SIZE - 1)] = '\0';
+  dst[to_copy & (GRPC_MAX_PATH_SIZE - 1)] = '\0';
   return to_copy;
 }
 
@@ -186,12 +186,12 @@ handle_grpc_c_recv_initial_metadata(struct pt_regs *ctx) {
   ev->fd = (u32)fd;
   ev->stream_id = stream_id;
   ev->_pad = 0;
-  __builtin_memset(ev->method, 0, GRPCC_MAX_METHOD_SIZE);
+  __builtin_memset(ev->method, 0, GRPC_MAX_PATH_SIZE);
 
   /* Read grpc_slice at stream_ptr + stream_method_offset */
   void *slice_ptr =
       (void *)((u64)stream_ptr + (u32)addrs->stream_method_offset);
-  u32 n = read_grpc_slice(slice_ptr, ev->method, GRPCC_MAX_METHOD_SIZE);
+  u32 n = read_grpc_slice(slice_ptr, ev->method, GRPC_MAX_PATH_SIZE);
   if (n == 0) {
     bpf_ringbuf_discard(ev, 0);
     return 0;

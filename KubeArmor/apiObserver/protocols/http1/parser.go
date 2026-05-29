@@ -152,6 +152,15 @@ func (p *Parser) parseOne(buf []byte) (*Message, int, int, error) {
 		}
 	}
 
+	// Strip SSE framing for event-stream responses so downstream
+	// consumers receive clean JSON-RPC bodies, not raw SSE frames.
+	if len(msg.Body) > 0 {
+		ct := strings.ToLower(msg.Headers["content-type"])
+		if strings.Contains(ct, "text/event-stream") {
+			msg.Body = extractSSEData(msg.Body)
+		}
+	}
+
 	if truncated {
 		contentType := strings.ToLower(msg.Headers["content-type"])
 		isBinary := strings.Contains(contentType, "application/octet-stream") ||
@@ -293,6 +302,18 @@ func findChunkedEnd(buf []byte, offset int) (int, bool, bool) {
 		pos += nl + 1
 
 		if chunkSize == 0 {
+			// No trailers (common case): the terminal chunk is
+			// "0\r\n\r\n" — after consuming "0\r\n" above, only
+			// the empty-trailer terminator "\r\n" remains.
+			if len(buf[pos:]) >= 2 && buf[pos] == '\r' && buf[pos+1] == '\n' {
+				return pos + 2, true, false
+			}
+			// Lenient: bare \n without \r.
+			if len(buf[pos:]) >= 1 && buf[pos] == '\n' {
+				return pos + 1, true, false
+			}
+			// With trailers: one or more "Field: value\r\n" lines
+			// followed by a blank line (\r\n\r\n terminates).
 			if idx := bytes.Index(buf[pos:], []byte("\r\n\r\n")); idx >= 0 {
 				return pos + idx + 4, true, false
 			}
@@ -384,7 +405,15 @@ func parseRequestLine(line string, msg *Message) error {
 	if len(parts) < 2 {
 		return fmt.Errorf("HTTP/1 invalid request line: %q", line)
 	}
-	msg.Method = parts[0]
+	method := parts[0]
+	// Validate method: RFC 7230 tokens are printable ASCII, but standard
+	// HTTP methods are strictly uppercase A-Z. Reject anything else to
+	// prevent binary data (SPDY framing, TLS records) that accidentally
+	// contains "POST" or "GET" from producing garbage events.
+	if !isValidHTTPMethod(method) {
+		return fmt.Errorf("HTTP/1 invalid method: %q", method)
+	}
+	msg.Method = method
 	msg.Path = parts[1]
 	if len(parts) == 3 {
 		msg.HTTPVersion = parts[2]
@@ -392,6 +421,17 @@ func parseRequestLine(line string, msg *Message) error {
 		msg.HTTPVersion = "HTTP/1.0"
 	}
 	return nil
+}
+
+// isValidHTTPMethod returns true if s is a known HTTP method.
+// This is intentionally strict — only standard methods are accepted.
+func isValidHTTPMethod(s string) bool {
+	fmt.Printf("HTTP METHOD: %s\n", s)
+	switch s {
+	case "GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS", "CONNECT", "TRACE":
+		return true
+	}
+	return false
 }
 
 // parseStatusLine parses "HTTP/x.y CODE reason-phrase" into msg.
@@ -470,4 +510,28 @@ func FindFrameBoundary(buf []byte, isRequest bool) int {
 		return idx + 1
 	}
 	return -1
+}
+
+// extractSSEData strips Server-Sent Events framing from decoded body bytes.
+// SSE frames are lines prefixed with "data: " and separated by blank lines.
+// This extracts only the data payloads so downstream consumers receive clean
+// JSON-RPC bodies (e.g. from MCP Streamable HTTP tools/call responses).
+//
+// Input:  "data: {\"jsonrpc\":\"2.0\",...}\n\ndata: ...\n\n"
+// Output: "{\"jsonrpc\":\"2.0\",...}\n..."
+func extractSSEData(body []byte) []byte {
+	var out []byte
+	for _, line := range bytes.Split(body, []byte("\n")) {
+		line = bytes.TrimRight(line, "\r")
+		if bytes.HasPrefix(line, []byte("data: ")) {
+			if len(out) > 0 {
+				out = append(out, '\n')
+			}
+			out = append(out, line[6:]...)
+		}
+	}
+	if len(out) == 0 {
+		return body // not SSE formatted, return as-is
+	}
+	return out
 }

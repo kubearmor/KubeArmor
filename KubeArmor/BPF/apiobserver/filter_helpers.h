@@ -77,3 +77,33 @@ static __attribute__((always_inline)) int should_trace_port(u16 port) {
   u8 *excluded = bpf_map_lookup_elem(&port_exclusion_map, &port);
   return excluded == NULL;  // trace if NOT excluded
 }
+
+// Loopback check: returns 1 if IP is in 127.0.0.0/8.
+// skc_rcv_saddr is __be32 (network byte order). BPF_CORE_READ_INTO copies
+// raw bytes into a native u32. On all supported little-endian architectures
+// (x86_64/AMD64, arm64), the first IP octet lands in the lowest byte.
+static __attribute__((always_inline)) int is_loopback(__u32 ip) {
+  return (ip & 0xFF) == 0x7F;
+}
+
+// Namespace (K8s) filter — cgroup-ID based.
+// Returns 1 (drop) if the current task's cgroup should be filtered,
+// 0 (allow) otherwise. When filter is disabled, always returns 0.
+#define NS_FILTER_DISABLED  0
+#define NS_FILTER_ALLOWLIST 1
+#define NS_FILTER_BLOCKLIST 2
+
+static __attribute__((always_inline)) int is_ns_filtered(void) {
+  __u32 zero = 0;
+  __u8 *mode = bpf_map_lookup_elem(&ns_filter_config, &zero);
+  if (!mode || *mode == NS_FILTER_DISABLED)
+    return 0;
+
+  __u64 cgroup_id = bpf_get_current_cgroup_id();
+  __u8 *found = bpf_map_lookup_elem(&ns_cgroup_map, &cgroup_id);
+
+  if (*mode == NS_FILTER_ALLOWLIST)
+    return found == NULL ? 1 : 0;
+
+  return found != NULL ? 1 : 0;
+}

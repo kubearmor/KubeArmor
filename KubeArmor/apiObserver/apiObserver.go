@@ -10,7 +10,9 @@ import (
 	"io"
 	"math"
 	"net"
+	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -33,6 +35,7 @@ import (
 	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
 	fd "github.com/kubearmor/KubeArmor/KubeArmor/feeder"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
+	probe "github.com/kubearmor/KubeArmor/KubeArmor/utils/bpflsmprobe"
 )
 
 //go:generate go run github.com/cilium/ebpf/cmd/bpf2go -target amd64,arm64 -cc clang apiObserver ../BPF/api_observer.bpf.c
@@ -58,11 +61,11 @@ type APIObserver struct {
 	Events        *ringbuf.Reader
 	EventsChannel chan []byte
 
-	// Go HTTP/2 header events ring buffer.
-	goHeaderEvents  *ringbuf.Reader
-	goHeaderChannel chan []byte
-	grpccEvents     *ringbuf.Reader // ring buffer for gRPC-C header events
-	grpccChannel    chan []byte
+	// Go gRPC request events ring buffer.
+	goGRPCEvents  *ringbuf.Reader
+	goGRPCChannel chan []byte
+	grpccEvents   *ringbuf.Reader // ring buffer for gRPC-C header events
+	grpccChannel  chan []byte
 
 	goH2TransportEvents  *ringbuf.Reader
 	goH2TransportChannel chan []byte
@@ -86,6 +89,12 @@ type APIObserver struct {
 	// Per-PID first-chunk diagnostic tracker (single-goroutine access in drainKsTlsChunks).
 	tlsPidSeen map[uint32]bool
 
+	// K8s namespace filter configuration.
+	nsFilterMode      uint8    // 0=disabled, 1=allowlist, 2=blocklist
+	allowedNamespaces []string // K8s namespaces to trace (allowlist mode)
+	blockedNamespaces []string // K8s namespaces to block (blocklist mode)
+	nsCgroupCache     sync.Map // containerID → cgroupID (uint64) for removal cleanup
+
 	ctx    context.Context
 	cancel context.CancelFunc
 	wg     sync.WaitGroup
@@ -95,6 +104,13 @@ func NewAPIObserver(node tp.Node, pinpath string, logger *fd.Feeder, svcResolver
 	if svcResolver == nil {
 		svcResolver = func(ip string) string { return "" }
 	}
+
+	err := probe.CheckBPFLSMSupport()
+	if err != nil {
+		logger.Warnf("BPF LSM not supported %s\n", err.Error())
+		return nil, err
+	}
+
 	ao := &APIObserver{
 		Logger:           logger,
 		nodeName:         node.NodeName,
@@ -102,7 +118,6 @@ func NewAPIObserver(node tp.Node, pinpath string, logger *fd.Feeder, svcResolver
 	}
 	ao.ctx, ao.cancel = context.WithCancel(context.Background())
 
-	var err error
 	if err = rlimit.RemoveMemlock(); err != nil {
 		ao.Logger.Errf("Error removing rlimit: %v", err)
 		return nil, err
@@ -123,6 +138,7 @@ func NewAPIObserver(node tp.Node, pinpath string, logger *fd.Feeder, svcResolver
 	// Populate protocol-aware capture size limits.
 	ao.populateProtocolConfig()
 	ao.populatePortExclusions()
+	ao.populateNsFilter()
 
 	if err = ao.attachTracepoint(); err != nil {
 		ao.Logger.Warnf("Failed to attach tracepoint (connection tracking degraded): %v", err)
@@ -133,11 +149,11 @@ func NewAPIObserver(node tp.Node, pinpath string, logger *fd.Feeder, svcResolver
 		return nil, err
 	}
 
-	// Attach kubeshark-style FD resolution tracepoints, TCP kprobes, and
+	// Attach FD resolution tracepoints, TCP kprobes, and
 	// connect/accept tracepoints. These are REQUIRED for SSL capture —
 	// without them, ks_ssl_info.fd stays at -1 and all chunks are dropped.
 	if err = ao.attachKsFdTracepoints(); err != nil {
-		ao.Logger.Warnf("KS FD tracepoints partially failed (SSL capture degraded): %v", err)
+		ao.Logger.Warnf("FD tracepoints partially failed (SSL capture degraded): %v", err)
 	}
 
 	ao.Events, err = ringbuf.NewReader(ao.objs.ApiobserverEvents)
@@ -156,13 +172,13 @@ func NewAPIObserver(node tp.Node, pinpath string, logger *fd.Feeder, svcResolver
 	ao.connManager.Start()
 	ao.Logger.Debug("API Observer processing components initialized")
 
-	// Start the Go HTTP/2 header events ring buffer.
-	ao.goHeaderEvents, err = ringbuf.NewReader(ao.objs.GoHttp2Events)
+	// Start the Go gRPC events ring buffer.
+	ao.goGRPCEvents, err = ringbuf.NewReader(ao.objs.GoHttp2Events)
 	if err != nil {
 		ao.Logger.Warnf("Go HTTP/2 header events ring buffer not available (uprobe headers disabled): %v", err)
 	} else {
-		ao.goHeaderChannel = make(chan []byte, 2048)
-		ao.Logger.Debug("Go HTTP/2 header events ring buffer created")
+		ao.goGRPCChannel = make(chan []byte, 2048)
+		ao.Logger.Debug("Go GRPC events ring buffer created")
 	}
 	ao.goH2TransportEvents, err = ringbuf.NewReader(ao.objs.GoH2TransportEvents)
 	if err != nil {
@@ -192,18 +208,18 @@ func NewAPIObserver(node tp.Node, pinpath string, logger *fd.Feeder, svcResolver
 	// Kubeshark-style TLS chunks perf reader.
 	ksPerfReader, err := perf.NewReader(ao.objs.KsChunksBuffer, 4096*128)
 	if err != nil {
-		ao.Logger.Warnf("KS TLS perf reader not available: %v", err)
+		ao.Logger.Warnf("TLS perf reader not available: %v", err)
 	} else {
 		ao.ksTlsChunksReader = ksPerfReader
 		ao.Logger.Debug("TLS chunk perf reader created")
-		go ao.drainKsTlsChunks()
+		go ao.drainTlsChunks()
 	}
 
 	ao.grpccEvents, err = ringbuf.NewReader(ao.objs.GrpccEvents)
 	if err != nil {
 		ao.Logger.Warnf("gRPC-C events ring buffer not available: %v", err)
 	} else {
-		ao.grpccChannel = make(chan []byte, 1024)
+		ao.grpccChannel = make(chan []byte, 2048)
 		ao.Logger.Debug("gRPC-C events ring buffer created")
 	}
 
@@ -284,7 +300,7 @@ func (ao *APIObserver) attachTracepointOrFallback(group, name string, prog *ebpf
 	l, err := link.Tracepoint(group, name, prog, nil)
 	if err == nil {
 		ao.links = append(ao.links, l)
-		ao.Logger.Debugf("KS tracepoint %s/%s attached", group, name)
+		ao.Logger.Debugf("tracepoint %s/%s attached", group, name)
 		return nil
 	}
 	ao.Logger.Debugf("Tracepoint %s/%s failed: %v — trying kprobe fallback", group, name, err)
@@ -300,7 +316,7 @@ func (ao *APIObserver) attachTracepointOrFallback(group, name string, prog *ebpf
 		}
 		if kerr == nil {
 			ao.links = append(ao.links, kl)
-			ao.Logger.Debugf("KS kprobe fallback %s attached (for %s)", kpName, name)
+			ao.Logger.Debugf("kprobe fallback %s attached (for %s)", kpName, name)
 			return nil
 		}
 	}
@@ -364,7 +380,7 @@ func (ao *APIObserver) attachKsFdTracepoints() error {
 
 	for _, tp := range fdEntryProbes {
 		if err := ao.attachTracepointOrFallback(tp.group, tp.name, tp.prog, tp.kprobeFallback, false); err != nil {
-			ao.Logger.Warnf("KS FD entry %s failed: %v", tp.name, err)
+			ao.Logger.Warnf("FD entry %s failed: %v", tp.name, err)
 			if firstErr == nil {
 				firstErr = err
 			}
@@ -389,7 +405,7 @@ func (ao *APIObserver) attachKsFdTracepoints() error {
 
 	for _, tp := range fdExitProbes {
 		if err := ao.attachTracepointOrFallback(tp.group, tp.name, tp.prog, tp.kprobeFallback, true); err != nil {
-			ao.Logger.Warnf("KS FD exit %s failed: %v", tp.name, err)
+			ao.Logger.Warnf("FD exit %s failed: %v", tp.name, err)
 			if firstErr == nil {
 				firstErr = err
 			}
@@ -414,7 +430,7 @@ func (ao *APIObserver) attachKsFdTracepoints() error {
 
 	for _, tp := range connEntryProbes {
 		if err := ao.attachTracepointOrFallback(tp.group, tp.name, tp.prog, tp.kprobeFallback, false); err != nil {
-			ao.Logger.Warnf("KS connect entry %s failed: %v", tp.name, err)
+			ao.Logger.Warnf("connect entry %s failed: %v", tp.name, err)
 			if firstErr == nil {
 				firstErr = err
 			}
@@ -439,7 +455,7 @@ func (ao *APIObserver) attachKsFdTracepoints() error {
 
 	for _, tp := range connExitProbes {
 		if err := ao.attachTracepointOrFallback(tp.group, tp.name, tp.prog, tp.kprobeFallback, true); err != nil {
-			ao.Logger.Warnf("KS connect exit %s failed: %v", tp.name, err)
+			ao.Logger.Warnf("connect exit %s failed: %v", tp.name, err)
 			if firstErr == nil {
 				firstErr = err
 			}
@@ -458,14 +474,14 @@ func (ao *APIObserver) attachKsFdTracepoints() error {
 	for _, kp := range tcpKprobes {
 		l, err := link.Kprobe(kp.name, kp.prog, nil)
 		if err != nil {
-			ao.Logger.Warnf("KS TCP kprobe %s failed: %v", kp.name, err)
+			ao.Logger.Warnf("TCP kprobe %s failed: %v", kp.name, err)
 			if firstErr == nil {
 				firstErr = err
 			}
 			continue
 		}
 		ao.links = append(ao.links, l)
-		ao.Logger.Debugf("KS TCP kprobe %s attached", kp.name)
+		ao.Logger.Debugf("TCP kprobe %s attached", kp.name)
 	}
 
 	return firstErr
@@ -498,7 +514,7 @@ func (ao *APIObserver) TraceEvents() {
 				return
 			default:
 				// Drop on overload rather than blocking the BPF reader.
-				ao.Logger.Debug("Dropping API Log due to load")
+				ao.Logger.Warn("Dropping API Log due to load")
 			}
 		}
 	}()
@@ -519,22 +535,22 @@ func (ao *APIObserver) TraceEvents() {
 	}
 }
 
-// drainGoHeaderEvents reads from the Go HTTP/2 header events ring buffer
-// and processes completed header blocks into the correlator.
+// drainGoGRPCEvents reads from the Go gRPC request events ring buffer
+// and processes completed events into the correlator.
 func (ao *APIObserver) drainGoHeaderEvents() {
 	ao.wg.Add(1)
 	defer ao.wg.Done()
 
-	if ao.goHeaderEvents == nil {
+	if ao.goGRPCEvents == nil {
 		return
 	}
 
-	ao.Logger.Debug("Starting Go HTTP/2 header events reader")
+	ao.Logger.Debug("Starting Go gRPC events reader")
 
 	// Ring buffer reader goroutine.
 	go func() {
 		for {
-			record, err := ao.goHeaderEvents.Read()
+			record, err := ao.goGRPCEvents.Read()
 			if err != nil {
 				if errors.Is(err, ringbuf.ErrClosed) {
 					return
@@ -543,11 +559,11 @@ func (ao *APIObserver) drainGoHeaderEvents() {
 				continue
 			}
 			select {
-			case ao.goHeaderChannel <- record.RawSample:
+			case ao.goGRPCChannel <- record.RawSample:
 			case <-ao.ctx.Done():
 				return
 			default:
-				ao.Logger.Debug("Dropping Go header event due to load")
+				ao.Logger.Debug("Dropping Go gRPC event due to load")
 			}
 		}
 	}()
@@ -557,7 +573,7 @@ func (ao *APIObserver) drainGoHeaderEvents() {
 		select {
 		case <-ao.ctx.Done():
 			return
-		case raw := <-ao.goHeaderChannel:
+		case raw := <-ao.goGRPCChannel:
 			ev, err := events.ParseGoGRPCRequestEvent(raw)
 			if err != nil {
 				ao.Logger.Debugf("ParseGoGRPCRequestEvent error: %v", err)
@@ -569,7 +585,6 @@ func (ao *APIObserver) drainGoHeaderEvents() {
 }
 
 // processGoGRPCEvent handles a complete gRPC request event from the BPF uprobe.
-// Each event contains a full path and latency — no accumulation needed.
 func (ao *APIObserver) processGoGRPCEvent(ev *events.GoGRPCRequestEvent) {
 	if ev.Path == "" {
 		ao.Logger.Debugf("Go uprobe: ignoring event with empty path pid=%d type=%d", ev.PID, ev.EventType)
@@ -896,7 +911,7 @@ func (ao *APIObserver) attachSSLUprobes() {
 			return
 		}
 
-		ao.Logger.Printf("SSL scanner: found %d container PIDs", len(pids))
+		ao.Logger.Debugf("SSL scanner: found %d container PIDs", len(pids))
 
 		for _, pid := range pids {
 			// Allow fast exit during shutdown.
@@ -908,7 +923,7 @@ func (ao *APIObserver) attachSSLUprobes() {
 
 			matches := ssl.DiscoverSSLLibsForPID(pid)
 			if len(matches) > 0 {
-				ao.Logger.Printf("SSL scanner: PID %d has %d SSL lib matches", pid, len(matches))
+				ao.Logger.Debugf("SSL scanner: PID %d has %d SSL lib matches", pid, len(matches))
 			}
 			for _, m := range matches {
 				inode := ao.getFileInode(m.LibSSLPath)
@@ -921,7 +936,7 @@ func (ao *APIObserver) attachSSLUprobes() {
 					continue
 				}
 
-				ao.Logger.Printf("SSL scanner: attaching probes to %s (PID %d, matcher=%q, strategy=%d)",
+				ao.Logger.Debugf("SSL scanner: attaching probes to %s (PID %d, matcher=%q, strategy=%d)",
 					m.LibSSLPath, pid, m.Matcher.LibSSL, m.Matcher.SocketFDAccess)
 
 				links := ao.attachSSLProbesForMatch(m)
@@ -931,7 +946,7 @@ func (ao *APIObserver) attachSSLUprobes() {
 					continue
 				}
 
-				ao.Logger.Printf("SSL scanner: attached %d probes for %s (PID %d)", len(links), m.LibSSLPath, pid)
+				ao.Logger.Debugf("SSL scanner: attached %d probes for %s (PID %d)", len(links), m.LibSSLPath, pid)
 
 				probed[key] = true
 
@@ -1058,7 +1073,7 @@ func (ao *APIObserver) attachSSLProbesForMatch(m ssl.SSLLibMatch) []link.Link {
 			if err := ao.objs.SslSymaddrs.Put(tgid, bpfOffsets); err != nil {
 				ao.Logger.Warnf("SSL Strategy B: failed to write ssl_symaddrs[%d]: %v", tgid, err)
 			} else {
-				ao.Logger.Printf("SSL Strategy B: populated ssl_symaddrs[%d] rbio=0x%x num=0x%x for %s",
+				ao.Logger.Debugf("SSL Strategy B: populated ssl_symaddrs[%d] rbio=0x%x num=0x%x for %s",
 					tgid, offsets.SSLRBIOOffset, offsets.BIONumOffset, m.LibSSLPath)
 			}
 		}
@@ -1235,7 +1250,7 @@ func (ao *APIObserver) attachGoHTTP2Uprobes() {
 				continue
 			}
 
-			ao.Logger.Printf("Attaching Go HTTP/2 uprobes to %s (PID %d, %d symbols)",
+			ao.Logger.Debugf("Attaching Go HTTP/2 uprobes to %s (PID %d, %d symbols)",
 				target.BinaryPath, target.PID, len(target.Symbols))
 
 			// Populate BPF maps with offsets for this PID.
@@ -1259,7 +1274,7 @@ func (ao *APIObserver) attachGoHTTP2Uprobes() {
 					} else {
 						ao.appendLink(l)
 						probeCount++
-						ao.Logger.Printf("  uprobe/%s attached at 0x%x on %s", shortID, addr, target.BinaryPath)
+						ao.Logger.Debugf("uprobe/%s attached at 0x%x on %s", shortID, addr, target.BinaryPath)
 					}
 				}
 
@@ -1273,7 +1288,7 @@ func (ao *APIObserver) attachGoHTTP2Uprobes() {
 					} else {
 						ao.appendLink(l)
 						probeCount++
-						ao.Logger.Printf("  uretprobe/%s attached at 0x%x", retKey, addr)
+						ao.Logger.Debugf("uretprobe/%s attached at 0x%x", retKey, addr)
 					}
 				}
 			}
@@ -1286,7 +1301,7 @@ func (ao *APIObserver) attachGoHTTP2Uprobes() {
 
 			if probeCount > 0 {
 				attached[target.BinaryPath] = true
-				ao.Logger.Printf("Attached %d Go HTTP/2 uprobes on %s",
+				ao.Logger.Debugf("Attached %d Go HTTP/2 uprobes on %s",
 					probeCount, target.BinaryPath)
 			}
 		}
@@ -1363,7 +1378,7 @@ func (ao *APIObserver) attachGoTlsRetProbes(ex *link.Executable, target goprobe.
 			ao.appendLink(l)
 			probeCount++
 		}
-		ao.Logger.Printf("  Go TLS write_ex: %d ret probes attached", probeCount)
+		ao.Logger.Debugf("Go TLS write_ex: %d ret probes attached", probeCount)
 	}
 
 	// Attach read return probes.
@@ -1384,10 +1399,10 @@ func (ao *APIObserver) attachGoTlsRetProbes(ex *link.Executable, target goprobe.
 	return probeCount + readCount
 }
 
-// drainKsTlsChunks reads the kubeshark-style TLS chunk perf buffer.
+// drainTlsChunks reads the TLS chunk perf buffer.
 // Each chunk contains decrypted plaintext data + source/dest addresses.
 // Chunks are parsed into DataEvents and fed into the correlator pipeline.
-func (ao *APIObserver) drainKsTlsChunks() {
+func (ao *APIObserver) drainTlsChunks() {
 	ao.wg.Add(1)
 	defer ao.wg.Done()
 
@@ -1395,27 +1410,27 @@ func (ao *APIObserver) drainKsTlsChunks() {
 		return
 	}
 
-	ao.Logger.Print("Starting kubeshark TLS chunk perf reader")
+	ao.Logger.Print("Starting TLS chunk perf reader")
 
 	chunkCount := uint64(0)
 	for {
 		record, err := ao.ksTlsChunksReader.Read()
 		if err != nil {
 			if errors.Is(err, perf.ErrClosed) {
-				ao.Logger.Print("KS TLS perf reader closed")
+				ao.Logger.Print("TLS perf reader closed")
 				return
 			}
 			continue
 		}
 		if record.LostSamples != 0 {
-			ao.Logger.Warnf("KS TLS perf: lost %d samples", record.LostSamples)
+			ao.Logger.Warnf("TLS perf: lost %d samples", record.LostSamples)
 			continue
 		}
 
 		raw := record.RawSample
 		chunkCount++
 		if chunkCount <= 5 || chunkCount%100 == 0 {
-			ao.Logger.Printf("KS TLS chunk received #%d (rawLen=%d)", chunkCount, len(raw))
+			ao.Logger.Debugf("TLS chunk received #%d (rawLen=%d)", chunkCount, len(raw))
 		}
 
 		// Parse the TLS chunk into a structured event.
@@ -1440,7 +1455,7 @@ func (ao *APIObserver) drainKsTlsChunks() {
 				}
 				dataPreview = string(chunk.Data[:previewLen])
 			}
-			ao.Logger.Printf("KS TLS first chunk from pid=%d fd=%d family=%d src=%s:%d dst=%s:%d flags=0x%x len=%d recorded=%d data=%q",
+			ao.Logger.Debugf("TLS first chunk from pid=%d fd=%d family=%d src=%s:%d dst=%s:%d flags=0x%x len=%d recorded=%d data=%q",
 				chunk.PID, chunk.FD, chunk.Family,
 				chunk.SrcIPString(), chunk.SrcPort,
 				chunk.DstIPString(), chunk.DstPort,
@@ -1455,7 +1470,7 @@ func (ao *APIObserver) drainKsTlsChunks() {
 
 		// Convert to DataEvent and feed into the correlator pipeline.
 		ev := chunk.ToDataEvent()
-		ao.Logger.Debugf("KS TLS → DataEvent: pid=%d fd=%d src=%s:%d dst=%s:%d dir=%d flags=0x%x payloadLen=%d",
+		ao.Logger.Debugf("TLS → DataEvent: pid=%d fd=%d src=%s:%d dst=%s:%d dir=%d flags=0x%x payloadLen=%d",
 			ev.PID, ev.FD, ev.SrcIPString(), ev.SrcPort, ev.DstIPString(), ev.DstPort,
 			ev.Direction, ev.Flags, len(ev.Payload))
 		ao.processEvent(*ev)
@@ -1471,8 +1486,6 @@ func (ao *APIObserver) drainGRPCCEvents() {
 		return
 	}
 
-	// Inner reader goroutine — NOT tracked in wg; exits via ErrClosed
-	// when DestroyAPIObserver calls ao.grpccEvents.Close().
 	go func() {
 		for {
 			record, err := ao.grpccEvents.Read()
@@ -1651,7 +1664,7 @@ func (ao *APIObserver) scanAndAttachGRPCC(attached map[string]bool) {
 		}
 		ao.appendLink(l)
 		attached[target.LibPath] = true
-		ao.Logger.Printf("gRPC-C uprobe attached to %s (PID %d)", target.LibPath, target.PID)
+		ao.Logger.Debugf("gRPC-C uprobe attached to %s (PID %d)", target.LibPath, target.PID)
 	}
 }
 
@@ -1663,12 +1676,12 @@ func (ao *APIObserver) processGRPCCEvent(raw []byte) {
 		ao.Logger.Debugf("ParseGRPCCHeaderEvent error: %v", err)
 		return
 	}
-	method := ev.MethodString()
-	if method == "" {
+	path := ev.PathString()
+	if path == "" {
 		ao.Logger.Debugf("gRPC-C uprobe: ignoring event with empty method pid=%d", ev.PID)
 		return
 	}
-	ao.correlator.InjectGRPCCEvent(ev.PID, ev.FD, ev.StreamID, method)
+	ao.correlator.InjectGRPCCEvent(ev.PID, ev.FD, ev.StreamID, path)
 }
 
 // populateGoBPFMaps writes the offset table into the BPF map for a given target.
@@ -1785,6 +1798,218 @@ func (ao *APIObserver) SyncPortExclusions() {
 	ao.Logger.Print("Port exclusion map re-synced from runtime config")
 }
 
+// Namespace filter constants (must match BPF defines in filter_helpers.h).
+const (
+	nsFilterDisabled  = 0
+	nsFilterAllowlist = 1
+	nsFilterBlocklist = 2
+)
+
+// populateNsFilter sets up the BPF namespace filter based on config flags.
+// The filter mode and any static entries (e.g. "host" → cgroup ID 1) are
+// written at startup. Dynamic entries are added/removed via OnContainerAdded
+// and OnContainerRemoved as containers come and go.
+func (ao *APIObserver) populateNsFilter() {
+	allow := strings.Trim(strings.TrimSpace(cfg.GlobalCfg.ApiAllowNamespaces), "\"'")
+	block := strings.Trim(strings.TrimSpace(cfg.GlobalCfg.ApiBlockNamespaces), "\"'")
+
+	ao.Logger.Printf("Namespace filter: raw config allow=%q block=%q", cfg.GlobalCfg.ApiAllowNamespaces, cfg.GlobalCfg.ApiBlockNamespaces)
+	ao.Logger.Printf("Namespace filter: cleaned config allow=%q block=%q", allow, block)
+
+	if allow == "" && block == "" {
+		ao.Logger.Print("Namespace filter: disabled (both apiAllowNamespaces and apiBlockNamespaces empty)")
+		return
+	}
+
+	if allow != "" && block != "" {
+		ao.Logger.Warnf("Namespace filter: both apiAllowNamespaces=%q and apiBlockNamespaces=%q set — they are mutually exclusive; disabling filter", allow, block)
+		return
+	}
+
+	if allow != "" {
+		ao.nsFilterMode = nsFilterAllowlist
+		for _, ns := range strings.Split(allow, ",") {
+			ns = strings.TrimSpace(ns)
+			ns = strings.Trim(ns, "\"'") // strip surrounding quotes from config values
+			if ns != "" {
+				ao.allowedNamespaces = append(ao.allowedNamespaces, ns)
+			}
+		}
+		if err := ao.objs.NsFilterConfig.Put(uint32(0), uint8(nsFilterAllowlist)); err != nil {
+			ao.Logger.Warnf("Namespace filter: failed to set allowlist mode: %v", err)
+			return
+		}
+		ao.Logger.Printf("Namespace filter: ALLOWLIST mode — tracing namespaces: %v", ao.allowedNamespaces)
+	} else {
+		ao.nsFilterMode = nsFilterBlocklist
+		for _, ns := range strings.Split(block, ",") {
+			ns = strings.TrimSpace(ns)
+			ns = strings.Trim(ns, "\"'") // strip surrounding quotes from config values
+			if ns != "" {
+				ao.blockedNamespaces = append(ao.blockedNamespaces, ns)
+			}
+		}
+		if err := ao.objs.NsFilterConfig.Put(uint32(0), uint8(nsFilterBlocklist)); err != nil {
+			ao.Logger.Warnf("Namespace filter: failed to set blocklist mode: %v", err)
+			return
+		}
+		ao.Logger.Printf("Namespace filter: BLOCKLIST mode — blocking namespaces: %v", ao.blockedNamespaces)
+
+		// Handle "host" special value: host processes run in the root cgroup (ID 1).
+		if slices.Contains(ao.blockedNamespaces, "host") {
+			marker := uint8(1)
+			if err := ao.objs.NsCgroupMap.Put(uint64(1), marker); err != nil {
+				ao.Logger.Warnf("Namespace filter: failed to block host cgroup ID 1: %v", err)
+			} else {
+				ao.Logger.Print("Namespace filter: blocked 'host' (root cgroup ID 1)")
+			}
+		}
+	}
+}
+
+// OnContainerAdded is called by the core daemon when a container is created.
+// If the container's K8s namespace matches the filter configuration, its
+// cgroup ID is resolved via the PID namespace and added to the BPF ns_cgroup_map.
+func (ao *APIObserver) OnContainerAdded(containerID, k8sNamespace string, pidNS uint32) {
+	ao.Logger.Printf("Namespace filter: OnContainerAdded called (cid=%.12s, ns=%s, pidNS=%d, mode=%d)",
+		containerID, k8sNamespace, pidNS, ao.nsFilterMode)
+
+	if ao.nsFilterMode == nsFilterDisabled {
+		ao.Logger.Printf("Namespace filter: SKIP — filter disabled")
+		return
+	}
+
+	tracked := ao.shouldTrackContainer(k8sNamespace)
+	ao.Logger.Printf("Namespace filter: shouldTrackContainer(%s) = %v (mode=%d, allow=%v, block=%v)",
+		k8sNamespace, tracked, ao.nsFilterMode, ao.allowedNamespaces, ao.blockedNamespaces)
+	if !tracked {
+		return
+	}
+
+	cgroupID, err := resolveCgroupIDFromPidNS(pidNS, ao.Logger)
+	if err != nil {
+		ao.Logger.Warnf("Namespace filter: FAILED to resolve cgroup ID for pidNS %d (ns=%s, cid=%.12s): %v", pidNS, k8sNamespace, containerID, err)
+		return
+	}
+
+	ao.Logger.Printf("Namespace filter: resolved cgroupID=%d for pidNS=%d", cgroupID, pidNS)
+
+	marker := uint8(1)
+	if err := ao.objs.NsCgroupMap.Put(cgroupID, marker); err != nil {
+		ao.Logger.Warnf("Namespace filter: FAILED BPF map Put cgroup %d for ns %s: %v", cgroupID, k8sNamespace, err)
+		return
+	}
+
+	// Cache containerID → cgroupID for cleanup on removal.
+	ao.nsCgroupCache.Store(containerID, cgroupID)
+	ao.Logger.Printf("Namespace filter: SUCCESS added cgroup %d (ns=%s, pidNS=%d, cid=%.12s, procfs=%s)", cgroupID, k8sNamespace, pidNS, containerID, cfg.GlobalCfg.ProcFsMount)
+}
+
+// OnContainerRemoved is called by the core daemon when a container is removed.
+// Its cgroup ID is removed from the BPF ns_cgroup_map using the cached mapping.
+func (ao *APIObserver) OnContainerRemoved(containerID string) {
+	if ao.nsFilterMode == nsFilterDisabled {
+		return
+	}
+
+	val, ok := ao.nsCgroupCache.LoadAndDelete(containerID)
+	if !ok {
+		// Container wasn't tracked (namespace didn't match filter).
+		return
+	}
+	cgroupID := val.(uint64)
+
+	if err := ao.objs.NsCgroupMap.Delete(cgroupID); err != nil {
+		ao.Logger.Debugf("Namespace filter: failed to remove cgroup %d (cid=%.12s): %v", cgroupID, containerID, err)
+	} else {
+		ao.Logger.Debugf("Namespace filter: removed cgroup %d (cid=%.12s)", cgroupID, containerID)
+	}
+}
+
+// shouldTrackContainer returns true if the container's K8s namespace should
+// be added to the BPF map based on the current filter mode.
+func (ao *APIObserver) shouldTrackContainer(k8sNamespace string) bool {
+	if ao.nsFilterMode == nsFilterAllowlist {
+		return slices.Contains(ao.allowedNamespaces, k8sNamespace)
+	}
+	if ao.nsFilterMode == nsFilterBlocklist {
+		return slices.Contains(ao.blockedNamespaces, k8sNamespace)
+	}
+	return false
+}
+
+// resolveCgroupIDFromPidNS finds a running process in the given PID namespace
+// and gets its cgroup ID by statting the cgroup root through the process's
+// mount namespace.
+//
+// The key insight: /proc/<pid>/root/sys/fs/cgroup traverses the process's
+// mount namespace. In K8s, each container's /sys/fs/cgroup IS its own cgroup
+// directory (the cgroup namespace root). Statting it gives us the directory's
+// inode, which equals what bpf_get_current_cgroup_id() returns in the kernel.
+//
+// This avoids the cgroup path parsing problem entirely — cgroup paths from
+// /proc/<pid>/cgroup contain relative "../.." components due to cgroup
+// namespacing, and the host's cgroup filesystem isn't visible from inside
+// the KubeArmor container.
+func resolveCgroupIDFromPidNS(pidNS uint32, logger *fd.Feeder) (uint64, error) {
+	if pidNS == 0 {
+		return 0, fmt.Errorf("pidNS is 0")
+	}
+
+	procRoot := cfg.GlobalCfg.ProcFsMount // e.g. "/host/procfs" or "/proc"
+	target := fmt.Sprintf("pid:[%d]", pidNS)
+
+	logger.Printf("Namespace filter [resolve]: scanning procRoot=%s for target=%s", procRoot, target)
+
+	// Scan the host procfs for a process in the target PID namespace.
+	entries, err := os.ReadDir(procRoot)
+	if err != nil {
+		return 0, fmt.Errorf("readdir %s: %w", procRoot, err)
+	}
+
+	pidCount := 0
+	checkedCount := 0
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		// Only consider numeric directories (PIDs).
+		pid := entry.Name()
+		if pid[0] < '1' || pid[0] > '9' {
+			continue
+		}
+		pidCount++
+
+		// Check if this process is in our target PID namespace.
+		nsPath := filepath.Join(procRoot, pid, "ns", "pid")
+		nsLink, err := os.Readlink(nsPath)
+		if err != nil {
+			continue // process may have exited
+		}
+		checkedCount++
+
+		if nsLink != target {
+			continue
+		}
+
+		logger.Printf("Namespace filter [resolve]: MATCH pid=%s nsLink=%s", pid, nsLink)
+
+		// Stat the cgroup root through the process's mount namespace.
+		// /proc/<pid>/root/sys/fs/cgroup enters the process's filesystem view
+		// where /sys/fs/cgroup is the container's own cgroup directory.
+		cgroupDir := filepath.Join(procRoot, pid, "root", "sys", "fs", "cgroup")
+		var stat syscall.Stat_t
+		if err := syscall.Stat(cgroupDir, &stat); err != nil {
+			logger.Printf("Namespace filter [resolve]: stat(%s) FAILED: %v", cgroupDir, err)
+			continue // try next process in the same pidNS
+		}
+		logger.Printf("Namespace filter [resolve]: stat(%s) => inode=%d", cgroupDir, stat.Ino)
+		return stat.Ino, nil
+	}
+
+	return 0, fmt.Errorf("no process found in pidNS %d (scanned %s, %d PIDs found, %d checked)", pidNS, procRoot, pidCount, checkedCount)
+}
+
 // Lifecycle
 func (ao *APIObserver) DestroyAPIObserver() error {
 	if ao == nil {
@@ -1804,8 +2029,8 @@ func (ao *APIObserver) DestroyAPIObserver() error {
 			cleanupErr = errors.Join(cleanupErr, err)
 		}
 	}
-	if ao.goHeaderEvents != nil {
-		if err := ao.goHeaderEvents.Close(); err != nil {
+	if ao.goGRPCEvents != nil {
+		if err := ao.goGRPCEvents.Close(); err != nil {
 			ao.Logger.Err(err.Error())
 			cleanupErr = errors.Join(cleanupErr, err)
 		}
@@ -1835,8 +2060,7 @@ func (ao *APIObserver) DestroyAPIObserver() error {
 		}
 	}
 
-	// 3. Wait for goroutines to finish BEFORE closing BPF objects.
-	//    Use a timeout to avoid hanging indefinitely if a scan is in progress.
+	// Wait for goroutines to finish BEFORE closing BPF objects.
 	wgDone := make(chan struct{})
 	go func() {
 		ao.wg.Wait()

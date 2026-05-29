@@ -45,13 +45,13 @@ The following Kubernetes infrastructure ports are excluded by default:
 ### CLI Flag
 
 ```bash
-kubearmor --enableAPIObserver --apiObserverExcludedPorts="8080,9090,3000"
+kubearmor --enableAPIObserver --apiExcludedPorts="8080,9090,3000"
 ```
 
 ### Environment Variable
 
 ```bash
-export APIOBSERVEREXCLUDEDPORTS="8080,9090,3000"
+export APIEXCLUDEDPORTS="8080,9090,3000"
 kubearmor --enableAPIObserver
 ```
 
@@ -59,7 +59,7 @@ kubearmor --enableAPIObserver
 
 ```yaml
 enableAPIObserver: true
-apiObserverExcludedPorts: "8080,9090,3000"
+apiExcludedPorts: "8080,9090,3000"
 ```
 
 ### Helm Values (KubeArmor Operator)
@@ -68,7 +68,7 @@ apiObserverExcludedPorts: "8080,9090,3000"
 kubearmor:
   args:
     - --enableAPIObserver
-    - --apiObserverExcludedPorts=8080,9090,3000
+    - --apiExcludedPorts=8080,9090,3000
 ```
 
 ## Format
