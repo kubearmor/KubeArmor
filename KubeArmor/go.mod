@@ -23,19 +23,19 @@ replace (
 )
 
 require (
-	github.com/Masterminds/semver/v3 v3.4.0
+	github.com/Masterminds/semver/v3 v3.5.0
 	github.com/Masterminds/sprig/v3 v3.3.0
 	github.com/cilium/cilium v1.19.5
 	github.com/cilium/ebpf v0.22.0
 	github.com/containerd/containerd/api v1.11.1
 	github.com/containerd/containerd/v2 v2.3.5
 	github.com/containerd/nri v0.12.0
-	github.com/accuknox/SentryFlow/protobuf/golang v0.0.0-20260301133930-7ac9c6659ed3
 	github.com/containerd/typeurl/v2 v2.2.3
 	github.com/florianl/go-nflog/v2 v2.3.0
 	github.com/fsnotify/fsnotify v1.10.1
 	github.com/google/gopacket v1.1.19
 	github.com/google/uuid v1.6.0
+	github.com/hashicorp/golang-lru/v2 v2.0.7
 	github.com/kubearmor/KubeArmor/pkg/KubeArmorController v0.0.0-20260406102335-87edc770f8bf
 	github.com/kubearmor/KubeArmor/protobuf v0.0.0-20260406102335-87edc770f8bf
 	github.com/mdlayher/netlink v1.11.2
@@ -56,13 +56,11 @@ require (
 	k8s.io/klog/v2 v2.140.0
 	k8s.io/utils v0.0.0-20260507154919-ff6756f316d2
 	sigs.k8s.io/controller-runtime v0.24.1
-	golang.org/x/net v0.52.0
 )
 
 require (
 	dario.cat/mergo v1.0.2 // indirect
 	github.com/Masterminds/goutils v1.1.1 // indirect
-	github.com/Masterminds/semver/v3 v3.5.0 // indirect
 	github.com/Microsoft/go-winio v0.6.3-0.20251027160822-ad3df93bed29 // indirect
 	github.com/Microsoft/hcsshim v0.15.0-rc.1 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect

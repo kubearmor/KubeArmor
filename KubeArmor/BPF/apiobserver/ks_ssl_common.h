@@ -14,6 +14,7 @@
 #include "common/macros.h"
 #include "common/maps.h"
 #include "common/structs.h"
+#include "filter_helpers.h"
 
 /* ---- Helpers ---- */
 
@@ -142,6 +143,12 @@ static __always_inline void ks_output_ssl_chunk(struct pt_regs *ctx,
                                                 struct ks_ssl_info *info,
                                                 int count_bytes, __u64 id,
                                                 __u32 flags) {
+
+  // Namespace filter: drop SSL chunks from filtered cgroups.
+  if (is_ns_filtered()) {
+    return;
+  }
+
   if (count_bytes > (TLS_CHUNK_SIZE * TLS_MAX_CHUNKS_PER_OP))
     return;
 

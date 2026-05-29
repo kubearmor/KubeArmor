@@ -31,6 +31,11 @@
  *   • stats accounting */
 static __attribute__((always_inline)) int emit_data_event(u64 sock_ptr,
                                                           u8 direction) {
+  // Namespace filter: drop events from filtered cgroups.
+  if (is_ns_filtered()) {
+    return 0;
+  }
+
   u8 *cached = bpf_map_lookup_elem(&connection_filter_cache, &sock_ptr);
   if (cached && *cached == 0) {
     update_stats(PROTO_UNKNOWN, 1);
@@ -42,10 +47,11 @@ static __attribute__((always_inline)) int emit_data_event(u64 sock_ptr,
   if (!conn)
     return 0;
 
-  // first packet port filter
+  // first packet filter: port exclusion + loopback
   if (!cached) {
     u8 allow =
-        (should_trace_port(conn->src_port) && should_trace_port(conn->dst_port))
+        (should_trace_port(conn->src_port) && should_trace_port(conn->dst_port) &&
+         !is_loopback(conn->src_ip) && !is_loopback(conn->dst_ip))
             ? 1
             : 0;
     bpf_map_update_elem(&connection_filter_cache, &sock_ptr, &allow, BPF_ANY);

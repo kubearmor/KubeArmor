@@ -13,13 +13,30 @@ import (
 	"debug/buildinfo"
 	"debug/elf"
 	"fmt"
-	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
 	"os"
 	"strings"
 	"syscall"
 
+	lru "github.com/hashicorp/golang-lru/v2"
+	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
+
 	"github.com/kubearmor/KubeArmor/KubeArmor/apiObserver/ssl"
 )
+
+// cachedScanResult stores the results of ELF/DWARF binary analysis
+// so that ScanProc can skip the expensive parsing on subsequent scans.
+type cachedScanResult struct {
+	symbols    map[string]uint64
+	offTable   GoOffsetTable
+	grpcVer    string
+	tlsOffsets *GoTlsOffsets
+	inode      uint64 // used to detect binary replacement
+}
+
+// binaryCache is an LRU cache keyed by host binary path.
+// Capacity 256 is generous for the number of unique Go binaries on a node.
+// The inode is checked on cache hit to detect replaced binaries.
+var binaryCache, _ = lru.New[string, *cachedScanResult](256)
 
 // LocType mirrors BPF enum go_location_type.
 const (
@@ -187,6 +204,31 @@ func ScanProc() ([]GoUProbeTarget, error) {
 
 	var targets []GoUProbeTarget
 	for hostPath, pids := range binMap {
+		// Resolve inode early — needed for both cache validation and BPF map key.
+		var inode uint64
+		if fi, err := os.Stat(hostPath); err == nil {
+			if stat, ok := fi.Sys().(*syscall.Stat_t); ok {
+				inode = stat.Ino
+			}
+		}
+
+		// Check the binary scan cache. A cache hit is valid only if the
+		// inode matches — a different inode means the binary was replaced
+		// (e.g. container restart) and must be re-analysed.
+		if cached, ok := binaryCache.Get(hostPath); ok && cached.inode == inode {
+			for _, pe := range pids {
+				targets = append(targets, GoUProbeTarget{
+					PID:          pe.pid,
+					BinaryPath:   pe.hostPath,
+					Inode:        cached.inode,
+					Symbols:      cached.symbols,
+					OffsetTable:  cached.offTable,
+					GoTlsOffsets: cached.tlsOffsets,
+				})
+			}
+			continue
+		}
+
 		// Quick check: is it a Go binary?
 		if !isGoBinary(hostPath) {
 			continue
@@ -217,14 +259,6 @@ func ScanProc() ([]GoUProbeTarget, error) {
 		grpcVer := GetGrpcLibVersion(hostPath)
 		ApplyVersionOffsets(&offTable, grpcVer)
 
-		// Resolve inode for BPF map key.
-		var inode uint64
-		if fi, err := os.Stat(hostPath); err == nil {
-			if stat, ok := fi.Sys().(*syscall.Stat_t); ok {
-				inode = stat.Ino
-			}
-		}
-
 		// Discover Go TLS ret instruction offsets for uprobe-at-ret pattern.
 		var tlsOffsets *GoTlsOffsets
 		if _, hasTLS := syms["go_tls_write"]; hasTLS {
@@ -238,6 +272,15 @@ func ScanProc() ([]GoUProbeTarget, error) {
 					hostPath, len(offsets.GoWriteOffset.Exits), len(offsets.GoReadOffset.Exits), offsets.Abi)
 			}
 		}
+
+		// Store in cache for future scan cycles.
+		binaryCache.Add(hostPath, &cachedScanResult{
+			symbols:    syms,
+			offTable:   offTable,
+			grpcVer:    grpcVer,
+			tlsOffsets: tlsOffsets,
+			inode:      inode,
+		})
 
 		for _, pe := range pids {
 			targets = append(targets, GoUProbeTarget{

@@ -130,6 +130,16 @@ kubearmorConfigMap:
   # API Observer: comma-separated ports to exclude from eBPF capture.
   # Example: "6443,2379,10250,9090"
   apiExcludedPorts: ""
+  # API Observer: comma-separated K8s namespaces to observe (allowlist).
+  # When set, only traffic from these namespaces is captured. All other traffic is dropped in-kernel.
+  # Mutually exclusive with apiBlockNamespaces.
+  # Example: "production,staging"
+  apiAllowNamespaces: ""
+  # API Observer: comma-separated K8s namespaces to exclude (blocklist).
+  # When set, traffic from these namespaces is dropped in-kernel. All other traffic is captured.
+  # Mutually exclusive with apiAllowNamespaces.
+  # Example: "kube-system,monitoring"
+  apiBlockNamespaces: ""
 
 #volume mounts and volumes
 kubearmor:
