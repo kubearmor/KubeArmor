@@ -1,0 +1,125 @@
+name: Signed Releases Baseline
+
+on:
+  release:
+    types: [created]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Optional tag to create a release for"
+        required: false
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  sign-and-publish:
+    name: Create signed release artifacts and SLSA attestations
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+
+      - name: Set TAG
+        id: tag
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG="${{ github.event.inputs.tag }}"
+          else
+            TAG="${{ github.event.release.tag_name }}"
+          fi
+          if [ -z "$TAG" ]; then
+            TAG="manual-$(date -u +%Y%m%d%H%M%S)"
+          fi
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+
+      - name: Create release manifest
+        run: |
+          echo "repo: $GITHUB_REPOSITORY" > release-manifest-${{ steps.tag.outputs.tag }}.txt
+          echo "tag: ${{ steps.tag.outputs.tag }}" >> release-manifest-${{ steps.tag.outputs.tag }}.txt
+          echo "generated_at: $(date -u --rfc-3339=seconds)" >> release-manifest-${{ steps.tag.outputs.tag }}.txt
+
+      - name: Set up Go
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff
+        with:
+          go-version-file: 'KubeArmor/go.mod'
+
+      - name: Build Linux amd64 binary
+        working-directory: ./KubeArmor
+        run: |
+          GOOS=linux GOARCH=amd64 go build -o ../kubearmor-linux-amd64 .
+
+      - name: Package binary
+        run: |
+          tar -czf kubearmor-linux-amd64.tar.gz kubearmor-linux-amd64
+
+      - name: Generate SLSA predicate
+        run: |
+          cat > slsa-predicate.json <<'EOF'
+          {
+            "builder": {
+              "id": "https://github.com/${{ github.repository }}/.github/workflows/signed-releases-baseline.yml@${{ github.ref }}"
+            },
+            "buildType": "https://github.com/kubearmor/KubeArmor/signed-releases-baseline/v1",
+            "invocation": {
+              "configSource": {
+                "uri": "git+https://github.com/${{ github.repository }}@${{ github.ref }}",
+                "digest": {
+                  "sha1": "${{ github.sha }}"
+                },
+                "entryPoint": ".github/workflows/signed-releases-baseline.yml"
+              },
+              "parameters": {
+                "tag": "${{ steps.tag.outputs.tag }}"
+              },
+              "environment": {}
+            },
+            "metadata": {
+              "buildInvocationID": "${{ github.run_id }}",
+              "completeness": {
+                "parameters": true,
+                "environment": false,
+                "materials": false
+              },
+              "reproducible": false
+            },
+            "materials": []
+          }
+          EOF
+          # Validate JSON shape early to fail-fast before cosign runs.
+          jq -e '.builder.id and .buildType and .invocation and .metadata and (.materials | type == "array")' slsa-predicate.json > /dev/null
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@7e8b541eb2e61bf99390e1afd4be13a184e9ebc5
+
+      - name: Attest manifest (keyless)
+        run: |
+          cosign attest-blob --yes --type slsaprovenance --predicate slsa-predicate.json --bundle release-manifest-${{ steps.tag.outputs.tag }}.txt.sigstore.json release-manifest-${{ steps.tag.outputs.tag }}.txt > release-manifest-${{ steps.tag.outputs.tag }}.txt.attestation.json
+
+      - name: Attest binary tarball (keyless)
+        run: |
+          cosign attest-blob --yes --type slsaprovenance --predicate slsa-predicate.json --bundle kubearmor-linux-amd64.tar.gz.sigstore.json kubearmor-linux-amd64.tar.gz > kubearmor-linux-amd64.tar.gz.attestation.json
+
+      - name: Create combined in-toto JSONL
+        run: |
+          jq -c 'select(.payloadType == "application/vnd.in-toto+json")' release-manifest-${{ steps.tag.outputs.tag }}.txt.attestation.json kubearmor-linux-amd64.tar.gz.attestation.json > multiple.intoto.jsonl-linux-amd64
+          if [ ! -s multiple.intoto.jsonl-linux-amd64 ]; then
+            echo "No DSSE envelopes were generated"; exit 1
+          fi
+
+      - name: Create or update release and upload assets
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65
+        with:
+          tag_name: ${{ steps.tag.outputs.tag }}
+          name: "Signed baseline ${{ steps.tag.outputs.tag }}"
+          body: "Signed artifacts and SLSA provenance attestations for OpenSSF Scorecard Signed-Releases check."
+          draft: false
+          files: |
+            release-manifest-${{ steps.tag.outputs.tag }}.txt
+            release-manifest-${{ steps.tag.outputs.tag }}.txt.sigstore.json
+            release-manifest-${{ steps.tag.outputs.tag }}.txt.attestation.json
+            kubearmor-linux-amd64.tar.gz
+            kubearmor-linux-amd64.tar.gz.sigstore.json
+            kubearmor-linux-amd64.tar.gz.attestation.json
+            multiple.intoto.jsonl-linux-amd64

@@ -1,0 +1,90 @@
+name: Signed Releases Verification
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to verify"
+        required: false
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  verify-signature:
+    name: Verify signed release attestations
+    runs-on: ubuntu-22.04
+    env:
+      GITHUB_TOKEN: ${{ github.token }}
+    steps:
+      - name: Determine tag
+        id: tag
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG="${{ github.event.inputs.tag }}"
+          else
+            TAG="${{ github.event.release.tag_name }}"
+          fi
+          if [ -z "$TAG" ]; then
+            echo "No tag provided or found; exiting"; exit 1;
+          fi
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+
+      - name: Query release assets
+        id: assets
+        run: |
+          release_json=$(curl -s -H "Authorization: token $GITHUB_TOKEN" "https://api.github.com/repos/$GITHUB_REPOSITORY/releases/tags/${{ steps.tag.outputs.tag }}")
+          echo "$release_json" > release.json
+          if [ "$(jq -r 'has("assets")' release.json)" != "true" ]; then
+            echo "Release API response did not include assets."
+            cat release.json
+            exit 2
+          fi
+          jq -r '.assets[] | "\(.name):::\(.browser_download_url)"' release.json > assets.list
+          cat assets.list
+
+      - name: Download release assets for verification
+        run: |
+          MANIFEST_URL=$(jq -r '.assets[] | select(.name | test("^release-manifest-.*\\.txt$")) | .browser_download_url' release.json | head -n1)
+          MANIFEST_BUNDLE_URL=$(jq -r '.assets[] | select(.name | test("^release-manifest-.*\\.txt\\.sigstore\\.json$")) | .browser_download_url' release.json | head -n1)
+          BINARY_URL=$(jq -r '.assets[] | select(.name == "kubearmor-linux-amd64.tar.gz") | .browser_download_url' release.json | head -n1)
+          BINARY_BUNDLE_URL=$(jq -r '.assets[] | select(.name == "kubearmor-linux-amd64.tar.gz.sigstore.json") | .browser_download_url' release.json | head -n1)
+          INTOTO_URL=$(jq -r '.assets[] | select(.name == "multiple.intoto.jsonl-linux-amd64") | .browser_download_url' release.json | head -n1)
+          if [ "$MANIFEST_URL" = "null" ]; then MANIFEST_URL=""; fi
+          if [ "$MANIFEST_BUNDLE_URL" = "null" ]; then MANIFEST_BUNDLE_URL=""; fi
+          if [ "$BINARY_URL" = "null" ]; then BINARY_URL=""; fi
+          if [ "$BINARY_BUNDLE_URL" = "null" ]; then BINARY_BUNDLE_URL=""; fi
+          if [ "$INTOTO_URL" = "null" ]; then INTOTO_URL=""; fi
+          if [ -z "$MANIFEST_URL" ] || [ -z "$MANIFEST_BUNDLE_URL" ] || [ -z "$BINARY_URL" ] || [ -z "$BINARY_BUNDLE_URL" ] || [ -z "$INTOTO_URL" ]; then
+            echo "Required release assets not found"; exit 2;
+          fi
+          curl -L -H "Authorization: token $GITHUB_TOKEN" -o manifest.txt "$MANIFEST_URL"
+          curl -L -H "Authorization: token $GITHUB_TOKEN" -o manifest.txt.sigstore.json "$MANIFEST_BUNDLE_URL"
+          curl -L -H "Authorization: token $GITHUB_TOKEN" -o kubearmor-linux-amd64.tar.gz "$BINARY_URL"
+          curl -L -H "Authorization: token $GITHUB_TOKEN" -o kubearmor-linux-amd64.tar.gz.sigstore.json "$BINARY_BUNDLE_URL"
+          curl -L -H "Authorization: token $GITHUB_TOKEN" -o multiple.intoto.jsonl-linux-amd64 "$INTOTO_URL"
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@7e8b541eb2e61bf99390e1afd4be13a184e9ebc5
+
+      - name: Verify manifest attestation (keyless)
+        run: |
+          cosign verify-blob-attestation --bundle manifest.txt.sigstore.json --type slsaprovenance --certificate-identity-regexp ".*" --certificate-oidc-issuer-regexp ".*" manifest.txt
+
+      - name: Verify binary attestation (keyless)
+        run: |
+          cosign verify-blob-attestation --bundle kubearmor-linux-amd64.tar.gz.sigstore.json --type slsaprovenance --certificate-identity-regexp ".*" --certificate-oidc-issuer-regexp ".*" kubearmor-linux-amd64.tar.gz
+
+      - name: Validate combined in-toto JSONL
+        run: |
+          line_count=$(wc -l < multiple.intoto.jsonl-linux-amd64)
+          if [ "$line_count" -lt 1 ]; then
+            echo "multiple.intoto.jsonl-linux-amd64 is empty"; exit 3
+          fi
+          while IFS= read -r line; do
+            payload=$(echo "$line" | jq -r '.payload')
+            echo "$payload" | base64 -d | jq -e '(.predicateType == "https://slsa.dev/provenance/v1") or (.predicateType == "https://slsa.dev/provenance/v0.2")' > /dev/null
+          done < multiple.intoto.jsonl-linux-amd64
