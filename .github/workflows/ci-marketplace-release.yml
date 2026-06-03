@@ -44,7 +44,7 @@ jobs:
             for platform in "amd64" "arm64"; do
               preflight check container \
                 $repository:$tag \
-                --certification-project-id=$certid \
+                --certification-component-id=$certid \
                 --pyxis-api-token=$pyxis \
                 --platform=${platform} \
                 --docker-config=${HOME}/.docker/config.json \
