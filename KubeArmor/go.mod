@@ -35,7 +35,7 @@ require (
 	github.com/google/gopacket v1.1.19
 	github.com/google/uuid v1.6.0
 	github.com/kubearmor/KubeArmor/pkg/KubeArmorController v0.0.0-20260406102335-87edc770f8bf
-	github.com/kubearmor/KubeArmor/protobuf v0.0.0-20260406102335-87edc770f8bf
+	github.com/kubearmor/KubeArmor/protobuf v0.0.0-20260603101548-7aaccda740b1
 	github.com/mdlayher/netlink v1.11.2
 	github.com/moby/moby/api v1.54.2
 	github.com/moby/moby/client v0.4.1
