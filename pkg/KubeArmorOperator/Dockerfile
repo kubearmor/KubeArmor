@@ -99,9 +99,18 @@ LABEL name="kubearmor-snitch" \
       summary="kubearmor-snitch container image based on redhat ubi" \
       description="KubeArmor-Snitch, A CLI Utility to Detect node related information for KubeArmor"
 
+RUN microdnf -y update && \
+    microdnf -y install --nodocs --setopt=install_weak_deps=0 --setopt=keepcache=0 shadow-utils libcap && \
+    microdnf clean all
+
+RUN groupadd --gid 1000 default \
+  && useradd --uid 1000 --gid default --shell /bin/bash --create-home default 
+
 ARG OPERATOR_DIR=pkg/KubeArmorOperator
-COPY --from=builder /KubeArmor/$OPERATOR_DIR/snitch /snitch
-COPY --from=builder /KubeArmor/$OPERATOR_DIR/hook/hook /hook
+COPY --from=builder --chown=1000:1000 /KubeArmor/$OPERATOR_DIR/snitch /snitch
+COPY --from=builder --chown=1000:1000 /KubeArmor/$OPERATOR_DIR/hook/hook /hook
 COPY LICENSE /licenses/license.txt
+
+USER 1000
 
 ENTRYPOINT ["/snitch"]
