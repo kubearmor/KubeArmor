@@ -253,6 +253,12 @@ func (dm *KubeArmorDaemon) DestroyKubeArmorDaemon() {
 
 	// wait for other routines
 	kg.Print("Waiting for routine terminations")
+	if dm.SystemMonitor != nil {
+		dm.SystemMonitor.WgMonitor.Wait()
+	}
+	if dm.Logger != nil {
+		dm.Logger.WgServer.Wait()
+	}
 	dm.WgDaemon.Wait()
 
 	// delete pid file
@@ -281,10 +287,7 @@ func (dm *KubeArmorDaemon) InitLogger() error {
 
 // ServeLogFeeds Function
 func (dm *KubeArmorDaemon) ServeLogFeeds() {
-	dm.WgDaemon.Add(1)
-	defer dm.WgDaemon.Done()
-
-	go dm.Logger.ServeLogFeeds()
+	dm.Logger.ServeLogFeeds()
 }
 
 // CloseLogger Function
@@ -315,10 +318,8 @@ func (dm *KubeArmorDaemon) InitSystemMonitor() error {
 
 // MonitorSystemEvents Function
 func (dm *KubeArmorDaemon) MonitorSystemEvents() {
-	dm.WgDaemon.Add(1)
-	defer dm.WgDaemon.Done()
-
 	if cfg.GlobalCfg.Policy || cfg.GlobalCfg.HostPolicy {
+		dm.SystemMonitor.WgMonitor.Add(3)
 		go dm.SystemMonitor.TraceSyscall()
 		go dm.SystemMonitor.UpdateLogs()
 		go dm.SystemMonitor.CleanUpExitedHostPids()
@@ -686,7 +687,7 @@ func KubeArmor() {
 		dm.Logger.Print("Initialized KubeArmor Monitor")
 
 		// monitor system events
-		go dm.MonitorSystemEvents()
+		dm.MonitorSystemEvents()
 		dm.Logger.Print("Started to monitor system events")
 
 		// initialize runtime enforcer

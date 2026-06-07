@@ -383,6 +383,8 @@ func cleanMaps(pidMap tp.PidMap, execLogMap map[uint32]tp.Log, execLogMapLock *s
 
 // CleanUpExitedHostPids Function
 func (mon *SystemMonitor) CleanUpExitedHostPids() {
+	defer mon.WgMonitor.Done()
+
 	ActiveHostPidMap := *(mon.ActiveHostPidMap)
 	ActivePidMapLock := *(mon.ActivePidMapLock)
 	MonitorLock := *(mon.MonitorLock)
