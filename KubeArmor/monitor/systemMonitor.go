@@ -180,6 +180,7 @@ type SystemMonitor struct {
 	UptimeTimeStamp float64
 	HostByteOrder   binary.ByteOrder
 	WgMonitor       sync.WaitGroup
+	stopOnce        sync.Once
 }
 
 // NewSystemMonitor Function
@@ -724,7 +725,7 @@ func (mon *SystemMonitor) DestroySystemMonitor() error {
 	mon.Status = false
 	(*mon.MonitorLock).Unlock()
 
-	close(StopChan)
+	mon.stopOnce.Do(func() { close(StopChan) })
 	mon.WgMonitor.Wait()
 
 	(*mon.MonitorLock).Lock()
@@ -766,8 +767,6 @@ func (mon *SystemMonitor) DestroySystemMonitor() error {
 
 // TraceSyscall Function
 func (mon *SystemMonitor) TraceSyscall() {
-	defer mon.WgMonitor.Done()
-
 	if mon.SyscallPerfMap != nil {
 		go func() {
 			for {

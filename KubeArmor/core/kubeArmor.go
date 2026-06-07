@@ -319,10 +319,21 @@ func (dm *KubeArmorDaemon) InitSystemMonitor() error {
 // MonitorSystemEvents Function
 func (dm *KubeArmorDaemon) MonitorSystemEvents() {
 	if cfg.GlobalCfg.Policy || cfg.GlobalCfg.HostPolicy {
-		dm.SystemMonitor.WgMonitor.Add(3)
-		go dm.SystemMonitor.TraceSyscall()
-		go dm.SystemMonitor.UpdateLogs()
-		go dm.SystemMonitor.CleanUpExitedHostPids()
+		dm.SystemMonitor.WgMonitor.Add(1)
+		go func() {
+			defer dm.SystemMonitor.WgMonitor.Done()
+			dm.SystemMonitor.TraceSyscall()
+		}()
+		dm.SystemMonitor.WgMonitor.Add(1)
+		go func() {
+			defer dm.SystemMonitor.WgMonitor.Done()
+			dm.SystemMonitor.UpdateLogs()
+		}()
+		dm.SystemMonitor.WgMonitor.Add(1)
+		go func() {
+			defer dm.SystemMonitor.WgMonitor.Done()
+			dm.SystemMonitor.CleanUpExitedHostPids()
+		}()
 	}
 }
 

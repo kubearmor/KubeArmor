@@ -167,7 +167,6 @@ func TestTraceSyscallWithPod(t *testing.T) {
 	time.Sleep(time.Second * 1)
 
 	// Start to trace syscalls
-	systemMonitor.WgMonitor.Add(1)
 	go systemMonitor.TraceSyscall()
 	t.Log("[PASS] Started to trace syscalls")
 
@@ -271,7 +270,6 @@ func TestTraceSyscallWithHost(t *testing.T) {
 	time.Sleep(time.Second * 1)
 
 	// Start to trace syscalls for host
-	systemMonitor.WgMonitor.Add(1)
 	go systemMonitor.TraceSyscall()
 	t.Log("[PASS] Started to trace syscalls")
 
@@ -346,7 +344,10 @@ func TestWgMonitorUpdateLogsTracked(t *testing.T) {
 	var mon SystemMonitor
 
 	mon.WgMonitor.Add(1)
-	go mon.UpdateLogs()
+	go func() {
+		defer mon.WgMonitor.Done()
+		mon.UpdateLogs()
+	}()
 
 	waitReturned := make(chan struct{})
 	go func() {

@@ -128,8 +128,6 @@ func (mon *SystemMonitor) UpdateLogBase(ctx SyscallContext, log tp.Log) tp.Log {
 
 // UpdateLogs Function
 func (mon *SystemMonitor) UpdateLogs() {
-	defer mon.WgMonitor.Done()
-
 	for {
 		select {
 		case <-StopChan:

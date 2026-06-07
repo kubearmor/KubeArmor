@@ -16,6 +16,7 @@ import (
 	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 	pb "github.com/kubearmor/KubeArmor/protobuf"
+	"google.golang.org/protobuf/proto"
 )
 
 var baseCfg cfg.KubearmorConfig
@@ -283,24 +284,11 @@ func TestMarshalVisibilityLog(t *testing.T) {
 		defer func() { cfg.GlobalCfg.DropResourceFromProcessLogs = originalDropResource }()
 		cfg.GlobalCfg.DropResourceFromProcessLogs = true
 
-		expectedWithoutResource := &pb.Log{
-			ClusterName:       "default",
-			Type:              "HostLog",
-			Source:            "/usr/bin/dockerd",
-			Operation:         "Process",
-			Data:              "syscall=SYS_EXECVE",
-			Result:            "Passed",
-			HostPID:           193088,
-			HostPPID:          914,
-			PID:               193088,
-			PPID:              914,
-			ParentProcessName: "/usr/bin/dockerd",
-			ProcessName:       "/usr/bin/runc",
-			ExecEvent:         &pb.ExecEvent{},
-		}
+		expectedWithoutResource := proto.Clone(expectedMarshaledLog).(*pb.Log)
+		expectedWithoutResource.Resource = ""
 
 		marshaledLog := MarshalVisibilityLog(visibilityLog)
-		if !reflect.DeepEqual(marshaledLog, expectedWithoutResource) {
+		if !proto.Equal(marshaledLog, expectedWithoutResource) {
 			t.Errorf("[FAIL] Expected marshaled log: %+v\nGot: %+v", expectedWithoutResource, marshaledLog)
 		}
 	})
