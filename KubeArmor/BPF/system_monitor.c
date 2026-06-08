@@ -2445,7 +2445,11 @@ int kretprobe__inet_csk_accept(struct pt_regs *ctx)
     // Code from https://github.com/iovisor/bcc/blob/master/tools/tcpaccept.py with adaptations
     u16 protocol = 1;
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 6, 0)
+#if defined(BTF_SUPPORTED) && __has_builtin(__builtin_preserve_field_info)
+    // CO-RE: BPF_CORE_READ_BITFIELD_PROBED handles both the pre-5.6
+    // bitfield layout and post-5.6 standalone u16 transparently
+    protocol = BPF_CORE_READ_BITFIELD_PROBED(newsk, sk_protocol);
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(5, 6, 0)
     protocol = READ_KERN(newsk->sk_protocol);
 #else
     int gso_max_segs_offset = offsetof(struct sock, sk_gso_max_segs);
@@ -2580,37 +2584,44 @@ int kprobe__udp_sendmsg(struct pt_regs *ctx)
     if (len > 512) // MAX_DNS_SIZE
         return 0;
 
-    sys_context_t context = {};
-    args_t args = {};
-    u64 types = 0;
-    init_context(&context);
-    context.argnum = 3;
-    // Presuming the success event
-    context.retval = 0;
-    context.event_id = _UDP_SENDMSG;
-
-    if (context.retval >= 0 && drop_syscall(_DNS_PROBE))
-    {
-        return 0;
-    }
-
-    if (context.retval < 0 && !get_kubearmor_config(_ENFORCER_BPFLSM) && get_kubearmor_config(_ALERT_THROTTLING) && should_drop_alerts_per_container(&context, ctx, types, &args))
-    {
-        return 0;
-    }
-
+    // Use per-cpu buffer for sys_context_t to avoid exceeding
+    // BPF stack size limit of 512 bytes (same pattern as kretprobe__tcp_connect)
     set_buffer_offset(DNS_BUF_TYPE, sizeof(sys_context_t));
     bufs_t *bufs_p = get_buffer(DNS_BUF_TYPE);
     if (bufs_p == NULL)
         return 0;
-    save_context_to_buffer(bufs_p, (void *)&context);
 
-    // get socket info
-    struct sock_common conn = READ_KERN(sk->__sk_common);
-    // udp_sendmsg operates on AF_INET socket
+    sys_context_t *context = (sys_context_t *)bufs_p->buf;
+    if (context == NULL)
+        return 0;
+
+    __builtin_memset(context, 0, sizeof(sys_context_t));
+
+    args_t args = {};
+    u64 types = 0;
+    init_context(context);
+    context->argnum = 3;
+    // Presuming the success event
+    context->retval = 0;
+    context->event_id = _UDP_SENDMSG;
+
+    if (context->retval >= 0 && drop_syscall(_DNS_PROBE))
+    {
+        return 0;
+    }
+
+    if (context->retval < 0 && !get_kubearmor_config(_ENFORCER_BPFLSM) && get_kubearmor_config(_ALERT_THROTTLING) && should_drop_alerts_per_container(context, ctx, types, &args))
+    {
+        return 0;
+    }
+
+    save_context_to_buffer(bufs_p, (void *)context);
+
+    // Read only required fields from sock_common instead of copying
+    // the entire struct (~136 bytes) to stay within stack limits
     struct sockaddr_in sockv4;
-    sockv4.sin_family = conn.skc_family;
-    sockv4.sin_addr.s_addr = conn.skc_daddr;
+    bpf_probe_read(&sockv4.sin_family, sizeof(sockv4.sin_family), &sk->__sk_common.skc_family);
+    bpf_probe_read(&sockv4.sin_addr.s_addr, sizeof(sockv4.sin_addr.s_addr), &sk->__sk_common.skc_daddr);
     sockv4.sin_port = dport;
 
     // save socket, domain-name(QNAME) and query-type (QTYPE) as args
