@@ -299,7 +299,7 @@ var _ = Describe("Network Tests", func() {
 				)
 
 				expect := protobuf.Alert{
-					PolicyName: "block-dns-query-to-google",
+					PolicyName: "block-dns-query-to-google-subdomains",
 					Severity:   "10",
 					Action:     "Block",
 					Result:     "Permission denied",
