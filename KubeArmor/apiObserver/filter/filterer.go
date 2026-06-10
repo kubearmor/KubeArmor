@@ -99,6 +99,10 @@ func (f *Filterer) IsLoopbackTraffic(srcIP, dstIP string) bool {
 	if isUnresolved(srcIP) || isUnresolved(dstIP) {
 		return false
 	}
+	// NOTE: 127.x (loopback) is intentionally NOT filtered here.
+	// kubectl port-forward creates 127.0.0.1 → 127.0.0.1 connections
+	// that carry legitimate API traffic. The health-check, infrastructure,
+	// and dedup filters downstream handle any loopback noise.
 	return isNonRoutable(srcIP) || isNonRoutable(dstIP) ||
 		isHostLAN(srcIP) || isHostLAN(dstIP)
 }
@@ -118,13 +122,14 @@ func isUnresolved(ip string) bool {
 }
 
 // isNonRoutable returns true for IPs that are never valid API traffic endpoints:
-// loopback (127.x), multicast (224-239.x), link-local (169.254.x),
-// broadcast (255.255.255.255).
+// multicast (224-239.x), link-local (169.254.x), broadcast (255.255.255.255).
+// NOTE: 127.x (loopback) is intentionally excluded — kubectl port-forward
+// creates 127.0.0.1 connections carrying legitimate API traffic.
 func isNonRoutable(ip string) bool {
 	if ip == "255.255.255.255" {
 		return true
 	}
-	if strings.HasPrefix(ip, "127.") || strings.HasPrefix(ip, "169.254.") {
+	if strings.HasPrefix(ip, "169.254.") {
 		return true
 	}
 	// Multicast: 224.0.0.0 – 239.255.255.255

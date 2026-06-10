@@ -336,6 +336,17 @@ func (ct *ConnectionTracker) iterHTTP1(ev *events.DataEvent, cor CorrelatorIface
 			return nil
 		}
 
+		// Reject TLS handshake data misrouted to the HTTP/1 parser.
+		// TLS records start with 0x16 0x03 (ContentType=Handshake,
+		// Version=TLS). This happens when a TLS client connects to a
+		// plain HTTP port — the server's HTTP response classifies the
+		// connection as HTTP1, then the client's TLS ClientHello gets
+		// passed here and would produce garbage method/path fields.
+		if len(data) >= 2 && data[0] == 0x16 && data[1] == 0x03 {
+			reqBuf.Reset()
+			return nil
+		}
+
 		if bytes.HasPrefix(data, []byte("HTTP/")) {
 			log.Warnf("HTTP/1: response data in REQUEST buffer pid=%d fd=%d isClient=%v — direction mismatch!",
 				ct.Key.PID, ct.Key.FD, ct.isClientSide)
@@ -389,6 +400,12 @@ func (ct *ConnectionTracker) iterHTTP1(ev *events.DataEvent, cor CorrelatorIface
 	} else {
 		data := respBuf.Bytes()
 		if len(data) == 0 {
+			return nil
+		}
+
+		// Reject TLS data in the response buffer (same rationale as above).
+		if len(data) >= 2 && data[0] == 0x16 && data[1] == 0x03 {
+			respBuf.Reset()
 			return nil
 		}
 
