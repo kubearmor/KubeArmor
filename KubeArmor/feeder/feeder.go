@@ -656,8 +656,15 @@ func MarshalVisibilityLog(log tp.Log) *pb.Log {
 }
 
 // PushLog Function
-// PushLog Function
 func (fd *Feeder) PushLog(log tp.Log) {
+	// Safety net: recover from any 'send on closed channel' panics that may
+	// occur due to a race window between RemoveLogStruct and PushLog.
+	defer func() {
+		if r := recover(); r != nil {
+			kg.Printf("PushLog: recovered from panic (send on closed channel during client disconnect): %v", r)
+		}
+	}()
+
 	/* if enforcer == BPFLSM and log.Enforcer == ebpfmonitor ( block and default Posture Alerts from System
 	   monitor are converted to host/container logs)
 	   in case of enforcer = AppArmor only Default Posture logs will be converted to
