@@ -316,6 +316,7 @@ static __always_inline bool prepend_path(struct path *path, bufs_t *string_p)
   char slash = '/';
   char null = '\0';
   int offset = MAX_COMBINED_LENGTH;
+  bool reached_root = false;
 
   if (path == NULL || string_p == NULL)
   {
@@ -348,11 +349,13 @@ static __always_inline bool prepend_path(struct path *path, bufs_t *string_p)
         vfsmnt = &mnt->mnt;
         continue;
       }
+      reached_root = true;
       break;
     }
 
     if (dentry == parent)
     {
+      reached_root = true;
       break;
     }
 
@@ -380,7 +383,7 @@ static __always_inline bool prepend_path(struct path *path, bufs_t *string_p)
     dentry = parent;
   }
 
-  if (offset == MAX_COMBINED_LENGTH)
+  if (offset == MAX_COMBINED_LENGTH || !reached_root)
   {
     return false;
   }
@@ -756,7 +759,10 @@ static inline int match_and_enforce_path_hooks(struct path *f_path, u32 id,
     return 0;
 
   if (!prepend_path(f_path, path_buf))
-    return 0;
+  {
+    retval = -EPERM;
+    goto ringbuf;
+  }
 
   u32 *path_offset = get_buf_off(PATH_BUFFER);
   if (path_offset == NULL)

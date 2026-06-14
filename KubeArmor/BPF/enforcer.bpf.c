@@ -53,7 +53,13 @@ int BPF_PROG(enforce_proc, struct linux_binprm *bprm, int ret)
     return 0;
   struct path f_path = BPF_CORE_READ(bprm->file, f_path);
   if (!prepend_path(&f_path, path_buf))
-    return 0;
+  {
+    // Path unresolvable (e.g. deeper than the dentry-walk cap). We cannot
+    // evaluate path rules against an unknown path, so fail closed instead of
+    // silently allowing (issue #2609).
+    retval = -EPERM;
+    goto ringbuf;
+  }
 
   u32 *path_offset = get_buf_off(PATH_BUFFER);
   if (path_offset == NULL)

@@ -1,0 +1,15 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: ksp-deep-block
+  namespace: deep-path
+spec:
+  severity: 5
+  selector:
+    matchLabels:
+      app: deep-path
+  process:
+    matchPaths:
+      - path: /tmp/a/b/c/d/e/f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/test_shell
+  action:
+    Block
