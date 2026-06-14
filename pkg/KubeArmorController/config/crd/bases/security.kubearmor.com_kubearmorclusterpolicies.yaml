@@ -314,7 +314,7 @@ spec:
                         message:
                           type: string
                         protocol:
-                          pattern: (tcp|TCP|udp|UDP|raw|RAW|icmp|ICMP|icmpv6|ICMPV6|sctp|SCTP|stream|STREAM|dgram|DGRAM|rdm|RDM|seqpacket|SEQPACKET|dccp|DCCP|packet|PACKET|all|ALL)$
+                          pattern: (tcp|TCP|udp|UDP|raw|RAW|icmp|ICMP|icmpv6|ICMPV6|sctp|SCTP|stream|STREAM|dgram|DGRAM|rdm|RDM|seqpacket|SEQPACKET|dccp|DCCP|packet|PACKET|all|ALL|AF_UNIX|af_unix|AF_LOCAL|af_local|AF_INET|af_inet|AF_AX25|af_ax25|AF_IPX|af_ipx|AF_APPLETALK|af_appletalk|AF_NETROM|af_netrom|AF_BRIDGE|af_bridge|AF_ATMPVC|af_atmpvc|AF_X25|af_x25|AF_INET6|af_inet6|AF_NETLINK|af_netlink|AF_PACKET|af_packet|AF_RDS|af_rds|AF_BLUETOOTH|af_bluetooth|AF_VSOCK|af_vsock|AF_XDP|af_xdp)$
                           type: string
                         pts:
                           type: boolean
