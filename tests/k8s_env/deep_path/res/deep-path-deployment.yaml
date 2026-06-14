@@ -1,0 +1,27 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: deep-path
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: deep-path-deployment
+  namespace: deep-path
+  labels:
+    app: deep-path
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: deep-path
+  template:
+    metadata:
+      labels:
+        app: deep-path
+    spec:
+      containers:
+        - name: deep-path-container
+          image: kubearmor/ubuntu-w-utils:latest
+          imagePullPolicy: Always
+          command: ["sleep", "3600"]
