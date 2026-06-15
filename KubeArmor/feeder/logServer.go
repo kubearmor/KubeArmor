@@ -16,7 +16,11 @@ import (
 type LogService struct {
 	QueueSize    int
 	EventStructs *EventStructs
-	Running      *bool
+	// ctx replaces the previously shared Running *bool. The parent Feeder owns
+	// cancellation (see Feeder.logServiceCancel) and cancels it during
+	// DestroyFeeder; the streaming loops only observe ctx.Done(), so there is
+	// no unsynchronized read of shared state.
+	ctx context.Context
 }
 
 // HealthCheck Function
@@ -28,7 +32,7 @@ func (ls *LogService) HealthCheck(ctx context.Context, nonce *pb.NonceMessage) (
 
 // WatchMessages Function
 func (ls *LogService) WatchMessages(req *pb.RequestMessage, svr pb.LogService_WatchMessagesServer) error {
-	if ls.Running == nil {
+	if ls.ctx == nil {
 		return fmt.Errorf("Feeder is not running")
 	}
 
@@ -41,9 +45,13 @@ func (ls *LogService) WatchMessages(req *pb.RequestMessage, svr pb.LogService_Wa
 		kg.Printf("Deleted the client (%s) for WatchMessages", uid)
 	}()
 
-	for *ls.Running {
+	for {
 		select {
+		case <-ls.ctx.Done():
+			// feeder is shutting down
+			return nil
 		case <-svr.Context().Done():
+			// client disconnected
 			return nil
 		case resp := <-conn:
 			if err := kl.HandleGRPCErrors(svr.Send(resp)); err != nil {
@@ -52,13 +60,11 @@ func (ls *LogService) WatchMessages(req *pb.RequestMessage, svr pb.LogService_Wa
 			}
 		}
 	}
-
-	return nil
 }
 
 // WatchAlerts Function
 func (ls *LogService) WatchAlerts(req *pb.RequestMessage, svr pb.LogService_WatchAlertsServer) error {
-	if ls.Running == nil {
+	if ls.ctx == nil {
 		return fmt.Errorf("Feeder is not running")
 	}
 
@@ -75,9 +81,13 @@ func (ls *LogService) WatchAlerts(req *pb.RequestMessage, svr pb.LogService_Watc
 		kg.Printf("Deleted the client (%s) for WatchAlerts", uid)
 	}()
 
-	for *ls.Running {
+	for {
 		select {
+		case <-ls.ctx.Done():
+			// feeder is shutting down
+			return nil
 		case <-svr.Context().Done():
+			// client disconnected
 			return nil
 		case resp := <-conn:
 			if err := kl.HandleGRPCErrors(svr.Send(resp)); err != nil {
@@ -86,13 +96,11 @@ func (ls *LogService) WatchAlerts(req *pb.RequestMessage, svr pb.LogService_Watc
 			}
 		}
 	}
-
-	return nil
 }
 
 // WatchLogs Function
 func (ls *LogService) WatchLogs(req *pb.RequestMessage, svr pb.LogService_WatchLogsServer) error {
-	if ls.Running == nil {
+	if ls.ctx == nil {
 		return fmt.Errorf("Feeder is not running")
 	}
 
@@ -109,9 +117,13 @@ func (ls *LogService) WatchLogs(req *pb.RequestMessage, svr pb.LogService_WatchL
 		kg.Printf("Deleted the client (%s) for WatchLogs", uid)
 	}()
 
-	for *ls.Running {
+	for {
 		select {
+		case <-ls.ctx.Done():
+			// feeder is shutting down
+			return nil
 		case <-svr.Context().Done():
+			// client disconnected
 			return nil
 		case resp := <-conn:
 			if err := kl.HandleGRPCErrors(svr.Send(resp)); err != nil {
@@ -120,6 +132,4 @@ func (ls *LogService) WatchLogs(req *pb.RequestMessage, svr pb.LogService_WatchL
 			}
 		}
 	}
-
-	return nil
 }

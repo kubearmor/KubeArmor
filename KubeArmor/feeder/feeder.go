@@ -6,6 +6,7 @@ package feeder
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net"
@@ -216,8 +217,10 @@ type BaseFeeder struct {
 	// Msg, log and alert connection stores
 	EventStructs *EventStructs
 
-	// True if feeder and its workers are working
-	Running bool
+	// logServiceCancel cancels the LogService context during DestroyFeeder so
+	// that all streaming goroutines (WatchAlerts/WatchLogs/WatchMessages) exit
+	// cleanly. It replaces the previously shared Running *bool.
+	logServiceCancel context.CancelFunc
 
 	// LogServer //
 
@@ -317,8 +320,6 @@ func NewFeeder(node *tp.Node, nodeLock **sync.RWMutex) (feeder *Feeder) {
 		LogLock:    sync.RWMutex{},
 	}
 
-	fd.Running = true
-
 	// LogServer //
 
 	// gRPC configuration
@@ -358,10 +359,15 @@ func NewFeeder(node *tp.Node, nodeLock **sync.RWMutex) (feeder *Feeder) {
 
 	// create a log server
 
+	// context owned by LogService; canceled in DestroyFeeder to stop all
+	// streaming loops cleanly (replaces the shared Running *bool).
+	lsCtx, lsCancel := context.WithCancel(context.Background())
+	fd.logServiceCancel = lsCancel
+
 	logService := &LogService{
 		QueueSize:    1000,
-		Running:      &fd.Running,
 		EventStructs: fd.EventStructs,
+		ctx:          lsCtx,
 	}
 
 	kaep := keepalive.EnforcementPolicy{
@@ -411,8 +417,10 @@ func NewFeeder(node *tp.Node, nodeLock **sync.RWMutex) (feeder *Feeder) {
 
 // DestroyFeeder Function
 func (fd *BaseFeeder) DestroyFeeder() error {
-	// stop gRPC service
-	fd.Running = false
+	// signal LogService streaming loops (WatchAlerts/WatchLogs/WatchMessages) to exit
+	if fd.logServiceCancel != nil {
+		fd.logServiceCancel()
+	}
 
 	// wait for a while
 	time.Sleep(time.Second * 1)
