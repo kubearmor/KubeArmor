@@ -82,6 +82,11 @@ type KubeArmorDaemon struct {
 	HostSecurityPolicies     []tp.HostSecurityPolicy
 	HostSecurityPoliciesLock *sync.RWMutex
 
+	// Deterministic fingerprint of this node's effective host policy state
+	// (observability only — never used for enforcement). See ComputeHash.
+	HostPolicyHash     string
+	HostPolicyHashLock *sync.RWMutex
+
 	// Network Security policies
 	NetworkSecurityPolicies     []tp.NetworkSecurityPolicy
 	NetworkSecurityPoliciesLock *sync.RWMutex
@@ -150,6 +155,9 @@ func NewKubeArmorDaemon() *KubeArmorDaemon {
 
 	dm.HostSecurityPolicies = []tp.HostSecurityPolicy{}
 	dm.HostSecurityPoliciesLock = new(sync.RWMutex)
+
+	dm.HostPolicyHash = ""
+	dm.HostPolicyHashLock = new(sync.RWMutex)
 
 	dm.NetworkSecurityPolicies = []tp.NetworkSecurityPolicy{}
 	dm.NetworkSecurityPoliciesLock = new(sync.RWMutex)
