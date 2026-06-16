@@ -107,7 +107,7 @@ func NewClusterWatcher(o *cmd.OperatorOptions) *ClusterWatcher {
 	ProviderHostname = o.ProviderHostname
 	ProviderEndpoint = o.ProviderEndpoint
 	LsmOrder = o.LsmOrder
-	LsmFlagString = "--lsm=" + LsmOrder
+	LsmFlagString = "-lsm=" + LsmOrder
 	SocketFile = o.SocketFile
 
 	// add image pull secrets
