@@ -11,6 +11,7 @@ on:
         default: "info"
         type: string
 
+permissions: {}
 concurrency:
   group: renovate
   cancel-in-progress: false
