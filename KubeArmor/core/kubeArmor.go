@@ -7,6 +7,7 @@ package core
 import (
 	"context"
 	"fmt"
+	"net"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -23,6 +24,7 @@ import (
 	"github.com/kubearmor/KubeArmor/KubeArmor/presets"
 	"github.com/kubearmor/KubeArmor/KubeArmor/state"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/health"
 	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/reflection"
@@ -637,10 +639,20 @@ func KubeArmor() {
 
 	// == //
 
-	// health server
-	if dm.Logger.LogServer != nil {
+	// health server — dedicated gRPC server for healthcheck since grpc probes are not supported with TLS
+	healthLis, err := net.Listen("tcp", ":"+cfg.GlobalCfg.GRPCHealthPort)
+	if err != nil {
+		dm.Logger.Errf("Failed to listen on plaintext health port %s: %v", cfg.GlobalCfg.GRPCHealthPort, err)
+	} else {
 		dm.GRPCHealthServer = health.NewServer()
-		grpc_health_v1.RegisterHealthServer(dm.Logger.LogServer, dm.GRPCHealthServer)
+		healthServer := grpc.NewServer()
+		grpc_health_v1.RegisterHealthServer(healthServer, dm.GRPCHealthServer)
+		go func() {
+			dm.Logger.Printf("Started gRPC health probe on port %s", cfg.GlobalCfg.GRPCHealthPort)
+			if err := healthServer.Serve(healthLis); err != nil {
+				dm.Logger.Warnf("Plaintext health gRPC server exited: %v", err)
+			}
+		}()
 	}
 
 	// Init StateAgent

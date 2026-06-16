@@ -444,17 +444,18 @@ func GenerateDaemonSet(env, namespace string) *appsv1.DaemonSet {
 							Ports: []corev1.ContainerPort{
 								{
 									ContainerPort: port,
+									Name:          "grpc",
+								},
+								{
+									ContainerPort: healthPort,
+									Name:          "grpc-health",
 								},
 							},
 							VolumeMounts: volumeMounts,
 							LivenessProbe: &corev1.Probe{
 								ProbeHandler: corev1.ProbeHandler{
-									Exec: &corev1.ExecAction{
-										Command: []string{
-											"/bin/sh",
-											"-c",
-											"pgrep -f kubearmor >/dev/null",
-										},
+									GRPC: &corev1.GRPCAction{
+										Port: healthPort,
 									},
 								},
 								InitialDelaySeconds: 60,
