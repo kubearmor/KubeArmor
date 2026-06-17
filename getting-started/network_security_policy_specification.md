@@ -103,6 +103,17 @@ Now, we will briefly explain how to define a host security policy.
       kubernetes.io/os: [operating system, (e.g., linux)]
   ```
 
+  KubeArmor supports the following hostname label matching modes for Node/VM policies:
+
+  | Mode | Example | Description |
+  |---|---|---|
+  | Exact | `kubearmor.io/hostname: kubearmor-dev` | Targets a specific node by name |
+  | Wildcard | `kubearmor.io/hostname: "*"` | Targets all Nodes/VMs |
+  | Comma-separated | `kubernetes.io/hostname: node-1,node-2` | Targets multiple specific nodes |
+  | Regex | `kubearmor.io/hostnamereg: node-*` | Targets nodes whose hostname matches a pattern |
+
+  > **Note:** `kubernetes.io/` prefix variants are only available in Kubernetes environments. The `hostnamereg` label is supported with both `kubearmor.io/` and `kubernetes.io/` prefixes.
+
 * Ingress
 
   In the Ingress section, there are three types of matches: from, iface and ports. You can define source IP address ranges (IPv4 and IPv6) using the from. A list of network interfaces can be defined using iface. Destination port and protocol can be defined using ports. Port (string) can be defined using name or number, protocol using name and an optional endPort can be defined to specify a port range (from port to endPort).
