@@ -345,8 +345,7 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 		ns := secPolicy.Metadata["namespaceName"]
 		for _, dns := range secPolicy.Spec.Network.MatchDNSQueries {
 			var val [2]uint16
-			// If a user enters a TLD extension with a trailing or preceding dot, remove it.
-			dns.Domain = strings.Trim(dns.Domain, ".")
+
 			if len(dns.FromSource) == 0 {
 				if dns.Action == "Allow" {
 					newrules.DNSNetWhiteListPosture = true

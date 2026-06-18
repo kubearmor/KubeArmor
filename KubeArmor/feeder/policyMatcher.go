@@ -1735,14 +1735,9 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 
 						// Match exact domain or K8s search-path expansions (e.g. google.com.svc.cluster.local)
 						domain := strings.ToLower(secPolicy.Resource)
-						resourceSlice := strings.Split(resource, ".")
-						for len(resourceSlice) != 0 {
-							resource = strings.Join(resourceSlice, ".")
-							if resource == domain || strings.HasPrefix(resource, domain+".") {
-								log.Resource = secPolicy.Resource // normalize log resource to the policy resource
-								matchedFlags = true
-							}
-							resourceSlice = resourceSlice[1:]
+						if resource == domain || strings.HasPrefix(resource, domain+".") {
+							log.Resource = secPolicy.Resource // normalize log resource to the policy resource
+							matchedFlags = true
 						}
 					}
 
