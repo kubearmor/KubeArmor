@@ -101,7 +101,7 @@ struct
   __uint(type, BPF_MAP_TYPE_PERCPU_ARRAY);
   __type(key, u32);
   __type(value, bufs_k);
-  __uint(max_entries, 4);
+  __uint(max_entries, 3);
 } bufk SEC(".maps");
 
 //-- Maps structs for argument matching----/
