@@ -834,52 +834,6 @@ ringbuf:
   return retval;
 }
 
-static __noinline struct data_t* match_domain_subdomain(u32 *inner, bufs_k *p ,bufs_k *z, bufs_k *scratch_pad){
-  struct data_t *val = NULL;
-  int nested = 0, idx = 0;
-  bpf_probe_read_str(scratch_pad->path, MAX_STRING_SIZE, p->path);
-
-  val = bpf_map_lookup_elem(inner, p);
-  if(val){
-    return val;
-  }
-
-  #pragma unroll
-  for (; nested < MAX_NESTED_DNS_LABELS ; nested++){
-    if (idx < 0 || idx >= MAX_STRING_SIZE)
-      goto match;
-    for(; idx < MAX_STRING_SIZE - 2 && scratch_pad->path[idx] != '.' && scratch_pad->path[idx] !='\0'; idx ++){
-    }
-    if (scratch_pad->path[idx] == '\0'){
-      goto match;
-    }
-    idx++;
-    // p->path needs to be zeroed before each map lookup because bpf_probe_read_str
-    // only writes the string + null terminator, leaving remaining bytes untouched.
-    // A longer string from a prior iteration poisons the key:
-    //   iter 1: src="example.com" -> p->path=['e','x','a','m','p','l','e','.','c','o','m','\0',...]
-    //   iter 2: src="com"         -> p->path=['c','o','m','\0','l','e','.','c','o','m','\0',...]
-    //                                                         ^--- stale bytes cause false miss
-
-    bpf_probe_read(p->path, MAX_STRING_SIZE, z->path);
-    bpf_probe_read_str(p->path, MAX_STRING_SIZE, scratch_pad->path + idx);
-    
-    val = bpf_map_lookup_elem(inner, p);
-    if(val){
-      goto match;
-    }
-  }
-
-match:
-
-  // Resetting the value of p->path
-  // len(scratch_pad) >= len(p->path) always, thus no need to zero before copy
-  bpf_probe_read_str(p->path, MAX_STRING_SIZE, scratch_pad->path);
-  // Cleans up the scratch pad
-  bpf_probe_read(scratch_pad->path, MAX_STRING_SIZE, z->path);
-  return val;
-}
-
 static inline int match_dns_rules(char *dns_name, u32 eventID)
 {
   event *task_info;
@@ -908,12 +862,7 @@ static inline int match_dns_rules(char *dns_name, u32 eventID)
   if (store == NULL)
     return 0;
 
-  bufs_k *scratch_pad = bpf_map_lookup_elem(&bufk, &three);
-  if (scratch_pad == NULL)
-    return 0;
-
   bpf_map_update_elem(&bufk, &one, z, BPF_ANY);
-  bpf_map_update_elem(&bufk, &three, z, BPF_ANY);
 
   bpf_probe_read_str(p->path, MAX_STRING_SIZE, dns_name);
 
@@ -951,7 +900,7 @@ static inline int match_dns_rules(char *dns_name, u32 eventID)
     bpf_probe_read_str(p->source, MAX_STRING_SIZE, src_ptr);
     bpf_probe_read_str(store->source, MAX_STRING_SIZE, p->source);
 
-    val = match_domain_subdomain(inner, p,  z, scratch_pad);
+    val = bpf_map_lookup_elem(inner, p);
     if (val)
     {
       match = true;
@@ -961,7 +910,7 @@ static inline int match_dns_rules(char *dns_name, u32 eventID)
 
   bpf_map_update_elem(&bufk, &one, z, BPF_ANY);
   bpf_probe_read_str(p->path, MAX_STRING_SIZE, dns_name);
-  val = match_domain_subdomain(inner, p, z, scratch_pad);
+  val = bpf_map_lookup_elem(inner, p);
   if (val)
   {
     match = true;
