@@ -275,7 +275,41 @@ var _ = Describe("Network Tests", func() {
 
 			})
 
+			It("it can block network traffic based on dns queries for subdomains", func() {
+				if !strings.Contains(K8sRuntimeEnforcer(), "bpf") {
+					Skip("Skipping due to policy only supported by bpflsm enforcer")
+				}
 
+				// Apply Policy
+				err := K8sApplyFile("res/ksp-ubuntu-1-block-dns.yaml")
+				Expect(err).To(BeNil())
+
+				// Start KubeArmor Logs
+				err = KarmorLogStart("policy", "multiubuntu", "Network", ub1)
+				Expect(err).To(BeNil())
+
+				// Allowed DNS Query
+				AssertCommand(ub1, "multiubuntu", []string{"bash", "-c", "curl -m 3 duckduckgo.com"},
+					MatchRegexp(".*"), false,
+				)
+
+				// Blocked DNS Query
+				AssertCommand(ub1, "multiubuntu", []string{"bash", "-c", "curl -m 3 www.google.com"},
+					MatchRegexp("Could not resolve host: www.google.com"), true,
+				)
+
+				expect := protobuf.Alert{
+					PolicyName: "block-dns-query-to-google",
+					Severity:   "10",
+					Action:     "Block",
+					Result:     "Permission denied",
+				}
+
+				res, err := KarmorGetTargetAlert(5*time.Second, &expect)
+				Expect(err).To(BeNil())
+				Expect(res.Found).To(BeTrue())
+
+			})
 
 		})
 
