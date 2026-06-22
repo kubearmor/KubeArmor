@@ -16,6 +16,9 @@ permissions: read-all
 
 jobs:
   goreleaser:
+    outputs:
+      hash-amd64: ${{ steps.hash.outputs.hash-amd64 }}
+      hash-arm64: ${{ steps.hash.outputs.hash-arm64 }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -126,7 +129,12 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GORELEASER_CURRENT_TAG: ${{ steps.vars.outputs.GORELEASER_CURRENT_TAG }}
           ARCH: ${{ matrix.arch }}
-
+      - name: Generate hashes
+        id: hash
+        working-directory: KubeArmor/dist
+        run: |
+          FILE="kubearmor_${{ steps.vars.outputs.tag }}_linux-${{ matrix.arch }}.tar.gz"
+          echo "hash-${{ matrix.arch }}=$(sha256sum "$FILE" | base64 -w0 | tr -d '\n')" >> "$GITHUB_OUTPUT"
       - name: Setup ORAS
         uses: oras-project/setup-oras@v1
         with:
@@ -136,3 +144,34 @@ jobs:
         working-directory: KubeArmor/dist
         run: |
           oras push docker.io/kubearmor/kubearmor-systemd:${{ steps.vars.outputs.tag }}_linux-${{ matrix.arch }} kubearmor_${{ steps.vars.outputs.tag }}_linux-${{ matrix.arch }}.tar.gz
+
+  combine_hashes:
+    needs: [goreleaser]
+
+    runs-on: ubuntu-22.04
+
+    outputs:
+      hashes: ${{ steps.hashes.outputs.hashes }}
+
+    env:
+      HASHES: ${{ toJSON(needs.goreleaser.outputs) }}
+
+    steps:
+      - id: hashes
+        run: |
+          echo "$HASHES" | jq -r '.[] | select(. != "")' > hashes.txt
+          echo "hashes=$(cat hashes.txt | base64 -w0)" >> "$GITHUB_OUTPUT"
+
+  provenance:
+    needs: [combine_hashes]
+
+    permissions:
+      actions: read
+      id-token: write
+      contents: write
+
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.1.0
+
+    with:
+      base64-subjects: "${{ needs.combine_hashes.outputs.hashes }}"
+      upload-assets: true
