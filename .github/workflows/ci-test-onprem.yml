@@ -1,0 +1,114 @@
+name: ci-test-onprem
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "KubeArmor/**"
+      - "tests/**"
+      - "protobuf/**"
+      - ".github/workflows/ci-test-onprem.yml"
+      - "pkg/KubeArmorOperator/**"
+      - "deployments/helm/**"
+  pull_request:
+    branches: [main]
+    paths:
+      - "KubeArmor/**"
+      - "tests/**"
+      - "protobuf/**"
+      - ".github/workflows/ci-test-onprem.yml"
+      - "pkg/KubeArmorOperator/**"
+      - "deployments/helm/**"
+
+# Declare default permissions as read only.
+permissions: read-all
+
+jobs:
+  test-microk8s:
+    name: microk8s Auto-testing Framework / ${{ matrix.os }} / ${{ matrix.runtime }}
+    runs-on: ${{ matrix.os }}
+    env:
+      RUNTIME: ${{ matrix.runtime }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        runtime: ["containerd"]
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: true
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: 'KubeArmor/go.mod'
+
+      - name: Install the latest LLVM toolchain
+        run: ./.github/workflows/install-llvm.sh
+
+      - name: Compile libbpf
+        run: ./.github/workflows/install-libbpf.sh
+
+      - uses: balchua/microk8s-actions@v0.4.2
+        with:
+          channel: 'latest/stable'
+
+      - name: Test MicroK8s
+        id: microk8s
+        run: |
+          kubectl get no -o wide
+          kubectl get pods -A
+
+      - name: Generate KubeArmor artifacts
+        run: |
+          GITHUB_SHA=$GITHUB_SHA ./KubeArmor/build/build_kubearmor.sh
+
+      - name: Build Kubearmor-Operator
+        working-directory: pkg/KubeArmorOperator
+        run: |
+          make docker-build
+
+      - name: deploy pre existing pod 
+        run: |
+            kubectl apply -f ./tests/k8s_env/ksp/pre-run-pod.yaml
+            kubectl wait --timeout=2m --for=condition=ready pod --all -n nginx
+            kubectl get pods -A
+
+      - name: Run KubeArmor
+        run: |
+            docker save kubearmor/kubearmor-init:latest | sudo microk8s ctr images import -
+            docker save kubearmor/kubearmor:latest | sudo microk8s ctr images import -
+            docker save kubearmor/kubearmor-operator:latest | sudo microk8s ctr images import -
+            docker save kubearmor/kubearmor-snitch:latest | sudo microk8s ctr images import -
+            
+            helm upgrade --install kubearmor-operator ./deployments/helm/KubeArmorOperator -n kubearmor --create-namespace --set kubearmorOperator.image.tag=latest
+            kubectl wait --for=condition=ready --timeout=5m -n kubearmor pod -l kubearmor-app=kubearmor-operator
+            kubectl get pods -A
+            kubectl apply -f pkg/KubeArmorOperator/config/samples/kubearmor-test.yaml
+            kubectl wait -n kubearmor --timeout=5m --for=jsonpath='{.status.phase}'=Running kubearmorconfigs/kubearmorconfig-test
+            kubectl wait --timeout=7m --for=condition=ready pod -l kubearmor-app,kubearmor-app!=kubearmor-snitch,kubearmor-app!=kubearmor-controller -n kubearmor
+            kubectl wait --timeout=1m --for=condition=ready pod -l kubearmor-app=kubearmor-controller -n kubearmor
+            kubectl get pods -A
+
+      - name: Test KubeArmor using Ginkgo
+        run: |
+          go install -mod=mod github.com/onsi/ginkgo/v2/ginkgo
+          go mod tidy
+          ginkgo --vv --flake-attempts=10 --timeout=10m smoke/
+        working-directory: ./tests/k8s_env
+
+      - name: Get karmor sysdump
+        if: ${{ failure() }}
+        run: |
+          kubectl describe pod -n kubearmor -l kubearmor-app=kubearmor
+          curl -sfL http://get.kubearmor.io/ | sudo sh -s -- -b /usr/local/bin
+          mkdir -p /tmp/kubearmor/ && cd /tmp/kubearmor && karmor sysdump
+
+      - name: Archive log artifacts
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v3
+        with:
+          name: kubearmor.logs
+          path: |
+            /tmp/kubearmor/
+            /tmp/kubearmor.*
