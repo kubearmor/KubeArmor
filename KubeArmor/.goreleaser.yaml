@@ -24,13 +24,22 @@ release:
 checksum:
   name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Env.ARCH }}_checksums.txt"
 
+sboms:
+  - id: sbom
+    artifacts: archive
+    documents:
+      - "${artifact}.sbom.spdx.json"
+
 signs:
   - cmd: cosign
     signature: "${artifact}.sigstore.json"
     args:
-      - sign-blob
+      - attest-blob
       - "--bundle=${signature}"
-      - '${artifact}'
+      - "--predicate={{ .Env.PREDICATE_FILE }}"
+      - "--type=slsaprovenance"
+      - "--new-bundle-format"
+      - "${artifact}"
       - --yes
     artifacts: all
     output: true

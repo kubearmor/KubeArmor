@@ -26,12 +26,13 @@ jobs:
             os: ubuntu-22.04-arm
     if: github.repository == 'kubearmor/kubearmor'
     permissions:
-      id-token: write # requires for cosign keyless signing
-      contents: write # requires for goreleaser to write to GitHub release
+      id-token: write    # required for cosign keyless signing and OIDC token
+      contents: write    # required for goreleaser to write to GitHub release
+      attestations: write # required for actions/attest-build-provenance
     steps:
       - name: Validate version
         id: validate
-        uses: actions/github-script@v7
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
         with:
           script: |
             const Regex = /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/;
@@ -53,12 +54,12 @@ jobs:
               core.setOutput('release_tag', version);
             }
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           submodules: true
           fetch-depth: 0
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@f111f3307d8850f501ac008e886eec1fd1932a34 # v5.3.0
         with:
           go-version-file: 'KubeArmor/go.mod'
 
@@ -69,7 +70,7 @@ jobs:
         run: ./.github/workflows/install-libbpf.sh
 
       - name: Install Cosign
-        uses: sigstore/cosign-installer@main
+        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
 
       - name: Install karmor
         run: curl -sfL https://raw.githubusercontent.com/kubearmor/kubearmor-client/main/install.sh | sudo sh -s -- -b .
@@ -80,7 +81,7 @@ jobs:
         working-directory: KubeArmor/BPF
 
       - name: Log in to Docker Hub
-        uses: docker/login-action@v2
+        uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # v3.4.0
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_AUTHTOK }}
@@ -115,8 +116,33 @@ jobs:
         run: |
            yq -i '.builds[0].goarch = ["${{ matrix.arch }}"]' /tmp/.goreleaser.yaml
 
+      - name: Install syft (for SBOM generation)
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin
+
+      - name: Create SLSA predicate file
+        id: predicate
+        run: |
+          PREDICATE_FILE=$(mktemp /tmp/predicate.XXXXXX.json)
+          COMMIT_SHA=$(git rev-parse HEAD)
+          cat > "$PREDICATE_FILE" <<EOF
+          {
+            "buildType": "https://github.com/kubearmor/KubeArmor/blob/main/.github/workflows/ci-systemd-release.yml",
+            "builder": {
+              "id": "https://github.com/kubearmor/KubeArmor/actions"
+            },
+            "invocation": {
+              "configSource": {
+                "uri": "git+https://github.com/kubearmor/KubeArmor@${{ steps.validate.outputs.release_tag }}",
+                "digest": { "sha1": "${COMMIT_SHA}" }
+              }
+            }
+          }
+          EOF
+          echo "predicate_file=$PREDICATE_FILE" >> $GITHUB_OUTPUT
+
       - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@v5
+        uses: goreleaser/goreleaser-action@5742e2a039330cbb23ebf35f046f814d4c6ff811 # v5.1.0
         with:
           distribution: goreleaser
           version: v1.25.0
@@ -126,9 +152,18 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GORELEASER_CURRENT_TAG: ${{ steps.vars.outputs.GORELEASER_CURRENT_TAG }}
           ARCH: ${{ matrix.arch }}
+          PREDICATE_FILE: ${{ steps.predicate.outputs.predicate_file }}
+
+      - name: Generate GitHub build-provenance attestations
+        uses: actions/attest-build-provenance@c074443f1aee8d4aeeae555aebba3282517141b2 # v2.2.3
+        with:
+          subject-path: |
+            KubeArmor/dist/*.tar.gz
+            KubeArmor/dist/*.deb
+            KubeArmor/dist/*.rpm
 
       - name: Setup ORAS
-        uses: oras-project/setup-oras@v1
+        uses: oras-project/setup-oras@ca28077386065e263c03428f4ae0c09024817c93 # v1.2.0
         with:
           version: 1.0.0
 
@@ -136,3 +171,158 @@ jobs:
         working-directory: KubeArmor/dist
         run: |
           oras push docker.io/kubearmor/kubearmor-systemd:${{ steps.vars.outputs.tag }}_linux-${{ matrix.arch }} kubearmor_${{ steps.vars.outputs.tag }}_linux-${{ matrix.arch }}.tar.gz
+
+      - name: Combine DSSE envelopes into intoto.jsonl
+        working-directory: KubeArmor/dist
+        run: |
+          shopt -s nullglob
+          bundles=( *.sigstore.json )
+          if [ ${#bundles[@]} -eq 0 ]; then
+            echo "ERROR: no *.sigstore.json bundles found" >&2; exit 1
+          fi
+          > multiple.intoto.jsonl
+          missing=0
+          for bundle in "${bundles[@]}"; do
+            envelope=$(jq -c '.dsseEnvelope // empty' "$bundle")
+            if [ -n "$envelope" ] && [ "$envelope" != "null" ]; then
+              echo "$envelope" >> multiple.intoto.jsonl
+            else
+              echo "ERROR: $bundle has no dsseEnvelope" >&2; missing=1
+            fi
+          done
+          if [ "$missing" -ne 0 ] || [ ! -s multiple.intoto.jsonl ]; then
+            echo "ERROR: failed to assemble attestations" >&2; exit 1
+          fi
+          cp multiple.intoto.jsonl multiple-linux-${{ matrix.arch }}.intoto.jsonl
+
+      - name: Store attestation as workflow artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: multiple-intoto-${{ matrix.arch }}
+          path: KubeArmor/dist/multiple-linux-${{ matrix.arch }}.intoto.jsonl
+          if-no-files-found: error
+
+  upload-provenance:
+    name: Upload intoto.jsonl attestations to GitHub Release
+    runs-on: ubuntu-latest
+    needs: goreleaser
+    if: github.repository == 'kubearmor/kubearmor' && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+    permissions:
+      contents: write
+    steps:
+      - name: Download attestation artifacts
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          pattern: multiple-intoto-*
+          path: release-provenance
+          merge-multiple: true
+
+      - name: Upload attestations to GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload "${{ github.ref_name }}" \
+            release-provenance/*.intoto.jsonl \
+            --repo ${{ github.repository }} \
+            --clobber
+
+  collect-hashes:
+    name: Collect artifact hashes for SLSA provenance
+    needs: goreleaser
+    runs-on: ubuntu-latest
+    if: github.repository == 'kubearmor/kubearmor' && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+    outputs:
+      hashes: ${{ steps.hash.outputs.hashes }}
+    permissions:
+      contents: read
+    steps:
+      - name: Download release artifacts
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release download ${{ github.ref_name }} \
+            --repo ${{ github.repository }} \
+            --pattern "*.tar.gz" \
+            --pattern "*.deb" \
+            --pattern "*.rpm" \
+            --pattern "*.sbom.spdx.json" \
+            --dir ./dist
+
+      - name: Compute SHA256 hashes
+        id: hash
+        run: |
+          echo "hashes=$(sha256sum dist/*.tar.gz dist/*.deb dist/*.rpm dist/*.sbom.spdx.json 2>/dev/null | base64 -w0)" >> $GITHUB_OUTPUT
+
+  provenance:
+    name: Generate SLSA L3 provenance attestation
+    needs: collect-hashes
+    if: github.repository == 'kubearmor/kubearmor' && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+    permissions:
+      actions: read
+      id-token: write
+      contents: write
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@f7dd8c54c2067bafc12ca7a55595d5ee9b75204a # v2.1.0
+    with:
+      base64-subjects: ${{ needs.collect-hashes.outputs.hashes }}
+      upload-assets: true
+
+  verify:
+    name: Verify release signatures and provenance
+    needs: provenance
+    runs-on: ubuntu-latest
+    if: github.repository == 'kubearmor/kubearmor' && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+    permissions:
+      contents: read
+    steps:
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+
+      - name: Install slsa-verifier
+        uses: slsa-framework/slsa-verifier/actions/installer@ea584f4502babc6f60d9bc799dbbb13c1caa9ee6 # v2.7.1
+
+      - name: Download release artifacts
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release download ${{ github.ref_name }} \
+            --repo ${{ github.repository }} \
+            --dir ./dist
+
+      - name: Verify cosign blob attestations
+        run: |
+          verified=0
+          for artifact in dist/*.tar.gz dist/*.deb dist/*.rpm dist/*.sbom.spdx.json; do
+            [ -f "$artifact" ] || continue
+            bundle="${artifact}.sigstore.json"
+            if [ ! -f "$bundle" ]; then
+              echo "ERROR: missing bundle for $artifact" >&2
+              exit 1
+            fi
+            cosign verify-blob-attestation \
+              --bundle "$bundle" \
+              --type slsaprovenance \
+              --certificate-identity-regexp "https://github.com/${{ github.repository }}/.github/workflows/ci-systemd-release.yml@.*" \
+              --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+              "$artifact"
+            echo "Verified attestation: $(basename $artifact)"
+            verified=$((verified + 1))
+          done
+          if [ "$verified" -eq 0 ]; then
+            echo "ERROR: no attestations were verified" >&2; exit 1
+          fi
+          echo "Total verified: $verified attestations"
+
+      - name: Verify SLSA provenance
+        run: |
+          provenance=$(ls dist/multiple-linux-*.intoto.jsonl 2>/dev/null | head -1)
+          if [ -z "$provenance" ]; then
+            echo "No SLSA provenance file found" && exit 1
+          fi
+          for artifact in dist/*.tar.gz dist/*.deb dist/*.rpm; do
+            [ -f "$artifact" ] || continue
+            slsa-verifier verify-artifact "$artifact" \
+              --provenance-path "$provenance" \
+              --source-uri "github.com/${{ github.repository }}" \
+              --source-tag "${{ github.ref_name }}"
+            echo "SLSA verified: $(basename $artifact)"
+          done
