@@ -39,7 +39,23 @@ const (
 	// how many event the channel can hold
 	SyscallChannelSize   = 1 << 13 //8192
 	DefaultVisibilityKey = uint32(0xc0ffee)
+	DropPathsMapName     = "drop_path_map"
 )
+
+var DefaultDropPaths = []string{
+	"/proc/stat",
+	"/proc/meminfo",
+	"/proc/cpuinfo",
+	"/proc/net/dev",
+	"/proc/net/if_inet6",
+	"/proc/self/status",
+	"/proc/self/stat",
+	"/proc/self/fd",
+	"/proc/self/maps",
+	"/sys/fs/cgroup",
+	"/sys/kernel/mm/transparent_hugepage/enabled",
+	"/dev/null",
+}
 
 // ======================= /=/
 // == Namespace Context == //
@@ -524,6 +540,52 @@ func (mon *SystemMonitor) UpdateVisibility() {
 	mon.UpdateNsKeyMap("ADDED", nsKey, visibility)
 }
 
+func djb2Hash(path string) uint64 {
+	hash := uint64(5381)
+	for _, c := range path {
+		hash = ((hash << 5) + hash) ^ uint64(c&0xFF)
+	}
+	return hash
+}
+
+func (mon *SystemMonitor) PopulateDropPathMap() error {
+	if mon.BpfModule == nil {
+		return fmt.Errorf("BPF module not initialized")
+	}
+
+	dropMap := mon.BpfModule.Maps[DropPathsMapName]
+	if dropMap == nil {
+		mon.Logger.Warnf("drop_path_map not found in BPF object; file-access path filtering is disabled")
+		return nil
+	}
+
+	allPaths := append(DefaultDropPaths, cfg.GlobalCfg.DropPaths...)
+
+	insertedCount := 0
+	for _, p := range allPaths {
+		p = strings.TrimSpace(p)
+		if p == "" || !strings.HasPrefix(p, "/") {
+			if p != "" {
+				mon.Logger.Warnf("DropPath '%s' is not absolute; skipping", p)
+			}
+			continue
+		}
+
+		pathHash := djb2Hash(p)
+
+		val := uint8(1)
+		if err := dropMap.Put(pathHash, val); err != nil {
+			mon.Logger.Warnf("Failed to insert drop path '%s' (hash %d): %v", p, pathHash, err)
+		} else {
+			mon.Logger.Debugf("Registered drop path: %s (hash: %d)", p, pathHash)
+			insertedCount++
+		}
+	}
+
+	mon.Logger.Printf("Loaded %d file paths to drop from telemetry", insertedCount)
+	return nil
+}
+
 // InitBPF Function
 func (mon *SystemMonitor) InitBPF() error {
 	homeDir, err := filepath.Abs(filepath.Dir(os.Args[0]))
@@ -651,6 +713,10 @@ func (mon *SystemMonitor) InitBPF() error {
 		mon.SyscallPerfMap, err = perf.NewReader(mon.BpfModule.Maps["sys_events"], os.Getpagesize()*1024)
 		if err != nil {
 			mon.Logger.Warnf("error initializing events perf map: %v", err)
+		}
+
+		if err := mon.PopulateDropPathMap(); err != nil {
+			mon.Logger.Warnf("error populating drop_path_map: %v", err)
 		}
 
 		if cfg.GlobalCfg.EnableIMA {
