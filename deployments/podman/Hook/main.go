@@ -190,6 +190,7 @@ func run(state specs.State) error {
 		passwdFile, err := os.Open("/etc/passwd")
 		if err != nil {
 			log.Printf("Failed to open /etc/passwd: %v", err)
+			return err
 		}
 		defer passwdFile.Close()
 
