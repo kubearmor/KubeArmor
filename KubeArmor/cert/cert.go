@@ -208,7 +208,7 @@ func GenerateCA(cfg *CertConfig) (*CertBytes, error) {
 	}
 	crtBytes, err := GenerateSelfSignedCert(crtTemp, cfg)
 	if err != nil {
-		return &CertBytes{}, nil
+		return &CertBytes{}, err
 	}
 	return &CertBytes{
 		Crt: crtBytes.Crt,
