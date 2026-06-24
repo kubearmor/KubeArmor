@@ -91,8 +91,8 @@ elif [ -z "$GOPATH" ]; then
 fi
 
 # download protoc-gen-go
-go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
-go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
+go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.5
+go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.5.1
 
 # install kubebuilder
 wget --quiet https://github.com/kubernetes-sigs/kubebuilder/releases/download/v3.1.0/kubebuilder_linux_amd64 -O /tmp/build/kubebuilder
@@ -109,7 +109,7 @@ fi
 
 # install kustomize
 cd /tmp/build/
-curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
+curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" -o /tmp/install_kustomize.sh && bash /tmp/install_kustomize.sh
 sudo mv kustomize /usr/local/bin
 
 # remove downloaded files
