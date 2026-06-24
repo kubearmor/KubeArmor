@@ -38,16 +38,16 @@ jobs:
         runtime: ["crio"]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           submodules: true
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
           go-version-file: "KubeArmor/go.mod"
 
       - name: Check what paths were updated
-        uses: dorny/paths-filter@v2
+        uses: dorny/paths-filter@4512585405083f25c027a35db413c2b3b9006d50 # v2
         id: filter
         with:
           filters: |
@@ -193,7 +193,7 @@ jobs:
 
       - name: Archive log artifacts
         if: ${{ failure() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: kubearmor.logs
           path: |

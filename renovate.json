@@ -8,6 +8,7 @@
   },
   "postUpdateOptions": ["gomodTidy"],
   "ignorePresets": [":prHourlyLimit2"],
-	"reviewers": ["team:maintainers"]
-
+  "reviewers": ["team:maintainers"],
+  "pinDigests": true,
+  "osvVulnerabilityAlerts": true
 }

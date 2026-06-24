@@ -3,7 +3,7 @@
 
 ### Builder
 
-FROM golang:1.26-alpine3.22 AS builder
+FROM golang:1.26-alpine3.22@sha256:727cfc3c40be55cd1bc9a4a059406b28a059857e3be752aa9d09531e12c20c56 AS builder
 
 RUN apk --no-cache update && apk upgrade --no-cache libcrypto3 libssl3 zlib libexpat
 RUN apk add --no-cache git clang llvm make gcc protobuf protobuf-dev curl elfutils-dev
@@ -45,7 +45,7 @@ RUN CGO_ENABLED=0 go test -covermode=atomic -coverpkg=./... -c . -o kubearmor-te
 
 ### Make executable image
 
-FROM alpine:3.22 AS kubearmor
+FROM alpine:3.22@sha256:14358309a308569c32bdc37e2e0e9694be33a9d99e68afb0f5ff33cc1f695dce AS kubearmor
 
 RUN apk --no-cache update && \
     apk upgrade --no-cache libcrypto3 libssl3 zlib libexpat && \
@@ -76,7 +76,7 @@ ENTRYPOINT ["/KubeArmor/kubearmor-test"]
 
 ### Make UBI-based executable image
 
-FROM redhat/ubi10-minimal AS kubearmor-ubi
+FROM redhat/ubi10-minimal@sha256:3948fdfe71007909b37faf48c52eda28bfab7c4e440d6f4d4619422d06ceeb4c AS kubearmor-ubi
 
 ARG VERSION=latest
 ENV KUBEARMOR_UBI=true
@@ -113,7 +113,7 @@ USER 1000
 ENTRYPOINT ["/KubeArmor/kubearmor"]
 
 ### Make UBI-based test executable image for coverage calculation
-FROM redhat/ubi10-minimal AS kubearmor-ubi-test
+FROM redhat/ubi10-minimal@sha256:3948fdfe71007909b37faf48c52eda28bfab7c4e440d6f4d4619422d06ceeb4c AS kubearmor-ubi-test
 
 ARG VERSION=latest
 ENV KUBEARMOR_UBI=true
