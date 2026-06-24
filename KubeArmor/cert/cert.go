@@ -186,7 +186,7 @@ func ReadCertFromFile(certPath *CertPath) (*CertBytes, error) {
 // it assumes the cert and key file exists with tls.crt and tls.key names respectively
 // that is true in case of kubernetes.io/tls secret type,
 // https://kubernetes.io/docs/concepts/configuration/secret/#tls-secrets
-func ReadCertFromK8sSecret(client *kubernetes.Clientset, namespace, secret string) (*CertBytes, error) {
+func ReadCertFromK8sSecret(client kubernetes.Interface, namespace, secret string) (*CertBytes, error) {
 
 	// get secret
 	cert, err := client.CoreV1().Secrets(namespace).Get(context.Background(), secret, metav1.GetOptions{})
