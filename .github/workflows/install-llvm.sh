@@ -6,6 +6,7 @@
 
 sudo apt-get -y install build-essential libelf-dev pkg-config
 wget https://apt.llvm.org/llvm.sh -O /tmp/llvm.sh
+chmod +x /tmp/llvm.sh
 
 if [ "$VERSION_CODENAME" == "focal" ] || [ "$VERSION_CODENAME" == "bionic" ]; then
     sudo bash /tmp/llvm.sh 12
