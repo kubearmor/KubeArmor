@@ -48,8 +48,8 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y protobuf-compiler
-          go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
-          go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
+          go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.5
+          go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.5.1
           echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
     
       - name: Build Systemd Release
@@ -65,7 +65,7 @@ jobs:
       
       - name: Test kubearmor using ginkgo 
         run: |
-          go install -mod=mod github.com/onsi/ginkgo/v2/ginkgo
+          go install -mod=mod github.com/onsi/ginkgo/v2/ginkgo@v2.23.4
           make
         working-directory: ./tests/nonk8s_env
         timeout-minutes: 30

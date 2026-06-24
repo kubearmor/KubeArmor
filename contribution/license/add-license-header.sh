@@ -3,7 +3,7 @@
 # Copyright 2026 Authors of KubeArmor
 
 echo "Installing addlicense tool"
-go install github.com/google/addlicense@latest
+go install github.com/google/addlicense@v1.1.1
 
 if [ -z $1 ]; then
     GIT_ROOT=$(git rev-parse --show-toplevel)

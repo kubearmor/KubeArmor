@@ -202,7 +202,7 @@ jobs:
 
       - name: Test KubeArmor using Ginkgo
         run: |
-          go install -mod=mod github.com/onsi/ginkgo/v2/ginkgo
+          go install -mod=mod github.com/onsi/ginkgo/v2/ginkgo@v2.23.4
           go mod tidy
           ginkgo --vv --flake-attempts=10 --timeout=15m
         working-directory: ./tests/k8s_env/networktests
@@ -247,7 +247,7 @@ jobs:
       - name: Measure code coverage
         if: ${{ always() }}
         run: |
-          go install github.com/modocache/gover@latest
+          go install github.com/modocache/gover@6091596d6185bc50f256d90389aeaa8ebe8b36df
           ls -l
           if [ -f coverage_k8s_${{ matrix.os }}_${{ matrix.runtime }}.out ]; then
             gover

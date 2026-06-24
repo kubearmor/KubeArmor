@@ -127,7 +127,7 @@ jobs:
 
       - name: Install regctl
         run: |
-          curl -L https://github.com/regclient/regclient/releases/latest/download/regctl-linux-amd64 >regctl
+          curl -L https://github.com/regclient/regclient/releases/latest/download/regctl-linux-amd64 -o regctl
           chmod 755 regctl
           mv regctl /usr/local/bin
 
@@ -172,7 +172,7 @@ jobs:
 
       - name: Install regctl
         run: |
-          curl -L https://github.com/regclient/regclient/releases/latest/download/regctl-linux-amd64 >regctl
+          curl -L https://github.com/regclient/regclient/releases/latest/download/regctl-linux-amd64 -o regctl
           chmod 755 regctl
           mv regctl /usr/local/bin
 
@@ -241,7 +241,7 @@ jobs:
 
       - name: Install regctl
         run: |
-          curl -L https://github.com/regclient/regclient/releases/latest/download/regctl-linux-amd64 >regctl
+          curl -L https://github.com/regclient/regclient/releases/latest/download/regctl-linux-amd64 -o regctl
           chmod 755 regctl
           mv regctl /usr/local/bin
 
