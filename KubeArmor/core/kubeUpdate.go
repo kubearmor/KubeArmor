@@ -349,6 +349,10 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 
 		dm.EndPointsLock.Lock()
 
+		for i := range endpoints {
+			endpoints[i].PolicyRevision = 1
+		}
+
 		// add the endpoint into the endpoint list
 		dm.EndPoints = append(dm.EndPoints, endpoints...)
 
@@ -532,6 +536,7 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 			for nidx := 0; nidx < len(endpoints); nidx++ {
 				for idx := 0; idx < len(dm.EndPoints); idx++ {
 					if pod.Metadata["namespaceName"] == dm.EndPoints[idx].NamespaceName && pod.Metadata["podName"] == dm.EndPoints[idx].EndPointName && endpoints[nidx].ContainerName == dm.EndPoints[idx].ContainerName {
+						endpoints[nidx].PolicyRevision = dm.EndPoints[idx].PolicyRevision + 1
 						dm.EndPoints[idx] = endpoints[nidx]
 						break
 					}
@@ -1161,6 +1166,8 @@ func (dm *KubeArmorDaemon) UpdateSecurityPolicy(action string, secPolicyType str
 						dm.EndPoints[idx].EndPointName == endPoint.EndPointName &&
 						dm.EndPoints[idx].ContainerName == endPoint.ContainerName {
 						dm.EndPoints[idx] = endPoint
+						dm.EndPoints[idx].PolicyRevision++
+						endPoint = dm.EndPoints[idx]
 
 						if cfg.GlobalCfg.Policy {
 							// update security policies
@@ -1242,6 +1249,8 @@ func (dm *KubeArmorDaemon) UpdateSecurityPolicy(action string, secPolicyType str
 						dm.EndPoints[idx].EndPointName == endPoint.EndPointName &&
 						dm.EndPoints[idx].ContainerName == endPoint.ContainerName {
 						dm.EndPoints[idx] = endPoint
+						dm.EndPoints[idx].PolicyRevision++
+						endPoint = dm.EndPoints[idx]
 
 						if cfg.GlobalCfg.Policy {
 							// update security policies
