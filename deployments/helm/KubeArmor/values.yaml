@@ -9,7 +9,13 @@ environment:
 gkeAllowlistVersion: ""
 
 tls:
-  enabled: false  
+  enabled: false
+
+# Opt in to block-mode self-protection policies for KubeArmor infrastructure pods.
+# When true, pod templates receive kubearmor.io/self-protection: enabled and
+# kubearmor-policy: enabled so KubeArmorPolicies can enforce zero-trust rules.
+selfProtection:
+  enabled: false
 
 kubearmorRelay:
   # to enable/disable kubearmor-relay

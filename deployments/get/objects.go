@@ -164,9 +164,7 @@ func GetRelayDeployment(namespace string) *appsv1.Deployment {
 			},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Annotations: map[string]string{
-						"kubearmor-policy": "audited",
-					},
+					Annotations: InfraPodPolicyAnnotations(SelfProtectionEnabled),
 					Labels: relayDeploymentLabels,
 				},
 				Spec: corev1.PodSpec{
@@ -368,9 +366,9 @@ func GenerateDaemonSet(env, namespace string) *appsv1.DaemonSet {
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: label,
-					Annotations: map[string]string{
+					Annotations: ApplyInfraPodPolicyAnnotations(map[string]string{
 						"container.apparmor.security.beta.kubernetes.io/kubearmor": "unconfined",
-					},
+					}, SelfProtectionEnabled),
 				},
 				Spec: corev1.PodSpec{
 					ServiceAccountName: kubearmor,
@@ -512,10 +510,9 @@ func GetKubeArmorControllerDeployment(namespace string) *appsv1.Deployment {
 			},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Annotations: map[string]string{
-						"kubearmor-policy": "audited",
+					Annotations: ApplyInfraPodPolicyAnnotations(map[string]string{
 						"container.apparmor.security.beta.kubernetes.io/manager": "unconfined",
-					},
+					}, SelfProtectionEnabled),
 					Labels: KubeArmorControllerLabels,
 				},
 				Spec: corev1.PodSpec{

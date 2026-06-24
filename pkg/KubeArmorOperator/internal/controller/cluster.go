@@ -471,6 +471,7 @@ func (clusterWatcher *ClusterWatcher) WatchConfigCrd() {
 						UpdateImages(&cfg.Spec)
 						UpdatedKubearmorRelayEnv(&cfg.Spec)
 						UpdatedSeccomp(&cfg.Spec)
+						UpdatedSelfProtection(&cfg.Spec)
 						UpdateRecommendedPolicyConfig(&cfg.Spec)
 						utils.UpdateControllerPort(&cfg.Spec)
 						// update status to (Installation) Created
@@ -496,6 +497,7 @@ func (clusterWatcher *ClusterWatcher) WatchConfigCrd() {
 						controllerPortUpdated := utils.UpdateControllerPort(&cfg.Spec)
 						relayEnvUpdated := UpdatedKubearmorRelayEnv(&cfg.Spec)
 						seccompEnabledUpdated := UpdatedSeccomp(&cfg.Spec)
+						selfProtectionUpdated := UpdatedSelfProtection(&cfg.Spec)
 						tlsUpdated := UpdateTlsData(&cfg.Spec)
 						UpdateRecommendedPolicyConfig(&cfg.Spec)
 
@@ -523,6 +525,10 @@ func (clusterWatcher *ClusterWatcher) WatchConfigCrd() {
 						if seccompEnabledUpdated {
 							go clusterWatcher.UpdateCrdStatus(cfg.Name, common.UPDATING, common.UPDATING_MSG)
 							clusterWatcher.UpdateKubearmorSeccomp(cfg)
+						}
+						if selfProtectionUpdated {
+							go clusterWatcher.UpdateCrdStatus(cfg.Name, common.UPDATING, common.UPDATING_MSG)
+							clusterWatcher.UpdateKubearmorSelfProtection(cfg)
 						}
 						if controllerPortUpdated {
 							clusterWatcher.UpdateKubeArmorImages([]string{"controller"})
@@ -888,6 +894,50 @@ func (clusterWatcher *ClusterWatcher) UpdateKubearmorSeccomp(cfg *opv1.KubeArmor
 					clusterWatcher.Log.Infof("Updated daemonset=%s", ds.Name)
 				}
 			}
+		}
+	}
+
+	return res
+}
+
+func (clusterWatcher *ClusterWatcher) UpdateKubearmorSelfProtection(cfg *opv1.KubeArmorConfig) error {
+	var res error
+	enabled := cfg.Spec.SelfProtectionEnabled
+
+	dsList, err := clusterWatcher.Client.AppsV1().DaemonSets(common.Namespace).List(context.Background(), v1.ListOptions{
+		LabelSelector: "kubearmor-app=kubearmor",
+	})
+	if err != nil {
+		clusterWatcher.Log.Warnf("Cannot list KubeArmor daemonset(s) error=%s", err.Error())
+		res = err
+	} else {
+		for _, ds := range dsList.Items {
+			ds.Spec.Template.Annotations = deployments.ApplyInfraPodPolicyAnnotations(ds.Spec.Template.Annotations, enabled)
+			_, err = clusterWatcher.Client.AppsV1().DaemonSets(common.Namespace).Update(context.Background(), &ds, v1.UpdateOptions{})
+			if err != nil {
+				clusterWatcher.Log.Warnf("Cannot update daemonset=%s error=%s", ds.Name, err.Error())
+				res = err
+			} else {
+				clusterWatcher.Log.Infof("Updated daemonset=%s self-protection=%t", ds.Name, enabled)
+			}
+		}
+	}
+
+	for _, deploymentName := range []string{deployments.RelayDeploymentName, deployments.KubeArmorControllerDeploymentName} {
+		deployment, err := clusterWatcher.Client.AppsV1().Deployments(common.Namespace).Get(context.Background(), deploymentName, v1.GetOptions{})
+		if err != nil {
+			clusterWatcher.Log.Warnf("Cannot get deployment=%s error=%s", deploymentName, err.Error())
+			res = err
+			continue
+		}
+
+		deployment.Spec.Template.Annotations = deployments.ApplyInfraPodPolicyAnnotations(deployment.Spec.Template.Annotations, enabled)
+		_, err = clusterWatcher.Client.AppsV1().Deployments(common.Namespace).Update(context.Background(), deployment, v1.UpdateOptions{})
+		if err != nil {
+			clusterWatcher.Log.Warnf("Cannot update deployment=%s error=%s", deploymentName, err.Error())
+			res = err
+		} else {
+			clusterWatcher.Log.Infof("Updated deployment=%s self-protection=%t", deploymentName, enabled)
 		}
 	}
 
@@ -1653,6 +1703,17 @@ func UpdatedSeccomp(config *opv1.KubeArmorConfigSpec) bool {
 			common.ConfigDefaultSeccompEnabled = stringSeccompEnabled
 			updated = true
 		}
+	}
+	return updated
+}
+
+func UpdatedSelfProtection(config *opv1.KubeArmorConfigSpec) bool {
+	updated := false
+	stringSelfProtectionEnabled := strconv.FormatBool(config.SelfProtectionEnabled)
+	if common.ConfigDefaultSelfProtectionEnabled != stringSelfProtectionEnabled {
+		common.ConfigDefaultSelfProtectionEnabled = stringSelfProtectionEnabled
+		deployments.SelfProtectionEnabled = config.SelfProtectionEnabled
+		updated = true
 	}
 	return updated
 }

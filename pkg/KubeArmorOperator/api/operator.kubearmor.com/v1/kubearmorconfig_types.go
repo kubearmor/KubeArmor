@@ -115,6 +115,8 @@ type KubeArmorConfigSpec struct {
 
 	SeccompEnabled bool `json:"seccompEnabled,omitempty"`
 
+	SelfProtectionEnabled bool `json:"selfProtectionEnabled,omitempty"`
+
 	AlertThrottling bool `json:"alertThrottling,omitempty"`
 
 	MaxAlertPerSec int `json:"maxAlertPerSec,omitempty"`
