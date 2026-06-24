@@ -65,7 +65,8 @@ func main() {
 		kg.Err(err.Error())
 		return
 	}
-
+	// Read configuration from command line
+	cfg.ReadCmdLineParams()
 	if err := cfg.LoadConfig(); err != nil {
 		kg.Err(err.Error())
 		return
