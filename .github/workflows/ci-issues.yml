@@ -1,0 +1,23 @@
+name: Issues Workflow
+on:
+  issues:
+      types: ['opened']
+jobs:
+  Opened-issue-label:
+    name: Adding Issue Label
+    runs-on: ubuntu-latest
+    steps:
+      - uses: Renato66/auto-label@v2.3.0
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          ignore-comments: true
+          default-labels: '["needs-triage"]'
+          
+  Issue-Greeting:
+    name: Greeting Message to User
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/first-interaction@v1
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          issue-message: "Congratulations on making your first Issue! :confetti_ball: If you haven't already, check out our [Contributing Guidelines](https://github.com/kubearmor/KubeArmor/blob/main/contribution/contribution_guide.md) to ensure that you are following our guidelines for contributing and making issues."
