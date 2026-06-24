@@ -22,22 +22,22 @@ echo 'debconf debconf/frontend select Noninteractive' | sudo debconf-set-selecti
 
 # install dependencies and llvm--toolchain
 sudo apt-get -y install build-essential libelf-dev pkg-config net-tools linux-headers-$(uname -r) linux-tools-$(uname -r)
-wget https://apt.llvm.org/llvm.sh
-chmod +x llvm.sh
+. /etc/os-release
+sudo apt-get -y install build-essential libelf-dev pkg-config
 if [ "$VERSION_CODENAME" == "focal" ] || [ "$VERSION_CODENAME" == "bionic" ]; then
-    sudo ./llvm.sh 12
+    sudo apt-get install -y clang-12 llvm-12
     for tool in "clang" "llc" "llvm-strip" "opt" "llvm-dis"; do
         sudo rm -f /usr/bin/$tool
         sudo ln -s /usr/bin/$tool-12 /usr/bin/$tool
     done
 elif [ "$VERSION_CODENAME" == "jammy" ]; then
-    sudo ./llvm.sh 14
+    sudo apt-get install -y clang-14 llvm-14
     for tool in "clang" "llc" "llvm-strip" "opt" "llvm-dis"; do
         sudo rm -f /usr/bin/$tool
         sudo ln -s /usr/bin/$tool-14 /usr/bin/$tool
     done
-else # VERSION_CODENAME == noble
-    sudo ./llvm.sh 19
+else
+    sudo apt-get install -y clang-19 llvm-19
     for tool in "clang" "llc" "llvm-strip" "opt" "llvm-dis"; do
         sudo rm -f /usr/bin/$tool
         sudo ln -s /usr/bin/$tool-19 /usr/bin/$tool
