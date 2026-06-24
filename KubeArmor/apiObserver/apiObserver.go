@@ -12,6 +12,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -34,6 +35,7 @@ import (
 	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
 	fd "github.com/kubearmor/KubeArmor/KubeArmor/feeder"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
+	probe "github.com/kubearmor/KubeArmor/KubeArmor/utils/bpflsmprobe"
 )
 
 //go:generate go run github.com/cilium/ebpf/cmd/bpf2go -target amd64,arm64 -cc clang apiObserver ../BPF/api_observer.bpf.c
@@ -102,6 +104,13 @@ func NewAPIObserver(node tp.Node, pinpath string, logger *fd.Feeder, svcResolver
 	if svcResolver == nil {
 		svcResolver = func(ip string) string { return "" }
 	}
+
+	err := probe.CheckBPFLSMSupport()
+	if err != nil {
+		logger.Warnf("BPF LSM not supported %s\n", err.Error())
+		return nil, err
+	}
+
 	ao := &APIObserver{
 		Logger:           logger,
 		nodeName:         node.NodeName,
@@ -109,7 +118,6 @@ func NewAPIObserver(node tp.Node, pinpath string, logger *fd.Feeder, svcResolver
 	}
 	ao.ctx, ao.cancel = context.WithCancel(context.Background())
 
-	var err error
 	if err = rlimit.RemoveMemlock(); err != nil {
 		ao.Logger.Errf("Error removing rlimit: %v", err)
 		return nil, err
@@ -145,7 +153,7 @@ func NewAPIObserver(node tp.Node, pinpath string, logger *fd.Feeder, svcResolver
 	// connect/accept tracepoints. These are REQUIRED for SSL capture —
 	// without them, ks_ssl_info.fd stays at -1 and all chunks are dropped.
 	if err = ao.attachKsFdTracepoints(); err != nil {
-		ao.Logger.Warnf("KS FD tracepoints partially failed (SSL capture degraded): %v", err)
+		ao.Logger.Warnf("FD tracepoints partially failed (SSL capture degraded): %v", err)
 	}
 
 	ao.Events, err = ringbuf.NewReader(ao.objs.ApiobserverEvents)
@@ -200,11 +208,11 @@ func NewAPIObserver(node tp.Node, pinpath string, logger *fd.Feeder, svcResolver
 	// Kubeshark-style TLS chunks perf reader.
 	ksPerfReader, err := perf.NewReader(ao.objs.KsChunksBuffer, 4096*128)
 	if err != nil {
-		ao.Logger.Warnf("KS TLS perf reader not available: %v", err)
+		ao.Logger.Warnf("TLS perf reader not available: %v", err)
 	} else {
 		ao.ksTlsChunksReader = ksPerfReader
 		ao.Logger.Debug("TLS chunk perf reader created")
-		go ao.drainKsTlsChunks()
+		go ao.drainTlsChunks()
 	}
 
 	ao.grpccEvents, err = ringbuf.NewReader(ao.objs.GrpccEvents)
@@ -292,7 +300,7 @@ func (ao *APIObserver) attachTracepointOrFallback(group, name string, prog *ebpf
 	l, err := link.Tracepoint(group, name, prog, nil)
 	if err == nil {
 		ao.links = append(ao.links, l)
-		ao.Logger.Debugf("KS tracepoint %s/%s attached", group, name)
+		ao.Logger.Debugf("tracepoint %s/%s attached", group, name)
 		return nil
 	}
 	ao.Logger.Debugf("Tracepoint %s/%s failed: %v — trying kprobe fallback", group, name, err)
@@ -308,7 +316,7 @@ func (ao *APIObserver) attachTracepointOrFallback(group, name string, prog *ebpf
 		}
 		if kerr == nil {
 			ao.links = append(ao.links, kl)
-			ao.Logger.Debugf("KS kprobe fallback %s attached (for %s)", kpName, name)
+			ao.Logger.Debugf("kprobe fallback %s attached (for %s)", kpName, name)
 			return nil
 		}
 	}
@@ -372,7 +380,7 @@ func (ao *APIObserver) attachKsFdTracepoints() error {
 
 	for _, tp := range fdEntryProbes {
 		if err := ao.attachTracepointOrFallback(tp.group, tp.name, tp.prog, tp.kprobeFallback, false); err != nil {
-			ao.Logger.Warnf("KS FD entry %s failed: %v", tp.name, err)
+			ao.Logger.Warnf("FD entry %s failed: %v", tp.name, err)
 			if firstErr == nil {
 				firstErr = err
 			}
@@ -397,7 +405,7 @@ func (ao *APIObserver) attachKsFdTracepoints() error {
 
 	for _, tp := range fdExitProbes {
 		if err := ao.attachTracepointOrFallback(tp.group, tp.name, tp.prog, tp.kprobeFallback, true); err != nil {
-			ao.Logger.Warnf("KS FD exit %s failed: %v", tp.name, err)
+			ao.Logger.Warnf("FD exit %s failed: %v", tp.name, err)
 			if firstErr == nil {
 				firstErr = err
 			}
@@ -422,7 +430,7 @@ func (ao *APIObserver) attachKsFdTracepoints() error {
 
 	for _, tp := range connEntryProbes {
 		if err := ao.attachTracepointOrFallback(tp.group, tp.name, tp.prog, tp.kprobeFallback, false); err != nil {
-			ao.Logger.Warnf("KS connect entry %s failed: %v", tp.name, err)
+			ao.Logger.Warnf("connect entry %s failed: %v", tp.name, err)
 			if firstErr == nil {
 				firstErr = err
 			}
@@ -447,7 +455,7 @@ func (ao *APIObserver) attachKsFdTracepoints() error {
 
 	for _, tp := range connExitProbes {
 		if err := ao.attachTracepointOrFallback(tp.group, tp.name, tp.prog, tp.kprobeFallback, true); err != nil {
-			ao.Logger.Warnf("KS connect exit %s failed: %v", tp.name, err)
+			ao.Logger.Warnf("connect exit %s failed: %v", tp.name, err)
 			if firstErr == nil {
 				firstErr = err
 			}
@@ -466,14 +474,14 @@ func (ao *APIObserver) attachKsFdTracepoints() error {
 	for _, kp := range tcpKprobes {
 		l, err := link.Kprobe(kp.name, kp.prog, nil)
 		if err != nil {
-			ao.Logger.Warnf("KS TCP kprobe %s failed: %v", kp.name, err)
+			ao.Logger.Warnf("TCP kprobe %s failed: %v", kp.name, err)
 			if firstErr == nil {
 				firstErr = err
 			}
 			continue
 		}
 		ao.links = append(ao.links, l)
-		ao.Logger.Debugf("KS TCP kprobe %s attached", kp.name)
+		ao.Logger.Debugf("TCP kprobe %s attached", kp.name)
 	}
 
 	return firstErr
@@ -506,7 +514,7 @@ func (ao *APIObserver) TraceEvents() {
 				return
 			default:
 				// Drop on overload rather than blocking the BPF reader.
-				ao.Logger.Debug("Dropping API Log due to load")
+				ao.Logger.Warn("Dropping API Log due to load")
 			}
 		}
 	}()
@@ -903,7 +911,7 @@ func (ao *APIObserver) attachSSLUprobes() {
 			return
 		}
 
-		ao.Logger.Printf("SSL scanner: found %d container PIDs", len(pids))
+		ao.Logger.Debugf("SSL scanner: found %d container PIDs", len(pids))
 
 		for _, pid := range pids {
 			// Allow fast exit during shutdown.
@@ -915,7 +923,7 @@ func (ao *APIObserver) attachSSLUprobes() {
 
 			matches := ssl.DiscoverSSLLibsForPID(pid)
 			if len(matches) > 0 {
-				ao.Logger.Printf("SSL scanner: PID %d has %d SSL lib matches", pid, len(matches))
+				ao.Logger.Debugf("SSL scanner: PID %d has %d SSL lib matches", pid, len(matches))
 			}
 			for _, m := range matches {
 				inode := ao.getFileInode(m.LibSSLPath)
@@ -928,7 +936,7 @@ func (ao *APIObserver) attachSSLUprobes() {
 					continue
 				}
 
-				ao.Logger.Printf("SSL scanner: attaching probes to %s (PID %d, matcher=%q, strategy=%d)",
+				ao.Logger.Debugf("SSL scanner: attaching probes to %s (PID %d, matcher=%q, strategy=%d)",
 					m.LibSSLPath, pid, m.Matcher.LibSSL, m.Matcher.SocketFDAccess)
 
 				links := ao.attachSSLProbesForMatch(m)
@@ -938,7 +946,7 @@ func (ao *APIObserver) attachSSLUprobes() {
 					continue
 				}
 
-				ao.Logger.Printf("SSL scanner: attached %d probes for %s (PID %d)", len(links), m.LibSSLPath, pid)
+				ao.Logger.Debugf("SSL scanner: attached %d probes for %s (PID %d)", len(links), m.LibSSLPath, pid)
 
 				probed[key] = true
 
@@ -1065,7 +1073,7 @@ func (ao *APIObserver) attachSSLProbesForMatch(m ssl.SSLLibMatch) []link.Link {
 			if err := ao.objs.SslSymaddrs.Put(tgid, bpfOffsets); err != nil {
 				ao.Logger.Warnf("SSL Strategy B: failed to write ssl_symaddrs[%d]: %v", tgid, err)
 			} else {
-				ao.Logger.Printf("SSL Strategy B: populated ssl_symaddrs[%d] rbio=0x%x num=0x%x for %s",
+				ao.Logger.Debugf("SSL Strategy B: populated ssl_symaddrs[%d] rbio=0x%x num=0x%x for %s",
 					tgid, offsets.SSLRBIOOffset, offsets.BIONumOffset, m.LibSSLPath)
 			}
 		}
@@ -1242,7 +1250,7 @@ func (ao *APIObserver) attachGoHTTP2Uprobes() {
 				continue
 			}
 
-			ao.Logger.Printf("Attaching Go HTTP/2 uprobes to %s (PID %d, %d symbols)",
+			ao.Logger.Debugf("Attaching Go HTTP/2 uprobes to %s (PID %d, %d symbols)",
 				target.BinaryPath, target.PID, len(target.Symbols))
 
 			// Populate BPF maps with offsets for this PID.
@@ -1266,7 +1274,7 @@ func (ao *APIObserver) attachGoHTTP2Uprobes() {
 					} else {
 						ao.appendLink(l)
 						probeCount++
-						ao.Logger.Printf("  uprobe/%s attached at 0x%x on %s", shortID, addr, target.BinaryPath)
+						ao.Logger.Debugf("uprobe/%s attached at 0x%x on %s", shortID, addr, target.BinaryPath)
 					}
 				}
 
@@ -1280,7 +1288,7 @@ func (ao *APIObserver) attachGoHTTP2Uprobes() {
 					} else {
 						ao.appendLink(l)
 						probeCount++
-						ao.Logger.Printf("  uretprobe/%s attached at 0x%x", retKey, addr)
+						ao.Logger.Debugf("uretprobe/%s attached at 0x%x", retKey, addr)
 					}
 				}
 			}
@@ -1293,7 +1301,7 @@ func (ao *APIObserver) attachGoHTTP2Uprobes() {
 
 			if probeCount > 0 {
 				attached[target.BinaryPath] = true
-				ao.Logger.Printf("Attached %d Go HTTP/2 uprobes on %s",
+				ao.Logger.Debugf("Attached %d Go HTTP/2 uprobes on %s",
 					probeCount, target.BinaryPath)
 			}
 		}
@@ -1370,7 +1378,7 @@ func (ao *APIObserver) attachGoTlsRetProbes(ex *link.Executable, target goprobe.
 			ao.appendLink(l)
 			probeCount++
 		}
-		ao.Logger.Printf("  Go TLS write_ex: %d ret probes attached", probeCount)
+		ao.Logger.Debugf("Go TLS write_ex: %d ret probes attached", probeCount)
 	}
 
 	// Attach read return probes.
@@ -1391,10 +1399,10 @@ func (ao *APIObserver) attachGoTlsRetProbes(ex *link.Executable, target goprobe.
 	return probeCount + readCount
 }
 
-// drainKsTlsChunks reads the kubeshark-style TLS chunk perf buffer.
+// drainTlsChunks reads the TLS chunk perf buffer.
 // Each chunk contains decrypted plaintext data + source/dest addresses.
 // Chunks are parsed into DataEvents and fed into the correlator pipeline.
-func (ao *APIObserver) drainKsTlsChunks() {
+func (ao *APIObserver) drainTlsChunks() {
 	ao.wg.Add(1)
 	defer ao.wg.Done()
 
@@ -1402,27 +1410,27 @@ func (ao *APIObserver) drainKsTlsChunks() {
 		return
 	}
 
-	ao.Logger.Print("Starting kubeshark TLS chunk perf reader")
+	ao.Logger.Print("Starting TLS chunk perf reader")
 
 	chunkCount := uint64(0)
 	for {
 		record, err := ao.ksTlsChunksReader.Read()
 		if err != nil {
 			if errors.Is(err, perf.ErrClosed) {
-				ao.Logger.Print("KS TLS perf reader closed")
+				ao.Logger.Print("TLS perf reader closed")
 				return
 			}
 			continue
 		}
 		if record.LostSamples != 0 {
-			ao.Logger.Warnf("KS TLS perf: lost %d samples", record.LostSamples)
+			ao.Logger.Warnf("TLS perf: lost %d samples", record.LostSamples)
 			continue
 		}
 
 		raw := record.RawSample
 		chunkCount++
 		if chunkCount <= 5 || chunkCount%100 == 0 {
-			ao.Logger.Printf("KS TLS chunk received #%d (rawLen=%d)", chunkCount, len(raw))
+			ao.Logger.Debugf("TLS chunk received #%d (rawLen=%d)", chunkCount, len(raw))
 		}
 
 		// Parse the TLS chunk into a structured event.
@@ -1447,7 +1455,7 @@ func (ao *APIObserver) drainKsTlsChunks() {
 				}
 				dataPreview = string(chunk.Data[:previewLen])
 			}
-			ao.Logger.Printf("KS TLS first chunk from pid=%d fd=%d family=%d src=%s:%d dst=%s:%d flags=0x%x len=%d recorded=%d data=%q",
+			ao.Logger.Debugf("TLS first chunk from pid=%d fd=%d family=%d src=%s:%d dst=%s:%d flags=0x%x len=%d recorded=%d data=%q",
 				chunk.PID, chunk.FD, chunk.Family,
 				chunk.SrcIPString(), chunk.SrcPort,
 				chunk.DstIPString(), chunk.DstPort,
@@ -1462,7 +1470,7 @@ func (ao *APIObserver) drainKsTlsChunks() {
 
 		// Convert to DataEvent and feed into the correlator pipeline.
 		ev := chunk.ToDataEvent()
-		ao.Logger.Debugf("KS TLS → DataEvent: pid=%d fd=%d src=%s:%d dst=%s:%d dir=%d flags=0x%x payloadLen=%d",
+		ao.Logger.Debugf("TLS → DataEvent: pid=%d fd=%d src=%s:%d dst=%s:%d dir=%d flags=0x%x payloadLen=%d",
 			ev.PID, ev.FD, ev.SrcIPString(), ev.SrcPort, ev.DstIPString(), ev.DstPort,
 			ev.Direction, ev.Flags, len(ev.Payload))
 		ao.processEvent(*ev)
@@ -1656,7 +1664,7 @@ func (ao *APIObserver) scanAndAttachGRPCC(attached map[string]bool) {
 		}
 		ao.appendLink(l)
 		attached[target.LibPath] = true
-		ao.Logger.Printf("gRPC-C uprobe attached to %s (PID %d)", target.LibPath, target.PID)
+		ao.Logger.Debugf("gRPC-C uprobe attached to %s (PID %d)", target.LibPath, target.PID)
 	}
 }
 
@@ -1848,15 +1856,12 @@ func (ao *APIObserver) populateNsFilter() {
 		ao.Logger.Printf("Namespace filter: BLOCKLIST mode — blocking namespaces: %v", ao.blockedNamespaces)
 
 		// Handle "host" special value: host processes run in the root cgroup (ID 1).
-		for _, ns := range ao.blockedNamespaces {
-			if ns == "host" {
-				marker := uint8(1)
-				if err := ao.objs.NsCgroupMap.Put(uint64(1), marker); err != nil {
-					ao.Logger.Warnf("Namespace filter: failed to block host cgroup ID 1: %v", err)
-				} else {
-					ao.Logger.Print("Namespace filter: blocked 'host' (root cgroup ID 1)")
-				}
-				break
+		if slices.Contains(ao.blockedNamespaces, "host") {
+			marker := uint8(1)
+			if err := ao.objs.NsCgroupMap.Put(uint64(1), marker); err != nil {
+				ao.Logger.Warnf("Namespace filter: failed to block host cgroup ID 1: %v", err)
+			} else {
+				ao.Logger.Print("Namespace filter: blocked 'host' (root cgroup ID 1)")
 			}
 		}
 	}
@@ -1925,20 +1930,10 @@ func (ao *APIObserver) OnContainerRemoved(containerID string) {
 // be added to the BPF map based on the current filter mode.
 func (ao *APIObserver) shouldTrackContainer(k8sNamespace string) bool {
 	if ao.nsFilterMode == nsFilterAllowlist {
-		for _, ns := range ao.allowedNamespaces {
-			if ns == k8sNamespace {
-				return true
-			}
-		}
-		return false
+		return slices.Contains(ao.allowedNamespaces, k8sNamespace)
 	}
 	if ao.nsFilterMode == nsFilterBlocklist {
-		for _, ns := range ao.blockedNamespaces {
-			if ns == k8sNamespace {
-				return true
-			}
-		}
-		return false
+		return slices.Contains(ao.blockedNamespaces, k8sNamespace)
 	}
 	return false
 }
@@ -2065,8 +2060,7 @@ func (ao *APIObserver) DestroyAPIObserver() error {
 		}
 	}
 
-	// 3. Wait for goroutines to finish BEFORE closing BPF objects.
-	//    Use a timeout to avoid hanging indefinitely if a scan is in progress.
+	// Wait for goroutines to finish BEFORE closing BPF objects.
 	wgDone := make(chan struct{})
 	go func() {
 		ao.wg.Wait()

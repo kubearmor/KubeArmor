@@ -78,6 +78,14 @@ static __attribute__((always_inline)) int should_trace_port(u16 port) {
   return excluded == NULL;  // trace if NOT excluded
 }
 
+// Loopback check: returns 1 if IP is in 127.0.0.0/8.
+// skc_rcv_saddr is __be32 (network byte order). BPF_CORE_READ_INTO copies
+// raw bytes into a native u32. On all supported little-endian architectures
+// (x86_64/AMD64, arm64), the first IP octet lands in the lowest byte.
+static __attribute__((always_inline)) int is_loopback(__u32 ip) {
+  return (ip & 0xFF) == 0x7F;
+}
+
 // Namespace (K8s) filter — cgroup-ID based.
 // Returns 1 (drop) if the current task's cgroup should be filtered,
 // 0 (allow) otherwise. When filter is disabled, always returns 0.

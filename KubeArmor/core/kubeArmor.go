@@ -15,28 +15,28 @@ import (
 	"syscall"
 	"time"
 
-	apiobserver "github.com/kubearmor/KubeArmor/KubeArmor/apiObserver"
-	"github.com/kubearmor/KubeArmor/KubeArmor/apiObserver/ssl"
-	"github.com/kubearmor/KubeArmor/KubeArmor/common"
-	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
-	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
-	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
-	"github.com/kubearmor/KubeArmor/KubeArmor/policy"
-	"github.com/kubearmor/KubeArmor/KubeArmor/presets"
-	"github.com/kubearmor/KubeArmor/KubeArmor/state"
-	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
+	pb "github.com/kubearmor/KubeArmor/protobuf"
 	"google.golang.org/grpc/health"
 	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/reflection"
 	"k8s.io/client-go/tools/cache"
 
+	apiobserver "github.com/kubearmor/KubeArmor/KubeArmor/apiObserver"
+	"github.com/kubearmor/KubeArmor/KubeArmor/apiObserver/ssl"
+	"github.com/kubearmor/KubeArmor/KubeArmor/common"
+	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
+	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
 	efc "github.com/kubearmor/KubeArmor/KubeArmor/enforcer"
 	fd "github.com/kubearmor/KubeArmor/KubeArmor/feeder"
 	kvm "github.com/kubearmor/KubeArmor/KubeArmor/kvmAgent"
+	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
 	mon "github.com/kubearmor/KubeArmor/KubeArmor/monitor"
 	ne "github.com/kubearmor/KubeArmor/KubeArmor/networkPolicyEnforcer"
+	"github.com/kubearmor/KubeArmor/KubeArmor/policy"
+	"github.com/kubearmor/KubeArmor/KubeArmor/presets"
+	"github.com/kubearmor/KubeArmor/KubeArmor/state"
+	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 	dvc "github.com/kubearmor/KubeArmor/KubeArmor/usbDeviceHandler"
-	pb "github.com/kubearmor/KubeArmor/protobuf"
 )
 
 // ====================== //
@@ -738,7 +738,7 @@ func KubeArmor() {
 	}
 
 	// == API Observer == //
-
+	timeout, err := time.ParseDuration(cfg.GlobalCfg.InitTimeout)
 	if cfg.GlobalCfg.EnableAPIObserver {
 		dm.Logger.Print("Initializing API Observer")
 
@@ -751,12 +751,24 @@ func KubeArmor() {
 
 		// Start K8s Service watcher to populate ServiceIPMap before
 		// building the resolver, so initial services are available.
+		ctx, cancel := context.WithTimeout(context.Background(), timeout)
+		defer cancel()
 		if dm.K8sEnabled {
-			go dm.WatchK8sServices()
-			time.Sleep(500 * time.Millisecond) // let initial services sync
+			k8sServiceSync := dm.WatchK8sServices()
+			if k8sServiceSync == nil {
+				dm.DestroyKubeArmorDaemon()
+				return
+			}
+
+			synced := cache.WaitForCacheSync(ctx.Done(), k8sServiceSync)
+			if !synced {
+				dm.Logger.Err("Failed to sync K8s Services for API Observer")
+				dm.DestroyKubeArmorDaemon()
+				return
+			}
 		}
 
-		// Build ClusterIP→FQDN resolver for :authority enrichment.
+		// Build ClusterIP->FQDN resolver for :authority enrichment.
 		resolver := dm.buildServiceResolver()
 
 		apiObs, err := apiobserver.NewAPIObserver(dm.Node, dm.SystemMonitor.PinPath, dm.Logger, resolver)
@@ -882,7 +894,7 @@ func KubeArmor() {
 			dm.Logger.Print("Using runtime and CRI socket detected by snitch")
 
 			// Whatever the socket file path detected by snitch is, when mounting it to daemonset the operator standardizes it with a default path
-			var podMountPaths = map[string]string{
+			podMountPaths := map[string]string{
 				"docker":     "/var/run/docker.sock",
 				"containerd": "/var/run/containerd/containerd.sock",
 				"cri-o":      "/var/run/crio/crio.sock",
@@ -1036,7 +1048,6 @@ func KubeArmor() {
 
 	// == //
 
-	timeout, err := time.ParseDuration(cfg.GlobalCfg.InitTimeout)
 	if dm.K8sEnabled && cfg.GlobalCfg.Policy {
 		if err != nil {
 			dm.Logger.Warnf("Not a valid InitTimeout duration: %q, defaulting to '60s'", cfg.GlobalCfg.InitTimeout)

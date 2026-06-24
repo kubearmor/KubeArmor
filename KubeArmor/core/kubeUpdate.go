@@ -1020,9 +1020,9 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 
 // WatchK8sServices watches K8s Service objects and populates ServiceIPMap
 // with ClusterIP → FQDN mappings for API Observer :authority resolution.
-func (dm *KubeArmorDaemon) WatchK8sServices() {
+func (dm *KubeArmorDaemon) WatchK8sServices() cache.InformerSynced {
 	if !kl.IsK8sEnv() {
-		return
+		return nil
 	}
 
 	// Watch all services cluster-wide (no node filter needed).
@@ -1044,7 +1044,7 @@ func (dm *KubeArmorDaemon) WatchK8sServices() {
 		dm.ServiceIPMapLock.Unlock()
 	}
 
-	if _, err := informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+	registration, err := informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj any) {
 			if svc, ok := obj.(*corev1.Service); ok {
 				updateServiceMap(svc, true)
@@ -1064,13 +1064,15 @@ func (dm *KubeArmorDaemon) WatchK8sServices() {
 				updateServiceMap(svc, false)
 			}
 		},
-	}); err != nil {
+	})
+	if err != nil {
 		dm.Logger.Warnf("Error starting service informer: %s", err)
-		return
+		return nil
 	}
 
 	go factory.Start(StopChan)
 	dm.Logger.Print("Started watching K8s Services for API Observer")
+	return registration.HasSynced
 }
 
 // updateNamespaceListforCSP - in case of NotIn operator for namespace key, a new ns might be added later

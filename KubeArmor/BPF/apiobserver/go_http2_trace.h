@@ -242,9 +242,6 @@ int ka_uprobe_server_handleStream(struct pt_regs *ctx) {
     }
   }
 
-  bpf_printk("ka_uprobe: server_handleStream goroutine=%lx stream=%lx",
-             goroutine_addr, stream_ptr);
-
   struct go_grpc_server_invocation invocation = {
       .start_ns = bpf_ktime_get_ns(),
       .stream_ptr = (u64)stream_ptr,
@@ -268,21 +265,16 @@ int ka_uretprobe_server_handleStream(struct pt_regs *ctx) {
   struct go_grpc_server_invocation *invocation =
       bpf_map_lookup_elem(&ongoing_grpc_server_requests, &g_key);
   if (!invocation) {
-    bpf_printk(
-        "ka_uretprobe: server_handleStream no invocation for goroutine=%lx",
-        goroutine_addr);
     goto done;
   }
 
   struct go_offset_table *ot = get_offsets();
   if (!ot) {
-    bpf_printk("ka_uretprobe: no offset table");
     goto done;
   }
 
   s64 method_offset = go_offset(ot, GO_OFF_GRPC_STREAM_METHOD);
   if (method_offset < 0) {
-    bpf_printk("ka_uretprobe: invalid method offset");
     goto done;
   }
 
@@ -296,7 +288,6 @@ int ka_uretprobe_server_handleStream(struct pt_regs *ctx) {
   struct go_grpc_request_event *event = bpf_ringbuf_reserve(
       &go_http2_events, sizeof(struct go_grpc_request_event), 0);
   if (!event) {
-    bpf_printk("ka_uretprobe: ring buffer full");
     goto done;
   }
 
@@ -311,14 +302,9 @@ int ka_uretprobe_server_handleStream(struct pt_regs *ctx) {
   void *stream_ptr = (void *)invocation->stream_ptr;
   if (!read_go_str(stream_ptr, method_offset, event->path,
                    GRPC_MAX_PATH_SIZE)) {
-    bpf_printk("ka_uretprobe: can't read Stream.Method at offset %d",
-               method_offset);
     bpf_ringbuf_discard(event, 0);
     goto done;
   }
-
-  bpf_printk("ka_uretprobe: server path=%s latency=%llu ns", event->path,
-             event->end_ns - event->start_ns);
 
   bpf_ringbuf_submit(event, 0);
 
@@ -363,9 +349,6 @@ int ka_uprobe_transport_writeStatus(struct pt_regs *ctx) {
   u16 status_code = 0;
   bpf_probe_read_user(&status_code, sizeof(status_code), s_ptr + code_offset);
 
-  bpf_printk("ka_uprobe: writeStatus goroutine=%lx status=%d", goroutine_addr,
-             status_code);
-
   bpf_map_update_elem(&ongoing_grpc_request_status, &g_key, &status_code,
                       BPF_ANY);
   return 0;
@@ -388,10 +371,6 @@ int ka_uprobe_ClientConn_Invoke(struct pt_regs *ctx) {
 
   void *method_ptr = GO_PARAM4(ctx);
   void *method_len = GO_PARAM5(ctx);
-
-  bpf_printk(
-      "ka_uprobe: ClientConn_Invoke goroutine=%lx method_ptr=%lx len=%lx",
-      goroutine_addr, method_ptr, method_len);
 
   struct go_grpc_client_invocation invocation = {
       .start_ns = bpf_ktime_get_ns(),
@@ -438,13 +417,9 @@ int ka_uretprobe_ClientConn_Invoke(struct pt_regs *ctx) {
 
   if (!read_go_str_n((void *)invocation->method_ptr, invocation->method_len,
                      event->path, GRPC_MAX_PATH_SIZE)) {
-    bpf_printk("ka_uretprobe: can't read client method");
     bpf_ringbuf_discard(event, 0);
     goto done;
   }
-
-  bpf_printk("ka_uretprobe: client path=%s latency=%llu ns", event->path,
-             event->end_ns - event->start_ns);
 
   bpf_ringbuf_submit(event, 0);
 
@@ -632,13 +607,18 @@ static __always_inline int __emit_operate_headers(struct pt_regs *ctx,
     bpf_probe_read_user(&vlen, sizeof(vlen),
                         (void *)(foff + HFIELD_VAL_LEN_OFF));
 
-    if (!nptr || !nlen || nlen >= GO_H2_NAME_SIZE)
+    if (!nptr || !nlen)
       continue; // slot already marked empty above
 
-    bpf_probe_read_user_str(ev->fields[i].name, GO_H2_NAME_SIZE, (void *)nptr);
-    if (vptr && vlen > 0 && vlen < GO_H2_VAL_SIZE)
-      bpf_probe_read_user_str(ev->fields[i].value, GO_H2_VAL_SIZE,
-                               (void *)vptr);
+    // Go strings are NOT NUL-terminated — read exact length, then terminate.
+    __u64 name_copy = nlen < GO_H2_NAME_SIZE - 1 ? nlen : GO_H2_NAME_SIZE - 1;
+    bpf_probe_read_user(ev->fields[i].name, name_copy, (void *)nptr);
+    ev->fields[i].name[name_copy] = '\0';
+    if (vptr && vlen > 0) {
+      __u64 val_copy = vlen < GO_H2_VAL_SIZE - 1 ? vlen : GO_H2_VAL_SIZE - 1;
+      bpf_probe_read_user(ev->fields[i].value, val_copy, (void *)vptr);
+      ev->fields[i].value[val_copy] = '\0';
+    }
 
     ev->field_count++;
   }
@@ -697,19 +677,24 @@ static __always_inline void __emit_single_header(
   ev->event_type = event_type;
   ev->_pad = 0;
 
-  // Clamp and copy name
-  u64 nlen = name_len < HEADER_FIELD_STR_SIZE ? name_len : HEADER_FIELD_STR_SIZE - 1;
+  // Clamp and copy name — use exact-length read, NOT bpf_probe_read_user_str.
+  // Go strings are not NUL-terminated; _str variant bleeds into adjacent .rodata.
+  u64 nlen = name_len < HEADER_FIELD_STR_SIZE - 1 ? name_len : HEADER_FIELD_STR_SIZE - 1;
   ev->name_len = (__u16)nlen;
   ev->name[0] = '\0';
-  if (name_ptr && nlen > 0)
-    bpf_probe_read_user_str(ev->name, HEADER_FIELD_STR_SIZE, name_ptr);
+  if (name_ptr && nlen > 0) {
+    bpf_probe_read_user(ev->name, nlen, name_ptr);
+    ev->name[nlen] = '\0';
+  }
 
   // Clamp and copy value
-  u64 vlen = value_len < HEADER_FIELD_STR_SIZE ? value_len : HEADER_FIELD_STR_SIZE - 1;
+  u64 vlen = value_len < HEADER_FIELD_STR_SIZE - 1 ? value_len : HEADER_FIELD_STR_SIZE - 1;
   ev->value_len = (__u16)vlen;
   ev->value[0] = '\0';
-  if (value_ptr && vlen > 0)
-    bpf_probe_read_user_str(ev->value, HEADER_FIELD_STR_SIZE, value_ptr);
+  if (value_ptr && vlen > 0) {
+    bpf_probe_read_user(ev->value, vlen, value_ptr);
+    ev->value[vlen] = '\0';
+  }
 
   bpf_ringbuf_output(&go_h2_single_header_events, ev, sizeof(*ev), 0);
 }

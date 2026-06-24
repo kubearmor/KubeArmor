@@ -81,7 +81,7 @@ type TrackerConfig struct {
 
 func DefaultConfig() TrackerConfig {
 	return TrackerConfig{
-		InactivityTimeout: 5 * time.Minute,
+		InactivityTimeout: 90 * time.Second,
 		MaxBufferSize:     192 * 1024, // 192KB per direction
 	}
 }
