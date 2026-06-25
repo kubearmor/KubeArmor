@@ -20,15 +20,15 @@ jobs:
     name: Helm Chart Tests / ubuntu 22.04
     runs-on: "ubuntu-22.04"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           submodules: true
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
           go-version-file: 'KubeArmor/go.mod'
 
-      - uses: azure/setup-helm@v3
+      - uses: azure/setup-helm@5119fcb9089d432beecbf79bb2c7915207344b78 # v3
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
