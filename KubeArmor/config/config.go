@@ -21,6 +21,7 @@ type KubearmorConfig struct {
 	Host    string // Host name to use for feeds
 
 	GRPC              string // gRPC Port to use
+	GRPCHealthPort    string // gRPC Health Port to use
 	TLSEnabled        bool   // enable tls
 	TLSCertPath       string // tls certification path
 	TLSCertProvider   string // tls certificate provider
@@ -91,6 +92,7 @@ const (
 	ConfigCluster                        string = "cluster"
 	ConfigHost                           string = "host"
 	ConfigGRPC                           string = "gRPC"
+	ConfigGRPCHealthPort                 string = "gRPCHealthPort"
 	ConfigTLSCertPath                    string = "tlsCertPath"
 	ConfigTLSCertProvider                string = "tlsCertProvider"
 	SelfCertProvider                     string = "self"
@@ -144,6 +146,7 @@ func readCmdLineParams() {
 	hostStr := flag.String(ConfigHost, hostname, "host name")
 
 	grpcStr := flag.String(ConfigGRPC, "32767", "gRPC port number")
+	grpcHealthStr := flag.String(ConfigGRPCHealthPort, "32766", "gRPC health check port number")
 	tlsEnabled := flag.Bool(ConfigTLS, false, "enable tls for secure grpc connection")
 	tlsCertsStr := flag.String(ConfigTLSCertPath, "/var/lib/kubearmor/tls", "path to tls ca certificate files ca.crt, ca.crt")
 	tlsCertProvider := flag.String(ConfigTLSCertProvider, "self", "source of certificate {self|external}, self: create certificate dynamically, external: provided by some external entity")
@@ -224,6 +227,7 @@ func readCmdLineParams() {
 	viper.SetDefault(ConfigHost, *hostStr)
 
 	viper.SetDefault(ConfigGRPC, *grpcStr)
+	viper.SetDefault(ConfigGRPCHealthPort, *grpcHealthStr)
 	viper.SetDefault(ConfigTLS, *tlsEnabled)
 	viper.SetDefault(ConfigTLSCertPath, *tlsCertsStr)
 	viper.SetDefault(ConfigTLSCertProvider, *tlsCertProvider)
@@ -327,6 +331,7 @@ func LoadConfig() error {
 	}
 
 	GlobalCfg.GRPC = viper.GetString(ConfigGRPC)
+	GlobalCfg.GRPCHealthPort = viper.GetString(ConfigGRPCHealthPort)
 	GlobalCfg.TLSEnabled = viper.GetBool(ConfigTLS)
 	GlobalCfg.TLSCertPath = viper.GetString(ConfigTLSCertPath)
 	GlobalCfg.TLSCertProvider = viper.GetString(ConfigTLSCertProvider)

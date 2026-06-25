@@ -9,6 +9,7 @@ import (
 
 var kubearmor = "kubearmor"
 var port int32 = 32767
+var healthPort int32 = 32766
 
 // K8s Object Name Defaults
 var (

@@ -1,6 +1,6 @@
 # Contributing to KubeArmor
 
-Welcome to KubeArmor, and thank you for showcasing your interest in contributing to the KubeArmor community. We are excited to have you join us in improving Linux runtime security through Kubernetes. The KubeArmor community abides by the CNCF [code of conduct](code-of-conduct.md). Here is an excerpt:
+Welcome to KubeArmor, and thank you for showcasing your interest in contributing to the KubeArmor community. We are excited to have you join us in improving Linux runtime security through Kubernetes. The KubeArmor community abides by the CNCF [code of conduct](CODE_OF_CONDUCT.md). Here is an excerpt:
 
 _As contributors and maintainers of this project, and in the interest of fostering an open and welcoming community, we pledge to respect all people who contribute through reporting issues, posting feature requests, updating documentation, submitting pull requests or patches, and other activities._
 

@@ -36,8 +36,10 @@ func (ls *LogService) WatchMessages(req *pb.RequestMessage, svr pb.LogService_Wa
 	kg.Printf("Added a new client (%s) for WatchMessages", uid)
 
 	defer func() {
-		close(conn)
+		// Remove from map FIRST so PushMessage can no longer find this channel
 		ls.EventStructs.RemoveMsgStruct(uid)
+		// THEN close the channel safely
+		close(conn)
 		kg.Printf("Deleted the client (%s) for WatchMessages", uid)
 	}()
 
@@ -70,8 +72,10 @@ func (ls *LogService) WatchAlerts(req *pb.RequestMessage, svr pb.LogService_Watc
 	kg.Printf("Added a new client (%s, %s) for WatchAlerts", uid, req.Filter)
 
 	defer func() {
-		close(conn)
+		// Remove from map FIRST so PushAlert can no longer find this channel
 		ls.EventStructs.RemoveAlertStruct(uid)
+		// THEN close the channel safely
+		close(conn)
 		kg.Printf("Deleted the client (%s) for WatchAlerts", uid)
 	}()
 
@@ -104,8 +108,10 @@ func (ls *LogService) WatchLogs(req *pb.RequestMessage, svr pb.LogService_WatchL
 	kg.Printf("Added a new client (%s, %s) for WatchLogs", uid, req.Filter)
 
 	defer func() {
-		close(conn)
+		// Remove from map FIRST so PushLog can no longer find this channel
 		ls.EventStructs.RemoveLogStruct(uid)
+		// THEN close the channel safely
+		close(conn)
 		kg.Printf("Deleted the client (%s) for WatchLogs", uid)
 	}()
 
