@@ -1,6 +1,10 @@
 autoDeploy: false
 # operator will deploy pinned images for each application
 imagePinning: false
+
+# Opt in to block-mode self-protection for KubeArmor infrastructure pods managed by the operator.
+selfProtection:
+  enabled: false
   
 # To use existing secret updated {registry.secretName} with your secret name.
 registry: 
@@ -63,6 +67,7 @@ kubearmorConfig:
   enableStdOutAlerts: false
   enableStdOutMsgs: false
   seccompEnabled: false
+  selfProtectionEnabled: false
   alertThrottling: true
   maxAlertPerSec: 10
   throttleSec: 30

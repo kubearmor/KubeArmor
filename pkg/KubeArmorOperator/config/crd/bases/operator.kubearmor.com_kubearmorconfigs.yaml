@@ -1522,6 +1522,8 @@ spec:
                 type: object
               seccompEnabled:
                 type: boolean
+              selfProtectionEnabled:
+                type: boolean
               throttleSec:
                 type: integer
               tls:

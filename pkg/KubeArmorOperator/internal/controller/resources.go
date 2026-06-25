@@ -199,6 +199,11 @@ func generateDaemonset(name, enforcer, runtime, socket, nriSocket, btfPresent, a
 	daemonset.Spec.Template.Spec.InitContainers[0].Image = common.GetApplicationImage(common.KubeArmorInitName)
 	daemonset.Spec.Template.Spec.InitContainers[0].ImagePullPolicy = corev1.PullPolicy(common.KubeArmorInitImagePullPolicy)
 
+	daemonset.Spec.Template.ObjectMeta.Annotations = deployments.ApplyInfraPodPolicyAnnotations(
+		daemonset.Spec.Template.ObjectMeta.Annotations,
+		common.ConfigDefaultSelfProtectionEnabled == "true",
+	)
+
 	daemonset = addOwnership(daemonset).(*appsv1.DaemonSet)
 	fmt.Printf("generated daemonset: %v", daemonset)
 	return daemonset
@@ -897,8 +902,10 @@ func (clusterWatcher *ClusterWatcher) WatchRequiredResources() {
 	}
 	// kubearmor-controller and relay-server deployments
 	controller := deployments.GetKubeArmorControllerDeployment(common.Namespace)
-
-	relayServer := deployments.GetRelayDeployment(common.Namespace)
+	controller.Spec.Template.ObjectMeta.Annotations = deployments.ApplyInfraPodPolicyAnnotations(
+		controller.Spec.Template.ObjectMeta.Annotations,
+		common.ConfigDefaultSelfProtectionEnabled == "true",
+	)
 	// update args, imagePullSecrets and tolerations
 	UpdateArgsIfDefinedAndUpdated(&controller.Spec.Template.Spec.Containers[0].Args, common.KubeArmorControllerArgs)
 
@@ -918,6 +925,12 @@ func (clusterWatcher *ClusterWatcher) WatchRequiredResources() {
 	if len(controller.Spec.Template.Spec.Tolerations) < 1 {
 		utils.UpdateTolerationFromGlobal(common.GlobalTolerations, &controller.Spec.Template.Spec.Tolerations)
 	}
+
+	relayServer := deployments.GetRelayDeployment(common.Namespace)
+	relayServer.Spec.Template.ObjectMeta.Annotations = deployments.ApplyInfraPodPolicyAnnotations(
+		relayServer.Spec.Template.ObjectMeta.Annotations,
+		common.ConfigDefaultSelfProtectionEnabled == "true",
+	)
 	UpdateArgsIfDefinedAndUpdated(&relayServer.Spec.Template.Spec.Containers[0].Args, common.KubeArmorRelayArgs)
 	UpdateImagePullSecretsIfDefinedAndUpdated(&relayServer.Spec.Template.Spec.ImagePullSecrets, common.KubeArmorControllerImagePullSecrets)
 	if len(relayServer.Spec.Template.Spec.ImagePullSecrets) == 0 && len(ImagePullSecrets) > 0 {

@@ -17,6 +17,16 @@ const k8sVisibility = "process,file,network,capabilities"
 const appArmorAnnotation = "container.apparmor.security.beta.kubernetes.io/"
 const KubeArmorRestartedAnnotation = "kubearmor.kubernetes.io/restartedAt"
 
+const (
+	SelfProtectionAnnotation     = "kubearmor.io/self-protection"
+	SelfProtectionEnabledValue   = "enabled"
+	KubeArmorPolicyAnnotation    = "kubearmor-policy"
+	KubeArmorPolicyEnabledValue  = "enabled"
+	KubeArmorPolicyDisabledValue = "disabled"
+	KubeArmorPolicyAuditedValue  = "audited"
+	KubeArmorAppLabel            = "kubearmor-app"
+)
+
 // == Add AppArmor annotations == //
 func AppArmorAnnotator(pod *corev1.Pod, binding *corev1.Binding, isBinding bool) {
 	podAnnotations := map[string]string{}
@@ -73,44 +83,65 @@ func AppArmorAnnotator(pod *corev1.Pod, binding *corev1.Binding, isBinding bool)
 		}
 	}
 }
+func applyKubeArmorInfraPolicyAnnotations(obj *metav1.ObjectMeta) {
+	switch {
+	case obj.Annotations[SelfProtectionAnnotation] == SelfProtectionEnabledValue:
+		if obj.Annotations[KubeArmorPolicyAnnotation] != KubeArmorPolicyDisabledValue {
+			obj.Annotations[KubeArmorPolicyAnnotation] = KubeArmorPolicyEnabledValue
+		}
+	case obj.Annotations[KubeArmorPolicyAnnotation] == KubeArmorPolicyDisabledValue:
+		// preserve explicit opt-out
+	default:
+		obj.Annotations[KubeArmorPolicyAnnotation] = KubeArmorPolicyAuditedValue
+	}
+}
+
+func applyDefaultPolicyAnnotations(obj *metav1.ObjectMeta) {
+	if _, ok := obj.Annotations[KubeArmorPolicyAnnotation]; !ok {
+		obj.Annotations[KubeArmorPolicyAnnotation] = KubeArmorPolicyEnabledValue
+	} else if obj.Annotations[KubeArmorPolicyAnnotation] != KubeArmorPolicyEnabledValue &&
+		obj.Annotations[KubeArmorPolicyAnnotation] != KubeArmorPolicyDisabledValue &&
+		obj.Annotations[KubeArmorPolicyAnnotation] != KubeArmorPolicyAuditedValue {
+		obj.Annotations[KubeArmorPolicyAnnotation] = KubeArmorPolicyEnabledValue
+	}
+}
+
 func AddCommonAnnotations(obj *metav1.ObjectMeta) {
 
 	if obj.Annotations == nil {
 		obj.Annotations = map[string]string{}
 	}
 
+	if obj.Labels == nil {
+		obj.Labels = map[string]string{}
+	}
+
 	// == Policy == //
 
-	if _, ok := obj.Annotations["kubearmor-policy"]; !ok {
-		// if no annotation is set enable kubearmor by default
-		obj.Annotations["kubearmor-policy"] = "enabled"
-	} else if obj.Annotations["kubearmor-policy"] != "enabled" && obj.Annotations["kubearmor-policy"] != "disabled" && obj.Annotations["kubearmor-policy"] != "audited" {
-		// if kubearmor policy is not set correctly, default it to enabled
-		obj.Annotations["kubearmor-policy"] = "enabled"
+	if _, ok := obj.Labels[KubeArmorAppLabel]; ok {
+		applyKubeArmorInfraPolicyAnnotations(obj)
+	} else {
+		applyDefaultPolicyAnnotations(obj)
 	}
+
 	// == Exception == //
 
 	// exception: kubernetes app
 	if obj.Namespace == "kube-system" {
 		if _, ok := obj.Labels["k8s-app"]; ok {
-			obj.Annotations["kubearmor-policy"] = "audited"
+			obj.Annotations[KubeArmorPolicyAnnotation] = KubeArmorPolicyAuditedValue
 		}
 
 		if value, ok := obj.Labels["component"]; ok {
 			if value == "etcd" || value == "kube-apiserver" || value == "kube-controller-manager" || value == "kube-scheduler" || value == "kube-proxy" {
-				obj.Annotations["kubearmor-policy"] = "audited"
+				obj.Annotations[KubeArmorPolicyAnnotation] = KubeArmorPolicyAuditedValue
 			}
 		}
 	}
 
 	// exception: cilium-operator
 	if _, ok := obj.Labels["io.cilium/app"]; ok {
-		obj.Annotations["kubearmor-policy"] = "audited"
-	}
-
-	// exception: kubearmor
-	if _, ok := obj.Labels["kubearmor-app"]; ok {
-		obj.Annotations["kubearmor-policy"] = "audited"
+		obj.Annotations[KubeArmorPolicyAnnotation] = KubeArmorPolicyAuditedValue
 	}
 
 	// == Visibility == //
