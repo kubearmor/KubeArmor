@@ -85,6 +85,11 @@ func (de *USBDeviceHandler) monitorUSBDeviceEvents() {
 	}
 	defer unix.Close(sock)
 
+	// increase socket buffer size to 8MB to handle bursts of uevents
+	if err := unix.SetsockoptInt(sock, unix.SOL_SOCKET, unix.SO_RCVBUF, 8*1024*1024); err != nil {
+		de.Logger.Warnf("Failed to increase socket receive buffer: %v", err)
+	}
+
 	// Bind to the socket to receive all uevents (pid = 0, groups = 1)
 	sa := &unix.SockaddrNetlink{
 		Family: unix.AF_NETLINK,
@@ -100,7 +105,12 @@ func (de *USBDeviceHandler) monitorUSBDeviceEvents() {
 	for {
 		nr, _, err := unix.Recvfrom(sock, buf, 0)
 		if err != nil {
-			de.Logger.Errf("Error receiving message: %v", err)
+			if err == unix.ENOBUFS {
+				de.Logger.Warnf("Dropped USB event: Netlink socket buffer full")
+			} else {
+				de.Logger.Errf("Error receiving message: %v", err)
+			}
+			continue
 		}
 
 		msg := buf[:nr]
