@@ -5,7 +5,7 @@ The KubeArmor community has adopted the below security disclosures and response 
 Please do not report security vulnerabilities through public GitHub issues.
 
 ## Security bulletins
-For information regarding the security of this project please join our [slack channel](https://join.slack.com/t/kubearmor/shared_invite/zt-2bhlgoxw1-WTLMm_ica8PIhhNBNr2GfA).
+For information regarding the security of this project please join our [Slack channel](https://join.slack.com/t/kubearmor/shared_invite/zt-2bhlgoxw1-WTLMm_ica8PIhhNBNr2GfA).
 
 ## Reporting a Vulnerability
 ### When you should?
@@ -14,7 +14,7 @@ For information regarding the security of this project please join our [slack ch
 - You think you discovered a vulnerability in the dependency of KubeArmor. For those projects, please leverage their reporting policy.
 
 ### When you should not?
-- You need assistance in configuring KubeArmor for security - please discuss this is in the [slack channel](https://cloud-native.slack.com/archives/C07EF44HWQM)
+- You need assistance in configuring KubeArmor for security - please discuss this in the [Slack channel](https://cloud-native.slack.com/archives/C07EF44HWQM)
 - You need help applying security-related updates.
 - Your issue is not security-related.
 
@@ -30,7 +30,7 @@ For information regarding the security of this project please join our [slack ch
         * Proof-of-concept or exploit code (if possible)
         * Impact of the issue, including how an attacker might exploit the issue
 
-    * These information will help us triage your report more quickly.
+    * This information will help us triage your report more quickly.
 
 2. The project security team will send an initial response to the disclosure in 3-5 days. Once the vulnerability and fix are confirmed, the team will plan to release the fix in 7 to 28 days based on the severity and complexity.
 
