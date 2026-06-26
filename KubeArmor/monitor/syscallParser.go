@@ -524,6 +524,12 @@ func getSocketDomain(sd uint32) string {
 	return res
 }
 
+// GetSocketDomain returns the textual socket address family for a numeric
+// socket domain.
+func GetSocketDomain(sd uint32) string {
+	return getSocketDomain(sd)
+}
+
 var socketTypes = map[uint32]string{
 	1:  "SOCK_STREAM",
 	2:  "SOCK_DGRAM",
