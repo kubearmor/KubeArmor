@@ -1,0 +1,25 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: ksp-kubearmor-operator-block
+  namespace: kubearmor
+spec:
+  severity: 5
+  message: "KubeArmor operator zero-trust allow-list"
+  tags:
+  - KubeArmor-SelfProtection
+  - ZeroTrust
+  - BlockPhase
+  selector:
+    matchLabels:
+      kubearmor-app: kubearmor-operator
+  process:
+    matchPaths:
+    - path: /operator
+      action: Allow
+  file:
+    matchDirectories:
+    - dir: /tmp/
+      recursive: true
+      action: Allow
+  action: Allow

@@ -1,0 +1,28 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: ksp-kubearmor-controller-block
+  namespace: kubearmor
+spec:
+  severity: 5
+  message: "KubeArmor controller zero-trust allow-list"
+  tags:
+  - KubeArmor-SelfProtection
+  - ZeroTrust
+  - BlockPhase
+  selector:
+    matchLabels:
+      kubearmor-app: kubearmor-controller
+  process:
+    matchPaths:
+    - path: /manager
+      action: Allow
+  file:
+    matchDirectories:
+    - dir: /tmp/k8s-webhook-server/serving-certs/
+      recursive: true
+      action: Allow
+    - dir: /sys/kernel/security/
+      recursive: true
+      action: Allow
+  action: Allow
