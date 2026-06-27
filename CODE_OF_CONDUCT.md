@@ -1,47 +1,32 @@
-## Community Code of Conduct v1.0
+# KubeArmor Community Code of Conduct
 
-This is Code of Conduct is based on the [CNCF Code of
-Conduct](https://github.com/cncf/foundation/edit/master/code-of-conduct.md).
-See the referred document for translated versions into different languages. The
-text below is modified with KubeArmor community specific contact details.
+KubeArmor follows the **[CNCF Code of Conduct](https://github.com/cncf/foundation/blob/main/code-of-conduct.md)** without modification.
 
-### Contributor Code of Conduct
+All participants in project spaces — including the GitHub organization, the Slack workspace, community calls, mailing lists, and in-person events held under the KubeArmor name — are expected to read and follow it.
 
-As contributors and maintainers of this project, and in the interest of fostering
-an open and welcoming community, we pledge to respect all people who contribute
-through reporting issues, posting feature requests, updating documentation,
-submitting pull requests or patches, and other activities.
+## Reporting a violation
 
-We are committed to making participation in this project a harassment-free experience for
-everyone, regardless of level of experience, gender, gender identity and expression,
-sexual orientation, disability, personal appearance, body size, race, ethnicity, age,
-religion, or nationality.
+If you experience or witness behavior that violates the Code of Conduct, please report it through any of the channels below. Choose the one you are most comfortable with. Reports are taken seriously and handled confidentially.
 
-Examples of unacceptable behavior by participants include:
+### Project-side reporting
 
-* The use of sexualized language or imagery
-* Personal attacks
-* Trolling or insulting/derogatory comments
-* Public or private harassment
-* Publishing others' private information, such as physical or electronic addresses,
-  without explicit permission
-* Other unethical or unprofessional conduct.
+- Email the project Maintainers privately at <!-- TODO: replace with a project-owned maintainer alias once provisioned. A dedicated alias is preferable to an individual mailbox so that reports survive maintainer turnover. --> the contact addresses listed in [MAINTAINERS.md](./MAINTAINERS.md).
+- If the report concerns a specific Maintainer, please send it to **at least two** other Maintainers, or use the CNCF reporting path below to bypass the project entirely.
 
-Project maintainers have the right and responsibility to remove, edit, or reject
-comments, commits, code, wiki edits, issues, and other contributions that are not
-aligned to this Code of Conduct. By adopting this Code of Conduct, project maintainers
-commit themselves to fairly and consistently applying these principles to every aspect
-of managing this project. Project maintainers who do not follow or enforce the Code of
-Conduct may be permanently removed from the project team.
+### CNCF reporting path
 
-This code of conduct applies both within project spaces and in public spaces
-when an individual is representing the project or its community.
+You may report any Code of Conduct violation directly to the CNCF, especially if the report concerns project leadership:
 
-Instances of abusive, harassing, or otherwise unacceptable behavior may be
-reported by contacting the project maintainers or our mediator, Nandhini Ananthakalyanaraman
-(<nandhini@accuknox.com>). Individuals found to be in violation of the Code of Conduct may be 
-removed from the project and prevented from future participation.
+- Email **<conduct@cncf.io>**
+- See the [CNCF incident resolution process](https://github.com/cncf/foundation/blob/main/code-of-conduct.md#cncf-events) for details on how the report is handled.
 
-This Code of Conduct is adapted from the Contributor Covenant
-(http://contributor-covenant.org), version 1.2.0, available at
-http://contributor-covenant.org/version/1/2/0/
+## What happens next
+
+- Project Maintainers acknowledge reports within 5 business days.
+- Reports involving a Maintainer are escalated to the CNCF for impartial handling.
+- Outcomes range from a private warning to removal from project spaces, depending on the severity and pattern of the violation. Decisions follow the **sensitive** vote class defined in [GOVERNANCE.md](./GOVERNANCE.md#decision-making).
+
+## Scope
+
+This Code of Conduct applies in all project spaces and when individuals are representing the project in public spaces — for example, when using an official project email, posting via official social media accounts, or acting as an appointed representative at an online or in-person event.
+
