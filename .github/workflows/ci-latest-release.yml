@@ -48,7 +48,7 @@ jobs:
   build:
     name: Create KubeArmor latest release
     needs: [check]
-    if: github.repository == 'kubearmor/kubearmor' && (needs.check.outputs.kubearmor == 'true' || ${{ github.ref }} != 'refs/heads/main')
+    if: github.repository == 'kubearmor/kubearmor' && (needs.check.outputs.kubearmor == 'true' || github.ref != 'refs/heads/main')
     runs-on: oracle-vm-16cpu-64gb-x86-64
     permissions:
       id-token: write
@@ -236,7 +236,7 @@ jobs:
   kubearmor-controller-release:
     name: Build & Push KubeArmorController
     needs: [check]
-    if: github.repository == 'kubearmor/kubearmor' && (needs.check.outputs.controller == 'true' || ${{ github.ref }} != 'refs/heads/main')
+    if: github.repository == 'kubearmor/kubearmor' && (needs.check.outputs.controller == 'true' || github.ref != 'refs/heads/main')
     defaults:
       run:
         working-directory: ./pkg/KubeArmorController
