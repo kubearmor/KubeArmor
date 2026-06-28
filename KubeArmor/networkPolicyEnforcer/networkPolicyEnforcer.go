@@ -135,7 +135,6 @@ func NewNetworkPolicyEnforcer(logger *fd.Feeder) (*NetworkPolicyEnforcer, error)
 		}
 	}()
 
-	// monitor logged packets
 	go ne.monitorLoggedPackets()
 
 	ne.UpdateNetworkSecurityPolicies([]tp.NetworkSecurityPolicy{}, []tp.EndPoint{}, map[string]tp.Container{})
@@ -161,7 +160,6 @@ func getProtocolName(p uint8) string {
 	}
 }
 
-// monitorLoggedPackets Function
 type packetInfo struct {
 	srcIP    string
 	dstIP    string
@@ -287,8 +285,15 @@ func (ne *NetworkPolicyEnforcer) buildKubeArmorLog(info packetInfo, prefix strin
 		targetIP = info.dstIP
 	}
 
-	// Attach Kubernetes Pod metadata
-	if targetIP != "" {
+	// KubeArmor appends 'pod', 'policy', or 'host' at parts[3].
+	isPodPolicy := false
+	if len(parts) > 3 && (parts[3] == "pod" || parts[3] == "policy") {
+		isPodPolicy = true
+	}
+
+	// Attach Kubernetes Pod metadata ONLY for Pod policies or System logs.
+	// We do not map container metadata for Host policies.
+	if targetIP != "" && (isPodPolicy || !isNamedPolicy) {
 		ne.EndPointsLock.RLock()
 		if ep, ok := ne.EndPoints[targetIP]; ok {
 			log.NamespaceName = ep.NamespaceName
@@ -300,6 +305,10 @@ func (ne *NetworkPolicyEnforcer) buildKubeArmorLog(info packetInfo, prefix strin
 			}
 			sort.Strings(labelSlice)
 			log.Labels = strings.Join(labelSlice, ",")
+
+			if len(ep.Containers) > 0 {
+				log.ContainerID = ep.Containers[0]
+			}
 		}
 		ne.EndPointsLock.RUnlock()
 	}
@@ -307,6 +316,7 @@ func (ne *NetworkPolicyEnforcer) buildKubeArmorLog(info packetInfo, prefix strin
 	return log
 }
 
+// monitorLoggedPackets Function
 func (ne *NetworkPolicyEnforcer) monitorLoggedPackets() {
 
 	// Configure nflog
@@ -397,12 +407,14 @@ func (ne *NetworkPolicyEnforcer) monitorLoggedPackets() {
 			policyName = parts[0]
 		}
 		isNamedPolicy := policyName != "" && policyName != "Default" && policyName != "Host"
+		quotaLevel := ""
+		if len(parts) > 3 {
+			quotaLevel = parts[3]
+		}
+		// A quota rule will have a limit appended as parts[4].
+		isQuotaRule := isNamedPolicy && len(parts) > 4
 
-		if isNamedPolicy {
-			quotaLevel := ""
-			if len(parts) > 3 {
-				quotaLevel = parts[3]
-			}
+		if isQuotaRule {
 			isContainer := quotaLevel == "pod" || quotaLevel == "policy"
 
 			var silencerKey string
@@ -751,7 +763,7 @@ func generateRules(direction string, peers []tp.NetworkPeer, ports []tp.PortType
 		shouldLog = true
 	}
 
-	logLevelStr := ""
+	logLevelStr := " host"
 	if isPodPolicy {
 		logLevelStr = " " + policyLevel
 	}
@@ -1127,10 +1139,13 @@ add chain inet kubearmor FORWARD { type filter hook forward priority 1; policy a
 add chain inet kubearmor INPUT { type filter hook input priority 1; policy accept; }
 add chain inet kubearmor OUTPUT { type filter hook output priority 1; policy accept; }
 
-# 6. Flush Pod Chains (Deletes all rules without deleting the table/quotas)
+# 6. Flush Pod Chains
 flush chain inet kubearmor FORWARD
 flush chain inet kubearmor INPUT
 flush chain inet kubearmor OUTPUT
+
+add rule inet kubearmor INPUT  iifname "lo" accept
+add rule inet kubearmor OUTPUT oifname "lo" accept
 
 # 7. Apply Quota Deletions (Delta)
 {{- range .InetQuotasToDelete }}

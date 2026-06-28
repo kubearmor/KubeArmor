@@ -109,8 +109,8 @@ func TestGenerateRules(t *testing.T) {
 			isPodPolicy: false,
 			policyLevel: "pod",
 			expected: []NetworkRule{
-				{TableFamily: "ip", Chain: "OUTPUT", RuleContent: "ip daddr 192.168.1.0/24 udp dport 3000-4000 log prefix \"test-block Egress Block\" group 0 drop"},
-				{TableFamily: "ip6", Chain: "OUTPUT", RuleContent: "udp dport 3000-4000 log prefix \"test-block Egress Block\" group 0 drop"},
+				{TableFamily: "ip", Chain: "OUTPUT", RuleContent: "ip daddr 192.168.1.0/24 udp dport 3000-4000 log prefix \"test-block Egress Block host\" group 0 drop"},
+				{TableFamily: "ip6", Chain: "OUTPUT", RuleContent: "udp dport 3000-4000 log prefix \"test-block Egress Block host\" group 0 drop"},
 			},
 		},
 		{
@@ -128,8 +128,8 @@ func TestGenerateRules(t *testing.T) {
 			isPodPolicy: false,
 			policyLevel: "pod",
 			expected: []NetworkRule{
-				{TableFamily: "ip", Chain: "INPUT", RuleContent: "iifname \"eth0\" tcp dport 22 log prefix \"test-audit Ingress Audit\" group 0 accept"},
-				{TableFamily: "ip6", Chain: "INPUT", RuleContent: "iifname \"eth0\" ip6 saddr fe80::/10 tcp dport 22 log prefix \"test-audit Ingress Audit\" group 0 accept"},
+				{TableFamily: "ip", Chain: "INPUT", RuleContent: "iifname \"eth0\" tcp dport 22 log prefix \"test-audit Ingress Audit host\" group 0 accept"},
+				{TableFamily: "ip6", Chain: "INPUT", RuleContent: "iifname \"eth0\" ip6 saddr fe80::/10 tcp dport 22 log prefix \"test-audit Ingress Audit host\" group 0 accept"},
 			},
 		},
 		{
@@ -189,7 +189,7 @@ func TestGenerateRules(t *testing.T) {
 			isPodPolicy: false,
 			policyLevel: "host",
 			expected: []NetworkRule{
-				{TableFamily: "inet", Chain: "OUTPUT", RuleContent: "quota name \"quota_host_egress_Egress_0\" log prefix \"host-egress Egress Block 500MB\" group 0 drop"},
+				{TableFamily: "inet", Chain: "OUTPUT", RuleContent: "quota name \"quota_host_egress_Egress_0\" log prefix \"host-egress Egress Block host 500MB\" group 0 drop"},
 				{TableFamily: "inet", Chain: "OUTPUT", RuleContent: "accept"},
 			},
 		},
