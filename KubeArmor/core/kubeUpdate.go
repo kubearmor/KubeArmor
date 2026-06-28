@@ -2276,6 +2276,16 @@ func (dm *KubeArmorDaemon) CreateNetworkSecurityPolicy(securityPolicy any) (secP
 
 	slices.Sort(secPolicy.Spec.NodeSelector.Identities)
 
+	// Build Selector.Identities from matchLabels so isPodPolicy is correctly
+	// detected in the network policy enforcer (mirrors ParseAndUpdateNetworkSecurityPolicy).
+	secPolicy.Spec.Selector.Identities = []string{}
+
+	for k, v := range secPolicy.Spec.Selector.MatchLabels {
+		secPolicy.Spec.Selector.Identities = append(secPolicy.Spec.Selector.Identities, k+"="+v)
+	}
+
+	slices.Sort(secPolicy.Spec.Selector.Identities)
+
 	secPolicy.Metadata = map[string]string{}
 	secPolicy.Metadata["policyName"] = name
 

@@ -54,12 +54,12 @@ spec:
           spec:
             description: KubeArmorNetworkPolicySpec defines the desired state of KubeArmorNetworkPolicy
             x-kubernetes-validations:
-              - rule: "!(has(self.selector) && has(self.nodeSelector))"
+              - rule: "!(has(self.selector) && (has(self.selector.matchLabels) || has(self.selector.matchExpressions)) && has(self.nodeSelector))"
                 message: "A policy cannot target both containers and host nodes."
-              - rule: "!has(self.selector) || !has(self.ingress) || self.ingress.all(i, has(i.limit) && has(i.duration))"
-                message: "Container policies  strictly support only bandwidth quota rules; all ingress rules must declare both 'limit' and 'duration' only"
-              - rule: "!has(self.selector) || !has(self.egress) || self.egress.all(e, has(e.limit) && has(e.duration))"
-                message: "Container policies  strictly support only bandwidth quota rules; all egress rules must declare both 'limit' and 'duration' only"
+              - rule: "!(has(self.selector) && (has(self.selector.matchLabels) || has(self.selector.matchExpressions))) || !has(self.ingress) || self.ingress.all(i, has(i.limit) && has(i.duration))"
+                message: "Container policies strictly support only bandwidth quota rules; all ingress rules must declare both 'limit' and 'duration' only"
+              - rule: "!(has(self.selector) && (has(self.selector.matchLabels) || has(self.selector.matchExpressions))) || !has(self.egress) || self.egress.all(e, has(e.limit) && has(e.duration))"
+                message: "Container policies strictly support only bandwidth quota rules; all egress rules must declare both 'limit' and 'duration' only"
             properties:
               action:
                 enum:

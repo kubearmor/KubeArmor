@@ -896,7 +896,6 @@ func (fd *Feeder) PushLog(log tp.Log) {
 		defer fd.EventStructs.AlertLock.Unlock()
 		counter := 0
 		lenAlert := len(fd.EventStructs.AlertStructs)
-
 		for uid := range fd.EventStructs.AlertStructs {
 			select {
 			case fd.EventStructs.AlertStructs[uid].Broadcast <- &pbAlert:

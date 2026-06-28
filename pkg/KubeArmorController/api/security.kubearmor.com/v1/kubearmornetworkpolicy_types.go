@@ -18,6 +18,11 @@ type KubeArmorNetworkPolicySpec struct {
 	Ingress []IngressType `json:"ingress,omitempty"`
 	Egress  []EgressType  `json:"egress,omitempty"`
 
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Enum=Pod;Policy;pod;policy
+	// Level defines the scope of quota enforcement.
+	Level string `json:"level,omitempty"`
+
 	// +kubebuilder:validation:optional
 	Severity SeverityType `json:"severity,omitempty"`
 	// +kubebuilder:validation:optional
