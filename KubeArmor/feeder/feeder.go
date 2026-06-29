@@ -380,7 +380,7 @@ func NewFeeder(node *tp.Node, nodeLock **sync.RWMutex) (feeder *Feeder) {
 
 	fd.LogServer, err = createGRPCServer(
 		node.NodeIP,
-		cfg.GlobalCfg.TLSEnabled ,
+		cfg.GlobalCfg.TLSEnabled,
 	)
 	if err != nil {
 		kg.Errf("cannot create log gRPC server: %s", err)
@@ -389,10 +389,10 @@ func NewFeeder(node *tp.Node, nodeLock **sync.RWMutex) (feeder *Feeder) {
 
 	// ManagementServer //
 
-	if cfg.GlobalCfg.ManagementGRPC == "0"{
+	if cfg.GlobalCfg.ManagementGRPC == "0" {
 		kg.Err("managementGRPC PORT cannot be 0")
-        return nil
-	}	
+		return nil
+	}
 
 	// gRPC configuration for management server
 	fd.ManagementPort = fmt.Sprintf(":%s", cfg.GlobalCfg.ManagementGRPC)
@@ -404,8 +404,8 @@ func NewFeeder(node *tp.Node, nodeLock **sync.RWMutex) (feeder *Feeder) {
 		return nil
 	}
 	fd.ManagementListener = managementListener
-	
-	fd.ManagementServer, err = createGRPCServer(node.NodeIP, true,)
+
+	fd.ManagementServer, err = createGRPCServer(node.NodeIP, true)
 	if err != nil {
 		kg.Errf(
 			"Failed to listen a management port (%s, %s)",
@@ -413,7 +413,7 @@ func NewFeeder(node *tp.Node, nodeLock **sync.RWMutex) (feeder *Feeder) {
 			err.Error(),
 		)
 		return nil
-	}	
+	}
 
 	pb.RegisterLogServiceServer(fd.LogServer, logService)
 
@@ -445,7 +445,7 @@ func createGRPCServer(nodeIP string, tlsEnabled bool) (*grpc.Server, error) {
 		Time:    1 * time.Second,
 		Timeout: 5 * time.Second,
 	}
-    
+
 	if tlsEnabled {
 		tlsCredentials, err := loadTLSCredentials(nodeIP)
 		if err != nil {
@@ -464,7 +464,7 @@ func createGRPCServer(nodeIP string, tlsEnabled bool) (*grpc.Server, error) {
 	return grpc.NewServer(
 		grpc.KeepaliveEnforcementPolicy(kaep),
 		grpc.KeepaliveParams(kasp),
-	), nil	
+	), nil
 }
 
 // DestroyFeeder Function
