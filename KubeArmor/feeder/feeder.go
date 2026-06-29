@@ -221,7 +221,7 @@ type BaseFeeder struct {
 
 	// LogServer //
 
-	// port
+	// LogServer gRPC port
 	Port string
 
 	// gRPC listener
@@ -229,6 +229,17 @@ type BaseFeeder struct {
 
 	// log server
 	LogServer *grpc.Server
+
+	// Management GRPC Server //
+
+	// Management GRPC port
+	ManagementPort string
+
+	// ManagementListener
+	ManagementListener net.Listener
+
+	// ManagementServer
+	ManagementServer *grpc.Server
 
 	// username map
 	UserNameMap UserNameMap
@@ -321,10 +332,10 @@ func NewFeeder(node *tp.Node, nodeLock **sync.RWMutex) (feeder *Feeder) {
 
 	// LogServer //
 
-	// gRPC configuration
+	// gRPC configuration for log server
 	fd.Port = fmt.Sprintf(":%s", cfg.GlobalCfg.GRPC)
 
-	// listen to gRPC port
+	// listen to log server gRPC port
 	listener, err := net.Listen("tcp", fd.Port)
 	if err != nil {
 		kg.Errf("Failed to listen a port (%s, %s)", fd.Port, err.Error())
@@ -364,30 +375,42 @@ func NewFeeder(node *tp.Node, nodeLock **sync.RWMutex) (feeder *Feeder) {
 		EventStructs: fd.EventStructs,
 	}
 
-	kaep := keepalive.EnforcementPolicy{
-		PermitWithoutStream: true,
-	}
-	kasp := keepalive.ServerParameters{
-		Time:    1 * time.Second,
-		Timeout: 5 * time.Second,
+	fd.LogServer, err = createGRPCServer(
+		node.NodeIP,
+		cfg.GlobalCfg.TLSEnabled ,
+	)
+	if err != nil {
+		kg.Errf("cannot create log gRPC server: %s", err)
+		return nil
 	}
 
-	if cfg.GlobalCfg.TLSEnabled {
-		tlsCredentials, err := loadTLSCredentials(node.NodeIP)
-		if err != nil {
-			kg.Errf("cannot load TLS credentials: %s", err)
-			return nil
-		}
-		kg.Print("Server started with tls enabled")
-		// create a log server
-		fd.LogServer = grpc.NewServer(
-			grpc.Creds(tlsCredentials),
-			grpc.KeepaliveEnforcementPolicy(kaep),
-			grpc.KeepaliveParams(kasp),
-		)
-	} else {
-		fd.LogServer = grpc.NewServer(grpc.KeepaliveEnforcementPolicy(kaep), grpc.KeepaliveParams(kasp))
+	// ManagementServer //
+
+	if cfg.GlobalCfg.ManagementGRPC == "0"{
+		kg.Err("managementGRPC PORT cannot be 0")
+        return nil
+	}	
+
+	// gRPC configuration for management server
+	fd.ManagementPort = fmt.Sprintf(":%s", cfg.GlobalCfg.ManagementGRPC)
+
+	// listener to ManagementGRPC port
+	managementListener, err := net.Listen("tcp", fd.ManagementPort)
+	if err != nil {
+		kg.Errf("cannot create management listener: %s", err)
+		return nil
 	}
+	fd.ManagementListener = managementListener
+	
+	fd.ManagementServer, err = createGRPCServer(node.NodeIP, true,)
+	if err != nil {
+		kg.Errf(
+			"Failed to listen a management port (%s, %s)",
+			fd.ManagementPort,
+			err.Error(),
+		)
+		return nil
+	}	
 
 	pb.RegisterLogServiceServer(fd.LogServer, logService)
 
@@ -409,6 +432,38 @@ func NewFeeder(node *tp.Node, nodeLock **sync.RWMutex) (feeder *Feeder) {
 	return fd
 }
 
+// Helper function to create a gRPC server
+func createGRPCServer(nodeIP string, tlsEnabled bool) (*grpc.Server, error) {
+
+	kaep := keepalive.EnforcementPolicy{
+		PermitWithoutStream: true,
+	}
+	kasp := keepalive.ServerParameters{
+		Time:    1 * time.Second,
+		Timeout: 5 * time.Second,
+	}
+    
+	if tlsEnabled {
+		tlsCredentials, err := loadTLSCredentials(nodeIP)
+		if err != nil {
+			return nil, err
+		}
+
+		kg.Print("Server started with TLS enabled")
+
+		return grpc.NewServer(
+			grpc.Creds(tlsCredentials),
+			grpc.KeepaliveEnforcementPolicy(kaep),
+			grpc.KeepaliveParams(kasp),
+		), nil
+	}
+
+	return grpc.NewServer(
+		grpc.KeepaliveEnforcementPolicy(kaep),
+		grpc.KeepaliveParams(kasp),
+	), nil	
+}
+
 // DestroyFeeder Function
 func (fd *BaseFeeder) DestroyFeeder() error {
 	// stop gRPC service
@@ -423,6 +478,14 @@ func (fd *BaseFeeder) DestroyFeeder() error {
 			kg.Err(err.Error())
 		}
 		fd.Listener = nil
+	}
+
+	// close management listener
+	if fd.ManagementListener != nil {
+		if err := fd.ManagementListener.Close(); err != nil {
+			kg.Err(err.Error())
+		}
+		fd.ManagementListener = nil
 	}
 
 	// close LogFile
@@ -537,6 +600,17 @@ func (fd *BaseFeeder) ServeLogFeeds() {
 	// feed logs
 	if err := fd.LogServer.Serve(fd.Listener); err != nil {
 		kg.Print("Terminated the gRPC service")
+	}
+}
+
+// ServeManagementServer Function
+func (fd *BaseFeeder) ServeManagementServer() {
+	fd.WgServer.Add(1)
+	defer fd.WgServer.Done()
+
+	// feed management logs
+	if err := fd.ManagementServer.Serve(fd.ManagementListener); err != nil {
+		kg.Print("Terminated the management gRPC service")
 	}
 }
 
