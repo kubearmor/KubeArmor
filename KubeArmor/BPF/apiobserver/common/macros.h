@@ -85,6 +85,7 @@
 
 #define MIN_HTTP_SIZE 16
 #define FLAG_IS_SSL 0x04 // event came from SSL uprobe
+#define FLAG_CONN_CLOSE 0x08 // connection close notification (no payload)
 
 // Safe LE word read from BPF stack/percpu memory
 // buf MUST be in BPF memory
