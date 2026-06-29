@@ -15,6 +15,8 @@ jobs:
     if: github.repository == 'kubearmor/kubearmor'
     runs-on: ubuntu-22.04
     timeout-minutes: 60
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
@@ -58,7 +60,6 @@ jobs:
         run: |
           STABLE_VERSION=`cat STABLE-RELEASE`
           gh release create --repo kubearmor/charts $STABLE_VERSION --generate-notes
-
 
   update-helm-chart:
     name: Update KubeArmor Helm chart version
