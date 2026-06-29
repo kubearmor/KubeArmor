@@ -26,8 +26,8 @@ import (
 	"github.com/kubearmor/KubeArmor/KubeArmor/presets"
 	"github.com/kubearmor/KubeArmor/KubeArmor/state"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
-	"google.golang.org/grpc"
 	pb "github.com/kubearmor/KubeArmor/protobuf"
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/health"
 	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/reflection"
@@ -799,7 +799,7 @@ func KubeArmor() {
 
 		apiObs, err := apiobserver.NewAPIObserver(dm.Node, dm.SystemMonitor.PinPath, dm.Logger, resolver)
 		if err != nil {
-			dm.Logger.Warnf("Failed to initialize API Observer (non-fatal): %v", err)
+			dm.Logger.Warnf("Failed to initialize API Observer: %v", err)
 		} else {
 			dm.APIObserver = apiObs
 			dm.Logger.Print("API Observer initialized and running")

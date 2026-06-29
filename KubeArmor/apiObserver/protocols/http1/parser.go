@@ -426,7 +426,6 @@ func parseRequestLine(line string, msg *Message) error {
 // isValidHTTPMethod returns true if s is a known HTTP method.
 // This is intentionally strict — only standard methods are accepted.
 func isValidHTTPMethod(s string) bool {
-	fmt.Printf("HTTP METHOD: %s\n", s)
 	switch s {
 	case "GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS", "CONNECT", "TRACE":
 		return true
