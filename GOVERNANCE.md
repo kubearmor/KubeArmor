@@ -124,7 +124,7 @@ The Security Response Committee receives vulnerability reports, coordinates fixe
 
 Membership: drawn from Maintainers and contributors with security expertise. Nomination is by an existing SRC member, seconded by a Maintainer, followed by a shadow period of at least one disclosure cycle before full voting membership.
 
-Current members are listed in [SECURITY.md](./SECURITY.md). <!-- TODO: SRC roster needs to be populated. Currently the project security email routes through support@accuknox.com — moving to a project-owned alias is tracked as a separate change. -->
+Current members are listed in [SECURITY.md](./SECURITY.md). The project security alias is **<support@kubearmor.io>**. <!-- TODO: SRC roster needs to be populated. -->
 
 Reporting path and process: see [SECURITY.md](./SECURITY.md).
 

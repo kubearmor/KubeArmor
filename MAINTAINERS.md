@@ -4,6 +4,8 @@ This file lists the people who maintain KubeArmor. The roles, requirements, and 
 
 Affiliations are disclosed per the vendor-neutrality clause in `GOVERNANCE.md`. If your affiliation changes, please open a pull request to this file within 30 days.
 
+**General contact:** <support@kubearmor.io> reaches the Maintainer group. Use it for governance, code-of-conduct, or other project-level inquiries that should reach all Maintainers at once. For security reports, follow [SECURITY.md](./SECURITY.md). For real-time chat, see the [Community page](https://kubearmor.io/community).
+
 ## Maintainers
 
 Maintainers have merge authority and share responsibility for the project's direction, releases, code of conduct, and security response.

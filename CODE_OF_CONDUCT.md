@@ -10,7 +10,7 @@ If you experience or witness behavior that violates the Code of Conduct, please 
 
 ### Project-side reporting
 
-- Email the project Maintainers privately at <!-- TODO: replace with a project-owned maintainer alias once provisioned. A dedicated alias is preferable to an individual mailbox so that reports survive maintainer turnover. --> the contact addresses listed in [MAINTAINERS.md](./MAINTAINERS.md).
+- Email the project Maintainers privately at **<support@kubearmor.io>**, or contact them individually using the addresses listed in [MAINTAINERS.md](./MAINTAINERS.md).
 - If the report concerns a specific Maintainer, please send it to **at least two** other Maintainers, or use the CNCF reporting path below to bypass the project entirely.
 
 ### CNCF reporting path

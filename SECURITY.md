@@ -19,7 +19,7 @@ For information regarding the security of this project please join our [Slack ch
 - Your issue is not security-related.
 
 ### Please use the below process to report a vulnerability to the project:
-1. Email the **KubeArmor security group at support@accuknox.com**
+1. Email the **KubeArmor security group at support@kubearmor.io**
 
     * Please include the requested information listed below (as much as you can provide) to help us better understand the nature and scope of the possible issue:
         * Type of issue (e.g. buffer overflow, SQL injection, cross-site scripting, etc.)
