@@ -13,6 +13,32 @@
   "docker": {
     "pinDigests": true
   },
+  "packageRules": [
+    {
+      "description": "Group all GitHub Actions digest-pin updates into one PR",
+      "matchManagers": [
+        "github-actions"
+      ],
+      "matchUpdateTypes": [
+        "pin",
+        "digest"
+      ],
+      "groupName": "GitHub Actions digest pins",
+      "automerge": false
+    },
+    {
+      "description": "Group all Docker digest-pin updates into one PR",
+      "matchManagers": [
+        "dockerfile"
+      ],
+      "matchUpdateTypes": [
+        "pin",
+        "digest"
+      ],
+      "groupName": "Docker image digest pins",
+      "automerge": false
+    }
+  ],
   "postUpdateOptions": [
     "gomodTidy"
   ],
