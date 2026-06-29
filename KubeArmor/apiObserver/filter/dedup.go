@@ -53,7 +53,17 @@ func (d *DedupCache) Stop() {
 }
 
 // cleanupLoop periodically evicts expired entries to prevent memory leak.
+// The 15s stagger at startup prevents this loop from firing concurrently
+// with the /proc scanner (t=0), correlator cleanup (t=10s), and
+// eviction loop (t=20s).
 func (d *DedupCache) cleanupLoop() {
+	// Stagger: offset from other periodic loops.
+	select {
+	case <-time.After(15 * time.Second):
+	case <-d.done:
+		return
+	}
+
 	ticker := time.NewTicker(10 * time.Second)
 	defer ticker.Stop()
 	for {

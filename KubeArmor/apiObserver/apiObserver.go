@@ -54,25 +54,40 @@ type APIObserver struct {
 
 	// BPF compiled objects and attached probe links.
 	objs    apiObserverObjects
-	links   []io.Closer
+	links   []io.Closer // lifecycle-level links (kprobes, tracepoints, host SSL)
 	linksMu sync.Mutex
+
+	// Per-inode uprobe links for O(1) cleanup on container exit.
+	// Keyed by binary inode; each entry holds all uprobe links attached
+	// to that binary. Used by the unified proc walker's onPIDGone callback.
+	linksByInode   map[uint64][]io.Closer
+	linksByInodeMu sync.Mutex
+
+	// Unified /proc scanner — replaces the three independent 30s walkers.
+	procWalker *UnifiedProcWalker
+
+	// Dedup maps for scanner callbacks — prevent re-attaching uprobes
+	// to binaries already probed. Keyed by binary path (Go HTTP/2) or
+	// library path (gRPC-C).
+	goAttached    map[string]bool
+	grpcCAttached map[string]bool
 
 	// Ring buffer: BPF emits samples here; we drain into EventsChannel.
 	Events        *ringbuf.Reader
-	EventsChannel chan []byte
+	EventsChannel chan events.DataEvent
 
 	// Go gRPC request events ring buffer.
 	goGRPCEvents  *ringbuf.Reader
-	goGRPCChannel chan []byte
+	goGRPCChannel chan *events.GoGRPCRequestEvent
 	grpccEvents   *ringbuf.Reader // ring buffer for gRPC-C header events
-	grpccChannel  chan []byte
+	grpccChannel  chan []byte     // gRPC-C uses perf-style raw bytes (small volume)
 
 	goH2TransportEvents  *ringbuf.Reader
-	goH2TransportChannel chan []byte
+	goH2TransportChannel chan *events.GoH2TransportEvent
 
 	// Per-field header events from hpack.WriteField / loopyWriter.writeHeader.
 	goH2SingleHeaderEvents  *ringbuf.Reader
-	goH2SingleHeaderChannel chan []byte
+	goH2SingleHeaderChannel chan *events.GoH2SingleHeaderEvent
 
 	// TLS chunk perf reader (ks_chunks_buffer).
 	ksTlsChunksReader *perf.Reader
@@ -115,6 +130,9 @@ func NewAPIObserver(node tp.Node, pinpath string, logger *fd.Feeder, svcResolver
 		Logger:           logger,
 		nodeName:         node.NodeName,
 		resolveServiceFn: svcResolver,
+		linksByInode:     make(map[uint64][]io.Closer),
+		goAttached:       make(map[string]bool),
+		grpcCAttached:    make(map[string]bool),
 	}
 	ao.ctx, ao.cancel = context.WithCancel(context.Background())
 
@@ -162,7 +180,7 @@ func NewAPIObserver(node tp.Node, pinpath string, logger *fd.Feeder, svcResolver
 		return nil, err
 	}
 
-	ao.EventsChannel = make(chan []byte, 4096)
+	ao.EventsChannel = make(chan events.DataEvent, 4096)
 	ao.Logger.Debug("Ring buffer reader created")
 
 	ao.filterer = filter.NewFilterer()
@@ -177,14 +195,14 @@ func NewAPIObserver(node tp.Node, pinpath string, logger *fd.Feeder, svcResolver
 	if err != nil {
 		ao.Logger.Warnf("Go HTTP/2 header events ring buffer not available (uprobe headers disabled): %v", err)
 	} else {
-		ao.goGRPCChannel = make(chan []byte, 2048)
+		ao.goGRPCChannel = make(chan *events.GoGRPCRequestEvent, 2048)
 		ao.Logger.Debug("Go GRPC events ring buffer created")
 	}
 	ao.goH2TransportEvents, err = ringbuf.NewReader(ao.objs.GoH2TransportEvents)
 	if err != nil {
 		ao.Logger.Warnf("Go HTTP/2 transport events ring buffer not available (operateHeaders disabled): %v", err)
 	} else {
-		ao.goH2TransportChannel = make(chan []byte, 2048)
+		ao.goH2TransportChannel = make(chan *events.GoH2TransportEvent, 2048)
 		ao.Logger.Debug("Go HTTP/2 transport events ring buffer created")
 	}
 
@@ -192,18 +210,20 @@ func NewAPIObserver(node tp.Node, pinpath string, logger *fd.Feeder, svcResolver
 	if err != nil {
 		ao.Logger.Warnf("Go HTTP/2 single-header events ring buffer not available (hpack probes disabled): %v", err)
 	} else {
-		ao.goH2SingleHeaderChannel = make(chan []byte, 4096)
+		ao.goH2SingleHeaderChannel = make(chan *events.GoH2SingleHeaderEvent, 4096)
 		ao.Logger.Debug("Go HTTP/2 single-header events ring buffer created")
 	}
 
 	go ao.TraceEvents()
 	go ao.flushLoop()
 
-	// Start background Go HTTP/2 uprobe scanner.
-	go ao.attachGoHTTP2Uprobes()
-
-	// Start background SSL uprobe scanner for HTTPS traffic capture.
-	go ao.attachSSLUprobes()
+	// Start drain goroutines immediately after BPF load — these consume from
+	// ring buffers that exist independently of whether uprobes are attached.
+	// Previously these were inside attachGoHTTP2Uprobes, causing events from
+	// the first 10s to be silently dropped.
+	go ao.drainGoHeaderEvents()
+	go ao.drainGoH2TransportEvents()
+	go ao.drainGoH2SingleHeaderEvents()
 
 	// Kubeshark-style TLS chunks perf reader.
 	ksPerfReader, err := perf.NewReader(ao.objs.KsChunksBuffer, 4096*128)
@@ -222,9 +242,28 @@ func NewAPIObserver(node tp.Node, pinpath string, logger *fd.Feeder, svcResolver
 		ao.grpccChannel = make(chan []byte, 2048)
 		ao.Logger.Debug("gRPC-C events ring buffer created")
 	}
-
-	go ao.attachGRPCCUprobes()
 	go ao.drainGRPCCEvents()
+
+	// Unified /proc walker — replaces three independent 30s goroutines
+	// (attachSSLUprobes, attachGoHTTP2Uprobes, attachGRPCCUprobes) with
+	// a single walker that diffs against a ProcCache. Steady-state ticks
+	// are near-zero-cost no-ops.
+	//
+	// Host-level SSL uprobes are attached immediately (not via the walker)
+	// because they cover ephemeral processes (curl, wget) and don't need
+	// per-PID /proc scanning.
+	ao.attachHostSSLUprobes(make(map[sslProbeKey]bool))
+
+	ao.procWalker = NewUnifiedProcWalker(
+		20*time.Second,
+		[]ScannerFunc{
+			ao.sslScannerFunc,
+			ao.goHTTP2ScannerFunc,
+			ao.grpcCScannerFunc,
+		},
+		ao.onPIDGone,
+	)
+	go ao.runProcWalker()
 
 	return ao, nil
 }
@@ -498,18 +537,29 @@ func (ao *APIObserver) TraceEvents() {
 	}
 	ao.Logger.Print("Starting TraceEvents from API Observer")
 
+	// Reader goroutine: uses ReadInto with a reusable record to avoid
+	// allocating a new []byte for every BPF event (~37GB of allocation
+	// churn eliminated). Parsing happens synchronously before the next
+	// ReadInto overwrites the buffer.
 	go func() {
+		var rec ringbuf.Record
 		for {
-			record, err := ao.Events.Read()
-			if err != nil {
+			if err := ao.Events.ReadInto(&rec); err != nil {
 				if errors.Is(err, ringbuf.ErrClosed) {
 					return
 				}
 				ao.Logger.Warnf("Ringbuf read error: %v", err)
 				continue
 			}
+			// Parse synchronously — ReadInto reuses the buffer, so we
+			// must copy the data into a parsed struct before the next read.
+			ev, err := events.ParseDataEvent(rec.RawSample)
+			if err != nil {
+				ao.Logger.Debugf("ParseDataEvent error: %v", err)
+				continue
+			}
 			select {
-			case ao.EventsChannel <- record.RawSample:
+			case ao.EventsChannel <- *ev:
 			case <-ao.ctx.Done():
 				return
 			default:
@@ -524,13 +574,8 @@ func (ao *APIObserver) TraceEvents() {
 		case <-ao.ctx.Done():
 			ao.Logger.Print("API Observer context cancelled — stopping")
 			return
-		case dataRaw := <-ao.EventsChannel:
-			ev, err := events.ParseDataEvent(dataRaw)
-			if err != nil {
-				ao.Logger.Debugf("ParseDataEvent error: %v", err)
-				continue
-			}
-			ao.processEvent(*ev)
+		case ev := <-ao.EventsChannel:
+			ao.processEvent(ev)
 		}
 	}
 }
@@ -547,19 +592,24 @@ func (ao *APIObserver) drainGoHeaderEvents() {
 
 	ao.Logger.Debug("Starting Go gRPC events reader")
 
-	// Ring buffer reader goroutine.
+	// Ring buffer reader goroutine — uses ReadInto to avoid per-event allocs.
 	go func() {
+		var rec ringbuf.Record
 		for {
-			record, err := ao.goGRPCEvents.Read()
-			if err != nil {
+			if err := ao.goGRPCEvents.ReadInto(&rec); err != nil {
 				if errors.Is(err, ringbuf.ErrClosed) {
 					return
 				}
 				ao.Logger.Warnf("Go header ringbuf read error: %v", err)
 				continue
 			}
+			ev, err := events.ParseGoGRPCRequestEvent(rec.RawSample)
+			if err != nil {
+				ao.Logger.Debugf("ParseGoGRPCRequestEvent error: %v", err)
+				continue
+			}
 			select {
-			case ao.goGRPCChannel <- record.RawSample:
+			case ao.goGRPCChannel <- ev:
 			case <-ao.ctx.Done():
 				return
 			default:
@@ -573,12 +623,7 @@ func (ao *APIObserver) drainGoHeaderEvents() {
 		select {
 		case <-ao.ctx.Done():
 			return
-		case raw := <-ao.goGRPCChannel:
-			ev, err := events.ParseGoGRPCRequestEvent(raw)
-			if err != nil {
-				ao.Logger.Debugf("ParseGoGRPCRequestEvent error: %v", err)
-				continue
-			}
+		case ev := <-ao.goGRPCChannel:
 			ao.processGoGRPCEvent(ev)
 		}
 	}
@@ -605,6 +650,13 @@ func (ao *APIObserver) processGoGRPCEvent(ev *events.GoGRPCRequestEvent) {
 }
 
 func (ao *APIObserver) processEvent(ev events.DataEvent) {
+	// Handle connection close notifications from BPF (TCP_CLOSE).
+	// Immediately free the tracker to prevent FD reuse collisions and
+	// reduce memory pressure — don't wait for the 60s eviction loop.
+	if ev.IsConnClose() {
+		ao.connManager.Close(ev.ConnectionKey)
+		return
+	}
 	traces := ao.connManager.Route(&ev)
 	for _, trace := range traces {
 		ao.enrichAndEmit(trace, &ev)
@@ -843,6 +895,264 @@ func (ao *APIObserver) appendLink(l io.Closer) {
 	ao.linksMu.Unlock()
 }
 
+// appendLinkForInode stores a probe link indexed by binary inode.
+// Used for uprobe links that need per-inode lifecycle management
+// (cleanup on container exit via the unified proc walker).
+func (ao *APIObserver) appendLinkForInode(inode uint64, l io.Closer) {
+	ao.linksByInodeMu.Lock()
+	ao.linksByInode[inode] = append(ao.linksByInode[inode], l)
+	ao.linksByInodeMu.Unlock()
+}
+
+// ---------------------------------------------------------------------------
+// Unified proc walker: scanner callbacks + lifecycle
+// ---------------------------------------------------------------------------
+
+// runProcWalker starts the unified /proc walker as a goroutine.
+// Participates in the wg for graceful shutdown.
+func (ao *APIObserver) runProcWalker() {
+	ao.wg.Add(1)
+	defer ao.wg.Done()
+	ao.procWalker.Run(ao.ctx)
+}
+
+// sslScannerFunc is the unified walker callback for SSL uprobe attachment.
+// Called only for genuinely new PIDs (binary inode not seen before).
+// Reads /proc/<pid>/cgroup (container check) and /proc/<pid>/maps (SSL lib
+// discovery) only for new PIDs — not on every tick.
+func (ao *APIObserver) sslScannerFunc(snap ProcSnapshot) error {
+	pid := int(snap.PID)
+
+	// Container check: read cgroup only for new PIDs.
+	cgroupPath := fmt.Sprintf("%s/%d/cgroup", ssl.ProcRoot, pid)
+	data, err := os.ReadFile(cgroupPath) // #nosec G304 -- path is ProcRoot + validated integer PID
+	if err != nil {
+		return nil // process may have exited
+	}
+	cgroup := string(data)
+	if !strings.Contains(cgroup, "kubepods") &&
+		!strings.Contains(cgroup, "docker") &&
+		!strings.Contains(cgroup, "containerd") {
+		return nil // not a container PID
+	}
+
+	// Discover SSL libraries in this PID's address space.
+	matches := ssl.DiscoverSSLLibsForPID(pid)
+	for _, m := range matches {
+		// Allow fast exit during shutdown.
+		select {
+		case <-ao.ctx.Done():
+			return nil
+		default:
+		}
+
+		inode := ao.getFileInode(m.LibSSLPath)
+		if inode == 0 {
+			continue
+		}
+
+		links := ao.attachSSLProbesForMatch(m)
+		if len(links) == 0 {
+			continue
+		}
+
+		// Write symaddrs for this PID.
+		symAddrs, symErr := ssl.OffsetsForLib(m.LibSSLPath)
+		if symErr == nil {
+			if putErr := ao.objs.SslSymaddrs.Put(uint32(pid), symAddrs); putErr != nil {
+				ao.Logger.Warnf("SSL: failed to write symaddrs for PID %d: %v", pid, putErr)
+			}
+		}
+
+		for _, l := range links {
+			ao.appendLinkForInode(inode, l)
+		}
+		ao.Logger.Debugf("SSL uprobes attached to %s (PID %d, %d probes)",
+			m.LibSSLPath, pid, len(links))
+	}
+	return nil
+}
+
+// goHTTP2ScannerFunc is the unified walker callback for Go HTTP/2 uprobe attachment.
+// Called only for genuinely new PIDs (binary inode not seen before).
+// Uses ScanBinary for O(1) cache lookup — no /proc walk.
+func (ao *APIObserver) goHTTP2ScannerFunc(snap ProcSnapshot) error {
+	// Use the snapshot's hostPath/inode directly — the walker already did the
+	// /proc walk for us. ScanBinary checks the inode cache and only parses
+	// ELF if this is a genuinely new binary.
+	target := goprobe.ScanBinary(uint32(snap.PID), snap.HostPath, snap.Inode)
+	if target == nil {
+		return nil // not a Go gRPC/HTTP2 binary
+	}
+
+	if ao.goAttached[target.BinaryPath] {
+		// Already probed — just ensure BPF maps are populated for this PID.
+		ao.populateGoBPFMaps(*target)
+		return nil
+	}
+
+	// Populate BPF maps with offsets for this PID.
+	ao.populateGoBPFMaps(*target)
+
+	// Open the executable for uprobe attachment.
+	ex, err := link.OpenExecutable(target.BinaryPath)
+	if err != nil {
+		ao.Logger.Warnf("Failed to open Go binary %s: %v", target.BinaryPath, err)
+		return nil
+	}
+
+	// probeMap maps uprobe short IDs → BPF programs.
+	probeMap := map[string]*ebpf.Program{
+		"server_handleStream":       ao.objs.KaUprobeServerHandleStream,
+		"server_handleStream_ret":   ao.objs.KaUretprobeServerHandleStream,
+		"transport_writeStatus":     ao.objs.KaUprobeTransportWriteStatus,
+		"ClientConn_Invoke":         ao.objs.KaUprobeClientConnInvoke,
+		"ClientConn_Invoke_ret":     ao.objs.KaUretprobeClientConnInvoke,
+		"ClientConn_NewStream":      ao.objs.KaUprobeClientConnNewStream,
+		"clientStream_RecvMsg_ret":  ao.objs.KaUretprobeClientStreamRecvMsg,
+		"operate_headers_server":    ao.objs.KaUprobeOperateHeadersServer,
+		"operate_headers_client":    ao.objs.KaUprobeOperateHeadersClient,
+		"net_http_processHeaders":   ao.objs.KaUprobeNetHttpProcessHeaders,
+		"loopy_writer_write_header": ao.objs.KaUprobeLoopyWriterWriteHeader,
+		"hpack_write_field":         ao.objs.KaUprobeHpackWriteField,
+		"http2_write_res_headers":   ao.objs.KaUprobeHttp2WriteResHeaders,
+		"go_tls_write":              ao.objs.KaUprobeGoTlsWrite,
+		"go_tls_read":               ao.objs.KaUprobeGoTlsRead,
+	}
+
+	probeCount := 0
+	for shortID, addr := range target.Symbols {
+		// Allow fast exit during shutdown.
+		select {
+		case <-ao.ctx.Done():
+			return nil
+		default:
+		}
+
+		// Attach entry uprobe.
+		if prog, ok := probeMap[shortID]; ok {
+			l, err := attachUprobeWithFallback(ex, "", prog, addr)
+			if err != nil {
+				ao.Logger.Warnf("Failed to attach uprobe %s at 0x%x on %s: %v",
+					shortID, addr, target.BinaryPath, err)
+			} else {
+				ao.appendLinkForInode(target.Inode, l)
+				probeCount++
+			}
+		}
+
+		// Attach return uprobe (uretprobe) if it exists.
+		retKey := shortID + "_ret"
+		if retProg, ok := probeMap[retKey]; ok {
+			l, err := attachUprobeWithFallback(ex, "", retProg, addr)
+			if err != nil {
+				ao.Logger.Warnf("Failed to attach uretprobe %s at 0x%x on %s: %v",
+					retKey, addr, target.BinaryPath, err)
+			} else {
+				ao.appendLinkForInode(target.Inode, l)
+				probeCount++
+			}
+		}
+	}
+
+	// Attach Go TLS ret-probes at disassembled ret instruction offsets.
+	if target.GoTlsOffsets != nil {
+		probeCount += ao.attachGoTlsRetProbes(ex, *target)
+	}
+
+	if probeCount > 0 {
+		ao.goAttached[target.BinaryPath] = true
+		ao.Logger.Debugf("Attached %d Go HTTP/2 uprobes on %s (PID %d)",
+			probeCount, target.BinaryPath, target.PID)
+	}
+	return nil
+}
+
+// grpcCScannerFunc is the unified walker callback for gRPC-C uprobe attachment.
+// Called only for genuinely new PIDs (binary inode not seen before).
+func (ao *APIObserver) grpcCScannerFunc(snap ProcSnapshot) error {
+	targets, err := grpcc.ScanProc()
+	if err != nil {
+		ao.Logger.Warnf("gRPC-C proc scan error: %v", err)
+		return nil
+	}
+
+	for _, target := range targets {
+		// Allow fast exit during shutdown.
+		select {
+		case <-ao.ctx.Done():
+			return nil
+		default:
+		}
+
+		if ao.grpcCAttached[target.LibPath] {
+			continue
+		}
+
+		offsets, err := grpcc.OffsetsForLib(target.LibPath)
+		if err != nil {
+			ao.Logger.Warnf("gRPC-C: %v", err)
+			continue
+		}
+		// Array map (max_entries=1) — key is always 0.
+		if err := ao.objs.GrpccSymaddrsMap.Put(uint32(0), offsets); err != nil {
+			ao.Logger.Warnf("gRPC-C: failed to write symaddrs for %s: %v", target.LibPath, err)
+			continue
+		}
+		ex, err := link.OpenExecutable(target.LibPath)
+		if err != nil {
+			ao.Logger.Warnf("gRPC-C: failed to open %s: %v", target.LibPath, err)
+			continue
+		}
+		l, err := ex.Uprobe(
+			"grpc_chttp2_maybe_complete_recv_initial_metadata",
+			ao.objs.KaUprobeGrpcC_recvInitialMetadataEntry,
+			nil,
+		)
+		if err != nil {
+			ao.Logger.Warnf("gRPC-C: uprobe attach failed on %s: %v", target.LibPath, err)
+			continue
+		}
+
+		// Resolve inode for lifecycle tracking.
+		inode := ao.getFileInode(target.LibPath)
+		if inode != 0 {
+			ao.appendLinkForInode(inode, l)
+		} else {
+			ao.appendLink(l) // fallback: no inode, use lifecycle-level links
+		}
+		ao.grpcCAttached[target.LibPath] = true
+		ao.Logger.Debugf("gRPC-C uprobe attached to %s (PID %d)", target.LibPath, target.PID)
+	}
+	return nil
+}
+
+// onPIDGone is called by the unified proc walker when a previously cached PID
+// no longer exists (container exited). Closes uprobe links for that PID's
+// binary inode and removes the BPF map entry.
+func (ao *APIObserver) onPIDGone(pid uint32, snap ProcSnapshot) {
+	// Close uprobe links associated with this binary inode.
+	ao.linksByInodeMu.Lock()
+	links := ao.linksByInode[snap.Inode]
+	delete(ao.linksByInode, snap.Inode)
+	ao.linksByInodeMu.Unlock()
+
+	for _, l := range links {
+		if err := l.Close(); err != nil {
+			ao.Logger.Warnf("onPIDGone: failed to close link for PID %d inode %d: %v",
+				pid, snap.Inode, err)
+		}
+	}
+
+	// Remove per-TGID BPF map entries.
+	_ = ao.objs.SslSymaddrs.Delete(pid)
+
+	if len(links) > 0 {
+		ao.Logger.Debugf("onPIDGone: cleaned up %d links for PID %d (inode %d)",
+			len(links), pid, snap.Inode)
+	}
+}
+
 // resolveAuthority determines the :authority pseudo-header value.
 // Priority: host header > :authority header > K8s service name > ip:port.
 func (ao *APIObserver) resolveAuthority(trace *events.CorrelatedTrace, ev *events.DataEvent) string {
@@ -941,7 +1251,7 @@ func (ao *APIObserver) attachSSLUprobes() {
 
 				links := ao.attachSSLProbesForMatch(m)
 				if len(links) == 0 {
-					ao.Logger.Warnf("SSL scanner: no probes attached for %s (PID %d) — symbols not found?",
+					ao.Logger.Debugf("SSL scanner: no probes attached for %s (PID %d) — symbols not found?",
 						m.LibSSLPath, pid)
 					continue
 				}
@@ -962,7 +1272,7 @@ func (ao *APIObserver) attachSSLUprobes() {
 					info.links = append(info.links, l)
 				}
 
-				ao.Logger.Printf("SSL uprobes attached to %s (PID %d, strategy=%d, %d probes)",
+				ao.Logger.Debugf("SSL uprobes attached to %s (PID %d, strategy=%d, %d probes)",
 					m.LibSSLPath, pid, m.Matcher.SocketFDAccess, len(links))
 			}
 		}
@@ -1393,7 +1703,7 @@ func (ao *APIObserver) attachGoTlsRetProbes(ex *link.Executable, target goprobe.
 			ao.appendLink(l)
 			readCount++
 		}
-		ao.Logger.Printf("  Go TLS read_ex: %d ret probes attached", readCount)
+		ao.Logger.Printf("Go TLS read_ex: %d ret probes attached", readCount)
 	}
 
 	return probeCount + readCount
@@ -1487,16 +1797,19 @@ func (ao *APIObserver) drainGRPCCEvents() {
 	}
 
 	go func() {
+		var rec ringbuf.Record
 		for {
-			record, err := ao.grpccEvents.Read()
-			if err != nil {
+			if err := ao.grpccEvents.ReadInto(&rec); err != nil {
 				if errors.Is(err, ringbuf.ErrClosed) {
 					return
 				}
 				continue
 			}
+			// Copy raw sample — ReadInto reuses buffer.
+			raw := make([]byte, len(rec.RawSample))
+			copy(raw, rec.RawSample)
 			select {
-			case ao.grpccChannel <- record.RawSample:
+			case ao.grpccChannel <- raw:
 			case <-ao.ctx.Done():
 				return
 			}
@@ -1529,17 +1842,22 @@ func (ao *APIObserver) drainGoH2TransportEvents() {
 	ao.Logger.Print("Starting Go HTTP/2 transport events reader")
 
 	go func() {
+		var rec ringbuf.Record
 		for {
-			record, err := ao.goH2TransportEvents.Read()
-			if err != nil {
+			if err := ao.goH2TransportEvents.ReadInto(&rec); err != nil {
 				if errors.Is(err, ringbuf.ErrClosed) {
 					return
 				}
 				ao.Logger.Warnf("Go H2 transport ringbuf read error: %v", err)
 				continue
 			}
+			ev, err := events.ParseGoH2TransportEvent(rec.RawSample)
+			if err != nil {
+				ao.Logger.Debugf("ParseGoH2TransportEvent error: %v", err)
+				continue
+			}
 			select {
-			case ao.goH2TransportChannel <- record.RawSample:
+			case ao.goH2TransportChannel <- ev:
 			case <-ao.ctx.Done():
 				return
 			default:
@@ -1552,12 +1870,7 @@ func (ao *APIObserver) drainGoH2TransportEvents() {
 		select {
 		case <-ao.ctx.Done():
 			return
-		case raw := <-ao.goH2TransportChannel:
-			ev, err := events.ParseGoH2TransportEvent(raw)
-			if err != nil {
-				ao.Logger.Debugf("ParseGoH2TransportEvent error: %v", err)
-				continue
-			}
+		case ev := <-ao.goH2TransportChannel:
 			ao.Logger.Debugf("Go H2 transport event: pid=%d stream=%d is_server=%d method=%q path=%q",
 				ev.PID, ev.StreamID, ev.IsServer, ev.Headers()[":method"], ev.Headers()[":path"])
 			ao.correlator.InjectGoHTTP2TransportHeaders(ev.PID, ev.StreamID, ev.Headers())
@@ -1579,17 +1892,22 @@ func (ao *APIObserver) drainGoH2SingleHeaderEvents() {
 	ao.Logger.Debug("Starting Go HTTP/2 single-header events reader")
 
 	go func() {
+		var rec ringbuf.Record
 		for {
-			record, err := ao.goH2SingleHeaderEvents.Read()
-			if err != nil {
+			if err := ao.goH2SingleHeaderEvents.ReadInto(&rec); err != nil {
 				if errors.Is(err, ringbuf.ErrClosed) {
 					return
 				}
 				ao.Logger.Warnf("Go H2 single-header ringbuf read error: %v", err)
 				continue
 			}
+			ev, err := events.ParseGoH2SingleHeaderEvent(rec.RawSample)
+			if err != nil {
+				ao.Logger.Debugf("ParseGoH2SingleHeaderEvent error: %v", err)
+				continue
+			}
 			select {
-			case ao.goH2SingleHeaderChannel <- record.RawSample:
+			case ao.goH2SingleHeaderChannel <- ev:
 			case <-ao.ctx.Done():
 				return
 			default:
@@ -1602,12 +1920,7 @@ func (ao *APIObserver) drainGoH2SingleHeaderEvents() {
 		select {
 		case <-ao.ctx.Done():
 			return
-		case raw := <-ao.goH2SingleHeaderChannel:
-			ev, err := events.ParseGoH2SingleHeaderEvent(raw)
-			if err != nil {
-				ao.Logger.Debugf("ParseGoH2SingleHeaderEvent error: %v", err)
-				continue
-			}
+		case ev := <-ao.goH2SingleHeaderChannel:
 			name := ev.HeaderName()
 			value := ev.HeaderValue()
 			if name == "" {
@@ -2095,6 +2408,19 @@ func (ao *APIObserver) DestroyAPIObserver() error {
 			cleanupErr = errors.Join(cleanupErr, err)
 		}
 	}
+
+	// Close per-inode uprobe links.
+	ao.linksByInodeMu.Lock()
+	for inode, ilinks := range ao.linksByInode {
+		for _, l := range ilinks {
+			if err := l.Close(); err != nil {
+				ao.Logger.Warnf("Failed to close link for inode %d: %v", inode, err)
+				cleanupErr = errors.Join(cleanupErr, err)
+			}
+		}
+	}
+	ao.linksByInode = nil
+	ao.linksByInodeMu.Unlock()
 
 	// 5. Close BPF objects last.
 	if err := ao.objs.Close(); err != nil {

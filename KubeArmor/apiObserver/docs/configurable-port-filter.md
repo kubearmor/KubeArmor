@@ -26,19 +26,7 @@ At startup, the API Observer populates a BPF hash map (`port_exclusion_map`) wit
 
 ## Default Excluded Ports
 
-The following Kubernetes infrastructure ports are excluded by default:
-
-| Port  | Service               |
-|-------|-----------------------|
-| 6443  | kube-apiserver        |
-| 2379  | etcd client           |
-| 2380  | etcd peer             |
-| 10250 | kubelet API           |
-| 10255 | kubelet read-only     |
-| 10256 | kube-proxy health     |
-| 9091  | Prometheus pushgateway|
-| 9099  | Calico felix          |
-| 9100  | node-exporter         |
+By default no ports are excluded. 
 
 ## Configuration
 
@@ -76,7 +64,7 @@ kubearmor:
 - Comma-separated list of port numbers (1–65535)
 - Whitespace around ports is trimmed
 - Invalid entries are logged as warnings and skipped
-- Empty string means no additional ports (only defaults apply)
+- Empty string means no ports
 
 ## Verification
 
@@ -85,8 +73,6 @@ On startup, KubeArmor logs the total count of excluded ports:
 ```
 Port exclusion map populated: 12 ports excluded
 ```
-
-This includes both the 9 default ports and any user-specified additions.
 
 ## Architecture
 
@@ -124,5 +110,4 @@ func (ao *APIObserver) populatePortExclusions() {
 ## Notes
 
 - The map has a max capacity of 64 entries (default 9 + up to 55 user-specified)
-- Port `8443` was removed from the default exclusion list because it is commonly used by application HTTPS servers (e.g., nginx, Flask with TLS)
 - Both source and destination ports are checked — if either endpoint is excluded, the entire connection is dropped

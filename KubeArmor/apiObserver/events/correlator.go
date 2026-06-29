@@ -598,7 +598,16 @@ func (c *defaultCorrelator) Stop() {
 }
 
 // cleanupLoop ticks every 10 seconds and evicts requests older than c.timeout.
+// The 10s stagger at startup prevents this loop from firing concurrently
+// with the /proc scanner (t=0) and eviction loop (t=20s).
 func (c *defaultCorrelator) cleanupLoop() {
+	// Stagger: avoid firing simultaneously with /proc scanners (t=0).
+	select {
+	case <-time.After(10 * time.Second):
+	case <-c.ctx.Done():
+		return
+	}
+
 	ticker := time.NewTicker(10 * time.Second)
 	defer ticker.Stop()
 	for {
