@@ -289,6 +289,14 @@ func (dm *KubeArmorDaemon) ServeLogFeeds() {
 	go dm.Logger.ServeLogFeeds()
 }
 
+// ServeManagementServer Function
+func (dm *KubeArmorDaemon) ServeManagementServer() {
+	dm.WgDaemon.Add(1)
+	defer dm.WgDaemon.Done()
+
+	go dm.Logger.ServeManagementServer()
+}
+
 // CloseLogger Function
 func (dm *KubeArmorDaemon) CloseLogger() error {
 	if err := dm.Logger.DestroyFeeder(); err != nil {
@@ -672,7 +680,7 @@ func KubeArmor() {
 		}
 		dm.Logger.Print("Initialized State Agent Server")
 
-		pb.RegisterStateAgentServer(dm.Logger.LogServer, dm.StateAgent)
+		pb.RegisterStateAgentServer(dm.Logger.ManagementServer, dm.StateAgent)
 		if err := dm.SetHealthStatus(pb.StateAgent_ServiceDesc.ServiceName, grpc_health_v1.HealthCheckResponse_SERVING); err != nil {
 			dm.Logger.Warnf("Failed to set health status for StateAgent: %v", err)
 		}
@@ -1121,12 +1129,12 @@ func KubeArmor() {
 			policyService.UpdateNetworkPolicy = dm.ParseAndUpdateNetworkSecurityPolicy
 			dm.Logger.Print("Started to monitor network security policies on gRPC")
 		}
-		pb.RegisterPolicyServiceServer(dm.Logger.LogServer, policyService)
+		pb.RegisterPolicyServiceServer(dm.Logger.ManagementServer, policyService)
 
 		// Enable grpc service to send kubearmor data to client in unorchestrated mode
 		probe := &Probe{}
 		probe.GetContainerData = dm.SetProbeContainerData
-		pb.RegisterProbeServiceServer(dm.Logger.LogServer, probe)
+		pb.RegisterProbeServiceServer(dm.Logger.ManagementServer, probe)
 
 		if err := dm.SetHealthStatus(pb.PolicyService_ServiceDesc.ServiceName, grpc_health_v1.HealthCheckResponse_SERVING); err != nil {
 			dm.Logger.Warnf("Failed to set health status for PolicyService: %v", err)
@@ -1136,11 +1144,13 @@ func KubeArmor() {
 		}
 	}
 
-	reflection.Register(dm.Logger.LogServer) // Helps grpc clients list out what all svc/endpoints available
+	reflection.Register(dm.Logger.ManagementServer) // Helps grpc clients list out what all svc/endpoints available
 
 	// serve log feeds
 	go dm.ServeLogFeeds()
+	go dm.ServeManagementServer()
 	dm.Logger.Print("Started to serve gRPC-based log feeds")
+	dm.Logger.Print("Started to serve gRPC-based management server")
 	if err := dm.SetHealthStatus(pb.LogService_ServiceDesc.ServiceName, grpc_health_v1.HealthCheckResponse_SERVING); err != nil {
 		dm.Logger.Warnf("Failed to set health status for LogService: %v", err)
 	}
