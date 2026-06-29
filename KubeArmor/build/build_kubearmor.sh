@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright 2026 Authors of KubeArmor
 
-[[ "$REPO" == "" ]] && REPO="classikh/kubearmor"
+[[ "$REPO" == "" ]] && REPO="kubearmor/kubearmor"
 
 realpath() {
     CURR=$PWD
@@ -25,7 +25,7 @@ ARMOR_HOME=`dirname $(realpath "$0")`/..
 cd $ARMOR_HOME/build
 pwd
 
-VERSION=v4
+VERSION=latest
 
 # check version
 if [ ! -z $1 ]; then

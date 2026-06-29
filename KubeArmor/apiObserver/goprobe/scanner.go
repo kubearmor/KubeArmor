@@ -33,10 +33,10 @@ type cachedScanResult struct {
 	inode      uint64 // used to detect binary replacement
 }
 
-// binaryCache is an LRU cache keyed by host binary path.
-// Capacity 256 is generous for the number of unique Go binaries on a node.
-// The inode is checked on cache hit to detect replaced binaries.
-var binaryCache, _ = lru.New[string, *cachedScanResult](256)
+// binaryCache is an LRU cache keyed by inode.
+// Capacity 1024 is used to handle large clusters where each pod/container 
+// might have unique inodes for its binaries, preventing expensive ELF parsing thrashing.
+var binaryCache, _ = lru.New[uint64, *cachedScanResult](1024)
 
 // LocType mirrors BPF enum go_location_type.
 const (
@@ -212,15 +212,20 @@ func ScanProc() ([]GoUProbeTarget, error) {
 			}
 		}
 
-		// Check the binary scan cache. A cache hit is valid only if the
-		// inode matches — a different inode means the binary was replaced
-		// (e.g. container restart) and must be re-analysed.
-		if cached, ok := binaryCache.Get(hostPath); ok && cached.inode == inode {
+		if inode == 0 {
+			continue // stat failed, can't safely cache or identify
+		}
+
+		// Check the binary scan cache.
+		if cached, ok := binaryCache.Get(inode); ok {
+			if cached.symbols == nil {
+				continue // negative cache: known non-Go or non-gRPC binary
+			}
 			for _, pe := range pids {
 				targets = append(targets, GoUProbeTarget{
 					PID:          pe.pid,
 					BinaryPath:   pe.hostPath,
-					Inode:        cached.inode,
+					Inode:        inode,
 					Symbols:      cached.symbols,
 					OffsetTable:  cached.offTable,
 					GoTlsOffsets: cached.tlsOffsets,
@@ -231,6 +236,7 @@ func ScanProc() ([]GoUProbeTarget, error) {
 
 		// Quick check: is it a Go binary?
 		if !isGoBinary(hostPath) {
+			binaryCache.Add(inode, &cachedScanResult{symbols: nil}) // negative cache
 			continue
 		}
 
@@ -274,7 +280,7 @@ func ScanProc() ([]GoUProbeTarget, error) {
 		}
 
 		// Store in cache for future scan cycles.
-		binaryCache.Add(hostPath, &cachedScanResult{
+		binaryCache.Add(inode, &cachedScanResult{
 			symbols:    syms,
 			offTable:   offTable,
 			grpcVer:    grpcVer,

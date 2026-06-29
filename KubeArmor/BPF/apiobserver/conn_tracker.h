@@ -239,6 +239,37 @@ handle_inet_sock_set_state(struct inet_sock_set_state_args *ctx) {
     };
     bpf_map_update_elem(&sock_to_conn_id, &sock_ptr, &cid, BPF_NOEXIST);
   } else if (ctx->newstate == TCP_CLOSE) {
+    /* Notify Go-side ConnectionManager to close the tracker immediately.
+     * This must happen BEFORE deleting the maps — we need conn_info and
+     * conn_id to populate the close event's header fields. */
+    struct conn_id *cid = bpf_map_lookup_elem(&sock_to_conn_id, &sock_ptr);
+    struct conn_info *conn = bpf_map_lookup_elem(&connections, &sock_ptr);
+    if (cid && conn) {
+      struct data_event *slot =
+          bpf_ringbuf_reserve(&apiobserver_events, sizeof(struct data_event), 0);
+      if (slot) {
+        /* Zero only the 48-byte header — the payload array is irrelevant
+         * since data_len=0 tells userspace to skip it. __builtin_memset
+         * on the full 8KB+ struct is rejected by the BPF compiler. */
+        slot->timestamp = bpf_ktime_get_ns();
+        slot->pid = cid->tgid;
+        slot->tid = 0;
+        slot->src_ip = conn->src_ip;
+        slot->dst_ip = conn->dst_ip;
+        slot->src_port = conn->src_port;
+        slot->dst_port = conn->dst_port;
+        slot->data_len = 0;
+        slot->direction = 0;
+        slot->protocol = 0;
+        slot->flags = FLAG_CONN_CLOSE;
+        slot->_pad[0] = 0;
+        slot->fd = cid->fd;
+        slot->sock_ptr = sock_ptr;
+        bpf_ringbuf_submit(slot, 0);
+      }
+    }
+
+    /* Clean up BPF-side maps. */
     bpf_map_delete_elem(&connections, &sock_ptr);
     bpf_map_delete_elem(&connection_filter_cache, &sock_ptr);
     bpf_map_delete_elem(&sock_to_conn_id, &sock_ptr);

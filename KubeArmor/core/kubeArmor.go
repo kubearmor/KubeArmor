@@ -773,7 +773,7 @@ func KubeArmor() {
 
 		apiObs, err := apiobserver.NewAPIObserver(dm.Node, dm.SystemMonitor.PinPath, dm.Logger, resolver)
 		if err != nil {
-			dm.Logger.Warnf("Failed to initialize API Observer (non-fatal): %v", err)
+			dm.Logger.Warnf("Failed to initialize API Observer: %v", err)
 		} else {
 			dm.APIObserver = apiObs
 			dm.Logger.Print("API Observer initialized and running")

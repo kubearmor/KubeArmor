@@ -13,8 +13,10 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-
+	"math/rand"
+	"runtime"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/kubearmor/KubeArmor/KubeArmor/apiObserver/events"
@@ -77,12 +79,16 @@ type StreamKey struct {
 type TrackerConfig struct {
 	InactivityTimeout time.Duration // evict after this long with no data
 	MaxBufferSize     int           // per-direction byte buffer cap (bytes)
+	MaxConnections    int           // max concurrent connections
+	OverloadThreshold int           // soft limit to trigger backpressure
 }
 
 func DefaultConfig() TrackerConfig {
 	return TrackerConfig{
-		InactivityTimeout: 90 * time.Second,
+		InactivityTimeout: 30 * time.Second,
 		MaxBufferSize:     192 * 1024, // 192KB per direction
+		MaxConnections:    10000,
+		OverloadThreshold: 7500,
 	}
 }
 
@@ -93,7 +99,7 @@ type ConnectionTracker struct {
 	Protocol      uint8
 	State         ConnState
 	EstablishedAt time.Time
-	LastSeen      time.Time
+	LastSeen      atomic.Int64 // UnixNano
 
 	sendBuf *DataStreamBuffer
 	recvBuf *DataStreamBuffer
@@ -119,35 +125,38 @@ type ConnectionTracker struct {
 	// FIX 2: circuit-breaker for repeated parse failures on the same data.
 	parseErrCount int
 
-	cfg    TrackerConfig
-	mu     sync.Mutex
-	closed bool
+	cfg        TrackerConfig
+	mu         sync.Mutex
+	closed     atomic.Bool
+	forceEvict atomic.Bool
 }
 
 // newConnectionTracker allocates a tracker for a newly established TCP connection.
+// Buffers are acquired from the pool to reduce GC allocation churn.
 func newConnectionTracker(key events.ConnectionKey, sk StreamKey, cfg TrackerConfig) *ConnectionTracker {
-	return &ConnectionTracker{
+	ct := &ConnectionTracker{
 		Key:           key,
 		StreamKey:     sk,
 		Protocol:      events.ProtoUnknown,
 		State:         ConnEstablished,
 		EstablishedAt: time.Now(),
-		LastSeen:      time.Now(),
-		sendBuf:       NewDataStreamBuffer(cfg.MaxBufferSize),
-		recvBuf:       NewDataStreamBuffer(cfg.MaxBufferSize),
+		sendBuf:       AcquireDataStreamBuffer(cfg.MaxBufferSize),
+		recvBuf:       AcquireDataStreamBuffer(cfg.MaxBufferSize),
 		cfg:           cfg,
 	}
+	ct.LastSeen.Store(time.Now().UnixNano())
+	return ct
 }
 
 func (ct *ConnectionTracker) Route(ev *events.DataEvent, cor CorrelatorIface) []*events.CorrelatedTrace {
 	ct.mu.Lock()
 	defer ct.mu.Unlock()
 
-	if ct.closed {
+	if ct.closed.Load() {
 		return nil
 	}
 
-	ct.LastSeen = time.Now()
+	ct.LastSeen.Store(time.Now().UnixNano())
 	ct.State = ConnActive
 
 	if !ct.directionSet {
@@ -165,7 +174,7 @@ func (ct *ConnectionTracker) Route(ev *events.DataEvent, cor CorrelatorIface) []
 			ct.isClientSide = (ev.Direction == events.DirEgress)
 		}
 
-		log.Printf("Tracker: new connection pid=%d fd=%d dir=%d isClient=%v hasConnRole=%v src=%s:%d dst=%s:%d ssl=%v",
+		log.Debugf("Tracker: new connection pid=%d fd=%d dir=%d isClient=%v hasConnRole=%v src=%s:%d dst=%s:%d ssl=%v",
 			ct.Key.PID, ct.Key.FD, ev.Direction, ct.isClientSide, ev.HasConnRole,
 			ev.SrcIPString(), ev.SrcPort, ev.DstIPString(), ev.DstPort,
 			ev.IsSSL())
@@ -187,7 +196,7 @@ func (ct *ConnectionTracker) Route(ev *events.DataEvent, cor CorrelatorIface) []
 		oldProto := ct.Protocol
 		ct.detectProtocol()
 		if ct.Protocol != oldProto {
-			log.Printf("Tracker: protocol detected pid=%d fd=%d proto=%d sendBufLen=%d recvBufLen=%d",
+			log.Debugf("Tracker: protocol detected pid=%d fd=%d proto=%d sendBufLen=%d recvBufLen=%d",
 				ct.Key.PID, ct.Key.FD, ct.Protocol, ct.sendBuf.Len(), ct.recvBuf.Len())
 		}
 		if ct.Protocol == events.ProtoUnknown {
@@ -203,73 +212,76 @@ func (ct *ConnectionTracker) Route(ev *events.DataEvent, cor CorrelatorIface) []
 
 	traces := ct.iterMessages(ev, cor)
 	if len(traces) > 0 {
-		log.Printf("Tracker: %d traces emitted pid=%d fd=%d proto=%d dir=%d",
+		log.Debugf("Tracker: %d traces emitted pid=%d fd=%d proto=%d dir=%d",
 			len(traces), ct.Key.PID, ct.Key.FD, ct.Protocol, ev.Direction)
 	}
 	return traces
 }
 
-// Close marks the connection closed, flushes the correlator, and releases buffers.
+// Close marks the connection closed, flushes the correlator, and releases buffers
+// back to the pool. This is the primary memory reclamation path — called either
+// by BPF TCP_CLOSE notifications (immediate) or the eviction loop (safety net).
 func (ct *ConnectionTracker) Close(cor CorrelatorIface) {
 	ct.mu.Lock()
 	defer ct.mu.Unlock()
 
-	if ct.closed {
+	if ct.closed.Load() {
 		return
 	}
 
-	ct.closed = true
+	ct.closed.Store(true)
 	ct.State = ConnClosed
 
 	if cor != nil {
 		cor.CloseConnection(ct.Key)
 	}
 
-	// Release buffer memory.
-	ct.sendBuf.Reset()
-	ct.recvBuf.Reset()
+	// Release buffers back to the pool for reuse by future connections.
+	// This avoids GC churn: the backing arrays are recycled, not freed.
+	ReleaseDataStreamBuffer(ct.sendBuf)
+	ReleaseDataStreamBuffer(ct.recvBuf)
+	ct.sendBuf = nil
+	ct.recvBuf = nil
 }
 
 // IsStale returns true if the connection has been idle longer than
 // cfg.InactivityTimeout.
 func (ct *ConnectionTracker) IsStale() bool {
-	ct.mu.Lock()
-	defer ct.mu.Unlock()
-	return !ct.closed && time.Since(ct.LastSeen) > ct.cfg.InactivityTimeout
+	return !ct.closed.Load() && time.Since(time.Unix(0, ct.LastSeen.Load())) > ct.cfg.InactivityTimeout
 }
 
 const http2Preface = "PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n"
 
 func (ct *ConnectionTracker) detectProtocol() {
-	buf := ct.sendBuf.Bytes()
-	if len(buf) == 0 {
-		buf = ct.recvBuf.Bytes()
+	// Check BOTH buffers for HTTP/2 preface
+	for _, buf := range [][]byte{ct.sendBuf.Bytes(), ct.recvBuf.Bytes()} {
+		n := len(http2Preface)
+		if len(buf) >= n {
+			if string(buf[:n]) == http2Preface {
+				ct.Protocol = events.ProtoHTTP2
+				ct.initParsers()
+				return
+			}
+		} else if string(buf) == http2Preface[:len(buf)] {
+			return
+		}
 	}
 
-	if len(buf) < 4 {
-		return
-	}
-
-	n := len(http2Preface)
-	if len(buf) >= n {
-		if string(buf[:n]) == http2Preface {
-			ct.Protocol = events.ProtoHTTP2
+	// HTTP/1 fallback — check both buffers
+	for _, buf := range [][]byte{ct.sendBuf.Bytes(), ct.recvBuf.Bytes()} {
+		if len(buf) == 0 {
+			continue
+		}
+		if isHTTP1RequestPrefix(buf) {
+			ct.Protocol = events.ProtoHTTP1
 			ct.initParsers()
 			return
 		}
-	} else if string(buf) == http2Preface[:len(buf)] {
-		return
-	}
-
-	if isHTTP1RequestPrefix(buf) {
-		ct.Protocol = events.ProtoHTTP1
-		ct.initParsers()
-		return
-	}
-
-	if len(buf) >= 5 && string(buf[:5]) == "HTTP/" {
-		ct.Protocol = events.ProtoHTTP1
-		ct.initParsers()
+		if len(buf) >= 5 && string(buf[:5]) == "HTTP/" {
+			ct.Protocol = events.ProtoHTTP1
+			ct.initParsers()
+			return
+		}
 	}
 }
 
@@ -295,12 +307,16 @@ func (ct *ConnectionTracker) iterMessages(ev *events.DataEvent, cor CorrelatorIf
 	switch ct.Protocol {
 	case events.ProtoHTTP1:
 		return ct.iterHTTP1(ev, cor)
-	case events.ProtoHTTP2:
+	case events.ProtoHTTP2, events.ProtoGRPC:
 		return ct.iterHTTP2(ev, cor)
-	case events.ProtoGRPC:
-		return ct.iterGRPC(ev, cor)
 	}
 	return nil
+}
+
+func isTLSRecord(data []byte) bool {
+	return len(data) >= 2 &&
+		(data[0] == 0x14 || data[0] == 0x15 || data[0] == 0x16 || data[0] == 0x17) &&
+		data[1] == 0x03
 }
 
 // iterHTTP1 extracts HTTP/1.x frames from the active direction buffer and
@@ -336,13 +352,10 @@ func (ct *ConnectionTracker) iterHTTP1(ev *events.DataEvent, cor CorrelatorIface
 			return nil
 		}
 
-		// Reject TLS handshake data misrouted to the HTTP/1 parser.
-		// TLS records start with 0x16 0x03 (ContentType=Handshake,
-		// Version=TLS). This happens when a TLS client connects to a
-		// plain HTTP port — the server's HTTP response classifies the
-		// connection as HTTP1, then the client's TLS ClientHello gets
-		// passed here and would produce garbage method/path fields.
-		if len(data) >= 2 && data[0] == 0x16 && data[1] == 0x03 {
+		// Reject TLS data misrouted to the HTTP/1 parser.
+		// TLS records start with 0x14-0x17 0x03.
+		// This happens when a TLS client connects to a plain HTTP port.
+		if isTLSRecord(data) {
 			reqBuf.Reset()
 			return nil
 		}
@@ -361,13 +374,16 @@ func (ct *ConnectionTracker) iterHTTP1(ev *events.DataEvent, cor CorrelatorIface
 			ct.parseErrCount = 0
 			reqBuf.Advance(consumed)
 		}
+		if reqBuf.HasRepeatedOverflow() {
+			ct.forceEvict.Store(true)
+		}
 		// drain remaining request body bytes off the wire
 		if skipBytes > 0 {
 			reqBuf.SkipNextBytes(skipBytes)
 		}
 
 		for _, req := range reqs {
-			log.Printf("HTTP/1: request queued pid=%d fd=%d method=%s path=%s isClient=%v ssl=%v",
+			log.Debugf("HTTP/1: request queued pid=%d fd=%d method=%s path=%s isClient=%v ssl=%v",
 				ct.Key.PID, ct.Key.FD, req.Method, req.Path, ct.isClientSide, ev.IsSSL())
 			cor.AddHTTP1Request(ct.Key, events.PendingRequest{
 				Timestamp:   time.Now(),
@@ -404,7 +420,7 @@ func (ct *ConnectionTracker) iterHTTP1(ev *events.DataEvent, cor CorrelatorIface
 		}
 
 		// Reject TLS data in the response buffer (same rationale as above).
-		if len(data) >= 2 && data[0] == 0x16 && data[1] == 0x03 {
+		if isTLSRecord(data) {
 			respBuf.Reset()
 			return nil
 		}
@@ -423,6 +439,9 @@ func (ct *ConnectionTracker) iterHTTP1(ev *events.DataEvent, cor CorrelatorIface
 			ct.parseErrCount = 0
 			respBuf.Advance(consumed)
 		}
+		if respBuf.HasRepeatedOverflow() {
+			ct.forceEvict.Store(true)
+		}
 		// drain remaining response body bytes off the wire
 		if skipBytes > 0 {
 			respBuf.SkipNextBytes(skipBytes)
@@ -430,7 +449,7 @@ func (ct *ConnectionTracker) iterHTTP1(ev *events.DataEvent, cor CorrelatorIface
 
 		serverURI := fmt.Sprintf("%s:%d", ev.SrcIPString(), ev.SrcPort)
 		for _, resp := range resps {
-			log.Printf("HTTP/1: response parsed pid=%d fd=%d status=%d isClient=%v",
+			log.Debugf("HTTP/1: response parsed pid=%d fd=%d status=%d isClient=%v",
 				ct.Key.PID, ct.Key.FD, resp.StatusCode, ct.isClientSide)
 			trace := cor.MatchHTTP1Response(
 				ct.Key,
@@ -440,7 +459,7 @@ func (ct *ConnectionTracker) iterHTTP1(ev *events.DataEvent, cor CorrelatorIface
 				serverURI,
 			)
 			if trace != nil {
-				log.Printf("HTTP/1: matched! pid=%d fd=%d method=%s path=%s status=%d",
+				log.Debugf("HTTP/1: matched! pid=%d fd=%d method=%s path=%s status=%d",
 					ct.Key.PID, ct.Key.FD, trace.Method, trace.URL, resp.StatusCode)
 				out = append(out, trace)
 			} else {
@@ -522,6 +541,9 @@ func (ct *ConnectionTracker) iterHTTP2(ev *events.DataEvent, cor CorrelatorIface
 	}
 
 	buf.SetRemaining(remaining)
+	if buf.HasRepeatedOverflow() {
+		ct.forceEvict.Store(true)
+	}
 
 	// Use BPF direction as ground truth for request vs response.
 	// For server-side tracing: ingress = request, egress = response.
@@ -820,13 +842,15 @@ type ConnectionManager struct {
 // NewManager creates a Manager that routes events through the given correlator.
 func NewManager(cor CorrelatorIface, cfg TrackerConfig) *ConnectionManager {
 	ctx, cancel := context.WithCancel(context.Background())
-	return &ConnectionManager{
+	m := &ConnectionManager{
 		trackers: make(map[events.ConnectionKey]*ConnectionTracker),
 		cor:      cor,
 		cfg:      cfg,
 		ctx:      ctx,
 		cancel:   cancel,
 	}
+	m.Start()
+	return m
 }
 
 // Start launches the background stale connection eviction goroutine.
@@ -841,9 +865,20 @@ func (m *ConnectionManager) Route(ev *events.DataEvent) []*events.CorrelatedTrac
 
 	m.mu.RLock()
 	ct, exists := m.trackers[key]
+	trackerCount := len(m.trackers)
 	m.mu.RUnlock()
 
 	if !exists {
+		// Overload mode: sampling. If we are above OverloadThreshold,
+		// randomly drop new connections (e.g. 1 in 3).
+		if m.cfg.OverloadThreshold > 0 && trackerCount > m.cfg.OverloadThreshold {
+			if rand.Float32() < 0.33 {
+				return nil
+			}
+		}
+
+		var toClose []*ConnectionTracker
+
 		m.mu.Lock()
 		// Double-check inside write lock; construct only if still absent.
 		if ct, exists = m.trackers[key]; !exists {
@@ -854,11 +889,37 @@ func (m *ConnectionManager) Route(ev *events.DataEvent) []*events.CorrelatedTrac
 				DstPort: ev.DstPort,
 			}, m.cfg)
 			m.trackers[key] = ct
+
+			// Hard connection cap check
+			if m.cfg.MaxConnections > 0 && len(m.trackers) > m.cfg.MaxConnections {
+				// Evict 5% of MaxConnections to get well below cap
+				evictCount := m.cfg.MaxConnections / 20
+				if evictCount == 0 {
+					evictCount = 1
+				}
+				toClose = m.evictBatchLocked(evictCount)
+			}
 		}
 		m.mu.Unlock()
+
+		for _, evictedCt := range toClose {
+			evictedCt.Close(m.cor)
+		}
 	}
 
 	return ct.Route(ev, m.cor)
+}
+
+func (m *ConnectionManager) evictBatchLocked(count int) []*ConnectionTracker {
+	evicted := make([]*ConnectionTracker, 0, count)
+	for key, ct := range m.trackers {
+		delete(m.trackers, key)
+		evicted = append(evicted, ct)
+		if len(evicted) >= count {
+			break
+		}
+	}
+	return evicted
 }
 
 // Close removes a connection from the manager and flushes the correlator.
@@ -881,8 +942,19 @@ func (m *ConnectionManager) Stop() {
 }
 
 // evictLoop periodically scans for stale connections and evicts them.
+// The 20s stagger at startup prevents this loop from firing concurrently
+// with the /proc scanner and correlator cleanup, which would compound
+// GC pressure and lock contention.
 func (m *ConnectionManager) evictLoop() {
-	ticker := time.NewTicker(60 * time.Second)
+	// Stagger: avoid firing simultaneously with /proc scanners (t=0)
+	// and correlator cleanup (t=10s).
+	select {
+	case <-time.After(20 * time.Second):
+	case <-m.ctx.Done():
+		return
+	}
+
+	ticker := time.NewTicker(15 * time.Second)
 	defer ticker.Stop()
 	for {
 		select {
@@ -894,14 +966,23 @@ func (m *ConnectionManager) evictLoop() {
 	}
 }
 
+// evictBatchSize is the number of stale connections deleted per write-lock
+// acquisition. Batching bounds the write lock hold time to ~64 map deletes
+// (microseconds) while avoiding thousands of lock/unlock cycles that would
+// each incur a memory barrier + potential goroutine reschedule.
+const evictBatchSize = 64
+
 // evictStale removes connections that have been idle longer than
-// cfg.InactivityTimeout.
+// cfg.InactivityTimeout using a two-phase approach:
+//  1. Scan under read lock to identify stale keys (non-blocking for Route)
+//  2. Delete in batches under short write locks with Gosched between batches
 func (m *ConnectionManager) evictStale() {
+	// Phase 1: identify stale keys under read lock — Route() is not blocked.
 	var staleKeys []events.ConnectionKey
 
 	m.mu.RLock()
 	for key, ct := range m.trackers {
-		if ct.IsStale() {
+		if ct.IsStale() || ct.closed.Load() || ct.forceEvict.Load() {
 			staleKeys = append(staleKeys, key)
 		}
 	}
@@ -911,14 +992,29 @@ func (m *ConnectionManager) evictStale() {
 		return
 	}
 
-	m.mu.Lock()
-	for _, key := range staleKeys {
-		if ct, exists := m.trackers[key]; exists {
-			delete(m.trackers, key)
+	// Phase 2: delete in batches — each write lock is short.
+	for i := 0; i < len(staleKeys); i += evictBatchSize {
+		end := i + evictBatchSize
+		if end > len(staleKeys) {
+			end = len(staleKeys)
+		}
+		var toClose []*ConnectionTracker
+		
+		m.mu.Lock()
+		for _, key := range staleKeys[i:end] {
+			if ct, exists := m.trackers[key]; exists {
+				delete(m.trackers, key)
+				toClose = append(toClose, ct)
+			}
+		}
+		m.mu.Unlock()
+		
+		for _, ct := range toClose {
 			ct.Close(m.cor)
 		}
+		// Yield between batches so pending Route() calls can proceed.
+		runtime.Gosched()
 	}
-	m.mu.Unlock()
 
 	log.Debugf("ConnectionManager: evicted stale connections count=%d", len(staleKeys))
 }

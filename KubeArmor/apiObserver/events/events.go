@@ -50,7 +50,16 @@ type ConnectionKey struct {
 	SockPtr uint64 // fallback when FD=0
 }
 
-const FlagIsSSL uint8 = 1 << 2 // matches BPF FLAG_IS_SSL
+const FlagIsSSL uint8 = 1 << 2    // matches BPF FLAG_IS_SSL
+const FlagConnClose uint8 = 1 << 3 // matches BPF FLAG_CONN_CLOSE
+
+// IsConnClose returns true when this event is a connection close notification
+// emitted by the BPF inet_sock_set_state tracepoint on TCP_CLOSE.
+// These events carry no payload; the Go-side ConnectionManager uses them
+// to immediately free the per-connection tracker and its buffers.
+func (e *DataEvent) IsConnClose() bool {
+	return e.Flags&FlagConnClose != 0
+}
 
 // DataEvent is the Go representation of struct data_event emitted by the
 // BPF ring buffer defined in KubeArmor/BPF/apiobserver/common/structs.h
