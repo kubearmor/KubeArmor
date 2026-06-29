@@ -54,26 +54,20 @@ spec:
             fieldRef:
               fieldPath: metadata.namespace
         livenessProbe:
-          exec:
-            command:
-            - /bin/bash
-            - -c
-        {{- if eq .Values.environment.name "autopilot" }}
-            - if [ -z $(pgrep kubearmor) ]; then exit 1; fi;
-          initialDelaySeconds: 60
-          periodSeconds: 10
-        {{- else }}
-            - pgrep -f kubearmor >/dev/null
+          grpc:
+            port: 32766
           failureThreshold: 5
           initialDelaySeconds: 60
           periodSeconds: 20
           successThreshold: 1
           timeoutSeconds: 5
-        {{- end }}
 
         name: kubearmor
         ports:
         - containerPort: 32767
+          name: grpc
+        - containerPort: 32766
+          name: grpc-health
         securityContext:
           capabilities:
             {{- toYaml .Values.kubearmor.capabilities | trim | nindent 12 }}

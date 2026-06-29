@@ -15,6 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: install latest preflight
         run: |
@@ -23,6 +24,7 @@ jobs:
           sudo chmod +x /usr/local/bin/preflight
 
       - name: Login to Docker Hub
+        uses: docker/login-action@465a07811f14bebb1938fbed4728c6a1ff8901fc # v2
         uses: docker/login-action@465a07811f14bebb1938fbed4728c6a1ff8901fc # v2
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
@@ -62,6 +64,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@e7f100cf4c008499ea8adda475de1042d6975c7b # v6
@@ -75,10 +78,13 @@ jobs:
           aws ecr get-login-password --region ${{vars.AWS_REGION}} | docker login --username AWS --password-stdin ${{ vars.AWS_ECR_REGISTRY }}
 
       - name: Install regctl
+        env:
+          REGCTL_VERSION: v0.11.5
+          REGCTL_SHA256: c93aa7638749f5aaac1a8e01787321889c78f0101809bb2880343478d0ba0467
         run: |
           curl -L https://github.com/regclient/regclient/releases/latest/download/regctl-linux-amd64 -o regctl
           chmod 755 regctl
-          mv regctl /usr/local/bin
+          mv regctl /usr/local/bin/regctl
           regctl version
 
       - name: Publish Images to ECR
@@ -95,16 +101,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: login to ocir registry
         run: |
           echo "${{ secrets.OCIR_AUTHTOKEN }}" | docker login ${{ vars.OCIR_REGION }} -u ${{ secrets.OCIR_USERNAME }} --password-stdin
 
       - name: Install regctl
+        env:
+          REGCTL_VERSION: v0.11.5
+          REGCTL_SHA256: c93aa7638749f5aaac1a8e01787321889c78f0101809bb2880343478d0ba0467
         run: |
           curl -L https://github.com/regclient/regclient/releases/latest/download/regctl-linux-amd64 -o regctl
           chmod 755 regctl
-          mv regctl /usr/local/bin
+          mv regctl /usr/local/bin/regctl
           regctl version
 
       - name: Publish Images to OCIR
@@ -121,6 +131,8 @@ jobs:
     runs-on: ubuntu-latest
     needs: ["publish-images-to-ecr"]
     steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: azure/setup-helm@5119fcb9089d432beecbf79bb2c7915207344b78 # v3
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
       - uses: azure/setup-helm@5119fcb9089d432beecbf79bb2c7915207344b78 # v3
 
@@ -161,6 +173,7 @@ jobs:
 
       - name: Publish Helm chart to KubeArmor helm repo
         uses: stefanprodan/helm-gh-pages@89c6698c192e70ed0e495bee7d3d1ca5b477fe82 # master
+        uses: stefanprodan/helm-gh-pages@89c6698c192e70ed0e495bee7d3d1ca5b477fe82 # master
         with:
           # Access token which can push to a different repo in the same org
           token: ${{ secrets.GH_ACCESS_TOKEN }}
@@ -177,6 +190,8 @@ jobs:
     runs-on: ubuntu-latest
     needs: ["publish-images-to-ocir"]
     steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: azure/setup-helm@5119fcb9089d432beecbf79bb2c7915207344b78 # v3
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
       - uses: azure/setup-helm@5119fcb9089d432beecbf79bb2c7915207344b78 # v3
 
@@ -210,6 +225,7 @@ jobs:
 
       - name: Publish Helm chart to KubeArmor helm repo
         uses: stefanprodan/helm-gh-pages@89c6698c192e70ed0e495bee7d3d1ca5b477fe82 # master
+        uses: stefanprodan/helm-gh-pages@89c6698c192e70ed0e495bee7d3d1ca5b477fe82 # master
         with:
           # Access token which can push to a different repo in the same org
           token: ${{ secrets.GH_ACCESS_TOKEN }}
@@ -228,6 +244,7 @@ jobs:
     permissions:
       issues: write
     steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
       - name: Create marketplace release issue
         run: |

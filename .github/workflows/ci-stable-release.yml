@@ -17,17 +17,22 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Install regctl
+        env:
+          REGCTL_VERSION: v0.11.5
+          REGCTL_SHA256: c93aa7638749f5aaac1a8e01787321889c78f0101809bb2880343478d0ba0467
         run: |
           curl -L https://github.com/regclient/regclient/releases/latest/download/regctl-linux-amd64 -o regctl
           chmod 755 regctl
-          mv regctl /usr/local/bin
+          mv regctl /usr/local/bin/regctl
 
       - name: Check install
         run: regctl version
 
       - name: Login to Docker Hub
+        uses: docker/login-action@465a07811f14bebb1938fbed4728c6a1ff8901fc # v2
         uses: docker/login-action@465a07811f14bebb1938fbed4728c6a1ff8901fc # v2
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
@@ -66,6 +71,7 @@ jobs:
       pull-requests: write
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Update Chart.yaml
         id: update
@@ -78,6 +84,7 @@ jobs:
           echo "STABLE_VERSION=$STABLE_VERSION" >> $GITHUB_OUTPUT
 
       - name: Create PR to update Helm chart version in KubeArmor repo
+        uses: peter-evans/create-pull-request@4e1beaa7521e8b457b572c090b25bd3db56bf1c5 # v5
         uses: peter-evans/create-pull-request@4e1beaa7521e8b457b572c090b25bd3db56bf1c5 # v5
         with:
           branch: update-helm-${{ steps.update.outputs.STABLE_VERSION }}
