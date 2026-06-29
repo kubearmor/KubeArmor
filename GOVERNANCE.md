@@ -23,7 +23,6 @@ KubeArmor is a vendor-neutral project. The project's direction, governance, and 
 To enforce this in practice:
 
 - **Affiliation disclosure.** Every Maintainer's company affiliation is listed in [MAINTAINERS.md](./MAINTAINERS.md). Changes in affiliation must be reflected within 30 days.
-- **Company vote cap.** For any vote among Maintainers, the number of votes counted from a single company is capped at <!-- TODO: agreed cap, suggested default 40% of cast votes, modelled on Falco. Confirm with the maintainer team. -->. If a company exceeds the cap, its votes are scaled down proportionally (e.g., 6 yes-votes from one company in a 5-vote cap become `5 / 6 ≈ 0.83 × 6 = 5` effective votes), following the model used by [Cilium's Company Block Vote Limit](https://github.com/cilium/community/blob/main/GOVERNANCE.md).
 - **Communication channels.** Project communication (issues, PRs, design docs, Slack, community calls, blog posts on kubearmor.io) must be conducted in public, project-owned channels — not vendor-owned ones.
 - **Branding.** Project websites, talks, and assets must not present any single company as owning, leading, or initiating the project beyond acknowledging the donating organization (AccuKnox) for historical context.
 
@@ -72,7 +71,7 @@ A Reviewer who shares responsibility for the project's health: code, releases, g
 - Has authored or reviewed at least 30 merged pull requests across the project.
 - Sponsored by an existing Maintainer.
 
-**Process:** Any current Maintainer can nominate a candidate by opening a pull request adding them to MAINTAINERS.md (and the appropriate `CODEOWNERS` entries). A nomination passes when it receives a simple majority of Maintainer votes within a 1-week voting window. The candidate cannot vote on their own nomination. Subject to the company vote cap above.
+**Process:** Any current Maintainer can nominate a candidate by opening a pull request adding them to MAINTAINERS.md (and the appropriate `CODEOWNERS` entries). A nomination passes when it receives a simple majority of Maintainer votes within a 1-week voting window. The candidate cannot vote on their own nomination.
 
 ### Emeritus Maintainer
 
@@ -90,7 +89,7 @@ If a Maintainer is inactive:
 2. If the response is "no" or there is no response within two weeks, a pull request is opened moving the person from the Maintainers section to the Emeritus section of MAINTAINERS.md.
 3. Voluntary moves to Emeritus pass by lazy consensus.
 
-A Maintainer may be removed involuntarily for sustained inactivity, repeated Code of Conduct violations, or behavior that materially damages the project. Involuntary removal requires a two-thirds supermajority of Maintainer votes in a 1-week voting window. The subject of the vote is not eligible to vote on their own removal. Subject to the company vote cap above.
+A Maintainer may be removed involuntarily for sustained inactivity, repeated Code of Conduct violations, or behavior that materially damages the project. Involuntary removal requires a two-thirds supermajority of Maintainer votes in a 1-week voting window. The subject of the vote is not eligible to vote on their own removal.
 
 A Maintainer may step down at any time by opening a pull request moving themselves to the Emeritus section.
 
@@ -104,9 +103,7 @@ When lazy consensus fails or the decision is significant, a **vote** is called b
 |---|---|---|---|
 | Ordinary | Adding a Maintainer or Reviewer, merging a contested PR, scoping a release | Simple majority of voting Maintainers | 1 week (extendable to 3) |
 | Sensitive | Code of Conduct enforcement, security disclosures, anything involving an individual's privacy | Simple majority, conducted in a private channel reachable by all Maintainers | 1 week |
-| Structural | Changes to this `GOVERNANCE.md`, changes to vendor-neutrality rules, removal of a Maintainer, changes to the company vote cap | Two-thirds supermajority of voting Maintainers | 1 week (extendable to 3) |
-
-All votes are subject to the company vote cap (see Vendor neutrality).
+| Structural | Changes to this `GOVERNANCE.md`, changes to vendor-neutrality rules, removal of a Maintainer | Two-thirds supermajority of voting Maintainers | 1 week (extendable to 3) |
 
 A Maintainer cannot vote on a matter where they are the subject (e.g., their own promotion, removal, or CoC report).
 
@@ -172,7 +169,3 @@ The following licenses and contributor agreements apply to KubeArmor:
 - [Apache License 2.0](https://opensource.org/licenses/Apache-2.0) for code.
 - [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/legalcode) for documentation.
 - The [Developer Certificate of Origin](https://developercertificate.org/) is required on every commit (via the `Signed-off-by` trailer).
-
-## Credits
-
-This document was developed with reference to the governance documents of [Falco](https://github.com/falcosecurity/evolution/blob/main/GOVERNANCE.md), [Cilium](https://github.com/cilium/community/blob/main/GOVERNANCE.md), [Kubeflow](https://github.com/kubeflow/community/blob/master/community-membership.md), [containerd](https://github.com/containerd/project/blob/master/GOVERNANCE.md), [CoreDNS](https://github.com/coredns/coredns/blob/master/GOVERNANCE.md), and [Helm](https://github.com/helm/community/blob/main/governance/governance.md).
