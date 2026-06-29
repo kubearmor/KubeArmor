@@ -1,0 +1,455 @@
+
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+		<title>state: Go Coverage Report</title>
+		<style>
+			body {
+				background: black;
+				color: rgb(80, 80, 80);
+			}
+			body, pre, #legend span {
+				font-family: Menlo, monospace;
+				font-weight: bold;
+			}
+			#topbar {
+				background: black;
+				position: fixed;
+				top: 0; left: 0; right: 0;
+				height: 42px;
+				border-bottom: 1px solid rgb(80, 80, 80);
+			}
+			#content {
+				margin-top: 50px;
+			}
+			#nav, #legend {
+				float: left;
+				margin-left: 10px;
+			}
+			#legend {
+				margin-top: 12px;
+			}
+			#nav {
+				margin-top: 10px;
+			}
+			#legend span {
+				margin: 0 5px;
+			}
+			.cov0 { color: rgb(192, 0, 0) }
+.cov1 { color: rgb(128, 128, 128) }
+.cov2 { color: rgb(116, 140, 131) }
+.cov3 { color: rgb(104, 152, 134) }
+.cov4 { color: rgb(92, 164, 137) }
+.cov5 { color: rgb(80, 176, 140) }
+.cov6 { color: rgb(68, 188, 143) }
+.cov7 { color: rgb(56, 200, 146) }
+.cov8 { color: rgb(44, 212, 149) }
+.cov9 { color: rgb(32, 224, 152) }
+.cov10 { color: rgb(20, 236, 155) }
+
+		</style>
+	</head>
+	<body>
+		<div id="topbar">
+			<div id="nav">
+				<select id="files">
+				
+				<option value="file0">github.com/kubearmor/KubeArmor/KubeArmor/state/data.go (89.5%)</option>
+				
+				<option value="file1">github.com/kubearmor/KubeArmor/KubeArmor/state/stateAgent.go (0.0%)</option>
+				
+				</select>
+			</div>
+			<div id="legend">
+				<span>not tracked</span>
+			
+				<span class="cov0">not covered</span>
+				<span class="cov8">covered</span>
+			
+			</div>
+		</div>
+		<div id="content">
+		
+		<pre class="file" id="file0" style="display: none">// SPDX-License-Identifier: Apache-2.0
+// Copyright 2023 Authors of KubeArmor
+
+package state
+
+import (
+        "encoding/json"
+        "time"
+
+        kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
+        "github.com/kubearmor/KubeArmor/KubeArmor/types"
+        tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
+        pb "github.com/kubearmor/KubeArmor/protobuf"
+)
+
+// PushContainerEvent function pushes (container + pod) event
+func (sa *StateAgent) PushContainerEvent(container tp.Container, event string) <span class="cov8" title="1">{
+        if container.ContainerID == "" </span><span class="cov8" title="1">{
+                kg.Debug("Error while pushing container event. Missing data.")
+                return
+        }</span>
+
+        // create ns first
+        <span class="cov8" title="1">namespace := container.NamespaceName
+        sa.KubeArmorNamespacesLock.Lock()
+        if event == EventAdded </span><span class="cov8" title="1">{
+                // create this kubearmor ns if it doesn't exist
+                // currently only "container_namespace" until we have config agent
+                if ns, ok := sa.KubeArmorNamespaces[namespace]; !ok </span><span class="cov8" title="1">{
+                        nsObj := types.Namespace{
+                                Name: namespace,
+                                // no way to change ns annotations in non-kubernetes mode right now
+                                // thus use defaults
+                                KubearmorFilePosture:    "audit",
+                                KubearmorNetworkPosture: "audit",
+                                LastUpdatedAt:           container.LastUpdatedAt,
+
+                                ContainerCount: 1,
+                        }
+                        sa.KubeArmorNamespaces[namespace] = nsObj
+
+                        sa.PushNamespaceEvent(nsObj, EventAdded)
+                }</span> else<span class="cov8" title="1"> {
+                        // update the container count
+                        ns.ContainerCount++
+                        sa.KubeArmorNamespaces[namespace] = ns
+                }</span>
+
+        } else<span class="cov8" title="1"> if event == EventDeleted </span><span class="cov8" title="1">{
+                if ns, ok := sa.KubeArmorNamespaces[namespace]; ok </span><span class="cov8" title="1">{
+                        ns.ContainerCount--
+                        sa.KubeArmorNamespaces[namespace] = ns
+
+                        // delete ns if no containers left in it
+                        if ns.ContainerCount == 0 </span><span class="cov8" title="1">{
+                                ns.LastUpdatedAt = time.Now().UTC().String()
+                                sa.PushNamespaceEvent(ns, EventDeleted)
+                                delete(sa.KubeArmorNamespaces, namespace)
+                        }</span>
+                }
+
+        }
+        <span class="cov8" title="1">sa.KubeArmorNamespacesLock.Unlock()
+
+        containerBytes, err := json.Marshal(container)
+        if err != nil </span><span class="cov0" title="0">{
+                kg.Warnf("Error while trying to marshal container data: %s", err.Error())
+                return
+        }</span>
+
+        <span class="cov8" title="1">containerEvent := &amp;pb.StateEvent{
+                Kind:   KindContainer,
+                Type:   event,
+                Name:   container.ContainerName,
+                Object: containerBytes,
+        }
+
+        // skip sending message as no state receiver is connected
+        if sa.StateEventChans == nil </span><span class="cov8" title="1">{
+                return
+        }</span>
+
+        <span class="cov8" title="1">for uid, conn := range sa.StateEventChans </span><span class="cov8" title="1">{
+                select </span>{
+                case conn &lt;- containerEvent:<span class="cov8" title="1"></span>
+                default:<span class="cov8" title="1">
+                        kg.Debugf("Failed to send container %s event to connection: %s", event, uid)
+                        return</span>
+                }
+        }
+}
+
+// PushNodeEvent function pushes node event
+func (sa *StateAgent) PushNodeEvent(node tp.Node, event string) <span class="cov8" title="1">{
+        if node.NodeName == "" </span><span class="cov8" title="1">{
+                kg.Warn("Received empty node event")
+                return
+        }</span>
+
+        <span class="cov8" title="1">nodeData, err := json.Marshal(node)
+        if err != nil </span><span class="cov0" title="0">{
+                kg.Warnf("Error while trying to marshal node data: %s", err.Error())
+                return
+        }</span>
+
+        <span class="cov8" title="1">nodeEvent := &amp;pb.StateEvent{
+                Kind:   KindNode,
+                Type:   event,
+                Name:   node.NodeName,
+                Object: nodeData,
+        }
+
+        // skip sending message as no state receiver is connected
+        if sa.StateEventChans == nil </span><span class="cov8" title="1">{
+                return
+        }</span>
+
+        <span class="cov8" title="1">for uid, conn := range sa.StateEventChans </span><span class="cov8" title="1">{
+                select </span>{
+                case conn &lt;- nodeEvent:<span class="cov8" title="1"></span>
+                default:<span class="cov8" title="1">
+                        kg.Debugf("Failed to send node %s event to connection: %s", event, uid)
+                        return</span>
+                }
+        }
+}
+
+// PushNamespaceEvent function pushes namespace event
+func (sa *StateAgent) PushNamespaceEvent(namespace tp.Namespace, event string) <span class="cov8" title="1">{
+        nsBytes, err := json.Marshal(namespace)
+        if err != nil </span><span class="cov0" title="0">{
+                kg.Warnf("Failed to marshal ns event: %s", err.Error())
+                return
+        }</span>
+
+        <span class="cov8" title="1">nsEvent := &amp;pb.StateEvent{
+                Kind:   KindNamespace,
+                Type:   event,
+                Name:   namespace.Name,
+                Object: nsBytes,
+        }
+
+        // skip sending message as no state receiver is connected
+        if sa.StateEventChans == nil </span><span class="cov8" title="1">{
+                return
+        }</span>
+
+        <span class="cov8" title="1">for uid, conn := range sa.StateEventChans </span><span class="cov8" title="1">{
+                select </span>{
+                case conn &lt;- nsEvent:<span class="cov8" title="1"></span>
+                default:<span class="cov8" title="1">
+                        kg.Debugf("Failed to send namespace %s event to connection: %s", event, uid)
+                        return</span>
+                }
+        }
+}
+</pre>
+		
+		<pre class="file" id="file1" style="display: none">// SPDX-License-Identifier: Apache-2.0
+// Copyright 2023 Authors of KubeArmor
+
+// package state implements the state agent service which reports details about the node and containers being protected by KubeArmor
+package state
+
+import (
+        "encoding/json"
+        "sync"
+        "time"
+
+        "github.com/google/uuid"
+        kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
+        kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
+        "github.com/kubearmor/KubeArmor/KubeArmor/types"
+        tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
+        pb "github.com/kubearmor/KubeArmor/protobuf"
+        "google.golang.org/protobuf/types/known/emptypb"
+)
+
+const (
+        stateEventBufferSize = 25
+
+        // EventAdded denotes an add event
+        EventAdded = "added"
+        // EventUpdated denotes an update event
+        EventUpdated = "updated"
+        // EventDeleted denotes an delete event
+        EventDeleted = "deleted"
+
+        // KindContainer denotes a container kind
+        KindContainer = "container"
+        // KindPod denotes a pod kind
+        KindPod = "pod"
+        // KindNode denotes a node kind
+        KindNode = "node"
+        // KindNamespace denotes a namespace kind
+        KindNamespace = "namespace"
+)
+
+// StateAgent reports the state of containers/nodes protected by KubeArmor
+type StateAgent struct {
+        Running bool
+
+        StateEventChans     map[string]chan *pb.StateEvent
+        StateEventChansLock *sync.RWMutex
+
+        Node     *tp.Node
+        NodeLock *sync.RWMutex
+
+        Containers     map[string]tp.Container
+        ContainersLock *sync.RWMutex
+
+        KubeArmorNamespaces     map[string]types.Namespace
+        KubeArmorNamespacesLock *sync.RWMutex
+}
+
+// NewStateAgent returns a new initialized state agent
+func NewStateAgent(node *tp.Node, nodeLock *sync.RWMutex, containers map[string]tp.Container, containersLock *sync.RWMutex) *StateAgent <span class="cov0" title="0">{
+        return &amp;StateAgent{
+                Running: true,
+
+                StateEventChans:     make(map[string]chan *pb.StateEvent),
+                StateEventChansLock: new(sync.RWMutex),
+
+                Node:     node,
+                NodeLock: nodeLock,
+
+                Containers:     containers,
+                ContainersLock: containersLock,
+
+                KubeArmorNamespaces:     make(map[string]tp.Namespace),
+                KubeArmorNamespacesLock: new(sync.RWMutex),
+        }
+}</span>
+
+// add new channel for broadcast
+func (sa *StateAgent) addStateEventChan() (string, chan *pb.StateEvent) <span class="cov0" title="0">{
+        uid := uuid.Must(uuid.NewRandom()).String()
+        conn := make(chan *pb.StateEvent, stateEventBufferSize)
+
+        sa.StateEventChansLock.Lock()
+        sa.StateEventChans[uid] = conn
+        sa.StateEventChansLock.Unlock()
+
+        return uid, conn
+}</span>
+
+// close chan and delete connection
+func (sa *StateAgent) removeStateEventChan(uid string) <span class="cov0" title="0">{
+        sa.StateEventChansLock.Lock()
+        close(sa.StateEventChans[uid])
+        delete(sa.StateEventChans, uid)
+        sa.StateEventChansLock.Unlock()
+}</span>
+
+// WatchState sends state events in a continuous stream
+func (sa *StateAgent) WatchState(msg *emptypb.Empty, srv pb.StateAgent_WatchStateServer) error <span class="cov0" title="0">{
+        uid, conn := sa.addStateEventChan()
+        kg.Printf("Added a new client (%s) for WatchState", uid)
+
+        defer func() </span><span class="cov0" title="0">{
+                sa.removeStateEventChan(uid)
+                kg.Printf("Deleted client (%s) for WatchState", uid)
+        }</span>()
+
+        <span class="cov0" title="0">for sa.Running </span><span class="cov0" title="0">{
+                select </span>{
+                case &lt;-srv.Context().Done():<span class="cov0" title="0">
+                        return nil</span>
+                case event := &lt;-conn:<span class="cov0" title="0">
+                        if err := kl.HandleGRPCErrors(srv.Send(event)); err != nil </span><span class="cov0" title="0">{
+                                kg.Warnf("Failed to send state event to WatchState client %s: %s", uid, err.Error())
+                                return err
+                        }</span>
+                }
+        }
+
+        <span class="cov0" title="0">return nil</span>
+}
+
+// GetState sends current state upon request
+func (sa *StateAgent) GetState(msg *emptypb.Empty, srv pb.StateAgent_GetStateServer) error <span class="cov0" title="0">{
+        stateEventList := make([]*pb.StateEvent, 0)
+
+        nodeData, err := json.Marshal(sa.Node)
+        if err != nil </span><span class="cov0" title="0">{
+                kg.Warnf("Error while trying to marshal node data: %s", err.Error())
+        }</span>
+
+        <span class="cov0" title="0">nodeEvent := &amp;pb.StateEvent{
+                Kind:   KindNode,
+                Type:   EventAdded,
+                Name:   sa.Node.NodeName,
+                Object: nodeData,
+        }
+        stateEventList = append(stateEventList, nodeEvent)
+
+        sa.KubeArmorNamespacesLock.RLock()
+        for nsName, ns := range sa.KubeArmorNamespaces </span><span class="cov0" title="0">{
+                nsBytes, err := json.Marshal(ns)
+                if err != nil </span><span class="cov0" title="0">{
+                        kg.Warnf("Failed to marshal ns %s event: %s", nsName, err.Error())
+                }</span>
+
+                <span class="cov0" title="0">nsEvent := &amp;pb.StateEvent{
+                        Kind:   KindNamespace,
+                        Type:   EventAdded,
+                        Name:   nsName,
+                        Object: nsBytes,
+                }
+
+                stateEventList = append(stateEventList, nsEvent)</span>
+        }
+        <span class="cov0" title="0">sa.KubeArmorNamespacesLock.RUnlock()
+
+        for _, container := range sa.Containers </span><span class="cov0" title="0">{
+                containerBytes, err := json.Marshal(container)
+                if err != nil </span><span class="cov0" title="0">{
+                        kg.Warnf("Error while trying to marshal container %.6s data: %s", container.ContainerID, err.Error())
+                }</span>
+
+                <span class="cov0" title="0">containerEvent := &amp;pb.StateEvent{
+                        Kind:   KindContainer,
+                        Type:   EventAdded,
+                        Name:   container.ContainerName,
+                        Object: containerBytes,
+                }
+
+                stateEventList = append(stateEventList, containerEvent)</span>
+        }
+
+        <span class="cov0" title="0">stateEvents := &amp;pb.StateEvents{
+                StateEvents: stateEventList,
+        }
+
+        err = srv.Send(stateEvents)
+        if err := kl.HandleGRPCErrors(err); err != nil </span><span class="cov0" title="0">{
+                kg.Warnf("Failed to send state events to GetState: ", err.Error())
+                return err
+        }</span>
+
+        <span class="cov0" title="0">return nil</span>
+}
+
+// DestroyStateAgent destroys the referenced state agent
+func (sa *StateAgent) DestroyStateAgent() error <span class="cov0" title="0">{
+        sa.Running = false
+        time.Sleep(1 * time.Second)
+
+        return nil
+}</span>
+</pre>
+		
+		</div>
+	</body>
+	<script>
+	(function() {
+		var files = document.getElementById('files');
+		var visible;
+		files.addEventListener('change', onChange, false);
+		function select(part) {
+			if (visible)
+				visible.style.display = 'none';
+			visible = document.getElementById(part);
+			if (!visible)
+				return;
+			files.value = part;
+			visible.style.display = 'block';
+			location.hash = part;
+		}
+		function onChange() {
+			select(files.value);
+			window.scrollTo(0, 0);
+		}
+		if (location.hash != "") {
+			select(location.hash.substr(1));
+		}
+		if (!visible) {
+			select("file0");
+		}
+	})();
+	</script>
+</html>
