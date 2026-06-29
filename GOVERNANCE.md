@@ -165,6 +165,7 @@ Changes to `GOVERNANCE.md` are made by pull request and require a structural (tw
 ## Licenses and the DCO
 
 The following licenses and contributor agreements apply to KubeArmor:
+The following licenses and contributor agreements apply to KubeArmor:
 
 - [Apache License 2.0](https://opensource.org/licenses/Apache-2.0) for code.
 - [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/legalcode) for documentation.
