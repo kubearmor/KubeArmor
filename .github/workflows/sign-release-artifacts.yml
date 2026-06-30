@@ -1,0 +1,108 @@
+# This workflow signs GitHub Release artifacts with cosign keyless signing.
+# Triggered automatically whenever a new release is published.
+# Enables the OpenSSF Scorecard Signed-Releases check to pass.
+
+name: sign-release-artifacts
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to sign (e.g. v1.7.1)"
+        type: string
+        required: true
+
+# Declare default permissions as read only.
+permissions: read-all
+
+jobs:
+  sign:
+    name: Sign release artifacts with cosign
+    runs-on: ubuntu-22.04
+    if: github.repository == 'kubearmor/KubeArmor'
+    permissions:
+      id-token: write   # required for cosign keyless signing via Sigstore OIDC
+      contents: write   # required to upload .sig and .pem files to the release
+
+    steps:
+      - name: Resolve release tag
+        id: tag
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          DISPATCH_TAG: ${{ github.event.inputs.tag }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            echo "tag=$DISPATCH_TAG" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3.5.0
+        with:
+          cosign-release: 'v2.2.4'
+
+      - name: Verify cosign installation
+        run: cosign version
+
+      - name: Download release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          mkdir -p release-assets
+          cd release-assets
+          gh release download "$TAG" \
+            --repo "${{ github.repository }}" \
+            --pattern '*' \
+            --skip-existing
+          echo "Downloaded assets:"
+          ls -la
+
+      - name: Sign all release artifacts with cosign keyless
+        working-directory: release-assets
+        run: |
+          for f in *; do
+            # Skip already-signed artifacts and certificate files
+            case "$f" in
+              *.sig|*.pem|*.cert) continue ;;
+            esac
+            echo "Signing: $f"
+            cosign sign-blob \
+              --yes \
+              --output-signature "${f}.sig" \
+              --output-certificate "${f}.pem" \
+              "$f"
+          done
+          echo "Generated signatures:"
+          ls -la *.sig *.pem
+
+      - name: Upload signatures and certificates to release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.tag.outputs.tag }}
+        working-directory: release-assets
+        run: |
+          gh release upload "$TAG" \
+            *.sig *.pem \
+            --repo "${{ github.repository }}" \
+            --clobber
+
+      - name: Verification instructions
+        env:
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          cat <<EOF
+          Release artifacts signed successfully.
+          
+          To verify any signed artifact:
+            cosign verify-blob \\
+              --certificate-identity-regexp 'https://github.com/${{ github.repository }}/.github/workflows/sign-release-artifacts.yml@.*' \\
+              --certificate-oidc-issuer 'https://token.actions.githubusercontent.com' \\
+              --signature <artifact>.sig \\
+              --certificate <artifact>.pem \\
+              <artifact>
+          EOF
