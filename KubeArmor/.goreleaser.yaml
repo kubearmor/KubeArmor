@@ -60,7 +60,7 @@ nfpms:
       - rpm
     replaces:
       - kubearmor
-    maintainer: "Barun Acharya <barun.acharya@accuknox.com>"
+    maintainer: "KubeArmor Team <support@kubearmor.io>"
     description: |
       Cloud-native Runtime Security Enforcement System
     vendor: "kubearmor"

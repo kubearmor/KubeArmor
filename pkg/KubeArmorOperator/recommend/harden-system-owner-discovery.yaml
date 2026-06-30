@@ -2,8 +2,8 @@ apiVersion: security.kubearmor.com/v1
 kind: KubeArmorClusterPolicy
 metadata:
   annotations:
-    app.accuknox.com/source: KubeArmor Operator
-    app.accuknox.com/type: harden
+    app.kubearmor.io/source: KubeArmor Operator
+    app.kubearmor.io/type: harden
   name: harden-system-owner-discovery
 spec:
   action: Audit
