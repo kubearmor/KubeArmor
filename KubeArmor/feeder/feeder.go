@@ -219,6 +219,9 @@ type BaseFeeder struct {
 	// True if feeder and its workers are working
 	Running bool
 
+	// Number of dropped logs
+	DroppedLogs uint64
+
 	// LogServer //
 
 	// port
@@ -923,7 +926,11 @@ func (fd *Feeder) PushLog(log tp.Log) {
 				counter++
 				if counter == lenlog {
 					// Default on the last uid in Logstuct means the log isn't pushed into Broadcast
-					kg.Printf("log channel busy, log dropped.")
+					fd.DroppedLogs++
+					if fd.DroppedLogs%10000 == 0 {
+						kg.Warnf("log channel busy, 10000 logs dropped.")
+						fd.DroppedLogs = 0
+					}
 				}
 			}
 		}
