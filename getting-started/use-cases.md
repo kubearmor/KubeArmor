@@ -214,6 +214,20 @@ An attacker binary would try to send a beacon to its C&C (Command and Control) S
 TODO
 </details>
 
+<details>
+<summary><h2>HashiCorp Vault Hardening</h2></summary>
+
+[Vault usecase](./../getting-started/usecases/vault.md)
+
+</details>
+
+<details>
+<summary><h2>CyberArk Conjur Hardening</h2></summary>
+
+[conjur usecase](./../getting-started/usecases/cyberark-conjur.md)
+
+</details>
+
 ## Generic use-cases
 - Restrict the behavior of containers and nodes (VMs) at the system level
 
