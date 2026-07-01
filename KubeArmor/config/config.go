@@ -152,7 +152,7 @@ func readCmdLineParams() {
 	grpcHealthStr := flag.String(ConfigGRPCHealthPort, "32766", "gRPC health check port number")
 	tlsEnabled := flag.Bool(ConfigTLS, true, "enable tls for secure grpc connection")
 	tlsCertsStr := flag.String(ConfigTLSCertPath, "/var/lib/kubearmor/tls", "path to tls ca certificate files ca.crt, ca.crt")
-	tlsCertProvider := flag.String(ConfigTLSCertProvider, "self", "source of certificate {self|external}, self: create certificate dynamically, external: provided by some external entity")
+	tlsCertProvider := flag.String(ConfigTLSCertProvider, "self", "source of certificate {self|external|dev}, self: create certificate dynamically, external: provided by some external entity, dev: use development CA certificate")
 	logStr := flag.String(ConfigLogPath, "none", "log file path, {path|stdout|none}")
 	seLinuxProfileDirStr := flag.String(ConfigSELinuxProfileDir, "/tmp/kubearmor.selinux", "SELinux profile directory")
 	criSocket := flag.String(ConfigCRISocket, "", "path to CRI socket (format: unix:///path/to/file.sock)")
