@@ -12,7 +12,7 @@ import (
 	"testing"
 )
 
-var clusterPtr, gRPCPtr, logPathPtr *string
+var clusterPtr, gRPCPtr, managementGRPCPtr, logPathPtr, tlsCertPathPtr, tlsCertProviderPtr *string
 var enableKubeArmorPolicyPtr, enableKubeArmorHostPolicyPtr, enableKubeArmorVMPtr, coverageTestPtr, enableK8sEnv, tlsEnabled *bool
 var defaultFilePosturePtr, defaultCapabilitiesPosturePtr, defaultNetworkPosturePtr, hostDefaultCapabilitiesPosturePtr, hostDefaultNetworkPosturePtr, hostDefaultFilePosturePtr, procFsMountPtr, lsmOrder *string
 
@@ -22,7 +22,10 @@ func init() {
 
 	// options (string)
 	gRPCPtr = flag.String("gRPC", "32767", "gRPC port number")
+	managementGRPCPtr = flag.String("managementGRPC", "32768", "management gRPC port number")
 	logPathPtr = flag.String("logPath", "none", "log file path")
+	tlsCertPathPtr = flag.String("tlsCertPath", "/var/lib/kubearmor/tls", "path to tls certificate files")
+	tlsCertProviderPtr = flag.String("tlsCertProvider", "self", "source of tls certificate {self|external|dev}")
 
 	// options (string)
 	defaultFilePosturePtr = flag.String("defaultFilePosture", "block", "configuring default enforcement action in global file context {allow|audit|block}")
@@ -57,7 +60,10 @@ func TestMain(t *testing.T) {
 	os.Args = []string{
 		fmt.Sprintf("-cluster=%s", *clusterPtr),
 		fmt.Sprintf("-gRPC=%s", *gRPCPtr),
+		fmt.Sprintf("-managementGRPC=%s", *managementGRPCPtr),
 		fmt.Sprintf("-logPath=%s", *logPathPtr),
+		fmt.Sprintf("-tlsCertPath=%s", *tlsCertPathPtr),
+		fmt.Sprintf("-tlsCertProvider=%s", *tlsCertProviderPtr),
 		fmt.Sprintf("-defaultFilePosture=%s", *defaultFilePosturePtr),
 		fmt.Sprintf("-defaultNetworkPosture=%s", *defaultNetworkPosturePtr),
 		fmt.Sprintf("-defaultCapabilitiesPosture=%s", *defaultCapabilitiesPosturePtr),
