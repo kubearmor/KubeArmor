@@ -17,10 +17,12 @@ The list is sorted alphabetically.
 | Achref Ben Saad | [@achrefbensaad](https://github.com/achrefbensaad) | AccuKnox |
 | Ankur Kothiwal | [@Ankurk99](https://github.com/Ankurk99) | CERN |
 | Anurag Kumar | [@kranurag7](https://github.com/kranurag7) | Independent |
-| Barun Acharya | [@daemon1024](https://github.com/daemon1024) | AccuKnox |
+| Aryan Bakliwal | [@AryanBakliwal](https://github.com/AryanBakliwal) | AccuKnox |
+| Aryan Sharma | [@Aryan-sharma11](https://github.com/Aryan-sharma11) | AccuKnox |
+| Barun Acharya | [@daemon1024](https://github.com/daemon1024) | Odigos |
 | Jaehyun Nam | [@nam-jaehyun](https://github.com/nam-jaehyun) | Dankook University |
 | Rahul Jadhav | [@nyrahul](https://github.com/nyrahul) | AccuKnox |
-| Ramakant Sharma | [@rksharma95](https://github.com/rksharma95) | AccuKnox |
+| Ramakant Sharma | [@rksharma95](https://github.com/rksharma95) | StepSecurity |
 | Rudraksh Pareek | [@DelusionalOptimist](https://github.com/DelusionalOptimist) | CERN |
 
 ## Reviewers
