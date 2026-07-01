@@ -19,7 +19,7 @@ The list is sorted alphabetically.
 | Anurag Kumar | [@kranurag7](https://github.com/kranurag7) | Independent |
 | Aryan Bakliwal | [@AryanBakliwal](https://github.com/AryanBakliwal) | AccuKnox |
 | Aryan Sharma | [@Aryan-sharma11](https://github.com/Aryan-sharma11) | AccuKnox |
-| Barun Acharya | [@daemon1024](https://github.com/daemon1024) | AccuKnox |
+| Barun Acharya | [@daemon1024](https://github.com/daemon1024) | Odigos |
 | Jaehyun Nam | [@nam-jaehyun](https://github.com/nam-jaehyun) | Dankook University |
 | Rahul Jadhav | [@nyrahul](https://github.com/nyrahul) | AccuKnox |
 | Ramakant Sharma | [@rksharma95](https://github.com/rksharma95) | AccuKnox |
