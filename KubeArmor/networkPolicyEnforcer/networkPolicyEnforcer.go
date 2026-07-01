@@ -219,28 +219,18 @@ func (ne *NetworkPolicyEnforcer) buildKubeArmorLog(info packetInfo, prefix strin
 	quotaLimit := ""
 	if len(parts) > 3 {
 		val := parts[3]
-		if val == "pod" || val == "policy" {
+		if val == "pod" || val == "policy" || val == "host" {
 			quotaLevel = val
 			if len(parts) > 4 {
 				quotaLimit = parts[4]
 			}
-		} else {
-			quotaLimit = val
 		}
 	}
 
-	if quotaLevel != "" {
-		if quotaLimit != "" {
-			log.Data = fmt.Sprintf("SourceIP=%s SourcePort=%d DestinationIP=%s DestinationPort=%d Protocol=%s QuotaLevel=%s QuotaLimit=%s", info.srcIP, info.srcPort, info.dstIP, info.dstPort, getProtocolName(info.protocol), quotaLevel, quotaLimit)
-		} else {
-			log.Data = fmt.Sprintf("SourceIP=%s SourcePort=%d DestinationIP=%s DestinationPort=%d Protocol=%s QuotaLevel=%s", info.srcIP, info.srcPort, info.dstIP, info.dstPort, getProtocolName(info.protocol), quotaLevel)
-		}
+	if quotaLimit != "" {
+		log.Data = fmt.Sprintf("SourceIP=%s SourcePort=%d DestinationIP=%s DestinationPort=%d Protocol=%s QuotaLevel=%s QuotaLimit=%s", info.srcIP, info.srcPort, info.dstIP, info.dstPort, getProtocolName(info.protocol), quotaLevel, quotaLimit)
 	} else {
-		if quotaLimit != "" {
-			log.Data = fmt.Sprintf("SourceIP=%s SourcePort=%d DestinationIP=%s DestinationPort=%d Protocol=%s QuotaLimit=%s", info.srcIP, info.srcPort, info.dstIP, info.dstPort, getProtocolName(info.protocol), quotaLimit)
-		} else {
-			log.Data = fmt.Sprintf("SourceIP=%s SourcePort=%d DestinationIP=%s DestinationPort=%d Protocol=%s", info.srcIP, info.srcPort, info.dstIP, info.dstPort, getProtocolName(info.protocol))
-		}
+		log.Data = fmt.Sprintf("SourceIP=%s SourcePort=%d DestinationIP=%s DestinationPort=%d Protocol=%s", info.srcIP, info.srcPort, info.dstIP, info.dstPort, getProtocolName(info.protocol))
 	}
 
 	action := "Audit"
@@ -514,6 +504,11 @@ func (ne *NetworkPolicyEnforcer) UpdateNetworkSecurityPolicies(secPolicies []tp.
 			policyLevel = "policy"
 		}
 
+		// Edge case: level:Policy is meaningless on host policies (nodeSelector)
+		if !isPodPolicy && strings.EqualFold(policy.Spec.Level, "policy") {
+			ne.Logger.Warnf("Policy %s uses 'level: Policy' but targets the host via nodeSelector — 'level' is only applicable to pod policies and will be ignored.", policyName)
+		}
+
 		var podIPs []string
 
 		if isPodPolicy {
@@ -647,14 +642,14 @@ func (ne *NetworkPolicyEnforcer) UpdateNetworkSecurityPolicies(secPolicies []tp.
 		}
 	}
 
-	// log prefix format: "PolicyName Chain Action" (e.g., "Default INPUT Block")
+	// log prefix format: "PolicyName Chain Action Level" (e.g., "Default INPUT Block host")
 
 	// INPUT Rule
-	inputPrefix := fmt.Sprintf("%s INPUT %s", policyName, actionKeyword)
+	inputPrefix := fmt.Sprintf("%s INPUT %s host", policyName, actionKeyword)
 	inputRule := fmt.Sprintf("log prefix %q group 0 %s", inputPrefix, defaultAction)
 
 	// OUTPUT Rule
-	outputPrefix := fmt.Sprintf("%s OUTPUT %s", policyName, actionKeyword)
+	outputPrefix := fmt.Sprintf("%s OUTPUT %s host", policyName, actionKeyword)
 	outputRule := fmt.Sprintf("log prefix %q group 0 %s", outputPrefix, defaultAction)
 
 	// Append rules
