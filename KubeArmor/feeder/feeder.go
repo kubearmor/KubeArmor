@@ -710,7 +710,7 @@ func (fd *Feeder) PushLog(log tp.Log) {
 		parts := strings.Split(log.Resource, " ") // policyName chain(INPUT/OUTPUT) action(Audit/Block)
 		direction := "INGRESS"
 		if len(parts) > 2 {
-			if parts[1] == "OUTPUT" {
+			if parts[1] == "OUTPUT" || strings.ToUpper(parts[1]) == "EGRESS" {
 				direction = "EGRESS"
 			}
 		}
@@ -896,7 +896,6 @@ func (fd *Feeder) PushLog(log tp.Log) {
 		defer fd.EventStructs.AlertLock.Unlock()
 		counter := 0
 		lenAlert := len(fd.EventStructs.AlertStructs)
-
 		for uid := range fd.EventStructs.AlertStructs {
 			select {
 			case fd.EventStructs.AlertStructs[uid].Broadcast <- &pbAlert:
