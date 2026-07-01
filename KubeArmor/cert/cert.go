@@ -141,7 +141,7 @@ func certPairExists(path *CertPath) bool {
 // on first startup. Subsequent startups simply reuse the existing
 // certificates.
 func EnsureDevelopmentPKI(base string, nodeIP string) error {
-	if err := os.MkdirAll(base, 0755); err != nil {
+	if err := os.MkdirAll(base, 0750); err != nil {
 		return err
 	}
 
@@ -168,7 +168,7 @@ func EnsureDevelopmentPKI(base string, nodeIP string) error {
 		if err := os.WriteFile(
 			filepath.Join(caPath.Base, caPath.CertFile),
 			caBytes.Crt,
-			0644,
+			0600,
 		); err != nil {
 			return err
 		}
@@ -220,7 +220,7 @@ func EnsureDevelopmentPKI(base string, nodeIP string) error {
 		if err := os.WriteFile(
 			filepath.Join(serverPath.Base, serverPath.CertFile),
 			serverBytes.Crt,
-			0644,
+			0600,
 		); err != nil {
 			return err
 		}
@@ -252,7 +252,7 @@ func EnsureDevelopmentPKI(base string, nodeIP string) error {
 		if err := os.WriteFile(
 			filepath.Join(clientPath.Base, clientPath.CertFile),
 			clientBytes.Crt,
-			0644,
+			0600,
 		); err != nil {
 			return err
 		}
