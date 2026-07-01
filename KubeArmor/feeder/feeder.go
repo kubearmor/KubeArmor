@@ -378,6 +378,7 @@ func NewFeeder(node *tp.Node, nodeLock **sync.RWMutex) (feeder *Feeder) {
 	fd.LogServer, err = createGRPCServer(
 		node.NodeIP,
 		cfg.GlobalCfg.TLSEnabled,
+		grpcMTLS,
 	)
 	if err != nil {
 		kg.Errf("cannot create log gRPC server: %s", err)
@@ -402,7 +403,7 @@ func NewFeeder(node *tp.Node, nodeLock **sync.RWMutex) (feeder *Feeder) {
 	}
 	fd.ManagementListener = managementListener
 
-	fd.ManagementServer, err = createGRPCServer(node.NodeIP, true)
+	fd.ManagementServer, err = createGRPCServer(node.NodeIP, true, grpcMTLS)
 	if err != nil {
 		kg.Errf(
 			"Failed to listen a management port (%s, %s)",
@@ -432,8 +433,14 @@ func NewFeeder(node *tp.Node, nodeLock **sync.RWMutex) (feeder *Feeder) {
 	return fd
 }
 
+type grpcTLSMode int
+
+const (
+	grpcMTLS grpcTLSMode = iota
+)
+
 // Helper function to create a gRPC server
-func createGRPCServer(nodeIP string, tlsEnabled bool) (*grpc.Server, error) {
+func createGRPCServer(nodeIP string, tlsEnabled bool, tlsMode grpcTLSMode) (*grpc.Server, error) {
 
 	kaep := keepalive.EnforcementPolicy{
 		PermitWithoutStream: true,
@@ -444,7 +451,7 @@ func createGRPCServer(nodeIP string, tlsEnabled bool) (*grpc.Server, error) {
 	}
 
 	if tlsEnabled {
-		tlsCredentials, err := loadTLSCredentials(nodeIP)
+		tlsCredentials, err := loadTLSCredentials(nodeIP, tlsMode)
 		if err != nil {
 			return nil, err
 		}
@@ -1004,7 +1011,7 @@ func (fd *Feeder) PushLog(log tp.Log) {
 	}
 }
 
-func loadTLSCredentials(ip string) (credentials.TransportCredentials, error) {
+func loadTLSCredentials(ip string, tlsMode grpcTLSMode) (credentials.TransportCredentials, error) {
 	// create certificate configurations
 	serverCertConfig := cert.DefaultKubeArmorServerConfig
 	serverCertConfig.IPs = []string{ip}
@@ -1016,8 +1023,13 @@ func loadTLSCredentials(ip string) (credentials.TransportCredentials, error) {
 		CACertPath:   cert.GetCACertPath(config.GlobalCfg.TLSCertPath),
 		CertPath:     cert.GetServerCertPath(config.GlobalCfg.TLSCertPath),
 	}
-	creds, err := cert.NewTlsCredentialManager(&tlsConfig).CreateTlsServerCredentials()
-	return creds, err
+	manager := cert.NewTlsCredentialManager(&tlsConfig)
+	switch tlsMode {
+	case grpcMTLS:
+		return manager.CreateTlsServerCredentials()
+	default:
+		return nil, fmt.Errorf("unsupported grpc TLS mode: %d", tlsMode)
+	}
 }
 
 func (fd *Feeder) ShouldDropAlertsPerContainer(pidNs, mntNs uint32) (bool, bool) {
