@@ -115,6 +115,27 @@ jobs:
         run: |
            yq -i '.builds[0].goarch = ["${{ matrix.arch }}"]' /tmp/.goreleaser.yaml
 
+      - name: Create SLSA predicate file
+        id: predicate
+        run: |
+          PREDICATE_FILE=$(mktemp /tmp/predicate.XXXXXX.json)
+          COMMIT_SHA=$(git rev-parse HEAD)
+          cat > "$PREDICATE_FILE" <<EOF
+          {
+            "buildType": "https://github.com/kubearmor/KubeArmor/blob/main/.github/workflows/ci-systemd-release.yml",
+            "builder": {
+              "id": "https://github.com/kubearmor/KubeArmor/actions"
+            },
+            "invocation": {
+              "configSource": {
+                "uri": "git+https://github.com/kubearmor/KubeArmor@${{ steps.validate.outputs.release_tag }}",
+                "digest": { "sha1": "${COMMIT_SHA}" }
+              }
+            }
+          }
+          EOF
+          echo "predicate_file=$PREDICATE_FILE" >> $GITHUB_OUTPUT
+
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@5742e2a039330cbb23ebf35f046f814d4c6ff811 # v5
         with:
@@ -126,6 +147,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GORELEASER_CURRENT_TAG: ${{ steps.vars.outputs.GORELEASER_CURRENT_TAG }}
           ARCH: ${{ matrix.arch }}
+          PREDICATE_FILE: ${{ steps.predicate.outputs.predicate_file }}
 
       - name: Setup ORAS
         uses: oras-project/setup-oras@22ce207df3b08e061f537244349aac6ae1d214f6 # v1
@@ -136,3 +158,66 @@ jobs:
         working-directory: KubeArmor/dist
         run: |
           oras push docker.io/kubearmor/kubearmor-systemd:${{ steps.vars.outputs.tag }}_linux-${{ matrix.arch }} kubearmor_${{ steps.vars.outputs.tag }}_linux-${{ matrix.arch }}.tar.gz
+
+      - name: Combine attestations into multiple.intoto.jsonl
+        working-directory: KubeArmor/dist
+        run: |
+          shopt -s nullglob
+          bundles=( *.sigstore.json )
+          missing_or_invalid=0
+
+          > multiple.intoto.jsonl
+          if [ ${#bundles[@]} -eq 0 ]; then
+            echo "ERROR: no *.sigstore.json bundles found" >&2
+            exit 1
+          fi
+
+          for bundle in "${bundles[@]}"; do
+            envelope=$(jq -c '.dsseEnvelope // empty' "$bundle")
+            if [ -n "$envelope" ] && [ "$envelope" != "null" ]; then
+              echo "$envelope" >> multiple.intoto.jsonl
+            else
+              echo "ERROR: $bundle has no dsseEnvelope" >&2
+              missing_or_invalid=1
+            fi
+          done
+
+          if [ "$missing_or_invalid" -ne 0 ] || [ ! -s multiple.intoto.jsonl ]; then
+            echo "ERROR: failed to assemble required attestations into multiple.intoto.jsonl" >&2
+            exit 1
+          fi
+
+          cp multiple.intoto.jsonl multiple-linux-${{ matrix.arch }}.intoto.jsonl
+          echo "multiple-linux-${{ matrix.arch }}.intoto.jsonl contents:"
+          cat multiple-linux-${{ matrix.arch }}.intoto.jsonl
+
+      - name: Store attestation as workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: multiple-intoto-${{ matrix.arch }}
+          path: KubeArmor/dist/multiple-linux-${{ matrix.arch }}.intoto.jsonl
+          if-no-files-found: error
+  
+  upload-provenance:
+    runs-on: ubuntu-22.04
+    needs: goreleaser
+    if: github.repository == 'kubearmor/kubearmor'
+    permissions:
+      contents: write
+    steps:
+      - name: Download attestation artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: multiple-intoto-*
+          path: release-provenance
+          merge-multiple: true
+
+      - name: Upload attestations to GitHub Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          RELEASE_TAG="${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag || github.ref_name }}"
+          gh release upload "${RELEASE_TAG}" \
+            release-provenance/*.intoto.jsonl \
+            --repo ${{ github.repository }} \
+            --clobber
