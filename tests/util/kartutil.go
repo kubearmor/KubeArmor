@@ -270,6 +270,7 @@ func AnnotateNS(name, key, value string) error {
 // K8sGetPods Check if Pods exists and is/are Running
 func K8sGetPods(podstr string, ns string, ants []string, timeout int) ([]string, error) {
 	pods := []string{}
+	seenPods := []string{}
 	log.Printf("K8sGetPods pod=%s ns=%s ants=%v timeout=%d", podstr, ns, ants, timeout)
 	for t := 0; t <= timeout; t++ {
 		podList, err := k8sClient.K8sClientset.CoreV1().Pods(ns).List(context.Background(), metav1.ListOptions{})
@@ -278,7 +279,11 @@ func K8sGetPods(podstr string, ns string, ants []string, timeout int) ([]string,
 			return nil, err
 		}
 		pods = []string{}
+		seenPods = []string{}
 		for _, p := range podList.Items {
+			if strings.HasPrefix(p.ObjectMeta.Name, podstr) {
+				seenPods = append(seenPods, fmt.Sprintf("%s phase=%s reason=%q annotations=%v", p.ObjectMeta.Name, p.Status.Phase, p.Status.Reason, p.ObjectMeta.Annotations))
+			}
 			if p.Status.Phase != corev1.PodRunning || p.DeletionTimestamp != nil {
 				continue
 			}
@@ -300,6 +305,9 @@ func K8sGetPods(podstr string, ns string, ants []string, timeout int) ([]string,
 		time.Sleep(1 * time.Second)
 	}
 	if len(pods) == 0 {
+		if len(seenPods) > 0 {
+			return nil, fmt.Errorf("pod not found; observed matching pods: %s", strings.Join(seenPods, "; "))
+		}
 		return nil, errors.New("pod not found")
 	}
 	log.Printf("found K8sGetPods pods=%v", pods)
