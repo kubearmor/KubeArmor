@@ -247,7 +247,7 @@ jobs:
       - name: Measure code coverage
         if: ${{ always() }}
         run: |
-          go install github.com/modocache/gover@6091596d6185bc50f256d90389aeaa8ebe8b36df
+          go install github.com/modocache/gover@v0.0.0-20171022184752-b58185e213c5
           ls -l
           if [ -f coverage_k8s_${{ matrix.os }}_${{ matrix.runtime }}.out ]; then
             gover
