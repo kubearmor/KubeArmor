@@ -24,6 +24,7 @@ spec:
     imagePullPolicy: Never
     args:
     - -tlsCertProvider=dev
+    - -managementGRPC=32765
   kubearmorInitImage:
     image: kubearmor/kubearmor-test-init:latest
     imagePullPolicy: Never
