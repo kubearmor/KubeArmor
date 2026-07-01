@@ -25,14 +25,12 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           submodules: true
 
       - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
-      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
-          go-version-file: 'KubeArmor/go.mod'
+          go-version-file: "KubeArmor/go.mod"
 
       - name: Install the latest LLVM toolchain
         run: ./.github/workflows/install-llvm.sh
@@ -41,7 +39,6 @@ jobs:
         run: ./.github/workflows/install-libbpf.sh
 
       - name: Install GoReleaser
-        uses: goreleaser/goreleaser-action@b953231f81b8dfd023c58e0854a721e35037f28b # v2
         uses: goreleaser/goreleaser-action@b953231f81b8dfd023c58e0854a721e35037f28b # v2
         with:
           install-only: true
@@ -54,7 +51,7 @@ jobs:
           go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.5
           go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.5.1
           echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
-    
+
       - name: Build Systemd Release
         run: make local-release
         working-directory: KubeArmor
@@ -65,12 +62,10 @@ jobs:
 
       - name: Check journalctl
         run: sudo journalctl -u kubearmor --no-pager
-      
-      - name: Test kubearmor using ginkgo 
+
+      - name: Test kubearmor using ginkgo
         run: |
           go install -mod=mod github.com/onsi/ginkgo/v2/ginkgo@v2.23.4
           make
         working-directory: ./tests/nonk8s_env
         timeout-minutes: 30
-        
-      
