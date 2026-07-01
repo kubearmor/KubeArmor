@@ -101,6 +101,9 @@ jobs:
       - name: Run go test on the KubeArmor/KubeArmor directory
         run: go test ./...
         working-directory: KubeArmor
+        env:
+          TLSCERTPROVIDER: dev
+          TLSCERTPATH: ${{ runner.temp }}/kubearmor-tls
 
   license:
     runs-on: ubuntu-22.04
