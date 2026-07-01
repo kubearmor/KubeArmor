@@ -412,7 +412,7 @@ ringbuf:
   return retval;
 }
 
-static inline int match_net_rules(int type, int protocol, u32 eventID)
+static inline int match_net_rules(int family, int type, int protocol, u32 eventID)
 {
   event *task_info;
   int retval = 0;
@@ -506,6 +506,22 @@ static inline int match_net_rules(int type, int protocol, u32 eventID)
     p1_p = protocol;
   }
 
+  // socket family fromsource check
+  if (fromSourceCheck)
+  {
+    void *ptr = &src_buf->buf[*src_offset];
+    bpf_probe_read_str(p->source, MAX_STRING_SIZE, ptr);
+    p->path[0] = sock_family;
+    p->path[1] = family;
+    bpf_probe_read_str(store->source, MAX_STRING_SIZE, p->source);
+    val = bpf_map_lookup_elem(inner, p);
+    if (val)
+    {
+      match = true;
+      goto decision;
+    }
+  }
+
   // socket type fromsource check
   if (fromSourceCheck)
   {
@@ -536,6 +552,19 @@ static inline int match_net_rules(int type, int protocol, u32 eventID)
       match = true;
       goto decision;
     }
+  }
+
+  // check for family rules without fromSource
+  bpf_map_update_elem(&bufk, &one, z, BPF_ANY);
+  p->path[0] = sock_family;
+  p->path[1] = family;
+
+  val = bpf_map_lookup_elem(inner, p);
+
+  if (val)
+  {
+    match = true;
+    goto decision;
   }
 
   // check for type rules without fromSource
@@ -650,17 +679,18 @@ ringbuf:
 SEC("lsm/socket_create")
 int BPF_PROG(enforce_net_create, int family, int type, int protocol)
 {
-  return match_net_rules(type, protocol, _SOCKET_CREATE);
+  return match_net_rules(family, type, protocol, _SOCKET_CREATE);
 }
 
-#define LSM_NET(name, ID)                            \
-  int BPF_PROG(name, struct socket *sock)            \
-  {                                                  \
-    int sock_type = BPF_CORE_READ(sock, type);       \
-    struct sock *sk;                                 \
-    sk = BPF_CORE_READ(sock, sk);                    \
-    int protocol = BPF_CORE_READ(sk, sk_protocol);   \
-    return match_net_rules(sock_type, protocol, ID); \
+#define LSM_NET(name, ID)                                    \
+  int BPF_PROG(name, struct socket *sock)                    \
+  {                                                          \
+    int sock_type = BPF_CORE_READ(sock, type);               \
+    struct sock *sk;                                         \
+    sk = BPF_CORE_READ(sock, sk);                            \
+    int protocol = BPF_CORE_READ(sk, sk_protocol);           \
+    int family = BPF_CORE_READ(sk, __sk_common.skc_family);  \
+    return match_net_rules(family, sock_type, protocol, ID); \
   }
 
 SEC("lsm/socket_connect")

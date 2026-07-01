@@ -88,6 +88,19 @@ func fetchProtocol(resource string) string {
 	return resource
 }
 
+// fetchAddressFamily extracts the lowercase socket address family (e.g. "af_rds")
+// from a socket_create resource string of the form
+// "domain=AF_RDS type=SOCK_SEQPACKET protocol=...". It returns "" when the
+// resource carries no domain token.
+func fetchAddressFamily(resource string) string {
+	for _, part := range strings.Fields(resource) {
+		if strings.HasPrefix(part, "domain=") {
+			return strings.ToLower(strings.TrimPrefix(part, "domain="))
+		}
+	}
+	return ""
+}
+
 func getFileProcessUID(path string) string {
 	info, err := os.Stat(path)
 	if err == nil {
@@ -1711,6 +1724,12 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 					case "Protocol":
 						protocol = fetchProtocol(log.Resource)
 						if protocol == secPolicy.Resource || secPolicy.Resource == "all" {
+							matchedFlags = true
+						} else if strings.HasPrefix(secPolicy.Resource, "af_") && fetchAddressFamily(log.Resource) == secPolicy.Resource {
+							// Address family rule (e.g. AF_RDS, CVE-2026-43494): the
+							// kernel-space enforcer blocks socket_create by family, here we
+							// match the resulting log against the policy so a Block alert is
+							// generated with the correct policy/container context.
 							matchedFlags = true
 						}
 						if secPolicy.Pts != nil && !*secPolicy.Pts {
