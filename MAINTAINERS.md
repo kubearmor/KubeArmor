@@ -22,7 +22,7 @@ The list is sorted alphabetically.
 | Barun Acharya | [@daemon1024](https://github.com/daemon1024) | Odigos |
 | Jaehyun Nam | [@nam-jaehyun](https://github.com/nam-jaehyun) | Dankook University |
 | Rahul Jadhav | [@nyrahul](https://github.com/nyrahul) | AccuKnox |
-| Ramakant Sharma | [@rksharma95](https://github.com/rksharma95) | AccuKnox |
+| Ramakant Sharma | [@rksharma95](https://github.com/rksharma95) | StepSecurity |
 | Rudraksh Pareek | [@DelusionalOptimist](https://github.com/DelusionalOptimist) | CERN |
 
 ## Reviewers
