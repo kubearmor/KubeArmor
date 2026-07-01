@@ -312,7 +312,7 @@ static inline struct mount *real_mount(struct vfsmount *mnt)
   return container_of(mnt, struct mount, mnt);
 }
 
-static __always_inline bool prepend_path(struct path *path, bufs_t *string_p)
+static __always_inline bool prepend_path(const struct path *path, bufs_t *string_p)
 {
   char slash = '/';
   char null = '\0';

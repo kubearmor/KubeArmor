@@ -4,7 +4,7 @@
 // Package exec ...
 package exec
 
-//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -cc clang exec  ../../BPF/exec.bpf.c -type event -no-global-types -- -I/usr/include/ -O2 -g
+//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -cc clang exec  ../../BPF/exec.bpf.c -type event -no-global-types -- -I/usr/include/ -O2 -g -Wno-missing-declarations
 
 import (
 	"bytes"
