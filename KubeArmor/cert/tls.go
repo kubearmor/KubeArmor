@@ -14,6 +14,7 @@ import (
 const (
 	SelfCertProvider     string = "self"
 	ExternalCertProvider string = "external"
+	DevCertProvider      string = "dev"
 )
 
 type TlsConfig struct {
@@ -32,6 +33,7 @@ type TlsConfig struct {
 	// "self" : Certificates Will be Generated Dynamically
 	// "external": Certificates Are Provided Using File
 	CertProvider string
+	NodeIP       string
 }
 
 type TlsCredentialManager struct {
@@ -63,6 +65,15 @@ func NewTlsCredentialManager(cfg *TlsConfig) *TlsCredentialManager {
 		cl := ExternalCertLoader{
 			CaCertPath: cfg.CACertPath,
 			CertPath:   cfg.CertPath,
+		}
+		return &TlsCredentialManager{
+			CertLoader: &cl,
+		}
+	case DevCertProvider:
+		cl := DevCertLoader{
+			CaCertPath:     cfg.CACertPath,
+			ServerCertPath: cfg.CertPath,
+			NodeIP:         cfg.NodeIP,
 		}
 		return &TlsCredentialManager{
 			CertLoader: &cl,
