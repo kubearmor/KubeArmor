@@ -23,8 +23,6 @@ RUN apt-get clean
 RUN apt-get autoremove -y
 RUN rm -rf /var/lib/{apt,dpkg,cache,log}/
 
-COPY requirements.txt /requirements.txt
-RUN pip install --require-hashes -r /requirements.txt
 ADD flask/http_test.py /
 COPY entrypoint.sh /entrypoint.sh
 
