@@ -194,7 +194,8 @@ jobs:
             }
           ]'
 
-          sleep 15
+          kubectl rollout status --timeout=5m daemonset "$DAEMONSET_NAME" -n kubearmor
+          kubectl wait --timeout=5m --for=condition=ready pod -l kubearmor-app=kubearmor -n kubearmor
 
       - name: Get KubeArmor POD info
         run: |
