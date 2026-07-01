@@ -5,15 +5,19 @@
 package util
 
 import (
+	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
 	"strings"
 	"time"
 
+	"github.com/kubearmor/KubeArmor/KubeArmor/cert"
 	pb "github.com/kubearmor/KubeArmor/protobuf"
 	klog "github.com/kubearmor/kubearmor-client/log"
 	log "github.com/sirupsen/logrus"
+	"google.golang.org/grpc"
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
@@ -25,6 +29,7 @@ type EventResult struct {
 }
 
 var eventChan chan klog.EventInfo
+var hostLogCancel context.CancelFunc
 var gRPC = ""
 
 const maxEvents = 128
@@ -250,31 +255,85 @@ func KarmorLogStart(logFilter string, ns string, op string, pod string) error {
 	return nil
 }
 
+func logGRPCAddress() string {
+	if val, ok := os.LookupEnv("KUBEARMOR_LOG_SERVICE"); ok {
+		return val
+	}
+	if val, ok := os.LookupEnv("KUBEARMOR_SERVICE"); ok {
+		return val
+	}
+	return "localhost:32767"
+}
+
+func newLogGRPCClient() (*grpc.ClientConn, error) {
+	tlsConfig := cert.TlsConfig{
+		CertProvider: cert.ExternalCertProvider,
+		CACertPath:   cert.GetCACertPath(kubearmorTLSPath()),
+		CertPath:     cert.GetClientCertPath(kubearmorTLSPath()),
+	}
+	creds, err := cert.NewTlsCredentialManager(&tlsConfig).CreateTlsClientCredentials()
+	if err != nil {
+		return nil, err
+	}
+	return grpc.NewClient(logGRPCAddress(), grpc.WithTransportCredentials(creds))
+}
+
 func KarmorHostLogStart(logFilter string, op string) error {
+	if hostLogCancel != nil {
+		hostLogCancel()
+		hostLogCancel = nil
+	}
 	drainEventChan()
 
 	if eventChan == nil {
 		eventChan = make(chan klog.EventInfo, maxEvents)
 	}
 
-	nullFile, err := os.OpenFile("/dev/null", os.O_WRONLY, 0)
+	conn, err := newLogGRPCClient()
 	if err != nil {
 		return err
 	}
+	client := pb.NewLogServiceClient(conn)
+	ctx, cancel := context.WithCancel(context.Background())
+	hostLogCancel = cancel
 
 	go func() {
-		err := klog.StartObserver(k8sClient, klog.Options{
-			LogFilter:        logFilter,
-			ReadCAFromSecret: false,
-			LogPath:          nullFile.Name(),
-			Operation:        op,
-			MsgPath:          "none",
-			EventChan:        eventChan,
-			GRPC:             ":32767",
-			Secure:           false,
-		})
-		if err != nil {
-			log.Errorf("failed to start observer. Error=%s", err.Error())
+		defer conn.Close()
+		req := pb.RequestMessage{Filter: logFilter}
+
+		if logFilter == "all" || logFilter == "policy" {
+			alertStream, err := client.WatchAlerts(ctx, &req)
+			if err != nil {
+				log.Errorf("failed to watch alerts. Error=%s", err.Error())
+				return
+			}
+			for {
+				alert, err := alertStream.Recv()
+				if err != nil {
+					return
+				}
+				data, _ := json.Marshal(alert)
+				eventChan <- klog.EventInfo{Type: "Alert", Data: data}
+			}
+		}
+
+		if logFilter == "all" || logFilter == "system" {
+			logStream, err := client.WatchLogs(ctx, &req)
+			if err != nil {
+				log.Errorf("failed to watch logs. Error=%s", err.Error())
+				return
+			}
+			for {
+				logEvent, err := logStream.Recv()
+				if err != nil {
+					return
+				}
+				if op != "" && logEvent.Operation != op {
+					continue
+				}
+				data, _ := json.Marshal(logEvent)
+				eventChan <- klog.EventInfo{Type: "Log", Data: data}
+			}
 		}
 	}()
 
@@ -325,6 +384,10 @@ func KarmorGetLogs(timeout time.Duration, maxEvents int) ([]*pb.Log, []*pb.Alert
 
 // KarmorLogStop stops the kubearmor-client observer
 func KarmorLogStop() {
+	if hostLogCancel != nil {
+		hostLogCancel()
+		hostLogCancel = nil
+	}
 
 	klog.UnblockSignal = errors.New("stop karmor logs")
 
