@@ -123,17 +123,17 @@ func GetServerCertPath(base string) CertPath {
 
 // certPairExists checks if the certificate pair (certificate and key) exists at the given path
 func certPairExists(path *CertPath) bool {
-    if _, err := os.Stat(filepath.Join(path.Base, path.CertFile)); err != nil {
-        return false
-    }
+	if _, err := os.Stat(filepath.Join(path.Base, path.CertFile)); err != nil {
+		return false
+	}
 
-    if !path.CertOnly {
-        if _, err := os.Stat(filepath.Join(path.Base, path.KeyFile)); err != nil {
-            return false
-        }
-    }
+	if !path.CertOnly {
+		if _, err := os.Stat(filepath.Join(path.Base, path.KeyFile)); err != nil {
+			return false
+		}
+	}
 
-    return true
+	return true
 }
 
 // EnsureDevelopmentPKI ensures the complete development PKI exists.
