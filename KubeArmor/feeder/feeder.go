@@ -1014,6 +1014,7 @@ func loadTLSCredentials(ip string) (credentials.TransportCredentials, error) {
 		CertCfg:      serverCertConfig,
 		CertProvider: cfg.GlobalCfg.TLSCertProvider,
 		CACertPath:   cert.GetCACertPath(config.GlobalCfg.TLSCertPath),
+		CertPath:     cert.GetServerCertPath(config.GlobalCfg.TLSCertPath),
 	}
 	creds, err := cert.NewTlsCredentialManager(&tlsConfig).CreateTlsServerCredentials()
 	return creds, err

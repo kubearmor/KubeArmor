@@ -10,6 +10,7 @@ import (
 	"encoding/pem"
 
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/klog/v2"
 )
 
 type CertLoader interface {
@@ -85,6 +86,12 @@ type K8sCertLoader struct {
 	SecretName string
 }
 
+type DevCertLoader struct {
+	CaCertPath     CertPath
+	ServerCertPath CertPath
+	NodeIP         string
+}
+
 func (loader *K8sCertLoader) GetCertificateAndCaPool() (*tls.Certificate, *x509.CertPool, error) {
 	// load certificate from k8s secret
 	caCertBytes, err := ReadCertFromK8sSecret(loader.K8sClient, loader.Namespace, loader.SecretName)
@@ -103,6 +110,37 @@ func (loader *K8sCertLoader) GetCertificateAndCaPool() (*tls.Certificate, *x509.
 		return nil, nil, err
 	}
 	cert, err := tls.X509KeyPair(certBytes.Crt, certBytes.Key)
+	if err != nil {
+		return nil, nil, err
+	}
+	return &cert, caCertPool, nil
+}
+
+func (loader *DevCertLoader) GetCertificateAndCaPool() (*tls.Certificate, *x509.CertPool, error) {
+	klog.Infof("CA Path: %+v", loader.CaCertPath)
+	klog.Infof("Server Path: %+v", loader.ServerCertPath)
+	if err := EnsureDevelopmentPKI(loader.CaCertPath.Base, loader.NodeIP); err != nil {
+		return nil, nil, err
+	}
+	caCertBytes, err := ReadCertFromFile(&loader.CaCertPath)
+	if err != nil {
+		return nil, nil, err
+	}
+	caCert, err := GetCertKeyPairFromCertBytes(caCertBytes)
+	if err != nil {
+		return nil, nil, err
+	}
+	caCertPool := x509.NewCertPool()
+	caCertPool.AddCert(caCert.Crt)
+	// Read certificate signed with provided ca certificate
+	certBytes, err := ReadCertFromFile(&loader.ServerCertPath)
+	if err != nil {
+		return nil, nil, err
+	}
+	cert, err := tls.X509KeyPair(
+		certBytes.Crt,
+		certBytes.Key,
+	)
 	if err != nil {
 		return nil, nil, err
 	}
