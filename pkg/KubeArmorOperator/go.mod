@@ -7,7 +7,7 @@ replace (
 	github.com/kubearmor/KubeArmor/KubeArmor => ../../KubeArmor
 	github.com/kubearmor/KubeArmor/deployments => ../../deployments
 	github.com/kubearmor/KubeArmor/pkg/KubeArmorController => ../KubeArmorController
-	k8s.io/cri-api => k8s.io/cri-api v0.25.16
+	k8s.io/cri-api => k8s.io/cri-api v0.36.2
 )
 
 require (
@@ -21,13 +21,13 @@ require (
 	github.com/stretchr/testify v1.11.1
 	go.uber.org/zap v1.28.0
 	google.golang.org/grpc v1.81.1
-	k8s.io/api v0.36.1
-	k8s.io/apiextensions-apiserver v0.36.1
-	k8s.io/apimachinery v0.36.1
+	k8s.io/api v0.36.2
+	k8s.io/apiextensions-apiserver v0.36.2
+	k8s.io/apimachinery v0.36.2
 	k8s.io/client-go v0.36.1
-	k8s.io/cri-api v0.36.1
+	k8s.io/cri-api v0.36.2
 	k8s.io/klog/v2 v2.140.0
-	k8s.io/kubectl v0.36.1
+	k8s.io/kubectl v0.36.2
 	sigs.k8s.io/controller-runtime v0.24.1
 )
 
