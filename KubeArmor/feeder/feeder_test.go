@@ -12,6 +12,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/kubearmor/KubeArmor/KubeArmor/cert"
 	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 	pb "github.com/kubearmor/KubeArmor/protobuf"
@@ -42,6 +43,28 @@ func destroyFeederIfExists(fd *Feeder, t *testing.T) {
 	}
 }
 
+func configureTestTLS(t *testing.T) {
+	t.Helper()
+	cfg.GlobalCfg.TLSCertProvider = cert.DevCertProvider
+	cfg.GlobalCfg.TLSCertPath = t.TempDir()
+}
+
+func freeTCPPort(t *testing.T) string {
+	t.Helper()
+	listener, err := net.Listen("tcp", ":0")
+	if err != nil {
+		t.Fatalf("Failed to bind test port: %v", err)
+	}
+	defer listener.Close()
+	return strconv.Itoa(listener.Addr().(*net.TCPAddr).Port)
+}
+
+func configureTestPorts(t *testing.T) {
+	t.Helper()
+	cfg.GlobalCfg.GRPC = freeTCPPort(t)
+	cfg.GlobalCfg.ManagementGRPC = freeTCPPort(t)
+}
+
 // setup once for this package
 func TestMain(m *testing.M) {
 	if err := cfg.LoadConfig(); err != nil {
@@ -65,7 +88,8 @@ func TestNewFeeder(t *testing.T) {
 			name: "DefaultConfigSuccess",
 			setup: func(t *testing.T) {
 				cfg.GlobalCfg = cloneConfig()
-				cfg.GlobalCfg.GRPC = "55555"
+				configureTestPorts(t)
+				configureTestTLS(t)
 			},
 			expectNil: false,
 		},
@@ -73,7 +97,8 @@ func TestNewFeeder(t *testing.T) {
 			name: "WithValidLogPath",
 			setup: func(t *testing.T) {
 				cfg.GlobalCfg = cloneConfig()
-				cfg.GlobalCfg.GRPC = "55555"
+				configureTestPorts(t)
+				configureTestTLS(t)
 
 				tmpFile, err := os.CreateTemp("", "feeder-log-*.log")
 				if err != nil {
@@ -96,7 +121,7 @@ func TestNewFeeder(t *testing.T) {
 			name: "WithInvalidLogPath",
 			setup: func(t *testing.T) {
 				cfg.GlobalCfg = cloneConfig()
-				cfg.GlobalCfg.GRPC = "55555"
+				configureTestPorts(t)
 				// directory cannot be opened as file
 				dir := t.TempDir()
 				cfg.GlobalCfg.LogPath = dir
@@ -108,8 +133,9 @@ func TestNewFeeder(t *testing.T) {
 			setup: func(t *testing.T) {
 				cfg.GlobalCfg = cloneConfig()
 				cfg.GlobalCfg.TLSEnabled = true
-				cfg.GlobalCfg.GRPC = "55555"
-				cfg.GlobalCfg.TLSCertPath = "/invalid/cert.pem"
+				configureTestPorts(t)
+				cfg.GlobalCfg.TLSCertProvider = cert.SelfCertProvider
+				cfg.GlobalCfg.TLSCertPath = t.TempDir()
 			},
 			expectNil: true,
 		},
@@ -117,6 +143,7 @@ func TestNewFeeder(t *testing.T) {
 			name: "GRPCPortInUseFailure",
 			setup: func(t *testing.T) {
 				cfg.GlobalCfg = cloneConfig()
+				cfg.GlobalCfg.ManagementGRPC = freeTCPPort(t)
 
 				listener, err := net.Listen("tcp", ":0")
 				if err != nil {

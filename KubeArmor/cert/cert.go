@@ -121,10 +121,164 @@ func GetServerCertPath(base string) CertPath {
 	}
 }
 
+// certPairExists checks if the certificate pair (certificate and key) exists at the given path
+func certPairExists(path *CertPath) bool {
+	if _, err := os.Stat(filepath.Join(path.Base, path.CertFile)); err != nil {
+		return false
+	}
+
+	if !path.CertOnly {
+		if _, err := os.Stat(filepath.Join(path.Base, path.KeyFile)); err != nil {
+			return false
+		}
+	}
+
+	return true
+}
+
+// EnsureDevelopmentPKI ensures the complete development PKI exists.
+// It bootstraps the CA, server certificate and client certificate
+// on first startup. Subsequent startups simply reuse the existing
+// certificates.
+func EnsureDevelopmentPKI(base string, nodeIP string) error {
+	if err := os.MkdirAll(base, 0750); err != nil {
+		return err
+	}
+
+	caPath := GetCACertPath(base)
+	serverPath := GetServerCertPath(base)
+	clientPath := GetClientCertPath(base)
+
+	// ------------------------------------------------------------------
+	// Ensure CA
+	// ------------------------------------------------------------------
+
+	var ca *CertKeyPair
+
+	if !certPairExists(&caPath) {
+		klog.Infof("Generating development CA")
+
+		DefaultKubeArmorCAConfig.NotAfter = time.Now().AddDate(10, 0, 0)
+
+		caBytes, err := GenerateCA(&DefaultKubeArmorCAConfig)
+		if err != nil {
+			return err
+		}
+
+		if err := os.WriteFile(
+			filepath.Join(caPath.Base, caPath.CertFile),
+			caBytes.Crt,
+			0600,
+		); err != nil {
+			return err
+		}
+
+		if err := os.WriteFile(
+			filepath.Join(caPath.Base, caPath.KeyFile),
+			caBytes.Key,
+			0600,
+		); err != nil {
+			return err
+		}
+
+		ca, err = GetCertKeyPairFromCertBytes(caBytes)
+		if err != nil {
+			return err
+		}
+	} else {
+		caBytes, err := ReadCertFromFile(&caPath)
+		if err != nil {
+			return err
+		}
+
+		ca, err = GetCertKeyPairFromCertBytes(caBytes)
+		if err != nil {
+			return err
+		}
+	}
+
+	// ------------------------------------------------------------------
+	// Ensure Server Certificate
+	// ------------------------------------------------------------------
+
+	if !certPairExists(&serverPath) {
+		klog.Infof("Generating development server certificate")
+
+		cfg := DefaultKubeArmorServerConfig
+		cfg.DNS = []string{"localhost", "kubearmor"}
+		cfg.IPs = []string{"127.0.0.1", "::1"}
+		if nodeIP != "" {
+			cfg.IPs = append(cfg.IPs, nodeIP)
+		}
+		cfg.NotAfter = time.Now().AddDate(1, 0, 0)
+
+		serverBytes, err := GenerateSelfSignedCert(ca, &cfg)
+		if err != nil {
+			return err
+		}
+
+		if err := os.WriteFile(
+			filepath.Join(serverPath.Base, serverPath.CertFile),
+			serverBytes.Crt,
+			0600,
+		); err != nil {
+			return err
+		}
+
+		if err := os.WriteFile(
+			filepath.Join(serverPath.Base, serverPath.KeyFile),
+			serverBytes.Key,
+			0600,
+		); err != nil {
+			return err
+		}
+	}
+
+	// ------------------------------------------------------------------
+	// Ensure Client Certificate
+	// ------------------------------------------------------------------
+
+	if !certPairExists(&clientPath) {
+		klog.Infof("Generating development client certificate")
+
+		cfg := DefaultKubeArmorClientConfig
+		cfg.NotAfter = time.Now().AddDate(1, 0, 0)
+
+		clientBytes, err := GenerateSelfSignedCert(ca, &cfg)
+		if err != nil {
+			return err
+		}
+
+		if err := os.WriteFile(
+			filepath.Join(clientPath.Base, clientPath.CertFile),
+			clientBytes.Crt,
+			0600,
+		); err != nil {
+			return err
+		}
+
+		if err := os.WriteFile(
+			filepath.Join(clientPath.Base, clientPath.KeyFile),
+			clientBytes.Key,
+			0600,
+		); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func GetCertKeyPairFromCertBytes(certBytes *CertBytes) (*CertKeyPair, error) {
 	// Parse CA certificate and key
 	certPem, _ := pem.Decode(certBytes.Crt)
+	if certPem == nil {
+		return nil, fmt.Errorf("failed to decode CA certificate")
+	}
 	keyPem, _ := pem.Decode(certBytes.Key)
+	if keyPem == nil {
+		return nil, fmt.Errorf("failed to decode CA private key")
+	}
 
 	crt, err := x509.ParseCertificate(certPem.Bytes)
 	if err != nil {
