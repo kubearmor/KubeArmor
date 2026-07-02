@@ -36,8 +36,8 @@ FROM redhat/ubi10-minimal@sha256:3948fdfe71007909b37faf48c52eda28bfab7c4e440d6f4
 ARG VERSION=latest
 
 LABEL name="kubearmor-controller" \
-      vendor="AccuKnox" \
-      maintainer="Barun Acharya, Ramakant Sharma" \
+      vendor="KubeArmor" \
+      maintainer="Achref Ben Saad, Aryan Sharma, Aryan Bakliwal" \
       version=${VERSION} \
       release=${VERSION} \
       summary="kubearmor-controller container image based on redhat ubi" \

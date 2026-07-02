@@ -82,8 +82,8 @@ ARG VERSION=latest
 ENV KUBEARMOR_UBI=true
 
 LABEL name="kubearmor" \
-      vendor="Accuknox" \
-      maintainer="Barun Acharya, Ramakant Sharma" \
+      vendor="KubeArmor" \
+      maintainer="Achref Ben Saad, Aryan Sharma, Aryan Bakliwal" \
       version=${VERSION} \
       release=${VERSION} \
       summary="kubearmor container image based on redhat ubi" \
@@ -119,8 +119,8 @@ ARG VERSION=latest
 ENV KUBEARMOR_UBI=true
 
 LABEL name="kubearmor" \
-      vendor="Accuknox" \
-      maintainer="Barun Acharya, Ramakant Sharma" \
+      vendor="KubeArmor" \
+      maintainer="Achref Ben Saad, Aryan Sharma, Aryan Bakliwal" \
       version=${VERSION} \
       release=${VERSION} \
       summary="kubearmor container image based on redhat ubi" \
