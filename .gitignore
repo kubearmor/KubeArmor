@@ -45,3 +45,6 @@ deployHook
 
 # allow hook directory
 !**/hook/
+
+# personal scratchpad for incubation reapplication work — not for upstream
+MEMORY.md
