@@ -233,8 +233,9 @@ type BaseFeeder struct {
 	WgServer sync.WaitGroup
 
 	// output
-	Output  string
-	LogFile *os.File
+	Output    string
+	LogFile   *os.File
+	LogWriter *bufio.Writer // persistent buffered writer for LogFile
 
 	// Activated Enforcer
 	Enforcer     string
@@ -328,6 +329,7 @@ func NewFeeder(node *tp.Node, nodeLock **sync.RWMutex) (feeder *Feeder) {
 			return nil
 		}
 		fd.LogFile = logFile
+		fd.LogWriter = bufio.NewWriterSize(logFile, 32*1024) // 32KB buffer
 	}
 
 	// default enforcer
@@ -349,6 +351,20 @@ func NewFeeder(node *tp.Node, nodeLock **sync.RWMutex) (feeder *Feeder) {
 	}
 
 	fd.Running = true
+
+	// Periodic log flush goroutine — flushes buffered log writer every 100ms.
+	if fd.LogWriter != nil {
+		go func() {
+			ticker := time.NewTicker(100 * time.Millisecond)
+			defer ticker.Stop()
+			for range ticker.C {
+				if !fd.Running {
+					return
+				}
+				fd.LogWriter.Flush()
+			}
+		}()
+	}
 
 	// LogServer //
 
@@ -465,7 +481,10 @@ func (fd *BaseFeeder) DestroyFeeder() error {
 		fd.Listener = nil
 	}
 
-	// close LogFile
+	// flush and close LogFile
+	if fd.LogWriter != nil {
+		fd.LogWriter.Flush()
+	}
 	if fd.LogFile != nil {
 		if err := fd.LogFile.Close(); err != nil {
 			kg.Err(err.Error())
@@ -512,20 +531,11 @@ func (fd *BaseFeeder) PushAPIEvent(event *apipb.APIEvent) {
 
 // StrToFile Function
 func (fd *Feeder) StrToFile(str string) {
-	if fd.LogFile != nil {
-		// add the newline at the end of the string
-		str = str + "\n"
-
-		// write the string into the file
-		w := bufio.NewWriter(fd.LogFile)
-		if _, err := w.WriteString(str); err != nil {
-			kg.Err(err.Error())
-		}
-
-		// flush the file buffer
-		if err := w.Flush(); err != nil {
-			kg.Err(err.Error())
-		}
+	if fd.LogWriter != nil {
+		// Write directly to persistent buffered writer.
+		// Flush happens periodically via background goroutine.
+		fd.LogWriter.WriteString(str)
+		fd.LogWriter.WriteByte('\n')
 	}
 }
 
@@ -825,11 +835,9 @@ func (fd *Feeder) PushLog(log tp.Log) {
 
 	// standard output / file output
 	if fd.Output == "stdout" {
-		arr, _ := json.Marshal(log)
-		fmt.Println(string(arr))
-	} else if fd.Output != "none" {
-		arr, _ := json.Marshal(log)
-		fd.StrToFile(string(arr))
+		json.NewEncoder(os.Stdout).Encode(log)
+	} else if fd.Output != "none" && fd.LogWriter != nil {
+		json.NewEncoder(fd.LogWriter).Encode(log)
 	}
 
 	// gRPC output

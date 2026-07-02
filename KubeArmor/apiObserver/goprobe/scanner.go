@@ -156,6 +156,94 @@ var TargetSymbols = map[string][]string{
 	},
 }
 
+// ScanBinary checks a single binary (by host path + inode) for Go gRPC symbols
+// and returns a GoUProbeTarget if it's a relevant Go binary. Returns nil if the
+// binary is not Go, has no gRPC/HTTP2 symbols, or is already negatively cached.
+//
+// This is the O(1) entry point for the unified proc walker — it avoids the full
+// /proc walk that ScanProc() does internally.
+func ScanBinary(pid uint32, hostPath string, inode uint64) *GoUProbeTarget {
+	if inode == 0 {
+		return nil
+	}
+
+	// Check the binary scan cache.
+	if cached, ok := binaryCache.Get(inode); ok {
+		if cached.symbols == nil {
+			return nil // negative cache: known non-Go or non-gRPC binary
+		}
+		return &GoUProbeTarget{
+			PID:          pid,
+			BinaryPath:   hostPath,
+			Inode:        inode,
+			Symbols:      cached.symbols,
+			OffsetTable:  cached.offTable,
+			GoTlsOffsets: cached.tlsOffsets,
+		}
+	}
+
+	// Quick check: is it a Go binary?
+	if !isGoBinary(hostPath) {
+		binaryCache.Add(inode, &cachedScanResult{symbols: nil}) // negative cache
+		return nil
+	}
+
+	// Open ELF and look for gRPC symbols.
+	ef, err := elf.Open(hostPath)
+	if err != nil {
+		return nil
+	}
+
+	syms, err := resolveSymbols(ef, hostPath)
+	_ = ef.Close() // #nosec G104 -- best-effort close of read-only ELF fd
+	if err != nil || len(syms) == 0 {
+		binaryCache.Add(inode, &cachedScanResult{symbols: nil}) // negative cache
+		return nil
+	}
+
+	kg.Debugf("Found Go HTTP/2 binary for uprobe path=%s pid=%d symbols=%d",
+		hostPath, pid, len(syms))
+
+	// Build offset table with defaults.
+	offTable := DefaultOffsetTable()
+
+	// Detect gRPC version and apply version-specific offsets.
+	grpcVer := GetGrpcLibVersion(hostPath)
+	ApplyVersionOffsets(&offTable, grpcVer)
+
+	// Discover Go TLS ret instruction offsets for uprobe-at-ret pattern.
+	var tlsOffsets *GoTlsOffsets
+	if _, hasTLS := syms["go_tls_write"]; hasTLS {
+		offsets, tlsErr := FindGoTlsOffsets(hostPath)
+		if tlsErr != nil {
+			kg.Warnf("Go TLS offset discovery failed (uretprobe fallback disabled) path=%s err=%v",
+				hostPath, tlsErr)
+		} else {
+			tlsOffsets = &offsets
+			kg.Debugf("Go TLS ret offsets discovered path=%s write_exits=%d read_exits=%d abi=%d",
+				hostPath, len(offsets.GoWriteOffset.Exits), len(offsets.GoReadOffset.Exits), offsets.Abi)
+		}
+	}
+
+	// Store in cache for future scan cycles.
+	binaryCache.Add(inode, &cachedScanResult{
+		symbols:    syms,
+		offTable:   offTable,
+		grpcVer:    grpcVer,
+		tlsOffsets: tlsOffsets,
+		inode:      inode,
+	})
+
+	return &GoUProbeTarget{
+		PID:          pid,
+		BinaryPath:   hostPath,
+		Inode:        inode,
+		Symbols:      syms,
+		OffsetTable:  offTable,
+		GoTlsOffsets: tlsOffsets,
+	}
+}
+
 // ScanProc scans /proc for Go binaries that use gRPC or net/http HTTP/2.
 // Returns a list of targets suitable for uprobe attachment.
 func ScanProc() ([]GoUProbeTarget, error) {
