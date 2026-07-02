@@ -272,7 +272,13 @@ func EnsureDevelopmentPKI(base string, nodeIP string) error {
 func GetCertKeyPairFromCertBytes(certBytes *CertBytes) (*CertKeyPair, error) {
 	// Parse CA certificate and key
 	certPem, _ := pem.Decode(certBytes.Crt)
+	if certPem == nil {
+		return nil, fmt.Errorf("failed to decode CA certificate")
+	}
 	keyPem, _ := pem.Decode(certBytes.Key)
+	if keyPem == nil {
+		return nil, fmt.Errorf("failed to decode CA private key")
+	}
 
 	crt, err := x509.ParseCertificate(certPem.Bytes)
 	if err != nil {
