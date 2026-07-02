@@ -403,7 +403,7 @@ func NewFeeder(node *tp.Node, nodeLock **sync.RWMutex) (feeder *Feeder) {
 	}
 	fd.ManagementListener = managementListener
 
-	fd.ManagementServer, err = createGRPCServer(node.NodeIP, true, grpcMTLS)
+	fd.ManagementServer, err = createGRPCServer(node.NodeIP, cfg.GlobalCfg.TLSEnabled, grpcMTLS)
 	if err != nil {
 		kg.Errf(
 			"Failed to listen a management port (%s, %s)",
