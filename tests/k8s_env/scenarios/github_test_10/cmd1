@@ -1,5 +1,5 @@
 source: ubuntu-1-deployment
-cmd: curl www.accuknox.com
+cmd: curl www.kubearmor.io
 result: passed
 ---
 operation: Network

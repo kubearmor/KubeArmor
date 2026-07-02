@@ -57,8 +57,8 @@ FROM redhat/ubi10-minimal AS operator-ubi
 ARG VERSION=latest
 
 LABEL name="kubearmor-operator" \
-      vendor="Accuknox" \
-      maintainer="Barun Acharya, Ramakant Sharma" \
+      vendor="KubeArmor" \
+      maintainer="Achref Ben Saad, Aryan Sharma, Aryan Bakliwal" \
       version=${VERSION} \
       release=${VERSION} \
       summary="kubearmor-operator container image based on redhat ubi" \
@@ -92,8 +92,8 @@ FROM redhat/ubi10-minimal AS snitch-ubi
 ARG VERSION=latest
 
 LABEL name="kubearmor-snitch" \
-      vendor="Accuknox" \
-      maintainer="Barun Acharya, Ramakant Sharma" \
+      vendor="KubeArmor" \
+      maintainer="Achref Ben Saad, Aryan Sharma, Aryan Bakliwal" \
       version=${VERSION} \
       release=${VERSION} \
       summary="kubearmor-snitch container image based on redhat ubi" \
