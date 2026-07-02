@@ -20,6 +20,20 @@ endif
 PKG      := $(shell go list ./buildinfo)
 GIT_INFO := $(shell govvv -flags -pkg $(PKG))
 
+# Reproducible build (issue #2587): timestamp pinned to the last commit, paths and
+# build-id stripped. These values mirror the reproducible settings in .goreleaser.yaml
+# so that `make build-reproducible` of a clean checkout reproduces the released binary.
+# GitBranch is intentionally not embedded: it is not a deterministic property of a commit
+# (e.g. `git rev-parse --abbrev-ref HEAD` returns "HEAD" in CI's detached state), so
+# embedding it would defeat reproducibility.
+SOURCE_DATE_EPOCH := $(shell git log -1 --format=%ct)
+# Must match GoReleaser's {{ .Summary }} (git describe --tags --dirty --always) exactly,
+# otherwise the embedded version string differs and the binary won't match the release.
+REPRO_GIT_SUMMARY := $(shell git describe --tags --dirty --always)
+REPRO_LDFLAGS     := -buildid= \
+	-X github.com/kubearmor/KubeArmor/KubeArmor/buildinfo.GitSummary=$(REPRO_GIT_SUMMARY) \
+	-X github.com/kubearmor/KubeArmor/KubeArmor/buildinfo.BuildDate=$(SOURCE_DATE_EPOCH)
+
 .PHONY: build
 build: protobuf
 	cd $(CURDIR); go mod tidy
@@ -38,6 +52,28 @@ endif
 .PHONY: protobuf
 protobuf:
 	cd $(CURDIR); make -C ../protobuf
+
+# Deterministic build. Unlike `build`, this target:
+#   - does NOT run `go mod tidy` (which can mutate go.mod/go.sum) — uses -mod=readonly,
+#   - does NOT use govvv (which embeds wall-clock time),
+#   - does NOT regenerate protobuf or BPF artifacts — it uses the committed *.pb.go and
+#     *.o files, which is exactly how the release pipeline (.goreleaser.yaml) compiles.
+# The output therefore depends only on the source commit and the Go toolchain version.
+# Note: builds the package ("."), not "main.go", so the embedded module path and
+# Go VCS stamps match the release pipeline (.goreleaser.yaml). On a clean checkout
+# of a tag, this reproduces the released binary byte-for-byte.
+.PHONY: build-reproducible
+build-reproducible:
+	cd $(CURDIR); SOURCE_DATE_EPOCH=$(SOURCE_DATE_EPOCH) CGO_ENABLED=0 go build \
+		-trimpath \
+		-mod=readonly \
+		-ldflags "$(REPRO_LDFLAGS)" \
+		-o kubearmor .
+
+# Verify that the build is reproducible by building twice and comparing checksums.
+.PHONY: verify-reproducible
+verify-reproducible:
+	cd $(CURDIR)/..; bash scripts/verify-reproducible-build.sh
 
 .PHONY: build-test
 build-test: testall

@@ -9,11 +9,24 @@ builds:
       - amd64
     env:
       - CGO_ENABLED=0
+    # Reproducible release builds (issue #2587):
+    #   mod_timestamp pins the binary's timestamp to the commit time,
+    #   -trimpath strips local filesystem paths,
+    #   -buildid= removes the random build ID embedded by the Go linker.
+    # With these set, two independent release runs of the same tag produce
+    # byte-for-byte identical binaries, and `make build-reproducible` of the
+    # same (clean) checkout reproduces the released binary.
+    mod_timestamp: "{{ .CommitTimestamp }}"
+    flags:
+      - -trimpath
     ldflags:
-      - "-X main.BuildDate={{.Date}}"
-      - "-X main.GitCommit={{.Commit}}"
-      - "-X main.GitBranch={{.Branch}}"
-      - "-X main.GitSummary={{.Summary}}"
+      - -buildid=
+      # Build info lives in the buildinfo package (the previous "main.*" targets
+      # were silent no-ops). BuildDate is pinned to the commit timestamp so it is
+      # deterministic; GitBranch is intentionally omitted because a branch name is
+      # not a deterministic property of a commit.
+      - "-X github.com/kubearmor/KubeArmor/KubeArmor/buildinfo.GitSummary={{ .Summary }}"
+      - "-X github.com/kubearmor/KubeArmor/KubeArmor/buildinfo.BuildDate={{ .CommitTimestamp }}"
 
 release:
   replace_existing_artifacts: true
