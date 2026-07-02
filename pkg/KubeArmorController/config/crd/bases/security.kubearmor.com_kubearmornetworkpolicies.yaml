@@ -53,12 +53,29 @@ spec:
             type: object
           spec:
             description: KubeArmorNetworkPolicySpec defines the desired state of KubeArmorNetworkPolicy
+            x-kubernetes-validations:
+              - rule: "!(has(self.selector) && (has(self.selector.matchLabels) || has(self.selector.matchExpressions)) && has(self.nodeSelector))"
+                message: "A policy cannot target both containers and host nodes"
+              - rule: "!(has(self.selector) && (has(self.selector.matchLabels) || has(self.selector.matchExpressions))) || !has(self.ingress) || self.ingress.all(i, has(i.limit) && has(i.duration))"
+                message: "Container policies strictly support only bandwidth quota rules; all ingress rules must declare both 'limit' and 'duration' only"
+              - rule: "!(has(self.selector) && (has(self.selector.matchLabels) || has(self.selector.matchExpressions))) || !has(self.egress) || self.egress.all(e, has(e.limit) && has(e.duration))"
+                message: "Container policies strictly support only bandwidth quota rules; all egress rules must declare both 'limit' and 'duration' only"
             properties:
               action:
                 enum:
                 - Allow
                 - Audit
                 - Block
+                type: string
+              level:
+                description: |-
+                  Level defines the quota enforcement level.
+                  Accepts "pod" or "policy". Defaults to "pod" if not specified.
+                enum:
+                - pod
+                - policy
+                - Pod
+                - Policy
                 type: string
               egress:
                 items:
@@ -70,10 +87,21 @@ spec:
                       - Audit
                       - Block
                       type: string
+                    duration:
+                      description: |-
+                        Duration defines how often the quota counter is reset.
+                        Accepts formats like "2h", "30m", "45s".
+                      type: string
                     iface:
                       items:
                         type: string
                       type: array
+                    limit:
+                      description: |-
+                        Limit defines the outbound bandwidth quota. Accepts a value with unit suffix:
+                        e.g. "500MB", "2GB", "1024KB". Defaults to GB if no unit is given.
+                      pattern: ^[0-9]+(KB|MB|GB|K|M|G)?$
+                      type: string
                     message:
                       type: string
                     ports:
@@ -134,6 +162,11 @@ spec:
                       - Audit
                       - Block
                       type: string
+                    duration:
+                      description: |-
+                        Duration defines how often the quota counter is reset.
+                        Accepts formats like "2h", "30m", "45s".
+                      type: string
                     from:
                       items:
                         description: NetworkPeer Structure
@@ -154,6 +187,12 @@ spec:
                       items:
                         type: string
                       type: array
+                    limit:
+                      description: |-
+                        Limit defines the inbound bandwidth quota. Accepts a value with unit suffix:
+                        e.g. "500MB", "2GB", "1024KB".
+                      pattern: ^[0-9]+(KB|MB|GB|K|M|G)?$
+                      type: string
                     message:
                       type: string
                     ports:
@@ -197,6 +236,31 @@ spec:
                       type: string
                     type: object
                 type: object
+              selector:
+                properties:
+                  matchExpressions:
+                    items:
+                      properties:
+                        key:
+                          enum:
+                          - label
+                          type: string
+                        operator:
+                          enum:
+                          - In
+                          - NotIn
+                          type: string
+                        values:
+                          items:
+                            type: string
+                          type: array
+                      type: object
+                    type: array
+                  matchLabels:
+                    additionalProperties:
+                      type: string
+                    type: object
+                type: object
               severity:
                 maximum: 10
                 minimum: 1
@@ -205,8 +269,6 @@ spec:
                 items:
                   type: string
                 type: array
-            required:
-            - nodeSelector
             type: object
           status:
             description: KubeArmorNetworkPolicyStatus defines the observed state of

@@ -219,6 +219,9 @@ type BaseFeeder struct {
 	// True if feeder and its workers are working
 	Running bool
 
+	// Number of dropped logs
+	DroppedLogs uint64
+
 	// LogServer //
 
 	// port
@@ -707,7 +710,7 @@ func (fd *Feeder) PushLog(log tp.Log) {
 		parts := strings.Split(log.Resource, " ") // policyName chain(INPUT/OUTPUT) action(Audit/Block)
 		direction := "INGRESS"
 		if len(parts) > 2 {
-			if parts[1] == "OUTPUT" {
+			if parts[1] == "OUTPUT" || strings.ToUpper(parts[1]) == "EGRESS" {
 				direction = "EGRESS"
 			}
 		}
@@ -893,7 +896,6 @@ func (fd *Feeder) PushLog(log tp.Log) {
 		defer fd.EventStructs.AlertLock.Unlock()
 		counter := 0
 		lenAlert := len(fd.EventStructs.AlertStructs)
-
 		for uid := range fd.EventStructs.AlertStructs {
 			select {
 			case fd.EventStructs.AlertStructs[uid].Broadcast <- &pbAlert:
@@ -923,7 +925,11 @@ func (fd *Feeder) PushLog(log tp.Log) {
 				counter++
 				if counter == lenlog {
 					// Default on the last uid in Logstuct means the log isn't pushed into Broadcast
-					kg.Printf("log channel busy, log dropped.")
+					fd.DroppedLogs++
+					if fd.DroppedLogs%10000 == 0 {
+						kg.Warnf("log channel busy, 10000 logs dropped.")
+						fd.DroppedLogs = 0
+					}
 				}
 			}
 		}

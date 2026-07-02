@@ -9,10 +9,19 @@ import (
 
 // KubeArmorNetworkPolicySpec defines the desired state of KubeArmorNetworkPolicy
 type KubeArmorNetworkPolicySpec struct {
-	NodeSelector NodeSelectorType `json:"nodeSelector"`
+	// +kubebuilder:validation:Optional
+	NodeSelector NodeSelectorType `json:"nodeSelector,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	Selector SelectorType `json:"selector,omitempty"`
 
 	Ingress []IngressType `json:"ingress,omitempty"`
 	Egress  []EgressType  `json:"egress,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Enum=Pod;Policy;pod;policy
+	// Level defines the scope of quota enforcement.
+	Level string `json:"level,omitempty"`
 
 	// +kubebuilder:validation:optional
 	Severity SeverityType `json:"severity,omitempty"`
