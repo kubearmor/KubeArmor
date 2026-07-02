@@ -342,8 +342,11 @@ func (be *BPFEnforcer) TraceEvents() {
 	}()
 
 	for {
-
-		dataRaw := <-be.EventsChannel
+		dataRaw, ok := <-be.EventsChannel
+		if !ok {
+			be.Logger.Print("EventsChannel closed, exiting TraceEvents")
+			return
+		}
 
 		var event eventBPF
 
@@ -557,6 +560,10 @@ func (be *BPFEnforcer) DestroyBPFEnforcer() error {
 			be.Logger.Err(err.Error())
 			errBPFCleanUp = errors.Join(errBPFCleanUp, err)
 		}
+	}
+
+	if be.EventsChannel != nil {
+		close(be.EventsChannel)
 	}
 
 	be = nil
