@@ -17,7 +17,7 @@ on:
       - "protobuf/**"
       - ".github/workflows/ci-test-go.yml"
       - "pkg/KubeArmorOperator/**"
-    
+
 # Declare default permissions as read only.
 permissions: read-all
 
@@ -29,7 +29,7 @@ jobs:
 
       - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
-          go-version-file: 'KubeArmor/go.mod'
+          go-version-file: "KubeArmor/go.mod"
 
       - name: Check gofmt
         run: make gofmt
@@ -42,10 +42,10 @@ jobs:
 
       - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
-          go-version-file: 'KubeArmor/go.mod'
+          go-version-file: "KubeArmor/go.mod"
 
       - name: Run Revive Action on KubeArmor
-        uses: morphy2k/revive-action@bd8016177e3722fe0aad85e22507805641be5bb1 # v2
+        uses: morphy2k/revive-action@7b25e715309495d5c3cdef7caccb65ad9fa74ba3 # v2
         with:
           path: "./KubeArmor/..."
 
@@ -56,10 +56,10 @@ jobs:
 
       - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
-          go-version-file: 'KubeArmor/go.mod'
+          go-version-file: "KubeArmor/go.mod"
 
       - name: Run Revive Action on KubeArmor tests
-        uses: morphy2k/revive-action@bd8016177e3722fe0aad85e22507805641be5bb1 # v2
+        uses: morphy2k/revive-action@7b25e715309495d5c3cdef7caccb65ad9fa74ba3 # v2
         with:
           path: "./tests/..."
 
@@ -70,7 +70,7 @@ jobs:
 
       - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
-          go-version-file: 'KubeArmor/go.mod'
+          go-version-file: "KubeArmor/go.mod"
 
       - name: Run Gosec Security Scanner
         run: make gosec
@@ -83,9 +83,9 @@ jobs:
 
       - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
-          go-version-file: 'KubeArmor/go.mod'
+          go-version-file: "KubeArmor/go.mod"
 
-      - name: Run govulncheck 
+      - name: Run govulncheck
         run: make scan
         working-directory: KubeArmor
 
@@ -96,7 +96,7 @@ jobs:
 
       - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
-          go-version-file: 'KubeArmor/go.mod'
+          go-version-file: "KubeArmor/go.mod"
 
       - name: Run go test on the KubeArmor/KubeArmor directory
         run: go test ./...
@@ -108,6 +108,6 @@ jobs:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Check License Header
-        uses: apache/skywalking-eyes@ed436a5593c63a25f394ea29da61b0ac3731a9fe
+        uses: apache/skywalking-eyes@ed436a5593c63a25f394ea29da61b0ac3731a9fe # ed436a5593c63a25f394ea29da61b0ac3731a9fe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -22,6 +22,7 @@ RUN apt-get install -y python3-flask && ln -sf /usr/bin/python3 /usr/bin/python
 RUN apt-get clean
 RUN apt-get autoremove -y
 RUN rm -rf /var/lib/{apt,dpkg,cache,log}/
+
 ADD flask/http_test.py /
 COPY entrypoint.sh /entrypoint.sh
 

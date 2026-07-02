@@ -138,7 +138,7 @@ jobs:
           docker system prune -a -f 
           docker buildx prune -a -f
           helm upgrade --install kubearmor-operator ./deployments/helm/KubeArmorOperator -n kubearmor --create-namespace --set kubearmorOperator.image.tag=latest  --set kubearmorOperator.annotateExisting=true
-          
+
           kubectl rollout status --timeout=5m deployment -n kubearmor -l kubearmor-app=kubearmor-operator
 
           kubectl get pods -A
@@ -202,7 +202,7 @@ jobs:
 
       - name: Test KubeArmor using Ginkgo
         run: |
-          go install -mod=mod github.com/onsi/ginkgo/v2/ginkgo
+          go install -mod=mod github.com/onsi/ginkgo/v2/ginkgo@v2.23.4
           go mod tidy
           ginkgo --vv --flake-attempts=10 --timeout=15m
         working-directory: ./tests/k8s_env/networktests
@@ -232,7 +232,7 @@ jobs:
         if: ${{ failure() }}
         run: |
           kubectl describe pod -n kubearmor -l kubearmor-app=kubearmor
-          curl -sfL http://get.kubearmor.io/ | sudo sh -s -- -b /usr/local/bin
+          curl -sfL http://get.kubearmor.io/ -o /tmp/install-karmor.sh && sudo sh /tmp/install-karmor.sh -b /usr/local/bin
           mkdir -p /tmp/kubearmor/ && cd /tmp/kubearmor && karmor sysdump
 
       - name: Archive log artifacts

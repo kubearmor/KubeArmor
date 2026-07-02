@@ -17,17 +17,17 @@ fi
 if [ "$RUNTIME" == "docker" ]; then
     CGROUP_SYSTEMD=$(docker info 2> /dev/null | grep -i cgroup | grep systemd | wc -l)
     if [ $CGROUP_SYSTEMD == 1 ]; then
-        curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION="v1.23.9+k3s1" K3S_KUBECONFIG_MODE="644" INSTALL_K3S_EXEC="--disable=traefik --docker --kubelet-arg cgroup-driver=systemd" sh - 2>/dev/null
+        curl -sfL https://get.k3s.io -o /tmp/install-k3s.sh && INSTALL_K3S_VERSION="v1.23.9+k3s1" K3S_KUBECONFIG_MODE="644" INSTALL_K3S_EXEC="--disable=traefik --docker --kubelet-arg cgroup-driver=systemd" sh /tmp/install-k3s.sh - 2>/dev/null
         [[ $? != 0 ]] && echo "Failed to install k3s" && exit 1
     else
-        curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION="v1.23.9+k3s1" K3S_KUBECONFIG_MODE="644" INSTALL_K3S_EXEC="--disable=traefik --docker" sh - 2>/dev/null
+        curl -sfL https://get.k3s.io -o /tmp/install-k3s.sh && INSTALL_K3S_VERSION="v1.23.9+k3s1" K3S_KUBECONFIG_MODE="644" INSTALL_K3S_EXEC="--disable=traefik --docker" sh /tmp/install-k3s.sh - 2>/dev/null
         [[ $? != 0 ]] && echo "Failed to install k3s" && exit 1
     fi
 elif [ "$RUNTIME" == "crio" ]; then
-  curl -sfL https://get.k3s.io | K3S_KUBECONFIG_MODE="644" INSTALL_K3S_EXEC="--disable=traefik --container-runtime-endpoint unix:///var/run/crio/crio.sock --kubelet-arg cgroup-driver=systemd" sh - 2>/dev/null
+  curl -sfL https://get.k3s.io -o /tmp/install-k3s.sh && K3S_KUBECONFIG_MODE="644" INSTALL_K3S_EXEC="--disable=traefik --container-runtime-endpoint unix:///var/run/crio/crio.sock --kubelet-arg cgroup-driver=systemd" sh /tmp/install-k3s.sh - 2>/dev/null
   [[ $? != 0 ]] && echo "Failed to install k3s" && exit 1
 else
-  curl -sfL https://get.k3s.io | K3S_KUBECONFIG_MODE="644" INSTALL_K3S_EXEC="--disable=traefik" sh - 2>/dev/null
+  curl -sfL https://get.k3s.io -o /tmp/install-k3s.sh && K3S_KUBECONFIG_MODE="644" INSTALL_K3S_EXEC="--disable=traefik" sh /tmp/install-k3s.sh - 2>/dev/null
   [[ $? != 0 ]] && echo "Failed to install k3s" && exit 1
 fi
 
