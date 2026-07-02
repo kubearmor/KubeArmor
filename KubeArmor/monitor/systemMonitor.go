@@ -62,6 +62,10 @@ type NsVisibility struct {
 	IMA        bool
 }
 
+type linkCloser interface {
+	Close() error
+}
+
 // ===================== //
 // == Syscall Context == //
 // ===================== //
@@ -158,7 +162,7 @@ type SystemMonitor struct {
 	PinPath          string
 
 	// Probes Links
-	Probes map[string]link.Link
+	Probes map[string]linkCloser
 
 	// context + args
 	ContextChan chan ContextCombined
@@ -591,7 +595,7 @@ func (mon *SystemMonitor) InitBPF() error {
 
 	if mon.BpfModule != nil {
 
-		mon.Probes = make(map[string]link.Link)
+		mon.Probes = make(map[string]linkCloser)
 
 		mon.Probes["kprobe__udp_sendmsg"], err = link.Kprobe("udp_sendmsg", mon.BpfModule.Programs["kprobe__udp_sendmsg"], nil)
 		if err != nil {
@@ -724,9 +728,11 @@ func (mon *SystemMonitor) DestroySystemMonitor() error {
 
 	mon.Status = false
 
+	var errs []error
+
 	if mon.SyscallPerfMap != nil {
 		if err := mon.SyscallPerfMap.Close(); err != nil {
-			return err
+			errs = append(errs, fmt.Errorf("closing perf map: %w", err))
 		}
 	}
 
@@ -738,9 +744,9 @@ func (mon *SystemMonitor) DestroySystemMonitor() error {
 		close(mon.ContextChan)
 	}
 
-	for _, link := range mon.Probes {
+	for name, link := range mon.Probes {
 		if err := link.Close(); err != nil {
-			return err
+			errs = append(errs, fmt.Errorf("closing probe %s: %w", name, err))
 		}
 	}
 
@@ -751,7 +757,7 @@ func (mon *SystemMonitor) DestroySystemMonitor() error {
 	}
 
 	mon.DestroyBPFMaps()
-	return nil
+	return errors.Join(errs...)
 }
 
 // ======================= //
@@ -792,12 +798,14 @@ func (mon *SystemMonitor) TraceSyscall() {
 	ContainersLock := *(mon.ContainersLock)
 
 	ReplayChannel := make(chan []byte, SyscallChannelSize)
+	defer close(ReplayChannel)
 
 	go func() {
 		for {
 			dataRaw, valid := <-ReplayChannel
 			if !valid {
-				continue
+				// channel closed exit the goroutine
+				return
 			}
 			dataBuff := bytes.NewBuffer(dataRaw)
 			ctx, err := readContextFromBuff(dataBuff)
@@ -827,6 +835,8 @@ func (mon *SystemMonitor) TraceSyscall() {
 
 					select {
 					case mon.SyscallChannel <- dataRaw:
+						// successfully replayed no need to keep retrying
+						return
 					default:
 						// channel is full, wait for a short time before retrying
 						time.Sleep(1 * time.Second)
