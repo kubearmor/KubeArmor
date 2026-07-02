@@ -51,6 +51,7 @@ func (a *PodAnnotator) Handle(ctx context.Context, req admission.Request) admiss
 		pod, err := a.ClientSet.CoreV1().Pods(binding.Namespace).Get(context.TODO(), binding.Name, metav1.GetOptions{})
 		if err != nil {
 			a.Logger.Error(err, "failed to get pod info")
+			return admission.Errored(http.StatusInternalServerError, err)
 		}
 		nodename := binding.Target.Name
 		annotate := false
