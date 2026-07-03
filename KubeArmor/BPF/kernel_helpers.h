@@ -64,30 +64,6 @@ struct mount
 
 #endif    
 
-#if defined(BTF_SUPPORTED) && __has_builtin(__builtin_preserve_field_info)
-
-// Shadow struct for iov_iter field rename (iov -> __iov in kernel >= 6.4)
-struct iov_iter___new {
-  union {
-    const struct iovec *__iov;
-    const struct iovec *iov;
-  };
-} __attribute__((preserve_access_index));
-
-// Shadow struct for old task_struct (kernel < 4.19) where pids[] was used
-// instead of thread_pid. CO-RE maps task_struct___old -> task_struct at load
-// time and resolves the pids field from the target kernel's BTF.
-struct pid_link___old {
-    struct hlist_node node;
-    struct pid *pid;
-} __attribute__((preserve_access_index));
-
-struct task_struct___old {
-    struct pid_link___old pids[4];
-} __attribute__((preserve_access_index));
-
-#endif
-
 // == Kernel Helpers == //
 
 static __always_inline u32 get_pid_ns_id(struct nsproxy *ns)
@@ -121,16 +97,7 @@ static __always_inline u32 get_task_pid_vnr(struct task_struct *task)
 {
     struct pid *pid = NULL;
 
-#if defined(BTF_SUPPORTED) && __has_builtin(__builtin_preserve_field_info)
-    // CO-RE: detect thread_pid vs pids[] at load time
-    if (bpf_core_field_exists(task->thread_pid)) {
-        pid = READ_KERN(task->thread_pid);
-    } else {
-        // Kernel < 4.19: task_struct had pids[PIDTYPE_PID].pid
-        struct task_struct___old *old_task = (void *)task;
-        bpf_core_read(&pid, sizeof(pid), &old_task->pids[0].pid);
-    }
-#elif (defined(KBUILD_MODNAME) && LINUX_VERSION_CODE < KERNEL_VERSION(4, 19, 0) && !defined(RHEL_RELEASE_GT_8_0) && !defined(BTF_SUPPORTED))
+#if (defined(KBUILD_MODNAME) && LINUX_VERSION_CODE < KERNEL_VERSION(4, 19, 0) && !defined(RHEL_RELEASE_GT_8_0) && !defined(BTF_SUPPORTED))
     pid = READ_KERN(task->pids[PIDTYPE_PID].pid);
 #else
     pid = READ_KERN(task->thread_pid);
@@ -180,5 +147,16 @@ static __always_inline void get_outer_key(struct outer_key *pokey,
         pokey->mnt_ns = 0;
     }
 }
+
+// Shadow struct for new kernel (>= 6.4)
+// Only define when CO-RE builtins are available (requires modern clang with BPF CO-RE support)
+#if defined(BTF_SUPPORTED) && __has_builtin(__builtin_preserve_field_info)
+struct iov_iter___new {
+  union {
+    const struct iovec *__iov;
+    const struct iovec *iov;
+  };
+} __attribute__((preserve_access_index));
+#endif
 
 #endif // _KERNEL_HELPERS_H
