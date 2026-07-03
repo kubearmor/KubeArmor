@@ -1020,7 +1020,7 @@ func (fd *Feeder) PushLog(log tp.Log) {
 func loadTLSCredentials(ip string, tlsMode grpcTLSMode) (credentials.TransportCredentials, error) {
 	// create certificate configurations
 	serverCertConfig := cert.DefaultKubeArmorServerConfig
-	serverCertConfig.IPs = []string{ip}
+	serverCertConfig.DNS, serverCertConfig.IPs = cert.KubeArmorServerSANs(ip, cfg.GlobalCfg.Host)
 	serverCertConfig.NotAfter = time.Now().Add(365 * 24 * time.Hour) // valid for 1 year
 	// as of now daemonset creates certificates dynamically
 	tlsConfig := cert.TlsConfig{
@@ -1028,6 +1028,8 @@ func loadTLSCredentials(ip string, tlsMode grpcTLSMode) (credentials.TransportCr
 		CertProvider: cfg.GlobalCfg.TLSCertProvider,
 		CACertPath:   cert.GetCACertPath(config.GlobalCfg.TLSCertPath),
 		CertPath:     cert.GetServerCertPath(config.GlobalCfg.TLSCertPath),
+		NodeIP:       ip,
+		ServerNames:  []string{cfg.GlobalCfg.Host},
 	}
 	manager := cert.NewTlsCredentialManager(&tlsConfig)
 	switch tlsMode {
