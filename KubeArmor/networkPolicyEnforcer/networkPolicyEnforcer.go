@@ -1149,7 +1149,7 @@ delete quota inet kubearmor {{.Name}}
 
 # 8. Apply Quota Additions (Delta)
 {{- range .InetQuotasToAdd }}
-add quota inet kubearmor {{.Name}} { over {{.Limit}} }
+add quota inet kubearmor {{.Name}} over {{.Limit}}
 {{- end }}
 
 # 9. Rebuild Pod Rules (Declarative)
@@ -1167,14 +1167,14 @@ add rule inet kubearmor OUTPUT {{ . }}
 table ip kubearmor {
 	chain INPUT {
 		iifname "lo" accept
-        ct state { established, related } accept
+		ct state { established, related } accept
 		{{- range .IPv4Input }}
 		{{ . }}
 		{{- end }}
 	}
 	chain OUTPUT {
 		oifname "lo" accept
-        ct state { established, related } accept
+		ct state { established, related } accept
 		{{- range .IPv4Output }}
 		{{ . }}
 		{{- end }}
@@ -1184,14 +1184,14 @@ table ip kubearmor {
 table ip6 kubearmor {
 	chain INPUT {
 		iifname "lo" accept
-        ct state { established, related } accept
+		ct state { established, related } accept
 		{{- range .IPv6Input }}
 		{{ . }}
 		{{- end }}
 	}
 	chain OUTPUT {
 		oifname "lo" accept
-        ct state { established, related } accept
+		ct state { established, related } accept
 		{{- range .IPv6Output }}
 		{{ . }}
 		{{- end }}
