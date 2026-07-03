@@ -2554,23 +2554,7 @@ int kprobe__udp_sendmsg(struct pt_regs *ctx)
     dport = ntohs(dport);
     if (dport != 53)
         return 0;
-
-#if defined(BTF_SUPPORTED) && __has_builtin(__builtin_preserve_field_info)
-    void *iov_ptr = NULL;
-    // Handle __iov / iov field rename across kernel versions using CO-RE
-    struct iov_iter___new *iter = (void *)&msg->msg_iter;
-    if (bpf_core_field_exists(iter->__iov))
-    {
-      bpf_core_read(&iov_ptr, sizeof(iov_ptr), &iter->__iov);
-    }
-    else
-    {
-      bpf_core_read(&iov_ptr, sizeof(iov_ptr), &iter->iov);
-    }
-    if (iov_ptr) {
-      bpf_probe_read_kernel(&iov, sizeof(iov), iov_ptr);
-    }
-#elif LINUX_VERSION_CODE >= KERNEL_VERSION(6, 3, 13) || RHEL9_BUILD_GTE_400
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 3, 13) || RHEL9_BUILD_GTE_400
     bpf_probe_read(&iov, sizeof(iov), &msg->msg_iter.__iov);
 #else
     bpf_probe_read(&iov, sizeof(iov), &msg->msg_iter.iov);
