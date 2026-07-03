@@ -34,6 +34,7 @@ type TlsConfig struct {
 	// "external": Certificates Are Provided Using File
 	CertProvider string
 	NodeIP       string
+	ServerNames  []string
 }
 
 type TlsCredentialManager struct {
@@ -74,6 +75,7 @@ func NewTlsCredentialManager(cfg *TlsConfig) *TlsCredentialManager {
 			CaCertPath:     cfg.CACertPath,
 			ServerCertPath: cfg.CertPath,
 			NodeIP:         cfg.NodeIP,
+			ServerNames:    cfg.ServerNames,
 		}
 		return &TlsCredentialManager{
 			CertLoader: &cl,
