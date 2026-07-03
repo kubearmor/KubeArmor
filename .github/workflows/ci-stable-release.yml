@@ -15,20 +15,26 @@ jobs:
     if: github.repository == 'kubearmor/kubearmor'
     runs-on: ubuntu-22.04
     timeout-minutes: 60
+    permissions:
+      contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Install regctl
+        env:
+          REGCTL_VERSION: v0.11.5
+          REGCTL_SHA256: c93aa7638749f5aaac1a8e01787321889c78f0101809bb2880343478d0ba0467
         run: |
-          curl -L https://github.com/regclient/regclient/releases/latest/download/regctl-linux-amd64 >regctl
+          curl -fsSL "https://github.com/regclient/regclient/releases/download/${REGCTL_VERSION}/regctl-linux-amd64" -o regctl
+          echo "${REGCTL_SHA256}  regctl" | sha256sum -c -
           chmod 755 regctl
-          mv regctl /usr/local/bin
+          mv regctl /usr/local/bin/regctl
 
       - name: Check install
         run: regctl version
 
       - name: Login to Docker Hub
-        uses: docker/login-action@v2
+        uses: docker/login-action@465a07811f14bebb1938fbed4728c6a1ff8901fc # v2
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_AUTHTOK }}
@@ -55,7 +61,6 @@ jobs:
           STABLE_VERSION=`cat STABLE-RELEASE`
           gh release create --repo kubearmor/charts $STABLE_VERSION --generate-notes
 
-
   update-helm-chart:
     name: Update KubeArmor Helm chart version
     if: github.repository == 'kubearmor/kubearmor'
@@ -65,7 +70,7 @@ jobs:
       contents: write
       pull-requests: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Update Chart.yaml
         id: update
@@ -78,7 +83,7 @@ jobs:
           echo "STABLE_VERSION=$STABLE_VERSION" >> $GITHUB_OUTPUT
 
       - name: Create PR to update Helm chart version in KubeArmor repo
-        uses: peter-evans/create-pull-request@v5
+        uses: peter-evans/create-pull-request@4e1beaa7521e8b457b572c090b25bd3db56bf1c5 # v5
         with:
           branch: update-helm-${{ steps.update.outputs.STABLE_VERSION }}
           add-paths: "deployments/helm/*/Chart.yaml"

@@ -141,6 +141,17 @@ Now, we will briefly explain how to define a host security policy.
       kubernetes.io/os: [operating system, (e.g., linux)]
   ```
 
+  KubeArmor supports the following hostname label matching modes for Node/VM policies:
+
+  | Mode | Example | Description |
+  |---|---|---|
+  | Exact | `kubearmor.io/hostname: kubearmor-dev` | Targets a specific node by name |
+  | Wildcard | `kubearmor.io/hostname: "*"` | Targets all Nodes/VMs |
+  | Comma-separated | `kubernetes.io/hostname: node-1,node-2` | Targets multiple specific nodes |
+  | Regex | `kubearmor.io/hostnamereg: node-*` | Targets nodes whose hostname matches a pattern |
+
+  > **Note:** `kubernetes.io/` prefix variants are only available in Kubernetes environments. The `hostnamereg` label is supported with both `kubearmor.io/` and `kubernetes.io/` prefixes.
+
 * Process
 
   In the process section, there are three types of matches: matchPaths, matchDirectories, and matchPatterns. You can define specific executables using matchPaths or all executables in specific directories using matchDirectories. In the case of matchPatterns, advanced operators may be able to determine particular patterns for executables by using regular expressions. However, we generally do not recommend using this match.

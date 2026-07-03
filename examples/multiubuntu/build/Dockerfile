@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright 2026 Authors of KubeArmor
 
-FROM ubuntu:18.04 AS builder
+FROM ubuntu:18.04@sha256:152dc042452c496007f07ca9127571cb9c29697f42acbfad72324b2bb2e43c98 AS builder
 
 RUN apt-get update && apt install -y gcc
 COPY helloworld/ /helloworld/
@@ -10,19 +10,18 @@ COPY readwrite/ /readwrite/
 RUN gcc -o hello /helloworld/hello.c
 RUN gcc -o readwriter /readwrite/readwrite.c
 
-FROM ubuntu:18.04
+FROM ubuntu:18.04@sha256:152dc042452c496007f07ca9127571cb9c29697f42acbfad72324b2bb2e43c98
 
 RUN apt-get update
 
 RUN apt-get install -y net-tools iputils-ping telnet ssh tcpdump nmap dsniff arping
-RUN apt-get install -y curl iperf3 netperf ethtool python-scapy python-pip
+RUN apt-get install -y curl iperf3 netperf ethtool python-scapy python3-pip
 RUN apt-get install -y iptables bridge-utils apache2 vim
 
+RUN apt-get install -y python3-flask && ln -sf /usr/bin/python3 /usr/bin/python
 RUN apt-get clean
 RUN apt-get autoremove -y
 RUN rm -rf /var/lib/{apt,dpkg,cache,log}/
-
-RUN pip install flask
 ADD flask/http_test.py /
 COPY entrypoint.sh /entrypoint.sh
 

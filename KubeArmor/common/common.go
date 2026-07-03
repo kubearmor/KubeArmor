@@ -513,21 +513,67 @@ func MatchIdentities(identities, superIdentities []string) bool {
 			continue
 		}
 
-		if strings.Contains(identity, "kubearmor.io/hostname") {
-			if !MatchesRegex("kubearmor.io/hostname", identity, superIdentities) {
+		// kubearmor.io/hostnamereg=node-*, will match for kubearmor.io/hostname=node-1, kubearmor.io/hostname=node-2, etc
+		if strings.HasPrefix(identity, "kubearmor.io/hostnamereg=") {
+			pattern := strings.TrimPrefix(identity, "kubearmor.io/hostnamereg=")
+			pattern = strings.ReplaceAll(pattern, "*", ".*")
+			fullRegexElement := "kubearmor\\.io/hostname=" + pattern
+
+			if !MatchesRegex("kubearmor.io/hostname", fullRegexElement, superIdentities) {
 				matched = false
 				break
 			}
-
 			continue
 		}
 
-		if strings.Contains(identity, "kubernetes.io/hostname") {
-			if !MatchesRegex("kubernetes.io/hostname", identity, superIdentities) {
+		// kubernetes.io/hostnamereg=node-*, will match for kubernetes.io/hostname=node-1, kubernetes.io/hostname=node-2, etc, but only in k8s env
+		if strings.HasPrefix(identity, "kubernetes.io/hostnamereg=") && IsK8sEnv() {
+			pattern := strings.TrimPrefix(identity, "kubernetes.io/hostnamereg=")
+			pattern = strings.ReplaceAll(pattern, "*", ".*")
+			fullRegexElement := "kubernetes\\.io/hostname=" + pattern
+
+			if !MatchesRegex("kubernetes.io/hostname", fullRegexElement, superIdentities) {
+				matched = false
+				break
+			}
+			continue
+		}
+
+		// comma-separated hostnames (kubearmor.io/hostname=node1,node2, kubernetes.io/hostname=node1,node2 in k8s env, or * for all hostnames)
+		if strings.HasPrefix(identity, "kubearmor.io/hostname=") || (strings.HasPrefix(identity, "kubernetes.io/hostname=") && IsK8sEnv()) {
+			parts := strings.SplitN(identity, "=", 2)
+
+			if len(parts) != 2 {
 				matched = false
 				break
 			}
 
+			key := parts[0] // kubearmor.io/hostname or kubernetes.io/hostname
+			found := false
+
+			for _, val := range strings.Split(parts[1], ",") {
+				if val == "*" {
+					// check if the target machine has ANY label starting with this key
+					for _, super := range superIdentities {
+						if strings.HasPrefix(super, key+"=") {
+							found = true
+							break
+						}
+					}
+				} else if ContainsElement(superIdentities, key+"="+val) {
+					// exact match
+					found = true
+				}
+
+				if found {
+					break
+				}
+			}
+
+			if !found {
+				matched = false
+				break
+			}
 			continue
 		}
 

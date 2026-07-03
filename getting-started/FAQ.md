@@ -8,15 +8,15 @@
 
 <details><summary><h4>I am applying a blocking policy but it is not blocking the action. What can I check?</h4></summary>
 
-### Checkout Binary Path
+### Check Binary Path
 If the path in your process rule is not an absolute path but a symlink, policy enforcement won't work. This is because KubeArmor sees the actual executable path in events received from kernel space and is not aware about symlinks.
 
 Policy enforcement on symbolic links like `/usr/bin/python` doesn't work and one has to specify the path of the actual executable that they link to.
 
-### Checkout Platform Support
-Check `karmor probe` output and check whether `Container Security` is false. If it is false, the KubeArmor enforcement is not supported on that platform. You should check the [KubeArmor Support Matrix](support_matrix.md) and if the platform is not listed there then raise a new issue or connect to kubearmor community of [slack](https://cloud-native.slack.com/archives/C07EF44HWQM).
+### Check Platform Support
+Check `karmor probe` output and check whether `Container Security` is false. If it is false, the KubeArmor enforcement is not supported on that platform. You should check the [KubeArmor Support Matrix](support_matrix.md) and if the platform is not listed there then raise a new issue or connect to the KubeArmor community on [Slack](https://cloud-native.slack.com/archives/C07EF44HWQM).
 
-### Checkout Default Posture
+### Check Default Posture
 If you are applying an Allow-based policies and expecting unknown actions to be blocked, please make sure to check the [default security posture](default_posture.md). The default security posture is set to Audit by default since KubeArmor v0.7.
 
 </details>
@@ -24,8 +24,8 @@ If you are applying an Allow-based policies and expecting unknown actions to be 
 <details><summary><h4>How is KubeArmor different from PodSecurityPolicy/PodSecurityContext?</h4></summary>
 
 Native k8s supports specifying a security context for the pod or container. It requires one to specify native AppArmor, SELinux, seccomp policies. But there are a few problems with this approach:
-* All the OS distributions do not support the LSMs consistently. For e.g, [GKE COS](https://cloud.google.com/container-optimized-os/) supports AppArmor while [Bottlerocket](https://aws.amazon.com/bottlerocket/) supports SELinux and BPF-LSM.
-* The Pod Security Context expect the security profile to be specified in its native language, for instance, AppArmor profile for AppArmor. SELinux profile if SELinux is to be used. The profile language is extremely complex and this complexity could backfire i.e, it could lead to security holes.
+* All the OS distributions do not support the LSMs consistently. For example, [GKE COS](https://cloud.google.com/container-optimized-os/) supports AppArmor while [Bottlerocket](https://aws.amazon.com/bottlerocket/) supports SELinux and BPF-LSM.
+* The Pod Security Context expects the security profile to be specified in its native language, for instance, AppArmor profile for AppArmor. SELinux profile if SELinux is to be used. The profile language is extremely complex and this complexity could backfire i.e, it could lead to security holes.
 * Security Profile updates are manual and difficult: When an app is updated, the security posture might change and it becomes difficult to manually update the native rules.
 * No alerting of LSM violation on managed cloud platforms: By default LSMs send logs to kernel auditd, which is not available on most managed cloud platforms.
 
@@ -34,8 +34,8 @@ KubeArmor solves all the above mentioned problems.
 * It's easy to deploy: KubeArmor is deployed as a daemonset. Even when the application is updated, the enforcement rules are automatically applied.
 * Consistent Alerting: KubeArmor handles kernel events and maps k8s metadata using ebpf.
 * KubeArmor also runs in systemd mode so can directly run and protect Virtual Machines or Bare-metal machines too.
-* Pod Security Context cannot leverage BPF-LSM at all today. BPF-LSM provides more programmatic control over the policy rules.
-* Pod Security Context do not manage abstractions. As an example, you might have two nodes with Ubuntu, two nodes with Bottlerocket. Ubuntu, by default has AppArmor and Bottlerocket has BPF-LSM and SELinux. KubeArmor internally picks the right primitives to use for enforcement and the user do not have to bother explicitly stating what to use.
+* Pod Security Contexts cannot leverage BPF-LSM at all today. BPF-LSM provides more programmatic control over the policy rules.
+* Pod Security Contexts do not manage abstractions. As an example, you might have two nodes with Ubuntu, two nodes with Bottlerocket. Ubuntu, by default has AppArmor and Bottlerocket has BPF-LSM and SELinux. KubeArmor internally picks the right primitives to use for enforcement and the user does not have to bother explicitly stating what to use.
 </details>
 
 <details><summary><h4>What is visibility that I hear of in KubeArmor and how to get visibility information?</h4></summary>

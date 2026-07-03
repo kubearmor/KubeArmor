@@ -2,7 +2,7 @@
 # Copyright 2026 Authors of KubeArmor
 
 # Build the manager binary
-FROM golang:1.26 AS builder
+FROM golang:1.26@sha256:069cffa8011efba291595b8030af0f7edfb1d2b6d6e2b86327937cf75d03c6ac AS builder
 
 WORKDIR /workspace
 # Copy the Go Modules manifests
@@ -36,8 +36,8 @@ FROM redhat/ubi10-minimal AS controller-ubi
 ARG VERSION=latest
 
 LABEL name="kubearmor-controller" \
-      vendor="AccuKnox" \
-      maintainer="Barun Acharya, Ramakant Sharma" \
+      vendor="KubeArmor" \
+      maintainer="Achref Ben Saad, Aryan Sharma, Aryan Bakliwal" \
       version=${VERSION} \
       release=${VERSION} \
       summary="kubearmor-controller container image based on redhat ubi" \

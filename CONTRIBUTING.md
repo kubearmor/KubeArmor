@@ -1,20 +1,20 @@
 # Contributing to KubeArmor
 
-Welcome to KubeArmor, and thank you for showcasing your interest in contributing to the KubeArmor community. We are excited to have you join us in improving Linux runtime security through Kubernetes. The KubeArmor community abides by the CNCF [code of conduct](code-of-conduct.md). Here is an excerpt:
+Welcome to KubeArmor, and thank you for showcasing your interest in contributing to the KubeArmor community. We are excited to have you join us in improving Linux runtime security through Kubernetes. The KubeArmor community abides by the CNCF [code of conduct](CODE_OF_CONDUCT.md). Here is an excerpt:
 
 _As contributors and maintainers of this project, and in the interest of fostering an open and welcoming community, we pledge to respect all people who contribute through reporting issues, posting feature requests, updating documentation, submitting pull requests or patches, and other activities._
 
-Since, KubeArmor is part of the Kubernetes Community, we request you to also go through the following:
+Since KubeArmor is part of the Kubernetes community, we request you to also go through the following:
 
 - [Kubernetes Contributor Guide](https://www.kubernetes.dev/docs/guide/): Main contributor documentation.
 - [Contributor Cheat Sheet](https://github.com/kubernetes/community/blob/master/contributors/guide/contributor-cheatsheet/README.md): Common resources for existing developers.
 
 ## Getting Started
 
-If you are new to the project or open source contributions in general, we encourage you to start by familiarizing yourself with KubeArmor via our KubeArmor Overview [Wiki](https://docs.kubearmor.io/kubearmor/quick-links/kubearmor_overview).
+If you are new to the project or open-source contributions in general, we encourage you to start by familiarizing yourself with KubeArmor via our KubeArmor Overview [wiki](https://docs.kubearmor.io/kubearmor/quick-links/kubearmor_overview).
 
 We maintain a list of curated issues that are great entry points:
-- [Good First Issues](https://github.com/kubearmor/KubeArmor/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22): Ideal for Beginners or new comers.
+- [Good First Issues](https://github.com/kubearmor/KubeArmor/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22): Ideal for beginners or newcomers.
 - [Help Wanted Issues](https://github.com/kubearmor/KubeArmor/issues?q=is%3Aissue+is%3Aopen+label%3A%22help+wanted%22): Issues that need additional input, expertise, or effort from the community. Suitable for contributors who are ready to take on slightly more involved tasks.
 - [Backlog Issues](https://github.com/kubearmor/KubeArmor/issues?q=is%3Aissue+is%3Aopen+label%3Abacklog): Issues that are planned or pending implementation. These are great for contributors looking for meaningful and scoped technical work.
 
@@ -69,7 +69,6 @@ Test coverage is crucial for the stability and maintainability of the project. W
 
 KubeArmor is dedicated to supporting contributors at all levels. Here’s how you can grow within the community:
 
-
 ### Join Mentorship Programs
 You can contribute to KubeArmor through several open source mentorship programs:
 - **[Google Summer of Code (GSoC)](https://summerofcode.withgoogle.com/)**: Contribute to well-defined projects under the mentorship of KubeArmor maintainers. GSoC typically runs in summer and is supported by CNCF.
@@ -97,7 +96,6 @@ If you have any questions or need help while contributing:
 - **Community Meetings**: Attend our regular meetings listed in our [GitHub README](https://github.com/kubearmor/KubeArmor#community).
 - **GitHub Discussions**: Use [GitHub Discussions](https://github.com/kubearmor/KubeArmor/discussions) for long-form questions and ideas.
 - **Documentation**: Refer to KubeArmor [Docs](https://docs.kubearmor.io/) for in-depth information.
-- **FAQs**: Common queries and tips can be found in our README [FAQ Section](https://github.com/kubearmor/KubeArmor#frequently-asked-questions).
+- FAQs: Common queries and tips can be found in our README [FAQ section](https://github.com/kubearmor/KubeArmor#frequently-asked-questions).
 
 We look forward to your valuable contributions. Thank you for being part of the KubeArmor community!
-

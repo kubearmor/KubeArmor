@@ -11,7 +11,7 @@ import (
 	fd "github.com/kubearmor/KubeArmor/KubeArmor/feeder"
 )
 
-//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -cc clang ima_hash ../BPF/ima_hash.bpf.c -- -I/usr/include/ -O2 -g -fno-stack-protector
+//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -cc clang ima_hash ../BPF/ima_hash.bpf.c -- -I/usr/include/ -O2 -g -fno-stack-protector -Wno-missing-declarations
 
 // ImaHash struct
 type ImaHash struct {

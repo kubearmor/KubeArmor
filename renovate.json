@@ -1,13 +1,30 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
-    "config:base"
+    "config:recommended",
+    "helpers:pinGitHubActionDigests"
   ],
-  "constraints": {
-    "go": "1.22"
+  "dependencyDashboard": true,
+  "schedule": ["before 4am on monday"],
+  "prHourlyLimit": 0,
+  "prConcurrentLimit": 10,
+  "docker": {
+    "pinDigests": true
   },
-  "postUpdateOptions": ["gomodTidy"],
-  "ignorePresets": [":prHourlyLimit2"],
-	"reviewers": ["team:maintainers"]
-
+  "packageRules": [
+    {
+      "description": "Group all GitHub Actions digest-pin updates into one PR",
+      "matchManagers": ["github-actions"],
+      "matchUpdateTypes": ["pin", "digest"],
+      "groupName": "GitHub Actions digest pins",
+      "automerge": false
+    },
+    {
+      "description": "Group all Docker digest-pin updates into one PR",
+      "matchManagers": ["dockerfile"],
+      "matchUpdateTypes": ["pin", "digest"],
+      "groupName": "Docker image digest pins",
+      "automerge": false
+    }
+  ]
 }

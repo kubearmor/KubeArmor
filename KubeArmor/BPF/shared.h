@@ -27,7 +27,8 @@ char LICENSE[] SEC("license") = "Dual BSD/GPL";
 #define CAPABLE_KEY 200
 #define TTY_LEN 64
 #define MAX_STR_ARR_ELEM 20
-
+#define MAX_NESTED_DNS_LABELS 10
+#define MAX_DNS_LABEL_LEN 100
 #define READ_KERN(ptr)                                \
   ({                                                  \
     typeof(ptr) _val;                                 \
@@ -100,7 +101,7 @@ struct
   __uint(type, BPF_MAP_TYPE_PERCPU_ARRAY);
   __type(key, u32);
   __type(value, bufs_k);
-  __uint(max_entries, 3);
+  __uint(max_entries, 4);
 } bufk SEC(".maps");
 
 //-- Maps structs for argument matching----/
@@ -295,15 +296,15 @@ static __always_inline u32 *get_buf_off(int buf_idx)
 
 static __always_inline bool valid_buf_and_off(bufs_t *buf, u32 *off_ptr, u32 *off)
 {
-    if (!buf || !off_ptr)
-        return false;
+  if (!buf || !off_ptr)
+    return false;
 
-    *off = *off_ptr;
+  *off = *off_ptr;
 
-    if (*off >= MAX_BUFFER_SIZE)
-        return false;
+  if (*off >= MAX_BUFFER_SIZE)
+    return false;
 
-    return true;
+  return true;
 }
 
 static inline struct mount *real_mount(struct vfsmount *mnt)
@@ -311,7 +312,7 @@ static inline struct mount *real_mount(struct vfsmount *mnt)
   return container_of(mnt, struct mount, mnt);
 }
 
-static __always_inline bool prepend_path(struct path *path, bufs_t *string_p)
+static __always_inline bool prepend_path(const struct path *path, bufs_t *string_p)
 {
   char slash = '/';
   char null = '\0';
@@ -469,7 +470,7 @@ static __always_inline u32 get_task_pid_ns_id(struct task_struct *task)
   pid_ns = BPF_CORE_READ(task, nsproxy, pid_ns_for_children);
 
   if (!pid_ns)
-      return 0;
+    return 0;
 
   bpf_core_read(&inum, sizeof(inum), &pid_ns->ns.inum);
 
@@ -478,16 +479,16 @@ static __always_inline u32 get_task_pid_ns_id(struct task_struct *task)
 
 static __always_inline u32 get_task_mnt_ns_id(struct task_struct *task)
 {
-    struct mnt_namespace *mnt_ns;
-    u32 inum = 0;
+  struct mnt_namespace *mnt_ns;
+  u32 inum = 0;
 
-    mnt_ns = BPF_CORE_READ(task, nsproxy, mnt_ns);
-    if (!mnt_ns)
-        return 0;
+  mnt_ns = BPF_CORE_READ(task, nsproxy, mnt_ns);
+  if (!mnt_ns)
+    return 0;
 
-    bpf_core_read(&inum, sizeof(inum), &mnt_ns->ns.inum);
+  bpf_core_read(&inum, sizeof(inum), &mnt_ns->ns.inum);
 
-    return inum;
+  return inum;
 }
 
 static __always_inline u32 get_task_pid_vnr(struct task_struct *task)
@@ -1217,7 +1218,7 @@ static inline bool matchArguments(unsigned int num_of_args, struct outer_key *ok
   return argmatch;
 }
 
-static __always_inline int extract_dns_name(void *data, char *name)
+static __noinline int extract_dns_name(void *data, char *name)
 {
   // Read the DNS payload
 
