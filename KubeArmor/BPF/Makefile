@@ -29,14 +29,16 @@ ifeq (,$(wildcard $(LIBBPF)/src/libbpf.a))
 	$(Q)make -C $(LIBBPF)/src
 endif
 
-# Modern single-step BPF compilation pipeline.
-# 'clang -target bpf' compiles directly to BPF bytecode with CO-RE
-# relocation support. This replaces the legacy multi-stage pipeline
-# (clang | opt | llvm-dis | llc) 
+# below we use long chain of commands, clang | opt | llvm-dis | llc,
+# to generate final object file. 'clang' compiles the source into IR
+# with native target, e.g., x64, arm64, etc. 'opt' does bpf CORE IR builtin
+# processing (llvm12) and IR optimizations. 'llvm-dis' converts
+# 'opt' output to IR, and finally 'llc' generates bpf byte code.
+# Ref https://elixir.bootlin.com/linux/v5.19.5/source/samples/bpf/Makefile#L439
 
 system_monitor.bpf.o: $(SYSMONITOR) $(VMLINUX_H)
 	@echo "Compiling eBPF bytecode: $(GREEN)$@$(NC) ..."
-	$(Q)$(CL) $(KF) -c $< -o $@
+	$(Q)$(CL) $(KF) -Xclang -disable-llvm-passes -c $< -o - | opt -O2 -mtriple=bpf-pc-linux | llvm-dis | llc -march=bpf -mcpu=probe -filetype=obj -o $@
 
 .PHONY: clean
 clean:
