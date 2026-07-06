@@ -205,7 +205,8 @@ enum
     _TCP_ACCEPT_v6 = 403,
 
     // UDP_MSG
-    _UDP_SENDMSG = 10000
+    _UDP_SENDMSG = 10000,
+    _UDP_SEND_SKB = 10001
 };
 
 // forward declartaion for CWD
@@ -2528,6 +2529,80 @@ int kretprobe__inet_csk_accept(struct pt_regs *ctx)
 
     return 0;
 }
+
+SEC("kprobe/udp_send_skb")
+int kprobe__udp_send_skb(struct pt_regs *ctx){
+
+    if (skip_syscall())
+        return 0;
+
+    if (get_kubearmor_config(_ENFORCER_BPFLSM) && drop_syscall(_DNS_PROBE))
+        return 0;
+
+    struct sk_buff *skb = (struct sk_buff *)PT_REGS_PARM1(ctx);
+    struct flowi4  *fl4 = (struct flowi4 *)PT_REGS_PARM2(ctx);
+    if (skb == NULL || fl4 == NULL)
+        return 0;
+
+    struct sock *sk = NULL;
+    bpf_probe_read(&sk, sizeof(sk), &skb->sk);
+    if (sk == NULL)
+        return 0;
+    
+    __u16 dport = 0;
+    bpf_probe_read(&dport, sizeof(dport), &fl4->uli.ports.dport);
+    dport = ntohs(dport);
+    if (dport != 53)
+        return 0;
+
+    __u32 skb_len = 0;
+    bpf_probe_read(&skb_len, sizeof(skb_len), &skb->len);
+    if (skb_len > 512 + sizeof(struct udphdr)) // MAX_DNS_SIZE + udp header
+        return 0;
+
+    unsigned char *head = NULL;
+    __u16 trans_off = 0;
+    bpf_probe_read(&head, sizeof(head), &skb->head);
+    bpf_probe_read(&trans_off, sizeof(trans_off), &skb->transport_header);
+    void *data = head + trans_off + sizeof(struct udphdr);
+
+    sys_context_t context = {};
+    args_t args = {};
+    u64 types = 0;
+    init_context(&context);
+    context.argnum = 3;
+    context.retval = 0;
+    context.event_id = _UDP_SEND_SKB;
+
+    if (context.retval >= 0 && drop_syscall(_DNS_PROBE))
+        return 0;
+
+     if (context.retval < 0 && !get_kubearmor_config(_ENFORCER_BPFLSM) &&
+        get_kubearmor_config(_ALERT_THROTTLING) &&
+        should_drop_alerts_per_container(&context, ctx, types, &args))
+        return 0;
+    
+    set_buffer_offset(DNS_BUF_TYPE, sizeof(sys_context_t));
+    bufs_t *bufs_p = get_buffer(DNS_BUF_TYPE);
+    if (bufs_p == NULL)
+        return 0;
+    save_context_to_buffer(bufs_p, (void *)&context);
+
+
+    struct sock_common conn = READ_KERN(sk->__sk_common);
+    struct sockaddr_in sockv4 = {};
+    sockv4.sin_family = conn.skc_family;
+    bpf_probe_read(&sockv4.sin_addr.s_addr, sizeof(sockv4.sin_addr.s_addr), &fl4->daddr);
+    sockv4.sin_port = dport;
+
+    save_to_buffer(bufs_p, DNS_BUF_TYPE, (void *)&sockv4, sizeof(struct sockaddr_in), SOCKADDR_T);
+    save_dns_data_to_dns_buffer(bufs_p, data, UDP_MSG);
+    events_perf_submit(ctx, DNS_BUF_TYPE);
+    return 0;
+}
+
+// This probe is currently not attached by the system monitor.
+// The decision to disable attaching this probe was taken for performance reasons.
 
 SEC("kprobe/udp_sendmsg")
 int kprobe__udp_sendmsg(struct pt_regs *ctx)
