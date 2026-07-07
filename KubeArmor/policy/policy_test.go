@@ -241,6 +241,18 @@ func TestContainerPolicy(t *testing.T) {
 	}
 }
 
+func TestContainerPolicyRejectsNilPayload(t *testing.T) {
+	s := &policy.PolicyServer{ContainerPolicyEnabled: true}
+
+	res, err := s.ContainerPolicy(context.Background(), nil)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if res.Status != pb.PolicyStatus_Invalid {
+		t.Fatalf("got %v, want %v", res.Status, pb.PolicyStatus_Invalid)
+	}
+}
+
 func TestHostPolicy(t *testing.T) {
 	called := false
 	mockUpdate := func(event tp.K8sKubeArmorHostPolicyEvent) pb.PolicyStatus {
