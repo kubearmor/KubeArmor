@@ -1,0 +1,21 @@
+# This patch mounts cert-manager managed certificates at the controller-runtime
+# metrics server default certificate directory.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: controller-manager
+  namespace: system
+spec:
+  template:
+    spec:
+      containers:
+      - name: manager
+        volumeMounts:
+        - mountPath: /tmp/k8s-metrics-server/serving-certs
+          name: metrics-certs
+          readOnly: true
+      volumes:
+      - name: metrics-certs
+        secret:
+          defaultMode: 420
+          secretName: metrics-server-cert
