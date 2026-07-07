@@ -165,7 +165,9 @@ func TestPushContainerEvent(t *testing.T) {
 
 		sa.PushContainerEvent(tp.Container{ContainerID: "c1", ContainerName: "nginx", NamespaceName: "default"}, EventAdded)
 		sa.PushContainerEvent(tp.Container{ContainerID: "c2", ContainerName: "redis", NamespaceName: "default"}, EventAdded)
-		<-ch; <-ch; <-ch // ns-added, c1-added, c2-added
+		<-ch
+		<-ch
+		<-ch // ns-added, c1-added, c2-added
 
 		sa.PushContainerEvent(tp.Container{ContainerID: "c1", ContainerName: "nginx", NamespaceName: "default"}, EventDeleted)
 		cEvent := <-ch
