@@ -13,16 +13,23 @@ spec:
       scheme: https
       bearerTokenFile: /var/run/secrets/kubernetes.io/serviceaccount/token
       tlsConfig:
-        # TODO(user): The option insecureSkipVerify: true is not recommended for production since it disables
-        # certificate verification. This poses a significant security risk by making the system vulnerable to
-        # man-in-the-middle attacks, where an attacker could intercept and manipulate the communication between
-        # Prometheus and the monitored services. This could lead to unauthorized access to sensitive metrics data,
-        # compromising the integrity and confidentiality of the information.
-        # Please use the following options for secure configurations:
-        # caFile: /etc/metrics-certs/ca.crt
-        # certFile: /etc/metrics-certs/tls.crt
-        # keyFile: /etc/metrics-certs/tls.key
-        insecureSkipVerify: true
+        # Enable certificate verification against the cert-manager managed secret.
+        # When this ServiceMonitor is included from config/default, the service name
+        # and namespace are rewritten by kustomize replacements to match the final
+        # rendered resource names.
+        serverName: controller-manager-metrics-service.system.svc
+        insecureSkipVerify: false
+        ca:
+          secret:
+            name: metrics-server-cert
+            key: ca.crt
+        cert:
+          secret:
+            name: metrics-server-cert
+            key: tls.crt
+        keySecret:
+          name: metrics-server-cert
+          key: tls.key
   selector:
     matchLabels:
       control-plane: controller-manager
