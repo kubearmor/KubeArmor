@@ -30,7 +30,7 @@ jobs:
 
       - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
-          go-version-file: 'KubeArmor/go.mod'
+          go-version-file: "KubeArmor/go.mod"
 
       - name: Install the latest LLVM toolchain
         run: ./.github/workflows/install-llvm.sh
@@ -51,9 +51,15 @@ jobs:
           go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.11
           go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.6.1
           echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
-    
+
+      - name: Compile libbpf
+        run: |
+          git clone https://github.com/kubearmor/libbpf
+          cd libbpf && make
+          echo "LIBBPF_INCLUDE=$(pwd)/include" >> "$GITHUB_ENV"
+
       - name: Build Systemd Release
-        run: make local-release
+        run: BPF_CFLAGS="-I${LIBBPF_INCLUDE}" make -C KubeArmor build
         working-directory: KubeArmor
 
       - name: Install KubeArmor
@@ -62,12 +68,10 @@ jobs:
 
       - name: Check journalctl
         run: sudo journalctl -u kubearmor --no-pager
-      
-      - name: Test kubearmor using ginkgo 
+
+      - name: Test kubearmor using ginkgo
         run: |
           go install -mod=mod github.com/onsi/ginkgo/v2/ginkgo
           make
         working-directory: ./tests/nonk8s_env
         timeout-minutes: 30
-        
-      
