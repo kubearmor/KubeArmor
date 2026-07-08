@@ -2530,6 +2530,9 @@ int kretprobe__inet_csk_accept(struct pt_regs *ctx)
     return 0;
 }
 
+
+#define UDPHDR_LEN 8
+
 SEC("kprobe/udp_send_skb")
 int kprobe__udp_send_skb(struct pt_regs *ctx){
 
@@ -2557,14 +2560,14 @@ int kprobe__udp_send_skb(struct pt_regs *ctx){
 
     __u32 skb_len = 0;
     bpf_probe_read(&skb_len, sizeof(skb_len), &skb->len);
-    if (skb_len > 512 + sizeof(struct udphdr)) // MAX_DNS_SIZE + udp header
+    if (skb_len > 512 + UDPHDR_LEN) // MAX_DNS_SIZE + udp header
         return 0;
 
     unsigned char *head = NULL;
     __u16 trans_off = 0;
     bpf_probe_read(&head, sizeof(head), &skb->head);
     bpf_probe_read(&trans_off, sizeof(trans_off), &skb->transport_header);
-    void *data = head + trans_off + sizeof(struct udphdr);
+    void *data = head + trans_off + UDPHDR_LEN;
 
     sys_context_t context = {};
     args_t args = {};
