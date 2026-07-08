@@ -72,6 +72,13 @@ jobs:
         with:
           go-version-file: 'KubeArmor/go.mod'
 
+      - name: Install LLVM/Clang
+        run: ./.github/workflows/install-llvm.sh
+
+      - name: Generate BPF files
+        run: go generate ./...
+        working-directory: KubeArmor
+
       - name: Run Gosec Security Scanner
         run: make gosec
         working-directory: KubeArmor
@@ -85,6 +92,13 @@ jobs:
         with:
           go-version-file: 'KubeArmor/go.mod'
 
+      - name: Install LLVM/Clang
+        run: ./.github/workflows/install-llvm.sh
+
+      - name: Generate BPF files
+        run: go generate ./...
+        working-directory: KubeArmor
+
       - name: Run govulncheck 
         run: make scan
         working-directory: KubeArmor
@@ -97,6 +111,13 @@ jobs:
       - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
           go-version-file: 'KubeArmor/go.mod'
+
+      - name: Install LLVM/Clang
+        run: ./.github/workflows/install-llvm.sh
+
+      - name: Generate BPF files
+        run: go generate ./...
+        working-directory: KubeArmor
 
       - name: Run go test on the KubeArmor/KubeArmor directory
         run: go test ./...

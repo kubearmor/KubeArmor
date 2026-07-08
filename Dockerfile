@@ -6,7 +6,7 @@
 FROM golang:1.26-alpine3.22@sha256:457d8584db11412777c4196146b8060fdaabe0b0ba7b62c553d08e07d8c22bd3 AS builder
 
 RUN apk --no-cache update && apk upgrade --no-cache libcrypto3 libssl3 zlib libexpat
-RUN apk add --no-cache git clang llvm make gcc protobuf protobuf-dev curl elfutils-dev
+RUN apk add --no-cache git clang llvm make gcc protobuf protobuf-dev curl elfutils-dev libbpf-dev
 
 WORKDIR /usr/src/KubeArmor
 
