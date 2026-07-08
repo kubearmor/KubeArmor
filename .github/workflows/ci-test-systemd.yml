@@ -59,7 +59,7 @@ jobs:
           echo "LIBBPF_INCLUDE=$(pwd)/include" >> "$GITHUB_ENV"
 
       - name: Build Systemd Release
-        run: BPF_CFLAGS="-I${LIBBPF_INCLUDE}" make -C KubeArmor build
+        run: BPF_CFLAGS="-I${LIBBPF_INCLUDE}" make build
         working-directory: KubeArmor
 
       - name: Install KubeArmor
