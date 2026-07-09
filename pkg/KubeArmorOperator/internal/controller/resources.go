@@ -1265,7 +1265,11 @@ func (clusterWatcher *ClusterWatcher) RotateTlsCerts() {
 		clusterWatcher.Log.Warnf("cannot get controller deployment, error=%s", err.Error())
 	}
 
-	caCert, tlsCrt, tlsKey, _ = common.GeneratePki(common.Namespace, deployments.KubeArmorControllerWebhookServiceName)
+	caCert, tlsCrt, tlsKey, err = common.GeneratePki(common.Namespace, deployments.KubeArmorControllerWebhookServiceName)
+	if err != nil {
+		clusterWatcher.Log.Warnf("cannot generate PKI, error=%s", err.Error())
+		return
+	}
 	replicas := origdeploy.Spec.Replicas
 
 	// TODO: Keep CA certificate in k8s secret
