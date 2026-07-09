@@ -53,7 +53,7 @@ jobs:
           echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
 
       - name: Build Systemd Release
-        run: make build
+        run: make local-release
         working-directory: KubeArmor
 
       - name: Install KubeArmor
