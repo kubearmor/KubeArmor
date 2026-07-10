@@ -67,6 +67,7 @@ const (
 	DropAlert = 0
 
 	UDPSendMsg = 10000
+	UDPSendSkb = 10001
 
 	SocketSendMsg = 465
 )
