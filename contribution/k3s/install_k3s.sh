@@ -3,10 +3,9 @@
 # Copyright 2026 Authors of KubeArmor
 
 if [ "$RUNTIME" == "" ]; then
-    # TODO: Enable the support for docker here. Currently docker runtime in k3s env is leading to the issue:
-    # https://github.com/kubearmor/KubeArmor/issues/1971
-    # Once this issue is fixed, we can support docker again in k3s
-    if [ -S /var/run/crio/crio.sock ]; then
+    if [ -S /var/run/docker.sock ]; then
+        RUNTIME="docker"
+    elif [ -S /var/run/crio/crio.sock ]; then
         RUNTIME="crio"
     else # default
         RUNTIME="containerd"
@@ -17,10 +16,10 @@ fi
 if [ "$RUNTIME" == "docker" ]; then # docker
     CGROUP_SYSTEMD=$(docker info 2> /dev/null | grep -i cgroup | grep systemd | wc -l)
     if [ $CGROUP_SYSTEMD == 1 ]; then
-        curl -sfL https://get.k3s.io | K3S_KUBECONFIG_MODE="644" INSTALL_K3S_EXEC="--disable=traefik --docker --container-runtime-endpoint unix:///var/run/docker.sock --kubelet-arg cgroup-driver=systemd" sh -
+        curl -sfL https://get.k3s.io | K3S_KUBECONFIG_MODE="644" INSTALL_K3S_EXEC="--disable=traefik --docker --kubelet-arg cgroup-driver=systemd" sh -
         [[ $? != 0 ]] && echo "Failed to install k3s" && exit 1
     else # cgroupfs
-        curl -sfL https://get.k3s.io | K3S_KUBECONFIG_MODE="644" INSTALL_K3S_EXEC="--disable=traefik --docker --container-runtime-endpoint unix:///var/run/docker.sock" sh -
+        curl -sfL https://get.k3s.io | K3S_KUBECONFIG_MODE="644" INSTALL_K3S_EXEC="--disable=traefik --docker" sh -
         [[ $? != 0 ]] && echo "Failed to install k3s" && exit 1
     fi
 elif [ "$RUNTIME" == "crio" ]; then # cri-o
