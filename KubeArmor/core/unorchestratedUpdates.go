@@ -113,6 +113,8 @@ func (dm *KubeArmorDaemon) MatchandUpdateContainerSecurityPolicies(cid string) {
 			ctr.EndPointName = ep.EndPointName
 			dm.Containers[cid] = ctr
 			if cfg.GlobalCfg.Policy {
+				dm.EndPoints[idx].PolicyRevision++
+				ep = dm.EndPoints[idx]
 				// update security policies
 				dm.Logger.UpdateSecurityPolicies("MODIFIED", ep)
 				if ep.PolicyEnabled == tp.KubeArmorPolicyEnabled {
@@ -196,6 +198,7 @@ func (dm *KubeArmorDaemon) handlePolicyEvent(eventType string, createEndPoint bo
 		dm.RuntimeEnforcer.UpdateAppArmorProfiles(containername, "ADDED", appArmorAnnotations, privilegedProfiles)
 
 		newPoint.SecurityPolicies = append(newPoint.SecurityPolicies, secPolicy)
+		newPoint.PolicyRevision++
 		if createEndPoint {
 			// Create new EndPoint - possible scenarios:
 			// policy received before container
@@ -236,6 +239,7 @@ func (dm *KubeArmorDaemon) handlePolicyEvent(eventType string, createEndPoint bo
 			}
 		}
 	case "MODIFIED":
+		newPoint.PolicyRevision++
 		dm.EndPoints[endpointIdx] = newPoint
 		if cfg.GlobalCfg.Policy {
 			// update security policies
@@ -255,6 +259,7 @@ func (dm *KubeArmorDaemon) handlePolicyEvent(eventType string, createEndPoint bo
 	default: // DELETED
 		// update security policies after policy deletion
 		if endpointIdx >= 0 {
+			newPoint.PolicyRevision++
 			dm.EndPoints[endpointIdx] = newPoint
 			dm.Logger.UpdateSecurityPolicies("DELETED", newPoint)
 			dm.RuntimeEnforcer.UpdateSecurityPolicies(newPoint)
@@ -714,6 +719,7 @@ func (dm *KubeArmorDaemon) ParseAndUpdateContainerSecurityPolicy(event tp.K8sKub
 					// delete unnecessary security policies
 					dm.Logger.UpdateSecurityPolicies("DELETED", endPoint)
 					endPoint.SecurityPolicies = append(endPoint.SecurityPolicies[:0], endPoint.SecurityPolicies[1:]...)
+					endPoint.PolicyRevision++
 					dm.RuntimeEnforcer.UpdateSecurityPolicies(endPoint)
 					if dm.Presets != nil {
 						dm.Presets.UpdateSecurityPolicies(endPoint)
@@ -729,6 +735,7 @@ func (dm *KubeArmorDaemon) ParseAndUpdateContainerSecurityPolicy(event tp.K8sKub
 						dm.EndPoints[idx].SecurityPolicies[policyIndex+1:]...,
 					)
 					endPoint = dm.EndPoints[idx]
+					endPoint.PolicyRevision++
 
 					if cfg.GlobalCfg.Policy {
 						// update security policies
