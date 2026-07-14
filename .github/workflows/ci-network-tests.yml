@@ -202,7 +202,7 @@ jobs:
 
       - name: Test KubeArmor using Ginkgo
         run: |
-          go install -mod=mod github.com/onsi/ginkgo/v2/ginkgo@v2.23.4
+          go install -mod=mod github.com/onsi/ginkgo/v2/ginkgo@9ff1646a26f77a4c0d33ddba3e6368c42c0e8842
           go mod tidy
           ginkgo --vv --flake-attempts=10 --timeout=15m
         working-directory: ./tests/k8s_env/networktests
