@@ -1576,6 +1576,15 @@ func UpdateConfigMapData(config *opv1.KubeArmorConfigSpec) bool {
 	}
 	configMapData += fmt.Sprintf("%s: %t\n", common.ConfigArgMatching, config.MatchArgs)
 
+	dropPathsStr := strings.Join(config.FileDropPaths, ",")
+	if common.ConfigMapData[common.ConfigDropPaths] != dropPathsStr {
+		common.ConfigMapData[common.ConfigDropPaths] = dropPathsStr
+		updated = true
+	}
+	if dropPathsStr != "" {
+		configMapData += fmt.Sprintf("%s: %s\n", common.ConfigDropPaths, dropPathsStr)
+	}
+
 	common.ConfigMapData[common.KubeArmorConfigFileName] = configMapData
 
 	return updated
