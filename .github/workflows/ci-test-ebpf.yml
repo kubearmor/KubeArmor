@@ -1,0 +1,52 @@
+name: ci-test-ebpf
+
+on:
+  workflow_call:
+
+permissions: read-all
+
+jobs:
+  ebpf-tests:
+    name: Run eBPF Tests
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          submodules: true
+
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version-file: 'KubeArmor/go.mod'
+
+      - name: Install necessary dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get -y install build-essential libelf-dev pkg-config net-tools linux-headers-$(uname -r) linux-tools-$(uname -r) libbpf-dev unzip protobuf-compiler
+          
+          go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+          go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
+
+          export arch=$(uname -m)
+          export bpftool_version=v7.2.0
+          if [[ "$arch" == "aarch64" ]]; then
+            arch=arm64;
+          elif [[ "$arch" == "x86_64" ]]; then
+            arch=amd64;
+          fi
+          curl -LO https://github.com/libbpf/bpftool/releases/download/$bpftool_version/bpftool-$bpftool_version-$arch.tar.gz && \
+              sudo tar -xzf bpftool-$bpftool_version-$arch.tar.gz -C /usr/local/bin && \
+              sudo chmod +x /usr/local/bin/bpftool
+
+      - name: Install the latest LLVM toolchain
+        run: ./.github/workflows/install-llvm.sh
+
+      - name: Compile libbpf
+        run: ./.github/workflows/install-libbpf.sh
+
+      - name: Compile eBPF Bytecode
+        working-directory: KubeArmor/BPF
+        run: make
+
+      - name: Load eBPF Bytecode
+        working-directory: KubeArmor/monitor
+        run: sudo -E go run ci_load.go

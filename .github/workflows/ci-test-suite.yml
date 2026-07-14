@@ -1,0 +1,182 @@
+name: KubeArmor CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions: read-all
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+
+  detect-changes:
+    name: "Detect changed files"
+    runs-on: ubuntu-latest
+    outputs:
+      go: ${{ steps.filter.outputs.go_any_changed }}
+      ebpf: ${{ steps.filter.outputs.ebpf_any_changed }}
+      codespell: ${{ steps.filter.outputs.codespell_any_changed }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        
+      - name: Filter Repository Paths
+        uses: tj-actions/changed-files@v44
+        id: filter
+        with:
+          files_yaml: |
+            go:
+              - 'KubeArmor/**'
+              - 'pkg/**'
+              - 'protobuf/**'
+              - 'deployments/helm/**'
+              - 'deployments/get/**'
+              - 'tests/**'
+              - 'examples/multiubuntu/build/**'
+              - '.github/workflows/ci-test-go.yml'
+              - '.github/workflows/ci-test-ubi-image.yml'
+              - '.github/workflows/ci-test-ginkgo.yml'
+              - '.github/workflows/ci-test-systemd.yml'
+              - '.github/workflows/ci-test-network-tests.yml'
+              - '.github/workflows/ci-test-controllers.yml'
+              - '.github/workflows/ci-test-operator.yaml'
+            ebpf:
+              - 'KubeArmor/BPF/**'
+              - '.github/workflows/ci-test-ebpf.yml'
+              - 'KubeArmor/enforcer/**/*.o'
+            codespell:
+              - '.codespellrc'
+              - '.github/workflows/ci-codespell.yml'
+              - '**/*.go'
+              - '**/*.md'
+              - '**/*.yaml'
+              - '**/*.yml'
+              - '**/*.sh'
+              - '**/*.txt'
+              - '**/*.c'
+              - '**/*.h'
+
+  license:
+    name: "License Header"
+    needs: [detect-changes]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Check License Header
+        uses: apache/skywalking-eyes@ed436a5593c63a25f394ea29da61b0ac3731a9fe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  codespell:
+    name: "Spell Check"
+    needs: [detect-changes]
+    if: ${{ needs.detect-changes.outputs.codespell == 'true' }}
+    uses: ./.github/workflows/ci-codespell.yml
+
+  go-tests:
+    name: "Go Tests"
+    if: |
+      always() &&
+      (needs.codespell.result == 'success' || needs.codespell.result == 'skipped') &&
+      (needs.license.result == 'success') &&
+      needs.detect-changes.outputs.go == 'true'
+    needs: [detect-changes, license, codespell]
+    uses: ./.github/workflows/ci-test-go.yml
+
+  ebpf-tests:
+    name: "eBPF Tests"
+    if: |
+      always() &&
+      (needs.codespell.result == 'success' || needs.codespell.result == 'skipped') &&
+      (needs.license.result == 'success') &&
+      needs.detect-changes.outputs.ebpf == 'true'
+    needs: [detect-changes, license, codespell]
+    uses: ./.github/workflows/ci-test-ebpf.yml
+
+  matrix-tests:
+    name: "Ginkgo Tests - K8s"
+    needs: [detect-changes, go-tests, ebpf-tests]
+    if: |
+      always() &&
+      (needs.go-tests.result == 'success' || needs.go-tests.result == 'skipped') &&
+      (needs.ebpf-tests.result == 'success' || needs.ebpf-tests.result == 'skipped') &&
+      (needs.go-tests.result == 'success' || needs.ebpf-tests.result == 'success')
+    uses: ./.github/workflows/ci-test-ginkgo.yml
+
+  matrix-tests-ubi:
+    name: "Ginkgo Tests (UBI) - K8s"
+    needs: [detect-changes, go-tests, ebpf-tests]
+    if: |
+      always() &&
+      (needs.go-tests.result == 'success' || needs.go-tests.result == 'skipped') &&
+      (needs.ebpf-tests.result == 'success' || needs.ebpf-tests.result == 'skipped') &&
+      (needs.go-tests.result == 'success' || needs.ebpf-tests.result == 'success')
+    uses: ./.github/workflows/ci-test-ubi-image.yml
+
+  matrix-tests-systemd:
+    name: "Ginkgo Tests - Systemd"
+    needs: [detect-changes, go-tests, ebpf-tests]
+    if: |
+      always() &&
+      (needs.go-tests.result == 'success' || needs.go-tests.result == 'skipped') &&
+      (needs.ebpf-tests.result == 'success' || needs.ebpf-tests.result == 'skipped') &&
+      (needs.go-tests.result == 'success' || needs.ebpf-tests.result == 'success')
+    uses: ./.github/workflows/ci-test-systemd.yml
+  
+  matrix-tests-network:
+    name: "Ginkgo Tests (Network) - K8s"
+    needs: [detect-changes, go-tests, ebpf-tests]
+    if: |
+      always() &&
+      (needs.go-tests.result == 'success' || needs.go-tests.result == 'skipped') &&
+      (needs.ebpf-tests.result == 'success' || needs.ebpf-tests.result == 'skipped') &&
+      (needs.go-tests.result == 'success' || needs.ebpf-tests.result == 'success')
+    uses: ./.github/workflows/ci-network-tests.yml
+
+  matrix-tests-controller:
+    name: "Ginkgo Tests (Controller) - K8s"
+    needs: [detect-changes, go-tests, ebpf-tests]
+    if: |
+      always() &&
+      (needs.go-tests.result == 'success' || needs.go-tests.result == 'skipped') &&
+      (needs.ebpf-tests.result == 'success' || needs.ebpf-tests.result == 'skipped') &&
+      (needs.go-tests.result == 'success' || needs.ebpf-tests.result == 'success')
+    uses: ./.github/workflows/ci-test-controllers.yml
+
+  build-test-operator:
+    name: "Build Test - Operator"
+    needs: [detect-changes, go-tests, ebpf-tests]
+    if: |
+      always() &&
+      (needs.go-tests.result == 'success' || needs.go-tests.result == 'skipped') &&
+      (needs.ebpf-tests.result == 'success' || needs.ebpf-tests.result == 'skipped') &&
+      (needs.go-tests.result == 'success' || needs.ebpf-tests.result == 'success')
+    uses: ./.github/workflows/ci-test-operator.yaml
+
+  matrix-composite-result:
+    name: Matrix Tests - Composite result
+    if: ${{ always() }}
+    needs: 
+      - matrix-tests
+      - matrix-tests-ubi
+      - matrix-tests-systemd
+      - matrix-tests-network
+      - matrix-tests-controller
+      - build-test-operator
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          # If any required matrix job failed, this job fails.
+          # If they were successfully executed or cleanly skipped, this job passes.
+          if [[ "${{ contains(needs.*.result, 'failure') }}" == "true" || "${{ contains(needs.*.result, 'cancelled') }}" == "true" ]]; then
+            echo "One or more matrix tests failed or were cancelled."
+            exit 1
+          else
+            echo "All matrix tests passed or were safely skipped."
+            exit 0
+          fi
