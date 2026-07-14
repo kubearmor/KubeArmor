@@ -1,17 +1,7 @@
 name: ci-codespell
 
 on:
-  pull_request:
-    branches: [main]
-    paths:
-      - ".codespellrc"
-      - ".github/workflows/ci-codespell.yml"
-      - "**/*.go"
-      - "**/*.md"
-      - "**/*.yaml"
-      - "**/*.yml"
-      - "**/*.sh"
-      - "**/*.txt"
+  workflow_call:
 
 permissions: read-all
 
