@@ -16,6 +16,8 @@ spec:
       {{- if eq .Values.environment.name "autopilot" }}
         "cloud.google.com/matching-allowlist": accuknox-kubearmor-{{ if ne (.Values.gkeAllowlistVersion | default "") "" }}{{ .Values.gkeAllowlistVersion }}{{ else }}{{ include "chart.majorMinorVersion" . }}{{ end }}
       {{- end }}
+      annotations:
+        {{- include "kubearmor.selfProtectionAnnotations" . | nindent 8 }}
     spec:
       {{- if .Values.kubearmor.image.imagePullSecrets }}
       imagePullSecrets:

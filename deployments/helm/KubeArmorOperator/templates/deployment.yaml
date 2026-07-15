@@ -16,10 +16,14 @@ spec:
       {{- with .Values.kubearmorOperator.podLabels }}
         {{- . | toYaml | nindent 8 }}
       {{- end }}
-      {{- with .Values.kubearmorOperator.podAnnotations }}
       annotations:
-        {{- . | toYaml | nindent 8 }}
-      {{- end }}
+        {{- if .Values.selfProtection.enabled }}
+        kubearmor.io/self-protection: "enabled"
+        kubearmor-policy: enabled
+        {{- end }}
+        {{- with .Values.kubearmorOperator.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
     spec:
       {{- with .Values.kubearmorOperator.podSecurityContext }}
       securityContext:

@@ -229,6 +229,8 @@ var ConfigMapData = map[string]string{
 
 var ConfigDefaultSeccompEnabled = "false"
 
+var ConfigDefaultSelfProtectionEnabled = "false"
+
 var KubearmorRelayEnvMap = map[string]string{
 	EnableStdOutAlerts: "false",
 	EnableStdOutLogs:   "false",

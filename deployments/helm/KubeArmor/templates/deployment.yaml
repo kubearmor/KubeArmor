@@ -14,7 +14,7 @@ spec:
   template:
     metadata:
       annotations:
-        kubearmor-policy: audited
+        {{- include "kubearmor.selfProtectionAnnotations" . | nindent 8 }}
       labels:
         kubearmor-app: kubearmor-relay
     spec:
@@ -79,7 +79,7 @@ spec:
     metadata:
       annotations:
         kubectl.kubernetes.io/default-container: manager
-        kubearmor-policy: audited
+        {{- include "kubearmor.selfProtectionAnnotations" . | nindent 8 }}
       labels:
         kubearmor-app: {{ .Values.kubearmorController.name }}
     spec:
