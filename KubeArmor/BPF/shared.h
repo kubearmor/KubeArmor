@@ -705,6 +705,68 @@ static bool is_owner_path(struct dentry *dent, u32 *oid)
     return false;
   return true;
 }
+static __noinline void setRetval(u16 data, int *retval)
+{
+  if (data & RULE_DENY)
+  {
+    *retval = BLOCK;
+  }
+  else if (data & RULE_AUDIT)
+  {
+    *retval = AUDIT;
+  }
+}
+static __noinline struct data_t *match_domain_subdomain(u32 *inner, bufs_k *p, bufs_k *z, bufs_k *scratch_pad)
+{
+  struct data_t *val = NULL;
+  u8 nested = 0, idx = 0;
+  bpf_probe_read_str(scratch_pad->path, MAX_STRING_SIZE, p->path);
+
+  val = bpf_map_lookup_elem(inner, p);
+  if (val)
+  {
+    return val;
+  }
+
+#pragma unroll 20
+  for (; nested < MAX_NESTED_DNS_LABELS; nested++)
+  {
+    if (idx < 0 || idx >= MAX_DNS_LABEL_LEN)
+      goto match;
+    for (; idx < MAX_DNS_LABEL_LEN - 2 && scratch_pad->path[idx] != '.' && scratch_pad->path[idx] != '\0'; idx++)
+    {
+    }
+    if (scratch_pad->path[idx] == '\0')
+    {
+      goto match;
+    }
+    idx++;
+    // p->path needs to be zeroed before each map lookup because bpf_probe_read_str
+    // only writes the string + null terminator, leaving remaining bytes untouched.
+    // A longer string from a prior iteration poisons the key:
+    //   iter 1: src="example.com" -> p->path=['e','x','a','m','p','l','e','.','c','o','m','\0',...]
+    //   iter 2: src="com"         -> p->path=['c','o','m','\0','l','e','.','c','o','m','\0',...]
+    //                                                         ^--- stale bytes cause false miss
+
+    bpf_probe_read(p->path, MAX_STRING_SIZE, z->path);
+    bpf_probe_read_str(p->path, MAX_STRING_SIZE, scratch_pad->path + idx);
+
+    val = bpf_map_lookup_elem(inner, p);
+    if (val)
+    {
+      goto match;
+    }
+  }
+
+match:
+
+  // Resetting the value of p->path
+  // len(scratch_pad) >= len(p->path) always, thus no need to zero before copy
+  bpf_probe_read_str(p->path, MAX_STRING_SIZE, scratch_pad->path);
+  // Cleans up the scratch pad
+  bpf_probe_read(scratch_pad->path, MAX_STRING_SIZE, z->path);
+  return val;
+}
 
 static inline int match_and_enforce_path_hooks(struct path *f_path, u32 id,
                                                u32 eventID)
@@ -986,10 +1048,6 @@ decision:
               {
                 retval = BLOCK;
               }
-              else
-              {
-                retval = AUDIT;
-              }
             }
           }
         }
@@ -1036,26 +1094,12 @@ decision:
         {
           if (is_pts(t))
           {
-            if (val->filemask & RULE_DENY)
-            {
-              retval = BLOCK;
-            }
-            else if (val->filemask & RULE_AUDIT)
-            {
-              retval = AUDIT;
-            }
+            setRetval(val->filemask, &retval);
           }
         }
         else
         {
-          if (val->filemask & RULE_DENY)
-          {
-            retval = BLOCK;
-          }
-          else if (val->filemask & RULE_AUDIT)
-          {
-            retval = AUDIT;
-          }
+          setRetval(val->filemask, &retval);
         }
       }
     }
@@ -1094,14 +1138,8 @@ decision:
       {
         if (!is_owner_path(f_path->dentry, &oid))
         {
-          if (val->filemask & RULE_DENY)
-          {
-            retval = BLOCK;
-          }
-          else if (val->filemask & RULE_AUDIT)
-          {
-            retval = AUDIT;
-          }
+          setRetval(val->filemask, &retval);
+
           goto ringbuf;
         }
         else
@@ -1120,26 +1158,12 @@ decision:
         {
           if (is_pts(t))
           {
-            if (val->filemask & RULE_DENY)
-            {
-              retval = BLOCK;
-            }
-            else if (val->filemask & RULE_AUDIT)
-            {
-              retval = AUDIT;
-            }
+            setRetval(val->filemask, &retval);
           }
         }
         else
         {
-          if (val->filemask & RULE_DENY)
-          {
-            retval = BLOCK;
-          }
-          else if (val->filemask & RULE_AUDIT)
-          {
-            retval = AUDIT;
-          }
+          setRetval(val->filemask, &retval);
         }
       }
     }
@@ -1168,14 +1192,7 @@ decision:
         {
           if (is_pts(t))
           {
-            if (val->filemask & RULE_DENY)
-            {
-              retval = BLOCK;
-            }
-            else if (val->filemask & RULE_AUDIT)
-            {
-              retval = AUDIT;
-            }
+            setRetval(val->filemask, &retval);
           }
           goto ringbuf;
         }
@@ -1220,53 +1237,29 @@ decision:
         {
           if (!is_owner_path(f_path->dentry, &oid))
           {
-            if (val->filemask & RULE_DENY)
-            {
-              retval = BLOCK;
-            }
-            else if (val->filemask & RULE_AUDIT)
-            {
-              retval = BLOCK;
-            }
+            setRetval(val->filemask, &retval);
+
             goto ringbuf;
           }
         }
         if (val && (val->filemask & RULE_READ) && !(val->filemask & RULE_WRITE))
         {
-          if (val->filemask & RULE_DENY)
-          {
-            retval = BLOCK;
-          }
-          else if (val->filemask & RULE_AUDIT)
-          {
-            retval = BLOCK;
-          }
+          setRetval(val->filemask, &retval);
+
           goto ringbuf;
         }
 
         if (val)
         {
-          if (val->filemask & RULE_DENY)
-          {
-            retval = BLOCK;
-          }
-          else if (val->filemask & RULE_AUDIT)
-          {
-            retval = AUDIT;
-          }
+          setRetval(val->filemask, &retval);
+
           goto ringbuf;
         }
       }
       if (val && (val->filemask & RULE_READ) && !(val->filemask & RULE_WRITE))
       {
-        if (val->filemask & RULE_DENY)
-        {
-          retval = BLOCK;
-        }
-        else if (val->filemask & RULE_AUDIT)
-        {
-          retval = AUDIT;
-        }
+        setRetval(val->filemask, &retval);
+
         goto ringbuf;
       }
     }
@@ -1290,14 +1283,7 @@ decision:
         {
           if (is_pts(t))
           {
-            if (val->filemask & RULE_DENY)
-            {
-              retval = BLOCK;
-            }
-            else if (val->filemask & RULE_AUDIT)
-            {
-              retval = AUDIT;
-            }
+            setRetval(val->filemask, &retval);
           }
           goto ringbuf;
         }

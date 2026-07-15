@@ -305,14 +305,7 @@ decision:
     {
       if (is_pts(t))
       {
-        if (val->processmask & RULE_DENY)
-        {
-          retval = BLOCK;
-        }
-        else if (val->processmask & RULE_AUDIT)
-        {
-          retval = AUDIT;
-        }
+        setRetval(val->processmask, &retval);
       }
     }
     if (val && (val->processmask & RULE_OWNER))
@@ -340,10 +333,6 @@ decision:
             {
               retval = BLOCK;
             }
-            else
-            {
-              retval = AUDIT;
-            }
           }
         }
       }
@@ -360,14 +349,7 @@ decision:
           else
           {
             // !argumentmatch
-            if (val->processmask & RULE_DENY)
-            {
-              retval = BLOCK;
-            }
-            else if (val->processmask & RULE_AUDIT)
-            {
-              retval = AUDIT;
-            }
+            setRetval(val->processmask, &retval);
           }
         }
         else
@@ -386,14 +368,7 @@ decision:
     }
     if (val)
     {
-      if (val->processmask & RULE_DENY)
-      {
-        retval = BLOCK;
-      }
-      else if (val->processmask & RULE_AUDIT)
-      {
-        retval = AUDIT;
-      }
+      setRetval(val->processmask, &retval);
     }
   }
 
@@ -421,25 +396,14 @@ decision:
       {
         if (is_pts(t))
         {
-          if (val->processmask & RULE_DENY)
-          {
-            retval = BLOCK;
-          }
-          else if (val->processmask & RULE_AUDIT)
-          {
-            retval = AUDIT;
-          }
+          setRetval(val->processmask, &retval);
         }
       }
       else
       {
-        if (val && (val->processmask & RULE_DENY))
+        if (val)
         {
-          retval = BLOCK;
-        }
-        else if (val && (val->processmask & RULE_AUDIT))
-        {
-          retval = AUDIT;
+          setRetval(val->processmask, &retval);
         }
       }
     }
@@ -644,27 +608,14 @@ decision:
       {
         if (is_pts(t))
         {
-          if (val->processmask & RULE_DENY)
-          {
-            retval = BLOCK;
-          }
-          else if (val->processmask & RULE_AUDIT)
-          {
-            retval = AUDIT;
-          }
+          setRetval(val->processmask, &retval);
           goto ringbuf;
         }
       }
       else
       {
-        if (val->processmask & RULE_DENY)
-        {
-          retval = BLOCK;
-        }
-        else if (val->processmask & RULE_AUDIT)
-        {
-          retval = AUDIT;
-        }
+        setRetval(val->processmask, &retval);
+
         goto ringbuf;
       }
     }
@@ -693,14 +644,7 @@ decision:
         {
           if (is_pts(t))
           {
-            if (val->processmask & RULE_DENY)
-            {
-              retval = BLOCK;
-            }
-            else if (val->processmask & RULE_AUDIT)
-            {
-              retval = AUDIT;
-            }
+            setRetval(val->processmask, &retval);
           }
         }
         goto ringbuf;
@@ -883,14 +827,9 @@ decision:
 
     if (val)
     {
-      if (val->processmask & RULE_DENY)
-      {
-        retval = BLOCK;
-      }
-      else if (val->processmask & RULE_AUDIT)
-        retval = AUDIT;
-      goto ringbuf;
+      setRetval(val->processmask, &retval);
     }
+    goto ringbuf;
   }
 
   bpf_map_update_elem(&bufk, &one, z, BPF_ANY);
@@ -945,58 +884,6 @@ ringbuf:
   task_info->retval = retval;
   bpf_ringbuf_submit(task_info, 0);
   return retval;
-}
-
-static __noinline struct data_t *match_domain_subdomain(u32 *inner, bufs_k *p, bufs_k *z, bufs_k *scratch_pad)
-{
-  struct data_t *val = NULL;
-  u8 nested = 0, idx = 0;
-  bpf_probe_read_str(scratch_pad->path, MAX_STRING_SIZE, p->path);
-
-  val = bpf_map_lookup_elem(inner, p);
-  if (val)
-  {
-    return val;
-  }
-
-#pragma unroll 20
-  for (; nested < MAX_NESTED_DNS_LABELS; nested++)
-  {
-    if (idx < 0 || idx >= MAX_DNS_LABEL_LEN)
-      goto match;
-    for (; idx < MAX_DNS_LABEL_LEN - 2 && scratch_pad->path[idx] != '.' && scratch_pad->path[idx] != '\0'; idx++)
-    {
-    }
-    if (scratch_pad->path[idx] == '\0')
-    {
-      goto match;
-    }
-    idx++;
-    // p->path needs to be zeroed before each map lookup because bpf_probe_read_str
-    // only writes the string + null terminator, leaving remaining bytes untouched.
-    // A longer string from a prior iteration poisons the key:
-    //   iter 1: src="example.com" -> p->path=['e','x','a','m','p','l','e','.','c','o','m','\0',...]
-    //   iter 2: src="com"         -> p->path=['c','o','m','\0','l','e','.','c','o','m','\0',...]
-    //                                                         ^--- stale bytes cause false miss
-
-    bpf_probe_read(p->path, MAX_STRING_SIZE, z->path);
-    bpf_probe_read_str(p->path, MAX_STRING_SIZE, scratch_pad->path + idx);
-
-    val = bpf_map_lookup_elem(inner, p);
-    if (val)
-    {
-      goto match;
-    }
-  }
-
-match:
-
-  // Resetting the value of p->path
-  // len(scratch_pad) >= len(p->path) always, thus no need to zero before copy
-  bpf_probe_read_str(p->path, MAX_STRING_SIZE, scratch_pad->path);
-  // Cleans up the scratch pad
-  bpf_probe_read(scratch_pad->path, MAX_STRING_SIZE, z->path);
-  return val;
 }
 
 static inline int match_dns_rules(char *dns_name, u32 eventID)
