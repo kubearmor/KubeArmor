@@ -1,2 +1,4 @@
-#Kubearmor default reviewers 
-@Ankurk99 @achrefbensaad @PrimalPimmy
+# Kubearmor default reviewers 
+* @achrefbensaad @Aryan-sharma11 @AryanBakliwal
+KubeArmor/BPF/* @achrefbensaad @daemon1024 @rksharma95 @Aryan-sharma11 @AryanBakliwal
+pkg/* @achrefbensaad @Aryan-sharma11 @AryanBakliwal

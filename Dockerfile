@@ -3,7 +3,7 @@
 
 ### Builder
 
-FROM golang:1.26-alpine3.22@sha256:457d8584db11412777c4196146b8060fdaabe0b0ba7b62c553d08e07d8c22bd3 AS builder
+FROM golang:1.26-alpine3.22@sha256:0178a641fbb4858c5f1b48e34bdaabe0350a330a1b1149aabd498d0699ff5fb2 AS builder
 
 RUN apk --no-cache update && apk upgrade --no-cache libcrypto3 libssl3 zlib libexpat
 RUN apk add --no-cache git clang llvm make gcc protobuf protobuf-dev curl elfutils-dev
@@ -82,8 +82,8 @@ ARG VERSION=latest
 ENV KUBEARMOR_UBI=true
 
 LABEL name="kubearmor" \
-      vendor="Accuknox" \
-      maintainer="Barun Acharya, Ramakant Sharma" \
+      vendor="KubeArmor" \
+      maintainer="Achref Ben Saad, Aryan Sharma, Aryan Bakliwal" \
       version=${VERSION} \
       release=${VERSION} \
       summary="kubearmor container image based on redhat ubi" \
@@ -119,8 +119,8 @@ ARG VERSION=latest
 ENV KUBEARMOR_UBI=true
 
 LABEL name="kubearmor" \
-      vendor="Accuknox" \
-      maintainer="Barun Acharya, Ramakant Sharma" \
+      vendor="KubeArmor" \
+      maintainer="Achref Ben Saad, Aryan Sharma, Aryan Bakliwal" \
       version=${VERSION} \
       release=${VERSION} \
       summary="kubearmor container image based on redhat ubi" \
