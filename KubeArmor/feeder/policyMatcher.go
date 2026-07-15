@@ -1436,6 +1436,10 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 		fd.SecurityPoliciesLock.RLock()
 
 		key := cfg.GlobalCfg.Host
+		if fd.Node != nil && fd.Node.NodeName != "" {
+			// Host policies are indexed using the active node identity.
+			key = fd.Node.NodeName
+		}
 
 		if log.NamespaceName != "" && log.PodName != "" {
 			key = log.NamespaceName + "_" + log.PodName

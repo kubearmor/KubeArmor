@@ -4,6 +4,7 @@ import (
 	"sync"
 	"testing"
 
+	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 )
 
@@ -177,5 +178,56 @@ func TestNetworkPolicyMatcher(t *testing.T) {
 				t.Fatalf("Action = %q, want %q", out.Action, tt.wantAction)
 			}
 		})
+	}
+}
+
+func TestHostNetworkPolicyMatcherUsesActiveNode(t *testing.T) {
+	originalHost := cfg.GlobalCfg.Host
+	cfg.GlobalCfg.Host = "configured-host"
+	t.Cleanup(func() { cfg.GlobalCfg.Host = originalHost })
+
+	fd := &Feeder{
+		BaseFeeder: BaseFeeder{
+			Node: &tp.Node{
+				NodeName:                 "active-node",
+				NetworkVisibilityEnabled: true,
+			},
+			Enforcer:     "BPFLSM",
+			EnforcerLock: new(sync.RWMutex),
+		},
+		SecurityPolicies:     map[string]tp.MatchPolicies{},
+		SecurityPoliciesLock: new(sync.RWMutex),
+		DefaultPostures:      map[string]tp.DefaultPosture{},
+		DefaultPosturesLock:  new(sync.Mutex),
+	}
+	fd.UpdateHostSecurityPolicies("UPDATED", []tp.HostSecurityPolicy{
+		{
+			Metadata: map[string]string{"policyName": "hsp-block-net-af-rds"},
+			Spec: tp.HostSecuritySpec{
+				Network: tp.NetworkType{
+					MatchProtocols: []tp.NetworkProtocolType{{
+						Protocol: "AF_RDS",
+						Action:   "Block",
+					}},
+				},
+			},
+		},
+	})
+
+	out := fd.UpdateMatchedPolicy(tp.Log{
+		Operation:     "Network",
+		Resource:      "domain=AF_RDS type=SOCK_SEQPACKET protocol=HOPOPT",
+		Result:        "Permission denied",
+		PolicyEnabled: tp.KubeArmorPolicyEnabled,
+	})
+
+	if out.Type != "MatchedHostPolicy" {
+		t.Fatalf("Type = %q, want MatchedHostPolicy", out.Type)
+	}
+	if out.PolicyName != "hsp-block-net-af-rds" {
+		t.Fatalf("PolicyName = %q, want hsp-block-net-af-rds", out.PolicyName)
+	}
+	if out.Action != "Block" {
+		t.Fatalf("Action = %q, want Block", out.Action)
 	}
 }
