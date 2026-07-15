@@ -435,3 +435,26 @@ Here, we demonstrate how to define security policies using our example microserv
 ```
 
 </details>
+
+## Self-protection policies for KubeArmor workloads
+
+KubeArmor can enforce zero-trust policies on its own infrastructure pods (daemon, relay, controller, operator). This requires the self-protection opt-in (`kubearmor.io/self-protection: enabled`) plus the example policies under [`examples/kubearmor-self-protection/`](../examples/kubearmor-self-protection/).
+
+**Apply audit phase (dry-run):**
+
+```bash
+kubectl apply -f examples/kubearmor-self-protection/namespace-posture-audit.yaml
+kubectl apply -f examples/kubearmor-self-protection/audit/
+karmor log --namespace kubearmor
+```
+
+**Apply block phase (after opt-in and log validation):**
+
+```bash
+helm upgrade kubearmor deployments/helm/KubeArmor -n kubearmor \
+  --reuse-values --set selfProtection.enabled=true
+kubectl apply -f examples/kubearmor-self-protection/namespace-posture-block.yaml
+kubectl apply -f examples/kubearmor-self-protection/block/
+```
+
+See the [self-protection README](../examples/kubearmor-self-protection/README.md) for the full two-phase workflow, container selector syntax, and rollback steps.
