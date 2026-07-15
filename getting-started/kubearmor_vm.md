@@ -2,9 +2,16 @@
 
 This recipe explains how to use KubeArmor directly on a VM/Bare-Metal machine, and we tested the following steps on Ubuntu hosts.
 
-The recipe installs `kubearmor` as systemd process and `karmor` cli tool to manage policies and show alerts/telemetry.
+`KubeArmor` can be used to protect VM's and Bare-Metal machines in 2 different ways:
 
-## Download and Install KubeArmor
+1. As a `systemd` service.
+2. Using `docker-compose`
+
+The [`karmor`](https://docs.kubearmor.io/kubearmor/quick-links/deployment_guide#install-karmor-cli-optional) cli tool can be used to manage policies and show alerts/telemetry.
+
+## Systemd Installation
+
+### Download and Install KubeArmor
 
 1. Download the [latest release](https://github.com/kubearmor/KubeArmor/releases) or KubeArmor.
 2. Install KubeArmor (VER is the kubearmor release version)
@@ -31,7 +38,7 @@ The recipe installs `kubearmor` as systemd process and `karmor` cli tool to mana
 </p>
 </details>
 
-## Start KubeArmor
+### Start KubeArmor
 
 ```
 sudo systemctl start kubearmor
@@ -39,11 +46,21 @@ sudo systemctl start kubearmor
 
 Check the status of KubeArmor using `sudo systemctl status kubearmor` or use `sudo journalctl -u kubearmor -f` to continuously monitor kubearmor logs.
 
+## Using Docker Compose 
+
+1. Ensure [Docker](https://docs.docker.com/desktop/install/linux-install/) and Docker Compose are installed on your system.
+2. Download the `docker-compose.yaml` file from `KubeArmor` repository:
+    
+    `curl -o docker-compose.yaml https://raw.githubusercontent.com/kubearmor/KubeArmor/main/docker-compose.yaml`
+
+3. Start KubeArmor using Docker Compose:
+    `docker compose up`
+
 ## Apply sample policy
 
 Following policy is to deny execution of `sleep` binary on the host:
 
-```yaml=
+```yaml
 apiVersion: security.kubearmor.com/v1
 kind: KubeArmorHostPolicy
 metadata:
