@@ -322,7 +322,7 @@ decision:
       {
         if (val->processmask & RULE_DENY)
         {
-          retval = DENY;
+          retval = BLOCK;
         }
         else if (val->processmask & RULE_AUDIT)
         {
@@ -337,7 +337,7 @@ decision:
         // not owner
         if (val->processmask & RULE_DENY)
         {
-          retval = DENY;
+          retval = BLOCK;
         }
         else if (val->processmask & RULE_AUDIT)
         {
@@ -353,7 +353,7 @@ decision:
           {
             if (allow->processmask == BLOCK_POSTURE)
             {
-              retval = DENY;
+              retval = BLOCK;
             }
             else
             {
@@ -377,7 +377,7 @@ decision:
             // !argumentmatch
             if (val->processmask & RULE_DENY)
             {
-              retval = DENY;
+              retval = BLOCK;
             }
             else if (val->processmask & RULE_AUDIT)
             {
@@ -403,7 +403,7 @@ decision:
     {
       if (val->processmask & RULE_DENY)
       {
-        retval = DENY;
+        retval = BLOCK;
       }
       else if (val->processmask & RULE_AUDIT)
       {
@@ -412,7 +412,7 @@ decision:
     }
   }
 
-  if (retval == DENY || retval == AUDIT)
+  if (retval == BLOCK || retval == AUDIT)
   {
     goto ringbuf;
   }
@@ -426,7 +426,7 @@ decision:
     {
       if (allow->processmask == BLOCK_POSTURE)
       {
-        retval = DENY;
+        retval = BLOCK;
       }
       goto ringbuf;
     }
@@ -438,7 +438,7 @@ decision:
         {
           if (val->processmask & RULE_DENY)
           {
-            retval = DENY;
+            retval = BLOCK;
           }
           else if (val->processmask & RULE_AUDIT)
           {
@@ -450,7 +450,7 @@ decision:
       {
         if (val && (val->processmask & RULE_DENY))
         {
-          retval = DENY;
+          retval = BLOCK;
         }
         else if (val && (val->processmask & RULE_AUDIT))
         {
@@ -463,7 +463,7 @@ decision:
   return ret;
 
 ringbuf:
-  if (retval == DENY)
+  if (retval == BLOCK)
   {
     retval = -EPERM;
   }
@@ -661,7 +661,7 @@ decision:
         {
           if (val->processmask & RULE_DENY)
           {
-            retval = DENY;
+            retval = BLOCK;
           }
           else if (val->processmask & RULE_AUDIT)
           {
@@ -674,7 +674,7 @@ decision:
       {
         if (val->processmask & RULE_DENY)
         {
-          retval = DENY;
+          retval = BLOCK;
         }
         else if (val->processmask & RULE_AUDIT)
         {
@@ -696,7 +696,7 @@ decision:
     {
       if (allow->processmask == BLOCK_POSTURE)
       {
-        retval = DENY;
+        retval = BLOCK;
       }
       goto ringbuf;
     }
@@ -710,7 +710,7 @@ decision:
           {
             if (val->processmask & RULE_DENY)
             {
-              retval = DENY;
+              retval = BLOCK;
             }
             else if (val->processmask & RULE_AUDIT)
             {
@@ -726,7 +726,7 @@ decision:
   return 0;
 
 ringbuf:
-  if (retval == DENY)
+  if (retval == BLOCK)
   {
     retval = -EPERM;
   }
@@ -900,7 +900,7 @@ decision:
     {
       if (val->processmask & RULE_DENY)
       {
-        retval = DENY;
+        retval = BLOCK;
       }
       else if (val->processmask & RULE_AUDIT)
         retval = AUDIT;
@@ -928,7 +928,7 @@ decision:
 
 ringbuf:
 
-  if (retval == DENY)
+  if (retval == BLOCK)
   {
     retval = -EPERM;
   }
