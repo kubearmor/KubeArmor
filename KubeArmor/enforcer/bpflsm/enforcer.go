@@ -28,7 +28,7 @@ import (
 
 //go:generate go run github.com/cilium/ebpf/cmd/bpf2go -cc clang enforcer ../../BPF/enforcer.bpf.c -- -I/usr/include/ -O2 -g -fno-stack-protector -Wno-missing-declarations
 //go:generate go run github.com/cilium/ebpf/cmd/bpf2go -cc clang enforcer_path ../../BPF/enforcer_path.bpf.c -- -I/usr/include/ -O2 -g -fno-stack-protector -Wno-missing-declarations
-//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -cc clang args_monitor ../../BPF/args_monitor.bpf.c -- -I/usr/include/ -O2 -g -fno-stack-protector -Wno-missing-declarations -D__TARGET_ARCH_x86
+//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -cc clang process_monitor ../../BPF/process_monitor.bpf.c -- -I/usr/include/ -O2 -g -fno-stack-protector -Wno-missing-declarations -D__TARGET_ARCH_x86
 
 // ===================== //
 // == BPFLSM Enforcer == //
@@ -54,7 +54,7 @@ type BPFEnforcer struct {
 
 	obj     enforcerObjects
 	objPath enforcer_pathObjects
-	objArgs args_monitorObjects
+	objProcess process_monitorObjects
 
 	Probes map[string]link.Link
 
@@ -273,16 +273,35 @@ func NewBPFEnforcer(node tp.Node, pinpath string, logger *fd.Feeder, monitor *mo
 		}
 	}
 
-	if err := loadArgs_monitorObjects(&be.objArgs, &ebpf.CollectionOptions{
+	if err := loadProcess_monitorObjects(&be.objProcess, &ebpf.CollectionOptions{
 		Maps: ebpf.MapOptions{
 			PinPath: pinpath,
 		},
 	}); err != nil {
-		be.Logger.Warnf("error loading args_monitor objects: %v", err)
+		be.Logger.Warnf("error loading process_monitor objects: %v", err)
 	} else {
-		be.Probes["sys_execve_args"], err = link.Kprobe("sys_execve", be.objArgs.KprobeArgsExecve, nil)
+		be.Probes["sys_execve_args"], err = link.Kprobe("sys_execve", be.objProcess.KprobeArgsExecve, nil)
 		if err != nil {
 			be.Logger.Warnf("opening kprobe sys_execve: %s", err)
+		}
+
+		if !cfg.GlobalCfg.SystemMonitor {
+			be.Probes["sys_enter_setns"], err = link.Tracepoint("syscalls", "sys_enter_setns", be.objProcess.SysEnterSetns, nil)
+			if err != nil {
+				be.Logger.Warnf("opening tracepoint sys_enter_setns: %s", err)
+			}
+			be.Probes["sys_exit_setns"], err = link.Tracepoint("syscalls", "sys_exit_setns", be.objProcess.SysExitSetns, nil)
+			if err != nil {
+				be.Logger.Warnf("opening tracepoint sys_exit_setns: %s", err)
+			}
+			be.Probes["sched_process_fork"], err = link.Tracepoint("sched", "sched_process_fork", be.objProcess.SchedProcessFork, nil)
+			if err != nil {
+				be.Logger.Warnf("opening tracepoint sched_process_fork: %s", err)
+			}
+			be.Probes["sched_process_exit"], err = link.Tracepoint("sched", "sched_process_exit", be.objProcess.SchedProcessExit, nil)
+			if err != nil {
+				be.Logger.Warnf("opening tracepoint sched_process_exit: %s", err)
+			}
 		}
 	}
 
@@ -504,7 +523,7 @@ func (be *BPFEnforcer) DestroyBPFEnforcer() error {
 		errBPFCleanUp = errors.Join(errBPFCleanUp, err)
 	}
 
-	if err := be.objArgs.Close(); err != nil {
+	if err := be.objProcess.Close(); err != nil {
 		be.Logger.Err(err.Error())
 		errBPFCleanUp = errors.Join(errBPFCleanUp, err)
 	}
