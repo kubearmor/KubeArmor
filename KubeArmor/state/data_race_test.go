@@ -30,7 +30,7 @@ func TestPushContainerEventRace(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		for i := 0; ; i++ {
+		for {
 			select {
 			case <-stop:
 				return
@@ -43,7 +43,6 @@ func TestPushContainerEventRace(t *testing.T) {
 			default:
 			}
 			sa.removeStateEventChan(uid)
-			_ = i
 		}
 	}()
 
