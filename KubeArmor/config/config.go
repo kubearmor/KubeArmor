@@ -61,8 +61,9 @@ type KubearmorConfig struct {
 	DefaultPostureLogs bool         // Enable/Disable Default Posture logs for AppArmor LSM
 	InitTimeout        string       // Timeout for main thread init stages
 
-	StateAgent  bool // enable KubeArmor state agent
-	UseOCIHooks bool
+	SystemMonitor bool // enable system monitor
+	StateAgent    bool // enable KubeArmor state agent
+	UseOCIHooks   bool
 
 	AlertThrottling   bool  // Enable/Disable Alert Throttling
 	MaxAlertPerSec    int32 // Maximum alerts allowed per second
@@ -125,6 +126,7 @@ const (
 	EnforcerAlerts                       string = "enforcerAlerts"
 	ConfigDefaultPostureLogs             string = "defaultPostureLogs"
 	ConfigInitTimeout                    string = "initTimeout"
+	ConfigSystemMonitor                  string = "enableSystemMonitor"
 	ConfigStateAgent                     string = "enableKubeArmorStateAgent"
 	ConfigAlertThrottling                string = "alertThrottling"
 	ConfigMaxAlertPerSec                 string = "maxAlertPerSec"
@@ -188,6 +190,8 @@ func readCmdLineParams() {
 	defaultPostureLogs := flag.Bool(ConfigDefaultPostureLogs, true, "Default Posture Alerts (for Apparmor only)")
 
 	initTimeout := flag.String(ConfigInitTimeout, "60s", "Timeout for main thread init stages")
+
+	systemMonitor := flag.Bool(ConfigSystemMonitor, true, "enabling SystemMonitor")
 
 	stateAgent := flag.Bool(ConfigStateAgent, false, "enabling KubeArmor State Agent client")
 
@@ -270,6 +274,8 @@ func readCmdLineParams() {
 	viper.SetDefault(ConfigDefaultPostureLogs, *defaultPostureLogs)
 
 	viper.SetDefault(ConfigInitTimeout, *initTimeout)
+
+	viper.SetDefault(ConfigSystemMonitor, *systemMonitor)
 
 	viper.SetDefault(ConfigStateAgent, *stateAgent)
 
@@ -429,6 +435,8 @@ func LoadDynamicConfig() {
 	GlobalCfg.MaxAlertPerSec = int32(viper.GetInt(ConfigMaxAlertPerSec))
 	GlobalCfg.ThrottleSec = int32(viper.GetInt(ConfigThrottleSec))
 	GlobalCfg.InitTimeout = viper.GetString(ConfigInitTimeout)
+
+	GlobalCfg.SystemMonitor = viper.GetBool(ConfigSystemMonitor)
 
 	GlobalCfg.StateAgent = viper.GetBool(ConfigStateAgent)
 
