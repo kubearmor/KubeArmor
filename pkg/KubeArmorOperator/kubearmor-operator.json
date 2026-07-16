@@ -1,0 +1,10 @@
+{
+  "buildx.build.ref": "mybuilder/mybuilder0/s92ejmnjf4ilaabi8wbzkl39c",
+  "containerimage.descriptor": {
+    "mediaType": "application/vnd.oci.image.index.v1+json",
+    "digest": "sha256:b6cdbe7c915fa1dd72bde971c0cf7890299ede91f01032b96d76650e92061e92",
+    "size": 1607
+  },
+  "containerimage.digest": "sha256:b6cdbe7c915fa1dd72bde971c0cf7890299ede91f01032b96d76650e92061e92",
+  "image.name": "aryan1126/kubearmor-operator:v0.1"
+}
