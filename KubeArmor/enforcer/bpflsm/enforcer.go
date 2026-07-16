@@ -28,6 +28,7 @@ import (
 
 //go:generate go run github.com/cilium/ebpf/cmd/bpf2go -cc clang enforcer ../../BPF/enforcer.bpf.c -- -I/usr/include/ -O2 -g -fno-stack-protector -Wno-missing-declarations
 //go:generate go run github.com/cilium/ebpf/cmd/bpf2go -cc clang enforcer_path ../../BPF/enforcer_path.bpf.c -- -I/usr/include/ -O2 -g -fno-stack-protector -Wno-missing-declarations
+//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -cc clang args_monitor ../../BPF/args_monitor.bpf.c -- -I/usr/include/ -O2 -g -fno-stack-protector -Wno-missing-declarations -D__TARGET_ARCH_x86
 
 // ===================== //
 // == BPFLSM Enforcer == //
@@ -53,6 +54,7 @@ type BPFEnforcer struct {
 
 	obj     enforcerObjects
 	objPath enforcer_pathObjects
+	objArgs args_monitorObjects
 
 	Probes map[string]link.Link
 
@@ -271,6 +273,19 @@ func NewBPFEnforcer(node tp.Node, pinpath string, logger *fd.Feeder, monitor *mo
 		}
 	}
 
+	if err := loadArgs_monitorObjects(&be.objArgs, &ebpf.CollectionOptions{
+		Maps: ebpf.MapOptions{
+			PinPath: pinpath,
+		},
+	}); err != nil {
+		be.Logger.Warnf("error loading args_monitor objects: %v", err)
+	} else {
+		be.Probes["sys_execve_args"], err = link.Kprobe("sys_execve", be.objArgs.KprobeArgsExecve, nil)
+		if err != nil {
+			be.Logger.Warnf("opening kprobe sys_execve: %s", err)
+		}
+	}
+
 	be.Events, err = ringbuf.NewReader(be.obj.KubearmorEvents)
 	if err != nil {
 		be.Logger.Errf("opening ringbuf reader: %s", err)
@@ -485,6 +500,11 @@ func (be *BPFEnforcer) DestroyBPFEnforcer() error {
 	var errBPFCleanUp error
 
 	if err := be.obj.Close(); err != nil {
+		be.Logger.Err(err.Error())
+		errBPFCleanUp = errors.Join(errBPFCleanUp, err)
+	}
+
+	if err := be.objArgs.Close(); err != nil {
 		be.Logger.Err(err.Error())
 		errBPFCleanUp = errors.Join(errBPFCleanUp, err)
 	}
