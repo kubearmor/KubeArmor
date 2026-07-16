@@ -308,8 +308,12 @@ func (dm *KubeArmorDaemon) InitSystemMonitor() error {
 		return fmt.Errorf("failed to create new system monitor")
 	}
 
-	if err := dm.SystemMonitor.InitBPF(); err != nil {
-		return fmt.Errorf("failed to initialize BPF: %w", err)
+	if cfg.GlobalCfg.SystemMonitor {
+		if err := dm.SystemMonitor.InitBPF(); err != nil {
+			return fmt.Errorf("failed to initialize BPF: %w", err)
+		}
+	} else {
+		dm.Logger.Print("System Monitor BPF initialization skipped")
 	}
 
 	return nil
@@ -686,26 +690,31 @@ func KubeArmor() {
 
 	// Containerized workloads with Host
 	if cfg.GlobalCfg.Policy || cfg.GlobalCfg.HostPolicy {
-		// initialize system monitor
-		if err := dm.InitSystemMonitor(); err != nil {
-			dm.Logger.Errf("Failed to initialize KubeArmor Monitor: %v", err)
+		if cfg.GlobalCfg.SystemMonitor {
+			// initialize system monitor
+			if err := dm.InitSystemMonitor(); err != nil {
+				dm.Logger.Errf("Failed to initialize KubeArmor Monitor: %v", err)
 
-			// destroy the daemon
-			dm.DestroyKubeArmorDaemon()
+				// destroy the daemon
+				dm.DestroyKubeArmorDaemon()
 
-			return
+				return
+			}
+			dm.Logger.Print("Initialized KubeArmor Monitor")
+			// monitor system events
+			go dm.MonitorSystemEvents()
+			dm.Logger.Print("Started to monitor system events")
 		}
-		dm.Logger.Print("Initialized KubeArmor Monitor")
-
-		// monitor system events
-		go dm.MonitorSystemEvents()
-		dm.Logger.Print("Started to monitor system events")
 
 		// initialize runtime enforcer
 		if cfg.GlobalCfg.LsmOrder[0] == "" || cfg.GlobalCfg.LsmOrder[0] == "none" {
 			dm.Logger.Printf("Disabled KubeArmor Enforcer: No LSM specified")
 		} else {
-			if err := dm.InitRuntimeEnforcer(dm.SystemMonitor.PinPath); err != nil {
+			pinPath := kl.GetMapRoot()
+			if dm.SystemMonitor != nil {
+				pinPath = dm.SystemMonitor.PinPath
+			}
+			if err := dm.InitRuntimeEnforcer(pinPath); err != nil {
 				dm.Logger.Printf("Disabled KubeArmor Enforcer: %s", err.Error())
 			} else {
 				dm.Logger.Print("Initialized KubeArmor Enforcer")
