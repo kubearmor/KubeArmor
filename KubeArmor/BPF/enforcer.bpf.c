@@ -602,7 +602,7 @@ decision:
   bpf_probe_read_str(store->path, MAX_STRING_SIZE, p->path);
   if (match)
   {
-    if (val && (val->processmask & RULE_DENY))
+    if (val)
     {
       if (val && (val->processmask & RULE_PTS))
       {
@@ -615,7 +615,6 @@ decision:
       else
       {
         setRetval(val->processmask, &retval);
-
         goto ringbuf;
       }
     }
@@ -978,9 +977,9 @@ decision:
 
   if (match)
   {
-    if (val && (val->processmask & RULE_DENY))
+    if (val)
     {
-      retval = -EPERM;
+      setRetval(val->processmask, &retval);
       goto ringbuf;
     }
   }
@@ -993,7 +992,7 @@ decision:
   {
     if (!match && allow->processmask == BLOCK_POSTURE)
     {
-      retval = -EPERM;
+      retval = BLOCK;
     }
     goto ringbuf;
   }
@@ -1001,6 +1000,15 @@ decision:
   return 0;
 
 ringbuf:
+  if (retval == BLOCK)
+  {
+    retval = -EPERM;
+  }
+  else
+  {
+    retval = 0;
+  }
+
   if (get_kubearmor_config(_ALERT_THROTTLING) && should_drop_alerts_per_container(okey))
     return retval;
 
