@@ -63,7 +63,7 @@ type KubearmorConfig struct {
 
 	SystemMonitor bool // enable system monitor
 	StateAgent    bool // enable KubeArmor state agent
-	UseOCIHooks bool
+	UseOCIHooks   bool
 
 	AlertThrottling   bool  // Enable/Disable Alert Throttling
 	MaxAlertPerSec    int32 // Maximum alerts allowed per second
