@@ -212,7 +212,6 @@ func (p *Preset) TraceEvents() {
 		log.KubeArmorVersion = buildinfo.GitSummary
 
 		p.Logger.PushLog(log)
-
 	}
 }
 

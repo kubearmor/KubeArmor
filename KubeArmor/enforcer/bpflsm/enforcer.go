@@ -52,8 +52,8 @@ type BPFEnforcer struct {
 	ContainerMap     map[string]ContainerKV
 	ContainerMapLock *sync.RWMutex
 
-	obj     enforcerObjects
-	objPath enforcer_pathObjects
+	obj        enforcerObjects
+	objPath    enforcer_pathObjects
 	objProcess process_monitorObjects
 
 	Probes map[string]link.Link
@@ -393,7 +393,6 @@ func (be *BPFEnforcer) TraceEvents() {
 			readLink = true
 		}
 		containerID := ""
-
 		if event.PidID != 0 && event.MntID != 0 {
 			containerID = be.Monitor.LookupContainerID(event.PidID, event.MntID)
 		}
