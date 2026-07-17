@@ -349,6 +349,10 @@ func (mon *SystemMonitor) UpdateThrottlingConfig() {
 
 // UpdateNsKeyMap Function
 func (mon *SystemMonitor) UpdateNsKeyMap(action string, nsKey NsKey, visibility tp.Visibility) {
+	if mon.BpfNsVisibilityMap == nil {
+		return
+	}
+
 	var err error
 
 	file := cle.MapKV{

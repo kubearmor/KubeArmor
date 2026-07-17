@@ -690,17 +690,18 @@ func KubeArmor() {
 
 	// Containerized workloads with Host
 	if cfg.GlobalCfg.Policy || cfg.GlobalCfg.HostPolicy {
+		// always initialize system monitor struct
+		if err := dm.InitSystemMonitor(); err != nil {
+			dm.Logger.Errf("Failed to initialize KubeArmor Monitor: %v", err)
+
+			// destroy the daemon
+			dm.DestroyKubeArmorDaemon()
+
+			return
+		}
+		dm.Logger.Print("Initialized KubeArmor Monitor")
+
 		if cfg.GlobalCfg.SystemMonitor {
-			// initialize system monitor
-			if err := dm.InitSystemMonitor(); err != nil {
-				dm.Logger.Errf("Failed to initialize KubeArmor Monitor: %v", err)
-
-				// destroy the daemon
-				dm.DestroyKubeArmorDaemon()
-
-				return
-			}
-			dm.Logger.Print("Initialized KubeArmor Monitor")
 			// monitor system events
 			go dm.MonitorSystemEvents()
 			dm.Logger.Print("Started to monitor system events")
@@ -710,11 +711,7 @@ func KubeArmor() {
 		if cfg.GlobalCfg.LsmOrder[0] == "" || cfg.GlobalCfg.LsmOrder[0] == "none" {
 			dm.Logger.Printf("Disabled KubeArmor Enforcer: No LSM specified")
 		} else {
-			pinPath := kl.GetMapRoot()
-			if dm.SystemMonitor != nil {
-				pinPath = dm.SystemMonitor.PinPath
-			}
-			if err := dm.InitRuntimeEnforcer(pinPath); err != nil {
+			if err := dm.InitRuntimeEnforcer(dm.SystemMonitor.PinPath); err != nil {
 				dm.Logger.Printf("Disabled KubeArmor Enforcer: %s", err.Error())
 			} else {
 				dm.Logger.Print("Initialized KubeArmor Enforcer")
@@ -739,7 +736,9 @@ func KubeArmor() {
 
 	enableContainerPolicy := true
 
-	dm.SystemMonitor.Logger.ContainerNsKey = make(map[string]common.OuterKey)
+	if dm.SystemMonitor != nil {
+		dm.SystemMonitor.Logger.ContainerNsKey = make(map[string]common.OuterKey)
+	}
 
 	// Un-orchestrated workloads
 	if !dm.K8sEnabled && cfg.GlobalCfg.Policy {
