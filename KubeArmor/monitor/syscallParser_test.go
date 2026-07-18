@@ -49,6 +49,7 @@ func TestReadContextFromBuff(t *testing.T) {
 	}
 
 	// 1. Success case
+	bufBytes := buf.Bytes()
 	actual, err := readContextFromBuff(&buf)
 	if err != nil {
 		t.Fatalf("readContextFromBuff failed: %v", err)
@@ -59,7 +60,7 @@ func TestReadContextFromBuff(t *testing.T) {
 	}
 
 	// 2. Truncated case
-	truncatedBuf := bytes.NewReader(buf.Bytes()[:20])
+	truncatedBuf := bytes.NewReader(bufBytes[:20])
 	_, err = readContextFromBuff(truncatedBuf)
 	if err == nil {
 		t.Error("expected error for truncated buffer, got nil")
@@ -145,9 +146,9 @@ func TestReadArgFromBuff(t *testing.T) {
 			name: "sockAddrT AF_INET",
 			setup: func(b *bytes.Buffer) {
 				b.WriteByte(sockAddrT)
-				_ = binary.Write(b, binary.LittleEndian, int16(2))             // AF_INET
-				_ = binary.Write(b, binary.BigEndian, uint16(8080))            // Port
-				_ = binary.Write(b, binary.BigEndian, uint32(0x7f000001))      // 127.0.0.1
+				_ = binary.Write(b, binary.LittleEndian, int16(2))            // AF_INET
+				_ = binary.Write(b, binary.BigEndian, uint16(8080))           // Port
+				_ = binary.Write(b, binary.BigEndian, uint32(0x7f000001))     // 127.0.0.1
 				_ = binary.Write(b, binary.LittleEndian, [8]byte{0, 0, 0, 0}) // Padding
 			},
 			expected: map[string]string{
@@ -160,9 +161,9 @@ func TestReadArgFromBuff(t *testing.T) {
 			name: "sockAddrT AF_INET6",
 			setup: func(b *bytes.Buffer) {
 				b.WriteByte(sockAddrT)
-				_ = binary.Write(b, binary.LittleEndian, int16(10))            // AF_INET6
-				_ = binary.Write(b, binary.BigEndian, uint16(9090))            // Port
-				_ = binary.Write(b, binary.BigEndian, uint32(0))               // Flow info
+				_ = binary.Write(b, binary.LittleEndian, int16(10)) // AF_INET6
+				_ = binary.Write(b, binary.BigEndian, uint16(9090)) // Port
+				_ = binary.Write(b, binary.BigEndian, uint32(0))    // Flow info
 				var ip [16]byte
 				copy(ip[:], net.ParseIP("2001:db8::1"))
 				_ = binary.Write(b, binary.LittleEndian, ip)
@@ -541,9 +542,9 @@ func FuzzReadArgFromBuff(f *testing.F) {
 	// Seed 4: sockAddrT AF_INET
 	var buf4 bytes.Buffer
 	buf4.WriteByte(sockAddrT)
-	_ = binary.Write(&buf4, binary.LittleEndian, int16(2))             // AF_INET
-	_ = binary.Write(&buf4, binary.BigEndian, uint16(8080))            // Port
-	_ = binary.Write(&buf4, binary.BigEndian, uint32(0x7f000001))      // IP
+	_ = binary.Write(&buf4, binary.LittleEndian, int16(2))            // AF_INET
+	_ = binary.Write(&buf4, binary.BigEndian, uint16(8080))           // Port
+	_ = binary.Write(&buf4, binary.BigEndian, uint32(0x7f000001))     // IP
 	_ = binary.Write(&buf4, binary.LittleEndian, [8]byte{0, 0, 0, 0}) // Padding
 	f.Add(buf4.Bytes())
 

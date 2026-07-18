@@ -143,9 +143,9 @@ const (
 	ConfigArgMatching                    string = "matchArgs"
 	ConfigNetworkPolicyEnforcer          string = "enableNetworkPolicyEnforcer"
 
-	ConfigOTel                  string = "otel"
-	ConfigOTelEndpoint          string = "otelEndpoint"
-	ConfigOTelInsecure          string = "otelInsecure"
+	ConfigOTel         string = "otel"
+	ConfigOTelEndpoint string = "otelEndpoint"
+	ConfigOTelInsecure string = "otelInsecure"
 )
 
 func readCmdLineParams() {
@@ -225,7 +225,6 @@ func readCmdLineParams() {
 	otel := flag.Bool(ConfigOTel, false, "enable OpenTelemetry exporter")
 	otelEndpoint := flag.String(ConfigOTelEndpoint, "", "OpenTelemetry collector endpoint (e.g. localhost:4317)")
 	otelInsecure := flag.Bool(ConfigOTelInsecure, true, "disable client transport security for the OTel gRPC connection")
-
 
 	flags := []string{}
 	flag.VisitAll(func(f *flag.Flag) {
@@ -413,7 +412,6 @@ func LoadConfig() error {
 	GlobalCfg.OTel = viper.GetBool(ConfigOTel)
 	GlobalCfg.OTelEndpoint = viper.GetString(ConfigOTelEndpoint)
 	GlobalCfg.OTelInsecure = viper.GetBool(ConfigOTelInsecure)
-
 
 	LoadDynamicConfig()
 

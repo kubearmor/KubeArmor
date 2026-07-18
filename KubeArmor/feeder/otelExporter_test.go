@@ -6,8 +6,8 @@ package feeder
 import (
 	"testing"
 
-	"go.opentelemetry.io/otel/log"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
+	"go.opentelemetry.io/otel/log"
 )
 
 func TestMapSeverity(t *testing.T) {
