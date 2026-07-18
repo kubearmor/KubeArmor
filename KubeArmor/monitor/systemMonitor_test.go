@@ -42,6 +42,7 @@ func TestSystemMonitor(t *testing.T) {
 	// configuration
 	cfg.GlobalCfg.Policy = true
 	cfg.GlobalCfg.HostPolicy = true
+	cfg.GlobalCfg.GRPC = "38261"
 
 	// create logger
 	logger := feeder.NewFeeder(&node, &nodeLock)
@@ -109,6 +110,7 @@ func TestTraceSyscallWithPod(t *testing.T) {
 	// configuration
 	cfg.GlobalCfg.Policy = true
 	cfg.GlobalCfg.HostPolicy = false
+	cfg.GlobalCfg.GRPC = "38262"
 
 	// create logger
 	logger := feeder.NewFeeder(&node, &nodeLock)
@@ -210,6 +212,7 @@ func TestTraceSyscallWithHost(t *testing.T) {
 	// configuration
 	cfg.GlobalCfg.Policy = false
 	cfg.GlobalCfg.HostPolicy = true
+	cfg.GlobalCfg.GRPC = "38263"
 
 	// create logger
 	logger := feeder.NewFeeder(&node, &nodeLock)
