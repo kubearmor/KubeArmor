@@ -80,6 +80,10 @@ type KubearmorConfig struct {
 	MatchArgs bool // enable argument rules for policy
 
 	NetworkPolicyEnforcer bool // enable network policy enforcement
+
+	OTel         bool   // Enable OpenTelemetry Exporter
+	OTelEndpoint string // OpenTelemetry Collector Endpoint
+	OTelInsecure bool   // Disable client transport security for the OTel gRPC connection
 }
 
 // GlobalCfg Global configuration for Kubearmor
@@ -138,6 +142,10 @@ const (
 	ConfigUSBDeviceHandler               string = "enableUSBDeviceHandler"
 	ConfigArgMatching                    string = "matchArgs"
 	ConfigNetworkPolicyEnforcer          string = "enableNetworkPolicyEnforcer"
+
+	ConfigOTel                  string = "otel"
+	ConfigOTelEndpoint          string = "otelEndpoint"
+	ConfigOTelInsecure          string = "otelInsecure"
 )
 
 func readCmdLineParams() {
@@ -213,6 +221,11 @@ func readCmdLineParams() {
 	matchArgs := flag.Bool(ConfigArgMatching, true, "enabling Argument matching")
 
 	networkPolicyEnforcer := flag.Bool(ConfigNetworkPolicyEnforcer, true, "Enable network policy enforcement")
+
+	otel := flag.Bool(ConfigOTel, false, "enable OpenTelemetry exporter")
+	otelEndpoint := flag.String(ConfigOTelEndpoint, "", "OpenTelemetry collector endpoint (e.g. localhost:4317)")
+	otelInsecure := flag.Bool(ConfigOTelInsecure, true, "disable client transport security for the OTel gRPC connection")
+
 
 	flags := []string{}
 	flag.VisitAll(func(f *flag.Flag) {
@@ -296,6 +309,10 @@ func readCmdLineParams() {
 	viper.SetDefault(ConfigArgMatching, *matchArgs)
 
 	viper.SetDefault(ConfigNetworkPolicyEnforcer, *networkPolicyEnforcer)
+
+	viper.SetDefault(ConfigOTel, *otel)
+	viper.SetDefault(ConfigOTelEndpoint, *otelEndpoint)
+	viper.SetDefault(ConfigOTelInsecure, *otelInsecure)
 }
 
 // LoadConfig Load configuration
@@ -392,6 +409,11 @@ func LoadConfig() error {
 	GlobalCfg.SELinuxProfileDir = viper.GetString(ConfigSELinuxProfileDir)
 
 	GlobalCfg.NetworkPolicyEnforcer = viper.GetBool(ConfigNetworkPolicyEnforcer)
+
+	GlobalCfg.OTel = viper.GetBool(ConfigOTel)
+	GlobalCfg.OTelEndpoint = viper.GetString(ConfigOTelEndpoint)
+	GlobalCfg.OTelInsecure = viper.GetBool(ConfigOTelInsecure)
+
 
 	LoadDynamicConfig()
 
