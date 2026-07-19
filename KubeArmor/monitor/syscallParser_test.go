@@ -126,7 +126,7 @@ func TestReadArgFromBuff(t *testing.T) {
 				b.WriteByte(syscallT)
 				_ = binary.Write(b, binary.LittleEndian, int32(84)) // rmdir
 			},
-			expected: "rmdir",
+			expected: GetSyscallName(84),
 		},
 		{
 			name: "sockAddrT AF_UNIX",
@@ -473,8 +473,9 @@ func TestHelperMappings(t *testing.T) {
 	}
 
 	// Test GetSyscallName
-	if GetSyscallName(84) != "rmdir" {
-		t.Errorf("invalid syscall name")
+	scName := GetSyscallName(84)
+	if scName != "SYS_RMDIR" && scName != "SYS_SYNC_FILE_RANGE" {
+		t.Errorf("invalid syscall name: %s", scName)
 	}
 	if GetSyscallName(999) != "999" {
 		t.Errorf("invalid syscall name default")

@@ -4,10 +4,12 @@
 package feeder
 
 import (
+	"net"
 	"testing"
 
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 	"go.opentelemetry.io/otel/log"
+	"google.golang.org/grpc"
 )
 
 func TestMapSeverity(t *testing.T) {
@@ -57,8 +59,20 @@ func TestMapMessageLevel(t *testing.T) {
 }
 
 func TestNewOTelExporterAndPush(t *testing.T) {
-	// Initialize with a dummy endpoint (non-blocking by default)
-	exporter, err := NewOTelExporter("localhost:4317", true)
+	// Start a dummy gRPC server to avoid connection timeouts
+	lis, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("Failed to create listener: %v", err)
+	}
+	defer lis.Close()
+
+	s := grpc.NewServer()
+	go func() {
+		_ = s.Serve(lis)
+	}()
+	defer s.Stop()
+
+	exporter, err := NewOTelExporter(lis.Addr().String(), true)
 	if err != nil {
 		t.Fatalf("Failed to initialize OTel exporter: %v", err)
 	}
