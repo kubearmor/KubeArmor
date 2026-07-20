@@ -217,7 +217,7 @@ func (dm *KubeArmorDaemon) UpdateContainer(containerID string, container tp.Cont
 		dm.EndPointsLock.Lock()
 		// remove apparmor profile for that endpoint BEFORE removing container ID from endpoint
 		for idx, endPoint := range dm.EndPoints {
-			if endPoint.NamespaceName == container.NamespaceName && endPoint.EndPointName == container.EndPointName && kl.ContainsElement(endPoint.Containers, container.ContainerID) {
+			if endPoint.NamespaceName == container.NamespaceName && endPoint.EndPointName == container.ContainerName && kl.ContainsElement(endPoint.Containers, container.ContainerID) {
 
 				// update apparmor profiles
 				for idxA, profile := range endPoint.AppArmorProfiles {
