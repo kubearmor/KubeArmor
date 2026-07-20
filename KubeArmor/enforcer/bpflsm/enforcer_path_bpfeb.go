@@ -46,6 +46,28 @@ type enforcer_pathCmdArgsKey struct {
 	Ind  uint64
 }
 
+type enforcer_pathNetRuleKey struct {
+	_    structs.HostLayout
+	Okey struct {
+		_     structs.HostLayout
+		PidNs uint32
+		MntNs uint32
+	}
+	Index uint32
+}
+
+type enforcer_pathNetRuleValue struct {
+	_         structs.HostLayout
+	Ip        [16]uint8
+	Mask      [16]uint8
+	Port      uint16
+	Proto     uint8
+	Action    uint8
+	Family    uint8
+	Direction uint8
+	Source    [200]int8
+}
+
 // loadEnforcer_path returns the embedded CollectionSpec for enforcer_path.
 func loadEnforcer_path() (*ebpf.CollectionSpec, error) {
 	reader := bytes.NewReader(_Enforcer_pathBytes)
@@ -117,6 +139,7 @@ type enforcer_pathMapSpecs struct {
 	KubearmorContainers    *ebpf.MapSpec `ebpf:"kubearmor_containers"`
 	KubearmorEvents        *ebpf.MapSpec `ebpf:"kubearmor_events"`
 	KubearmorExecPids      *ebpf.MapSpec `ebpf:"kubearmor_exec_pids"`
+	KubearmorNetRules      *ebpf.MapSpec `ebpf:"kubearmor_net_rules"`
 }
 
 // enforcer_pathVariableSpecs contains global variables before they are loaded into the kernel.
@@ -157,6 +180,7 @@ type enforcer_pathMaps struct {
 	KubearmorContainers    *ebpf.Map `ebpf:"kubearmor_containers"`
 	KubearmorEvents        *ebpf.Map `ebpf:"kubearmor_events"`
 	KubearmorExecPids      *ebpf.Map `ebpf:"kubearmor_exec_pids"`
+	KubearmorNetRules      *ebpf.Map `ebpf:"kubearmor_net_rules"`
 }
 
 func (m *enforcer_pathMaps) Close() error {
@@ -173,6 +197,7 @@ func (m *enforcer_pathMaps) Close() error {
 		m.KubearmorContainers,
 		m.KubearmorEvents,
 		m.KubearmorExecPids,
+		m.KubearmorNetRules,
 	)
 }
 
