@@ -37,6 +37,13 @@ char LICENSE[] SEC("license") = "Dual BSD/GPL";
     _val;                                             \
   })
 
+#ifndef AF_INET
+#define AF_INET 2
+#endif
+#ifndef AF_INET6
+#define AF_INET6 10
+#endif
+
 enum
 {
   IPPROTO_ICMPV6 = 58
@@ -257,6 +264,31 @@ struct outer_hash
 };
 
 struct outer_hash kubearmor_containers SEC(".maps");
+
+struct net_rule_key {
+  struct outer_key okey;
+  u32 index;
+};
+
+struct net_rule_value {
+  u8 ip[16];
+  u8 mask[16];
+  u16 port;
+  u8 proto;
+  u8 action;
+  u8 family;
+  u8 direction;
+  char source[MAX_STRING_SIZE];
+};
+
+struct
+{
+  __uint(type, BPF_MAP_TYPE_HASH);
+  __uint(max_entries, 10240);
+  __type(key, struct net_rule_key);
+  __type(value, struct net_rule_value);
+  __uint(pinning, LIBBPF_PIN_BY_NAME);
+} kubearmor_net_rules SEC(".maps");
 
 struct exec_pid_map
 {
