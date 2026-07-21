@@ -19,17 +19,14 @@ import (
 
 	"github.com/kubearmor/KubeArmor/KubeArmor/common"
 	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
-	"github.com/kubearmor/KubeArmor/KubeArmor/config"
 	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
+	"github.com/kubearmor/KubeArmor/KubeArmor/grpcutil"
 	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 
 	"github.com/google/uuid"
-	"github.com/kubearmor/KubeArmor/KubeArmor/cert"
 	pb "github.com/kubearmor/KubeArmor/protobuf"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
-	"google.golang.org/grpc/keepalive"
 )
 
 // parseDataString parses a space-separated key=value string into a map
@@ -370,7 +367,6 @@ func NewFeeder(node *tp.Node, nodeLock **sync.RWMutex) (feeder *Feeder) {
 	fd.LogServer, err = createGRPCServer(
 		node.NodeIP,
 		cfg.GlobalCfg.TLSEnabled,
-		grpcMTLS,
 	)
 	if err != nil {
 		kg.Errf("cannot create log gRPC server: %s", err)
@@ -397,25 +393,12 @@ func NewFeeder(node *tp.Node, nodeLock **sync.RWMutex) (feeder *Feeder) {
 	return fd
 }
 
-type grpcTLSMode int
-
-const (
-	grpcMTLS grpcTLSMode = iota
-)
-
 // Helper function to create a gRPC server
-func createGRPCServer(nodeIP string, tlsEnabled bool, tlsMode grpcTLSMode) (*grpc.Server, error) {
-
-	kaep := keepalive.EnforcementPolicy{
-		PermitWithoutStream: true,
-	}
-	kasp := keepalive.ServerParameters{
-		Time:    1 * time.Second,
-		Timeout: 5 * time.Second,
-	}
+func createGRPCServer(nodeIP string, tlsEnabled bool) (*grpc.Server, error) {
+	kaep, kasp := grpcutil.KeepaliveFor(grpcutil.StreamingProfile)
 
 	if tlsEnabled {
-		tlsCredentials, err := loadTLSCredentials(nodeIP, tlsMode)
+		tlsCredentials, err := grpcutil.LoadServerTLS(nodeIP)
 		if err != nil {
 			return nil, err
 		}
@@ -956,29 +939,6 @@ func (fd *Feeder) PushLog(log tp.Log) {
 				}
 			}
 		}
-	}
-}
-
-func loadTLSCredentials(ip string, tlsMode grpcTLSMode) (credentials.TransportCredentials, error) {
-	// create certificate configurations
-	serverCertConfig := cert.DefaultKubeArmorServerConfig
-	serverCertConfig.DNS, serverCertConfig.IPs = cert.KubeArmorServerSANs(ip, cfg.GlobalCfg.Host)
-	serverCertConfig.NotAfter = time.Now().Add(365 * 24 * time.Hour) // valid for 1 year
-	// as of now daemonset creates certificates dynamically
-	tlsConfig := cert.TlsConfig{
-		CertCfg:      serverCertConfig,
-		CertProvider: cfg.GlobalCfg.TLSCertProvider,
-		CACertPath:   cert.GetCACertPath(config.GlobalCfg.TLSCertPath),
-		CertPath:     cert.GetServerCertPath(config.GlobalCfg.TLSCertPath),
-		NodeIP:       ip,
-		ServerNames:  []string{cfg.GlobalCfg.Host},
-	}
-	manager := cert.NewTlsCredentialManager(&tlsConfig)
-	switch tlsMode {
-	case grpcMTLS:
-		return manager.CreateTlsServerCredentials()
-	default:
-		return nil, fmt.Errorf("unsupported grpc TLS mode: %d", tlsMode)
 	}
 }
 

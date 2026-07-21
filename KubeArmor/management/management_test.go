@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"strconv"
 	"sync"
 	"testing"
 	"time"
@@ -18,7 +17,6 @@ import (
 	pb "github.com/kubearmor/KubeArmor/protobuf"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
-	"google.golang.org/grpc/health"
 	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/protobuf/types/known/emptypb"
@@ -41,38 +39,20 @@ func cloneConfig() cfg.KubearmorConfig {
 	return c
 }
 
-func freeTCPPort(t *testing.T) string {
-	t.Helper()
-	listener, err := net.Listen("tcp", ":0")
-	if err != nil {
-		t.Fatalf("Failed to bind test port: %v", err)
-	}
-	defer listener.Close()
-	return strconv.Itoa(listener.Addr().(*net.TCPAddr).Port)
-}
-
 func configureTestTLS(t *testing.T) {
 	t.Helper()
 	cfg.GlobalCfg.TLSCertProvider = cert.DevCertProvider
 	cfg.GlobalCfg.TLSCertPath = t.TempDir()
 }
 
-func configureTestManagementPort(t *testing.T) {
+func serverAddr(t *testing.T, s *ManagementServer) string {
 	t.Helper()
-	cfg.GlobalCfg.ManagementGRPC = freeTCPPort(t)
+	port := s.Listener.Addr().(*net.TCPAddr).Port
+	return fmt.Sprintf("127.0.0.1:%d", port)
 }
 
-func setupTestServer(t *testing.T) (*ManagementServer, credentials.TransportCredentials) {
+func createClientCreds(t *testing.T) credentials.TransportCredentials {
 	t.Helper()
-	cfg.GlobalCfg = cloneConfig()
-	configureTestManagementPort(t)
-	configureTestTLS(t)
-
-	ms, err := NewManagementServer("10.0.0.1")
-	if err != nil {
-		t.Fatalf("Failed to create management server: %v", err)
-	}
-
 	tlsConfig := cert.TlsConfig{
 		CertProvider: cert.ExternalCertProvider,
 		CACertPath:   cert.GetCACertPath(cfg.GlobalCfg.TLSCertPath),
@@ -82,8 +62,24 @@ func setupTestServer(t *testing.T) (*ManagementServer, credentials.TransportCred
 	if err != nil {
 		t.Fatalf("Failed to create client TLS credentials: %v", err)
 	}
+	return creds
+}
 
-	return ms, creds
+func setupTestServer(t *testing.T) (*ManagementServer, credentials.TransportCredentials) {
+	t.Helper()
+	cfg.GlobalCfg = cloneConfig()
+	configureTestTLS(t)
+
+	ms, err := NewManagementServer(Config{
+		Addr:       ":0",
+		TLSEnabled: cfg.GlobalCfg.TLSEnabled,
+		NodeIP:     "10.0.0.1",
+	})
+	if err != nil {
+		t.Fatalf("Failed to create management server: %v", err)
+	}
+
+	return ms, createClientCreds(t)
 }
 
 // setup once for this package
@@ -99,51 +95,35 @@ func TestMain(m *testing.M) {
 	os.Exit(exitCode)
 }
 
-func TestNewManagementServer(t *testing.T) {
+func TestNewServer(t *testing.T) {
 	tests := []struct {
 		name      string
-		setup     func(t *testing.T)
+		cfg       Config
 		expectNil bool
 	}{
 		{
 			name: "DefaultConfigSuccess",
-			setup: func(t *testing.T) {
-				cfg.GlobalCfg = cloneConfig()
-				configureTestManagementPort(t)
-				configureTestTLS(t)
+			cfg: Config{
+				Addr:       ":0",
+				TLSEnabled: true,
+				NodeIP:     "10.0.0.1",
 			},
 			expectNil: false,
 		},
 		{
-			name: "PortZeroFailure",
-			setup: func(t *testing.T) {
-				cfg.GlobalCfg = cloneConfig()
-				cfg.GlobalCfg.ManagementGRPC = "0"
-			},
-			expectNil: true,
-		},
-		{
-			name: "PortInUseFailure",
-			setup: func(t *testing.T) {
-				cfg.GlobalCfg = cloneConfig()
-				listener, err := net.Listen("tcp", ":0")
-				if err != nil {
-					t.Fatalf("Failed to bind test port: %v", err)
-				}
-				addr := listener.Addr().(*net.TCPAddr)
-				cfg.GlobalCfg.ManagementGRPC = strconv.Itoa(addr.Port)
-				t.Cleanup(func() { listener.Close() })
+			name: "BothAddrAndSocketPathEmptyFailure",
+			cfg: Config{
+				TLSEnabled: false,
+				NodeIP:     "10.0.0.1",
 			},
 			expectNil: true,
 		},
 		{
 			name: "TLSCredentialsFailure",
-			setup: func(t *testing.T) {
-				cfg.GlobalCfg = cloneConfig()
-				cfg.GlobalCfg.TLSEnabled = true
-				configureTestManagementPort(t)
-				cfg.GlobalCfg.TLSCertProvider = cert.SelfCertProvider
-				cfg.GlobalCfg.TLSCertPath = t.TempDir()
+			cfg: Config{
+				Addr:       ":0",
+				TLSEnabled: true,
+				NodeIP:     "10.0.0.1",
 			},
 			expectNil: true,
 		},
@@ -151,23 +131,29 @@ func TestNewManagementServer(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tt.setup(t)
+			cfg.GlobalCfg = cloneConfig()
 
-			ms, err := NewManagementServer("10.0.0.1")
+			if tt.cfg.TLSEnabled && tt.name != "TLSCredentialsFailure" {
+				configureTestTLS(t)
+			}
+
+			if tt.name == "TLSCredentialsFailure" {
+				cfg.GlobalCfg.TLSEnabled = true
+				cfg.GlobalCfg.TLSCertProvider = cert.SelfCertProvider
+				cfg.GlobalCfg.TLSCertPath = t.TempDir()
+			}
+
+			ms, err := NewManagementServer(tt.cfg)
 			if ms != nil {
-				defer func() {
-					if err := ms.Destroy(); err != nil {
-						t.Logf("Failed to destroy management server: %v", err)
-					}
-				}()
+				defer ms.GracefulStop()
 			}
 
 			if tt.expectNil && ms != nil {
-				t.Fatalf("expected management server to be nil")
+				t.Fatalf("expected server to be nil")
 			}
 
 			if !tt.expectNil && ms == nil {
-				t.Fatalf("expected management server to be created, got error: %v", err)
+				t.Fatalf("expected server to be created, got error: %v", err)
 			}
 		})
 	}
@@ -198,15 +184,11 @@ func (s *mockProbeService) GetProbeData(ctx context.Context, _ *emptypb.Empty) (
 	return &pb.ProbeResponse{}, nil
 }
 
-// TestManagementServerServiceRegistration verifies PolicyService and ProbeService
+// TestServiceRegistration verifies PolicyService and ProbeService
 // are successfully registered and respond to RPC calls.
-func TestManagementServerServiceRegistration(t *testing.T) {
+func TestServiceRegistration(t *testing.T) {
 	ms, creds := setupTestServer(t)
-	defer func() {
-		if err := ms.Destroy(); err != nil {
-			t.Logf("Failed to destroy management server: %v", err)
-		}
-	}()
+	defer ms.GracefulStop()
 
 	pb.RegisterPolicyServiceServer(ms.Server, &mockPolicyService{})
 	pb.RegisterProbeServiceServer(ms.Server, &mockProbeService{})
@@ -215,7 +197,8 @@ func TestManagementServerServiceRegistration(t *testing.T) {
 	go ms.Serve()
 	time.Sleep(500 * time.Millisecond)
 
-	conn, err := grpc.NewClient("localhost"+ms.Port, grpc.WithTransportCredentials(creds))
+	addr := serverAddr(t, ms)
+	conn, err := grpc.NewClient(addr, grpc.WithTransportCredentials(creds))
 	if err != nil {
 		t.Fatalf("Failed to create gRPC client: %v", err)
 	}
@@ -260,23 +243,18 @@ func TestManagementServerServiceRegistration(t *testing.T) {
 	t.Logf("GetProbeData succeeded: ContainerList=%v", probeResp.ContainerList)
 }
 
-// TestManagementServerHealth verifies the health check service works on the management server.
-func TestManagementServerHealth(t *testing.T) {
+// TestHealth verifies the embedded health check service works on the management server.
+func TestHealth(t *testing.T) {
 	ms, creds := setupTestServer(t)
-	defer func() {
-		if err := ms.Destroy(); err != nil {
-			t.Logf("Failed to destroy management server: %v", err)
-		}
-	}()
+	defer ms.GracefulStop()
 
-	healthSrv := health.NewServer()
-	grpc_health_v1.RegisterHealthServer(ms.Server, healthSrv)
-	healthSrv.SetServingStatus("policy.PolicyService", grpc_health_v1.HealthCheckResponse_SERVING)
+	ms.HealthServer.SetServingStatus("policy.PolicyService", grpc_health_v1.HealthCheckResponse_SERVING)
 
 	go ms.Serve()
 	time.Sleep(500 * time.Millisecond)
 
-	conn, err := grpc.NewClient("localhost"+ms.Port, grpc.WithTransportCredentials(creds))
+	addr := serverAddr(t, ms)
+	conn, err := grpc.NewClient(addr, grpc.WithTransportCredentials(creds))
 	if err != nil {
 		t.Fatalf("Failed to create gRPC client: %v", err)
 	}
@@ -293,8 +271,8 @@ func TestManagementServerHealth(t *testing.T) {
 	t.Logf("Health check response: Status=%v", resp.Status)
 }
 
-// TestManagementServerDestroy verifies that after Destroy the server stops accepting connections.
-func TestManagementServerDestroy(t *testing.T) {
+// TestGracefulStop verifies that after GracefulStop the server stops accepting connections.
+func TestGracefulStop(t *testing.T) {
 	ms, creds := setupTestServer(t)
 
 	pb.RegisterPolicyServiceServer(ms.Server, &mockPolicyService{})
@@ -302,7 +280,8 @@ func TestManagementServerDestroy(t *testing.T) {
 	go ms.Serve()
 	time.Sleep(500 * time.Millisecond)
 
-	conn, err := grpc.NewClient("localhost"+ms.Port, grpc.WithTransportCredentials(creds))
+	addr := serverAddr(t, ms)
+	conn, err := grpc.NewClient(addr, grpc.WithTransportCredentials(creds))
 	if err != nil {
 		t.Fatalf("Failed to create gRPC client: %v", err)
 	}
@@ -311,19 +290,17 @@ func TestManagementServerDestroy(t *testing.T) {
 	policyClient := pb.NewPolicyServiceClient(conn)
 	resp, err := policyClient.ContainerPolicy(context.Background(), &pb.Policy{})
 	if err != nil {
-		t.Fatalf("ContainerPolicy RPC before destroy failed: %v", err)
+		t.Fatalf("ContainerPolicy RPC before stop failed: %v", err)
 	}
 	if resp.Status != pb.PolicyStatus_Applied {
 		t.Fatalf("Expected PolicyStatus_Applied, got %v", resp.Status)
 	}
 
-	if err := ms.Destroy(); err != nil {
-		t.Fatalf("Failed to destroy management server: %v", err)
-	}
+	ms.GracefulStop()
 
 	_, err = policyClient.ContainerPolicy(context.Background(), &pb.Policy{})
 	if err == nil {
-		t.Fatal("Expected error after destroy, connection should fail")
+		t.Fatal("Expected error after GracefulStop, connection should fail")
 	}
-	t.Logf("Expected error after destroy: %v", err)
+	t.Logf("Expected error after GracefulStop: %v", err)
 }
