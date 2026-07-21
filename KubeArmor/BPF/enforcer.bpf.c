@@ -366,7 +366,7 @@ decision:
         return 0;
       }
     }
-    if (val)
+    if (val && !(val->processmask & RULE_PTS))
     {
       setRetval(val->processmask, &retval);
     }
