@@ -66,7 +66,7 @@ func NewManagementServer(cfg Config) (*ManagementServer, error) {
 
 	var server *grpc.Server
 	if cfg.TLSEnabled {
-		tlsCredentials, err := grpcutil.LoadServerTLS(cfg.NodeIP, globalCfg.ManagementTLSCertPath, globalCfg.ManagementTLSCertProvider)
+		tlsCredentials, err := grpcutil.LoadServerTLS(cfg.NodeIP, globalCfg.ManagementTLSCertPath, globalCfg.ManagementTLSCertProvider, "kubearmor-management")
 		if err != nil {
 			listener.Close()
 			return nil, fmt.Errorf("cannot create management gRPC server: %s", err)
