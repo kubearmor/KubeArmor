@@ -30,7 +30,6 @@ func freeTCPPort(t *testing.T) string {
 func configureTestPorts(t *testing.T) {
 	t.Helper()
 	cfg.GlobalCfg.GRPC = freeTCPPort(t)
-	cfg.GlobalCfg.ManagementGRPC = freeTCPPort(t)
 }
 
 func TestSystemMonitor(t *testing.T) {
