@@ -42,16 +42,16 @@ func NewListener(kind ListenerKind, addr string) (net.Listener, error) {
 	}
 }
 
-func LoadServerTLS(nodeIP string) (credentials.TransportCredentials, error) {
+func LoadServerTLS(nodeIP, certPath, certProvider string) (credentials.TransportCredentials, error) {
 	serverCertConfig := cert.DefaultKubeArmorServerConfig
 	serverCertConfig.DNS, serverCertConfig.IPs = cert.KubeArmorServerSANs(nodeIP, cfg.GlobalCfg.Host)
 	serverCertConfig.NotAfter = time.Now().Add(365 * 24 * time.Hour)
 
 	tlsConfig := cert.TlsConfig{
 		CertCfg:      serverCertConfig,
-		CertProvider: cfg.GlobalCfg.TLSCertProvider,
-		CACertPath:   cert.GetCACertPath(cfg.GlobalCfg.TLSCertPath),
-		CertPath:     cert.GetServerCertPath(cfg.GlobalCfg.TLSCertPath),
+		CertProvider: certProvider,
+		CACertPath:   cert.GetCACertPath(certPath),
+		CertPath:     cert.GetServerCertPath(certPath),
 		NodeIP:       nodeIP,
 		ServerNames:  []string{cfg.GlobalCfg.Host},
 	}

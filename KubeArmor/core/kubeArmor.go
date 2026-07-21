@@ -657,12 +657,12 @@ func KubeArmor() {
 	// == //
 
 	// initialize management server
-	mgmtAddr := fmt.Sprintf(":%s", cfg.GlobalCfg.ManagementGRPC)
 	mgmtErr := error(nil)
 	dm.ManagementServer, mgmtErr = management.NewManagementServer(management.Config{
-		Addr:       mgmtAddr,
-		TLSEnabled: cfg.GlobalCfg.TLSEnabled,
-		NodeIP:     dm.Node.NodeIP,
+		SocketPath:   cfg.GlobalCfg.ManagementSocketPath,
+		FallbackAddr: cfg.GlobalCfg.ManagementFallbackAddr,
+		TLSEnabled:   cfg.GlobalCfg.TLSEnabled,
+		NodeIP:       dm.Node.NodeIP,
 	})
 	if mgmtErr != nil {
 		dm.Logger.Errf("Failed to initialize KubeArmor Management Server: %v", mgmtErr)
