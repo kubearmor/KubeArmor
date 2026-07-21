@@ -846,11 +846,18 @@ func kubearmorTLSPath() string {
 	return "/var/lib/kubearmor/tls"
 }
 
+func kubearmorManagementTLSPath() string {
+	if val, ok := os.LookupEnv("KUBEARMOR_MANAGEMENT_TLS_CERT_PATH"); ok {
+		return val
+	}
+	return kubearmorTLSPath() + "/management"
+}
+
 func newManagementGRPCClient() (*grpc.ClientConn, error) {
 	tlsConfig := cert.TlsConfig{
 		CertProvider: cert.ExternalCertProvider,
-		CACertPath:   cert.GetCACertPath(kubearmorTLSPath()),
-		CertPath:     cert.GetClientCertPath(kubearmorTLSPath()),
+		CACertPath:   cert.GetCACertPath(kubearmorManagementTLSPath()),
+		CertPath:     cert.GetClientCertPath(kubearmorManagementTLSPath()),
 	}
 	creds, err := cert.NewTlsCredentialManager(&tlsConfig).CreateTlsClientCredentials()
 	if err != nil {
