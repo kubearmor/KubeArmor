@@ -1128,6 +1128,17 @@ decision:
         }
         goto ringbuf;
       }
+      else
+      {
+        if (val && (val->filemask & RULE_PTS))
+        {
+          if (is_pts(t))
+          {
+            setRetval(val->filemask, &retval);
+          } // should we return 0 here?.
+          goto ringbuf;
+        }
+      }
     }
   }
   else if (id == dfileread)
@@ -1199,6 +1210,7 @@ decision:
       }
     }
   }
+
   else if (id == dfilewrite)
   { // file write
     if (match)
@@ -1207,50 +1219,6 @@ decision:
       {
         if (!is_owner_path(f_path->dentry, &oid))
         {
-          if (val->filemask & RULE_DENY)
-          {
-            bpf_map_update_elem(&bufk, &two, z, BPF_ANY);
-            pk->path[0] = dfile;
-            struct data_t *allow = bpf_map_lookup_elem(inner, pk);
-
-            if (allow)
-            {
-              if (!match)
-              {
-                if (allow->processmask == BLOCK_POSTURE)
-                {
-                  retval = BLOCK;
-                }
-                goto ringbuf;
-              }
-            }
-          }
-        }
-      }
-    }
-
-    else if (id == dfilewrite)
-    { // file write
-      if (match)
-      {
-        if (val && (val->filemask & RULE_OWNER))
-        {
-          if (!is_owner_path(f_path->dentry, &oid))
-          {
-            setRetval(val->filemask, &retval);
-
-            goto ringbuf;
-          }
-        }
-        if (val && (val->filemask & RULE_READ) && !(val->filemask & RULE_WRITE))
-        {
-          setRetval(val->filemask, &retval);
-
-          goto ringbuf;
-        }
-
-        if (val)
-        {
           setRetval(val->filemask, &retval);
 
           goto ringbuf;
@@ -1258,11 +1226,33 @@ decision:
       }
       if (val && (val->filemask & RULE_READ) && !(val->filemask & RULE_WRITE))
       {
-        setRetval(val->filemask, &retval);
-
+        // match + readonly + allow
+        if (val->filemask & RULE_DENY)
+        {
+          retval = BLOCK;
+        }
+        else if (val->filemask & RULE_AUDIT)
+        {
+          retval = AUDIT;
+        }
+        else
+        {
+          //  check for matched !owner + allow policies
+          bpf_map_update_elem(&bufk, &two, z, BPF_ANY);
+          pk->path[0] = dfile;
+          struct data_t *allow = bpf_map_lookup_elem(inner, pk);
+          if (allow)
+          {
+            if (allow->processmask == BLOCK_POSTURE)
+            {
+              retval = BLOCK;
+            }
+          }
+        }
         goto ringbuf;
       }
     }
+
     bpf_map_update_elem(&bufk, &two, z, BPF_ANY);
     pk->path[0] = dfile;
     struct data_t *allow = bpf_map_lookup_elem(inner, pk);
