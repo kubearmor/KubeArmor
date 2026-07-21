@@ -673,37 +673,40 @@ static __always_inline bool ip_prefix_match_v6(const u8 *addr, const u8 *rule_ip
 
 static __always_inline int socket_match_lsm(struct socket *sock, struct sockaddr *address, int addrlen, u8 direction, u32 eventID)
 {
+  if (!sock) {
+    return 0;
+  }
+
+  int sock_type = BPF_CORE_READ(sock, type);
+  struct sock *sk = BPF_CORE_READ(sock, sk);
+  int protocol = 0;
+  if (sk) {
+    protocol = BPF_CORE_READ(sk, sk_protocol);
+  }
+
   struct sockaddr_in sin;
   struct sockaddr_in6 sin6;
   u16 family = 0;
   u16 dport = 0;
   u8 dip[16] = {0};
 
-  if (!address) {
-    return 0;
-  }
-
-  if (bpf_probe_read_kernel(&family, sizeof(family), &address->sa_family) != 0) {
-    return 0;
-  }
-
-  if (family == AF_INET) {
-    if (bpf_probe_read_kernel(&sin, sizeof(sin), address) != 0) {
-      return 0;
+  if (address) {
+    if (bpf_probe_read_kernel(&family, sizeof(family), &address->sa_family) == 0) {
+      if (family == AF_INET) {
+        if (bpf_probe_read_kernel(&sin, sizeof(sin), address) == 0) {
+          dport = bpf_ntohs(sin.sin_port);
+          *(u32 *)dip = sin.sin_addr.s_addr;
+        }
+      } else if (family == AF_INET6) {
+        if (bpf_probe_read_kernel(&sin6, sizeof(sin6), address) == 0) {
+          dport = bpf_ntohs(sin6.sin6_port);
+          #pragma unroll
+          for (int i = 0; i < 16; i++) {
+            dip[i] = sin6.sin6_addr.in6_u.u6_addr8[i];
+          }
+        }
+      }
     }
-    dport = bpf_ntohs(sin.sin_port);
-    *(u32 *)dip = sin.sin_addr.s_addr;
-  } else if (family == AF_INET6) {
-    if (bpf_probe_read_kernel(&sin6, sizeof(sin6), address) != 0) {
-      return 0;
-    }
-    dport = bpf_ntohs(sin6.sin6_port);
-    #pragma unroll
-    for (int i = 0; i < 16; i++) {
-      dip[i] = sin6.sin6_addr.in6_u.u6_addr8[i];
-    }
-  } else {
-    return 0;
   }
 
   struct task_struct *t = (struct task_struct *)bpf_get_current_task();
@@ -713,13 +716,6 @@ static __always_inline int socket_match_lsm(struct socket *sock, struct sockaddr
   u32 *inner = bpf_map_lookup_elem(&kubearmor_containers, &okey);
   if (!inner) {
     return 0;
-  }
-
-  int sock_type = BPF_CORE_READ(sock, type);
-  struct sock *sk = BPF_CORE_READ(sock, sk);
-  int protocol = 0;
-  if (sk) {
-    protocol = BPF_CORE_READ(sk, sk_protocol);
   }
 
   bool fromSourceCheck = true;
@@ -740,12 +736,17 @@ static __always_inline int socket_match_lsm(struct socket *sock, struct sockaddr
   if (src_offset == NULL)
     fromSourceCheck = false;
 
-  char current_src[MAX_STRING_SIZE] = {0};
-  if (fromSourceCheck) {
+  u32 three = 3;
+  bufs_k *src_store = bpf_map_lookup_elem(&bufk, &three);
+  if (src_store != NULL) {
+    __builtin_memset(src_store->source, 0, MAX_STRING_SIZE);
+  }
+
+  if (fromSourceCheck && src_store != NULL) {
     u32 src_off = *src_offset;
     if (src_off < MAX_BUFFER_SIZE) {
       void *src_ptr = &src_buf->buf[src_off];
-      bpf_probe_read_str(current_src, MAX_STRING_SIZE, src_ptr);
+      bpf_probe_read_str(src_store->source, MAX_STRING_SIZE, src_ptr);
     }
   }
 
@@ -756,87 +757,63 @@ static __always_inline int socket_match_lsm(struct socket *sock, struct sockaddr
 
   bool matched = false;
   u8 matched_action = 0;
-  u8 matched_direction = 0;
-  u8 matched_proto = 0;
-  u16 matched_port = 0;
-  u8 matched_ip[16] = {0};
 
-  #pragma unroll
-  for (int i = 0; i < 64; i++) {
-    rkey.index = i;
-    struct net_rule_value *rule = bpf_map_lookup_elem(&kubearmor_net_rules, &rkey);
-    if (!rule) {
+  if (family == AF_INET || family == AF_INET6) {
+    #pragma unroll
+    for (int i = 0; i < 64; i++) {
+      rkey.index = i;
+      struct net_rule_value *rule = bpf_map_lookup_elem(&kubearmor_net_rules, &rkey);
+      if (!rule) {
+        break;
+      }
+
+      if (rule->direction != direction) {
+        continue;
+      }
+
+      if (rule->family != family) {
+        continue;
+      }
+
+      if (rule->proto != 0 && rule->proto != protocol) {
+        continue;
+      }
+
+      if (rule->port != 0 && rule->port != dport) {
+        continue;
+      }
+
+      if (family == AF_INET) {
+        if (!ip_prefix_match_v4(*(u32 *)dip, rule->ip, rule->mask)) {
+          continue;
+        }
+      } else if (family == AF_INET6) {
+        if (!ip_prefix_match_v6(dip, rule->ip, rule->mask)) {
+          continue;
+        }
+      }
+
+      if (rule->source[0] != '\0' && src_store != NULL) {
+        if (!string_prefix_match(src_store->source, rule->source, MAX_STRING_SIZE)) {
+          continue;
+        }
+      }
+
+      matched = true;
+      matched_action = rule->action;
       break;
     }
+  }
 
-    if (rule->direction != direction) {
-      continue;
-    }
-
-    if (rule->family != family) {
-      continue;
-    }
-
-    if (rule->proto != 0 && rule->proto != protocol) {
-      continue;
-    }
-
-    if (rule->port != 0 && rule->port != dport) {
-      continue;
-    }
-
-    if (family == AF_INET) {
-      if (!ip_prefix_match_v4(*(u32 *)dip, rule->ip, rule->mask)) {
-        continue;
-      }
-    } else if (family == AF_INET6) {
-      if (!ip_prefix_match_v6(dip, rule->ip, rule->mask)) {
-        continue;
-      }
-    }
-
-    if (rule->source[0] != '\0') {
-      if (!string_prefix_match(current_src, rule->source, MAX_STRING_SIZE)) {
-        continue;
-      }
-    }
-
-    matched = true;
-    matched_action = rule->action;
-    matched_direction = rule->direction;
-    matched_proto = rule->proto;
-    matched_port = rule->port;
-    #pragma unroll
-    for (int j = 0; j < 16; j++) {
-      matched_ip[j] = rule->ip[j];
-    }
-    break;
+  if (!matched) {
+    return match_net_rules(sock_type, protocol, eventID);
   }
 
   int retval = 0;
-  if (matched) {
-    if (matched_action == 0) { // BLOCK
-      retval = -EPERM;
-    } else if (matched_action == 1) { // AUDIT
-      retval = 0;
-    }
-  } else {
-    u32 zero = 0;
-    bufs_k *z = bpf_map_lookup_elem(&bufk, &zero);
-    if (z == NULL)
-      return 0;
-
-    u32 one = 1;
-    bufs_k *p = bpf_map_lookup_elem(&bufk, &one);
-    if (p == NULL)
-      return 0;
-
-    bpf_map_update_elem(&bufk, &one, z, BPF_ANY);
-    p->path[0] = dnet;
-    struct data_t *allow = bpf_map_lookup_elem(inner, p);
-    if (allow && allow->processmask == BLOCK_POSTURE) {
-      retval = -EPERM;
-    }
+  if (matched_action == 0) { // BLOCK
+    retval = -EPERM;
+  } else if (matched_action == 1) { // AUDIT
+    retval = 0;
   }
 
   if (retval != -EPERM && (!matched || matched_action != 1)) {
@@ -926,9 +903,11 @@ static __always_inline int socket_match_lsm(struct socket *sock, struct sockaddr
   else if (ptemp >= 10) { dpath[offset++] = '0' + (ptemp / 10); dpath[offset++] = '0' + (ptemp % 10); }
   else { dpath[offset++] = '0' + ptemp; }
 
-  #pragma unroll
-  for (int j = 0; j < MAX_STRING_SIZE; j++) {
-    task_info->data.source[j] = current_src[j];
+  if (src_store != NULL) {
+    #pragma unroll
+    for (int j = 0; j < MAX_STRING_SIZE; j++) {
+      task_info->data.source[j] = src_store->source[j];
+    }
   }
 
   bpf_ringbuf_submit(task_info, 0);
