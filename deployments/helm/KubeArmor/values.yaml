@@ -144,8 +144,15 @@ kubearmor:
   tls:
     tlsCertPath: /var/lib/kubearmor/tls
     tlsCertProvider: self
+    managementTLSCertPath: /var/lib/kubearmor/tls/management
+    managementTLSCertProvider: self
     caSecretName: kubearmor-ca
+    managementCaSecretName: kubearmor-management-ca
     clientCertSecretName: kubearmor-client-certs
+    managementCertSecretName: kubearmor-management-server-certs
+    managementClientCertSecretName: kubearmor-management-client-certs
+    managementExtraDnsNames: ["localhost"]
+    managementExtraIpAddresses: ["127.0.0.1"]
     kubearmorCACertVolumeMount:
     - mountPath: /var/lib/kubearmor/tls
       name: kubearmor-ca-secret
@@ -157,6 +164,22 @@ kubearmor:
         sources:
         - secret:
             name: kubearmor-ca
+            items:
+            - key: tls.crt
+              path: ca.crt
+            - key: tls.key
+              path: ca.key
+    kubearmorManagementCACertVolumeMount:
+    - mountPath: /var/lib/kubearmor/tls/management
+      name: kubearmor-management-ca-secret
+      readOnly: true
+    kubearmorManagementCACertVolume:
+    - name: kubearmor-management-ca-secret
+      projected:
+        defaultMode: 0444
+        sources:
+        - secret:
+            name: kubearmor-management-ca
             items:
             - key: tls.crt
               path: ca.crt
