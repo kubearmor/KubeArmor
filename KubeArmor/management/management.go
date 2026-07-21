@@ -1,54 +1,95 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2026 Authors of KubeArmor
 
+// Package management owns the Management gRPC server: PolicyService,
+// ProbeService, and StateAgent are registered onto it by core. This
+// package has no knowledge of policy, probe, or state business logic —
+// it only hosts the transport those services are registered on.
 package management
 
 import (
 	"fmt"
 	"net"
 	"sync"
-	"time"
 
-	"github.com/kubearmor/KubeArmor/KubeArmor/cert"
-	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
+	"github.com/kubearmor/KubeArmor/KubeArmor/grpcutil"
 	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
-	"google.golang.org/grpc/keepalive"
-	"google.golang.org/grpc/reflection"
+	"google.golang.org/grpc/health"
+	"google.golang.org/grpc/health/grpc_health_v1"
 )
 
-type ManagementServer struct {
-	Port     string
-	Listener net.Listener
-	Server   *grpc.Server
-	NodeIP   string
-	WgServer sync.WaitGroup
+type Config struct {
+	SocketPath string
+	Addr       string
+	TLSEnabled bool
+	NodeIP     string
 }
 
-func NewManagementServer(nodeIP string) (*ManagementServer, error) {
-	port := fmt.Sprintf(":%s", cfg.GlobalCfg.ManagementGRPC)
+type ManagementServer struct {
+	Listener     net.Listener
+	Server       *grpc.Server
+	HealthServer *health.Server
+	SocketPath   string
+	Addr         string
+	NodeIP       string
+	WgServer     sync.WaitGroup
+}
 
-	if cfg.GlobalCfg.ManagementGRPC == "0" {
-		return nil, fmt.Errorf("managementGRPC port cannot be 0")
+func NewManagementServer(cfg Config) (*ManagementServer, error) {
+	if cfg.SocketPath == "" && cfg.Addr == "" {
+		return nil, fmt.Errorf("either SocketPath or Addr must be set")
 	}
 
-	listener, err := net.Listen("tcp", port)
-	if err != nil {
-		return nil, fmt.Errorf("cannot create management listener: %s", err)
+	var listener net.Listener
+	var err error
+
+	if cfg.SocketPath != "" {
+		listener, err = grpcutil.NewListener(grpcutil.UnixSocket, cfg.SocketPath)
+		if err != nil {
+			kg.Errf("Failed to listen on Unix socket %s: %s", cfg.SocketPath, err)
+			return nil, fmt.Errorf("cannot create management listener on Unix socket %s: %s", cfg.SocketPath, err)
+		}
+	} else {
+		listener, err = grpcutil.NewListener(grpcutil.TCP, cfg.Addr)
+		if err != nil {
+			return nil, fmt.Errorf("cannot create management listener on %s: %s", cfg.Addr, err)
+		}
 	}
 
-	server, err := createManagementGRPCServer(nodeIP)
-	if err != nil {
-		listener.Close()
-		return nil, fmt.Errorf("cannot create management gRPC server: %s", err)
+	kaep, kasp := grpcutil.KeepaliveFor(grpcutil.UnaryProfile)
+
+	var server *grpc.Server
+	if cfg.TLSEnabled {
+		tlsCredentials, err := grpcutil.LoadServerTLS(cfg.NodeIP)
+		if err != nil {
+			listener.Close()
+			return nil, fmt.Errorf("cannot create management gRPC server: %s", err)
+		}
+
+		kg.Print("Management server started with TLS enabled")
+		server = grpc.NewServer(
+			grpc.Creds(tlsCredentials),
+			grpc.KeepaliveEnforcementPolicy(kaep),
+			grpc.KeepaliveParams(kasp),
+		)
+	} else {
+		server = grpc.NewServer(
+			grpc.KeepaliveEnforcementPolicy(kaep),
+			grpc.KeepaliveParams(kasp),
+		)
 	}
+
+	healthSrv := health.NewServer()
+	grpc_health_v1.RegisterHealthServer(server, healthSrv)
 
 	return &ManagementServer{
-		Port:     port,
-		Listener: listener,
-		Server:   server,
-		NodeIP:   nodeIP,
+		Listener:     listener,
+		Server:       server,
+		HealthServer: healthSrv,
+		SocketPath:   cfg.SocketPath,
+		Addr:         cfg.Addr,
+		NodeIP:       cfg.NodeIP,
 	}, nil
 }
 
@@ -61,7 +102,7 @@ func (ms *ManagementServer) Serve() {
 	}
 }
 
-func (ms *ManagementServer) Destroy() error {
+func (ms *ManagementServer) GracefulStop() {
 	if ms.Server != nil {
 		ms.Server.GracefulStop()
 	}
@@ -72,58 +113,4 @@ func (ms *ManagementServer) Destroy() error {
 	}
 
 	ms.WgServer.Wait()
-
-	return nil
-}
-
-func (ms *ManagementServer) RegisterReflection() {
-	reflection.Register(ms.Server)
-}
-
-func createManagementGRPCServer(nodeIP string) (*grpc.Server, error) {
-	kaep := keepalive.EnforcementPolicy{
-		PermitWithoutStream: true,
-	}
-	kasp := keepalive.ServerParameters{
-		Time:    1 * time.Second,
-		Timeout: 5 * time.Second,
-	}
-
-	if cfg.GlobalCfg.TLSEnabled {
-		tlsCredentials, err := loadManagementTLSCredentials(nodeIP)
-		if err != nil {
-			return nil, err
-		}
-
-		kg.Print("Management server started with TLS enabled")
-
-		return grpc.NewServer(
-			grpc.Creds(tlsCredentials),
-			grpc.KeepaliveEnforcementPolicy(kaep),
-			grpc.KeepaliveParams(kasp),
-		), nil
-	}
-
-	return grpc.NewServer(
-		grpc.KeepaliveEnforcementPolicy(kaep),
-		grpc.KeepaliveParams(kasp),
-	), nil
-}
-
-func loadManagementTLSCredentials(ip string) (credentials.TransportCredentials, error) {
-	serverCertConfig := cert.DefaultKubeArmorServerConfig
-	serverCertConfig.DNS, serverCertConfig.IPs = cert.KubeArmorServerSANs(ip, cfg.GlobalCfg.Host)
-	serverCertConfig.NotAfter = time.Now().Add(365 * 24 * time.Hour)
-
-	tlsConfig := cert.TlsConfig{
-		CertCfg:      serverCertConfig,
-		CertProvider: cfg.GlobalCfg.TLSCertProvider,
-		CACertPath:   cert.GetCACertPath(cfg.GlobalCfg.TLSCertPath),
-		CertPath:     cert.GetServerCertPath(cfg.GlobalCfg.TLSCertPath),
-		NodeIP:       ip,
-		ServerNames:  []string{cfg.GlobalCfg.Host},
-	}
-
-	manager := cert.NewTlsCredentialManager(&tlsConfig)
-	return manager.CreateTlsServerCredentials()
 }
