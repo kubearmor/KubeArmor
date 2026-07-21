@@ -398,7 +398,7 @@ func createGRPCServer(nodeIP string, tlsEnabled bool) (*grpc.Server, error) {
 	kaep, kasp := grpcutil.KeepaliveFor(grpcutil.StreamingProfile)
 
 	if tlsEnabled {
-		tlsCredentials, err := grpcutil.LoadServerTLS(nodeIP)
+		tlsCredentials, err := grpcutil.LoadServerTLS(nodeIP, cfg.GlobalCfg.TLSCertPath, cfg.GlobalCfg.TLSCertProvider)
 		if err != nil {
 			return nil, err
 		}

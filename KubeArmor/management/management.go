@@ -12,6 +12,7 @@ import (
 	"net"
 	"sync"
 
+	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
 	"github.com/kubearmor/KubeArmor/KubeArmor/grpcutil"
 	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
 	"google.golang.org/grpc"
@@ -19,11 +20,15 @@ import (
 	"google.golang.org/grpc/health/grpc_health_v1"
 )
 
+// pointer to GlobalCfg used inside NewManagementServer where the cfg
+// parameter shadows the cfg package import
+var globalCfg = &cfg.GlobalCfg
+
 type Config struct {
-	SocketPath string
-	Addr       string
-	TLSEnabled bool
-	NodeIP     string
+	SocketPath   string
+	FallbackAddr string
+	TLSEnabled   bool
+	NodeIP       string
 }
 
 type ManagementServer struct {
@@ -31,14 +36,14 @@ type ManagementServer struct {
 	Server       *grpc.Server
 	HealthServer *health.Server
 	SocketPath   string
-	Addr         string
+	FallbackAddr string
 	NodeIP       string
 	WgServer     sync.WaitGroup
 }
 
 func NewManagementServer(cfg Config) (*ManagementServer, error) {
-	if cfg.SocketPath == "" && cfg.Addr == "" {
-		return nil, fmt.Errorf("either SocketPath or Addr must be set")
+	if cfg.SocketPath == "" && cfg.FallbackAddr == "" {
+		return nil, fmt.Errorf("either SocketPath or FallbackAddr must be set")
 	}
 
 	var listener net.Listener
@@ -51,9 +56,9 @@ func NewManagementServer(cfg Config) (*ManagementServer, error) {
 			return nil, fmt.Errorf("cannot create management listener on Unix socket %s: %s", cfg.SocketPath, err)
 		}
 	} else {
-		listener, err = grpcutil.NewListener(grpcutil.TCP, cfg.Addr)
+		listener, err = grpcutil.NewListener(grpcutil.TCP, cfg.FallbackAddr)
 		if err != nil {
-			return nil, fmt.Errorf("cannot create management listener on %s: %s", cfg.Addr, err)
+			return nil, fmt.Errorf("cannot create management listener on %s: %s", cfg.FallbackAddr, err)
 		}
 	}
 
@@ -61,7 +66,7 @@ func NewManagementServer(cfg Config) (*ManagementServer, error) {
 
 	var server *grpc.Server
 	if cfg.TLSEnabled {
-		tlsCredentials, err := grpcutil.LoadServerTLS(cfg.NodeIP)
+		tlsCredentials, err := grpcutil.LoadServerTLS(cfg.NodeIP, globalCfg.ManagementTLSCertPath, globalCfg.ManagementTLSCertProvider)
 		if err != nil {
 			listener.Close()
 			return nil, fmt.Errorf("cannot create management gRPC server: %s", err)
@@ -88,7 +93,7 @@ func NewManagementServer(cfg Config) (*ManagementServer, error) {
 		Server:       server,
 		HealthServer: healthSrv,
 		SocketPath:   cfg.SocketPath,
-		Addr:         cfg.Addr,
+		FallbackAddr: cfg.FallbackAddr,
 		NodeIP:       cfg.NodeIP,
 	}, nil
 }
