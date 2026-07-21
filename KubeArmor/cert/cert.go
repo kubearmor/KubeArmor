@@ -123,8 +123,10 @@ func GetServerCertPath(base string) CertPath {
 }
 
 // KubeArmorServerSANs returns the default server SANs expected by local,
-// node-level, and in-cluster clients.
-func KubeArmorServerSANs(nodeIP string, extraNames ...string) ([]string, []string) {
+// node-level, and in-cluster clients. The serverName parameter is the
+// primary DNS identity (e.g. "kubearmor" for the observability server,
+// "kubearmor-management" for the management server).
+func KubeArmorServerSANs(nodeIP string, serverName string, extraNames ...string) ([]string, []string) {
 	var dnsNames []string
 	var ipNames []string
 	seenDNS := map[string]struct{}{}
@@ -150,7 +152,7 @@ func KubeArmorServerSANs(nodeIP string, extraNames ...string) ([]string, []strin
 	}
 
 	addName("localhost")
-	addName("kubearmor")
+	addName(serverName)
 
 	if hostname, err := os.Hostname(); err == nil {
 		addName(hostname)
@@ -161,9 +163,9 @@ func KubeArmorServerSANs(nodeIP string, extraNames ...string) ([]string, []strin
 	}
 
 	if namespace := strings.TrimSpace(os.Getenv("KUBEARMOR_NAMESPACE")); namespace != "" {
-		addName("kubearmor." + namespace)
-		addName("kubearmor." + namespace + ".svc")
-		addName("kubearmor." + namespace + ".svc.cluster.local")
+		addName(serverName + "." + namespace)
+		addName(serverName + "." + namespace + ".svc")
+		addName(serverName + "." + namespace + ".svc.cluster.local")
 	}
 
 	addName("127.0.0.1")
@@ -191,8 +193,8 @@ func certPairExists(path *CertPath) bool {
 // EnsureDevelopmentPKI ensures the complete development PKI exists.
 // It bootstraps the CA, server certificate and client certificate
 // on first startup. Subsequent startups simply reuse the existing
-// certificates.
-func EnsureDevelopmentPKI(base string, nodeIP string, extraNames ...string) error {
+// certificates. serverName is the primary DNS identity (e.g. "kubearmor").
+func EnsureDevelopmentPKI(base string, nodeIP string, serverName string, extraNames ...string) error {
 	if err := os.MkdirAll(base, 0750); err != nil {
 		return err
 	}
@@ -257,7 +259,7 @@ func EnsureDevelopmentPKI(base string, nodeIP string, extraNames ...string) erro
 		klog.Infof("Generating development server certificate")
 
 		cfg := DefaultKubeArmorServerConfig
-		cfg.DNS, cfg.IPs = KubeArmorServerSANs(nodeIP, extraNames...)
+		cfg.DNS, cfg.IPs = KubeArmorServerSANs(nodeIP, serverName, extraNames...)
 		cfg.NotAfter = time.Now().AddDate(1, 0, 0)
 
 		serverBytes, err := GenerateSelfSignedCert(ca, &cfg)

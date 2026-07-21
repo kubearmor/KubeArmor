@@ -48,7 +48,7 @@ func parseCertificate(t *testing.T, certBytes []byte) *x509.Certificate {
 func TestKubeArmorServerSANs(t *testing.T) {
 	t.Setenv("KUBEARMOR_NAMESPACE", "kubearmor")
 
-	dnsNames, ipNames := KubeArmorServerSANs("10.0.0.5", "node-a", "kubearmor", "10.0.0.5")
+	dnsNames, ipNames := KubeArmorServerSANs("10.0.0.5", "kubearmor", "node-a", "kubearmor", "10.0.0.5")
 
 	for _, want := range []string{
 		"localhost",
@@ -91,7 +91,7 @@ func TestEnsureDevelopmentPKIIncludesNodeAndServiceSANs(t *testing.T) {
 	t.Setenv("KUBEARMOR_NAMESPACE", "kubearmor")
 
 	base := t.TempDir()
-	if err := EnsureDevelopmentPKI(base, "10.0.0.5", "node-a"); err != nil {
+	if err := EnsureDevelopmentPKI(base, "10.0.0.5", "kubearmor", "node-a"); err != nil {
 		t.Fatalf("EnsureDevelopmentPKI failed: %v", err)
 	}
 

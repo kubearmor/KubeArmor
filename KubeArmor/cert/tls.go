@@ -35,6 +35,10 @@ type TlsConfig struct {
 	CertProvider string
 	NodeIP       string
 	ServerNames  []string
+	// ServerPrefix is the primary DNS identity for the server cert
+	// (e.g. "kubearmor" for observability, "kubearmor-management" for management).
+	// Only used with DevCertProvider.
+	ServerPrefix string
 }
 
 type TlsCredentialManager struct {
@@ -76,6 +80,7 @@ func NewTlsCredentialManager(cfg *TlsConfig) *TlsCredentialManager {
 			ServerCertPath: cfg.CertPath,
 			NodeIP:         cfg.NodeIP,
 			ServerNames:    cfg.ServerNames,
+			ServerPrefix:   cfg.ServerPrefix,
 		}
 		return &TlsCredentialManager{
 			CertLoader: &cl,

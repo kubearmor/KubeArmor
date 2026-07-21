@@ -91,6 +91,7 @@ type DevCertLoader struct {
 	ServerCertPath CertPath
 	NodeIP         string
 	ServerNames    []string
+	ServerPrefix   string
 }
 
 func (loader *K8sCertLoader) GetCertificateAndCaPool() (*tls.Certificate, *x509.CertPool, error) {
@@ -120,7 +121,11 @@ func (loader *K8sCertLoader) GetCertificateAndCaPool() (*tls.Certificate, *x509.
 func (loader *DevCertLoader) GetCertificateAndCaPool() (*tls.Certificate, *x509.CertPool, error) {
 	klog.Infof("CA Path: %+v", loader.CaCertPath)
 	klog.Infof("Server Path: %+v", loader.ServerCertPath)
-	if err := EnsureDevelopmentPKI(loader.CaCertPath.Base, loader.NodeIP, loader.ServerNames...); err != nil {
+	serverPrefix := loader.ServerPrefix
+	if serverPrefix == "" {
+		serverPrefix = "kubearmor"
+	}
+	if err := EnsureDevelopmentPKI(loader.CaCertPath.Base, loader.NodeIP, serverPrefix, loader.ServerNames...); err != nil {
 		return nil, nil, err
 	}
 	caCertBytes, err := ReadCertFromFile(&loader.CaCertPath)
