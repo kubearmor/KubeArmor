@@ -231,11 +231,8 @@ func (dm *KubeArmorDaemon) DestroyKubeArmorDaemon() {
 	}
 
 	if dm.ManagementServer != nil {
-		if err := dm.ManagementServer.Destroy(); err != nil {
-			kg.Errf("Failed to stop KubeArmor Management Server: %s", err.Error())
-		} else {
-			kg.Print("Stopped KubeArmor Management Server")
-		}
+		dm.ManagementServer.GracefulStop()
+		kg.Print("Stopped KubeArmor Management Server")
 	}
 
 	if dm.Logger != nil {
@@ -660,8 +657,13 @@ func KubeArmor() {
 	// == //
 
 	// initialize management server
-	var mgmtErr error
-	dm.ManagementServer, mgmtErr = management.NewManagementServer(dm.Node.NodeIP)
+	mgmtAddr := fmt.Sprintf(":%s", cfg.GlobalCfg.ManagementGRPC)
+	mgmtErr := error(nil)
+	dm.ManagementServer, mgmtErr = management.NewManagementServer(management.Config{
+		Addr:       mgmtAddr,
+		TLSEnabled: cfg.GlobalCfg.TLSEnabled,
+		NodeIP:     dm.Node.NodeIP,
+	})
 	if mgmtErr != nil {
 		dm.Logger.Errf("Failed to initialize KubeArmor Management Server: %v", mgmtErr)
 
