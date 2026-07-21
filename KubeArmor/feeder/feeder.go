@@ -233,17 +233,6 @@ type BaseFeeder struct {
 	// log server
 	LogServer *grpc.Server
 
-	// Management GRPC Server //
-
-	// Management GRPC port
-	ManagementPort string
-
-	// ManagementListener
-	ManagementListener net.Listener
-
-	// ManagementServer
-	ManagementServer *grpc.Server
-
 	// username map
 	UserNameMap UserNameMap
 }
@@ -388,34 +377,6 @@ func NewFeeder(node *tp.Node, nodeLock **sync.RWMutex) (feeder *Feeder) {
 		return nil
 	}
 
-	// ManagementServer //
-
-	if cfg.GlobalCfg.ManagementGRPC == "0" {
-		kg.Err("managementGRPC PORT cannot be 0")
-		return nil
-	}
-
-	// gRPC configuration for management server
-	fd.ManagementPort = fmt.Sprintf(":%s", cfg.GlobalCfg.ManagementGRPC)
-
-	// listener to ManagementGRPC port
-	managementListener, err := net.Listen("tcp", fd.ManagementPort)
-	if err != nil {
-		kg.Errf("cannot create management listener: %s", err)
-		return nil
-	}
-	fd.ManagementListener = managementListener
-
-	fd.ManagementServer, err = createGRPCServer(node.NodeIP, cfg.GlobalCfg.TLSEnabled, grpcMTLS)
-	if err != nil {
-		kg.Errf(
-			"Failed to listen a management port (%s, %s)",
-			fd.ManagementPort,
-			err.Error(),
-		)
-		return nil
-	}
-
 	pb.RegisterLogServiceServer(fd.LogServer, logService)
 
 	// Feeder //
@@ -488,14 +449,6 @@ func (fd *BaseFeeder) DestroyFeeder() error {
 			kg.Err(err.Error())
 		}
 		fd.Listener = nil
-	}
-
-	// close management listener
-	if fd.ManagementListener != nil {
-		if err := fd.ManagementListener.Close(); err != nil {
-			kg.Err(err.Error())
-		}
-		fd.ManagementListener = nil
 	}
 
 	// close LogFile
@@ -610,17 +563,6 @@ func (fd *BaseFeeder) ServeLogFeeds() {
 	// feed logs
 	if err := fd.LogServer.Serve(fd.Listener); err != nil {
 		kg.Print("Terminated the gRPC service")
-	}
-}
-
-// ServeManagementServer Function
-func (fd *BaseFeeder) ServeManagementServer() {
-	fd.WgServer.Add(1)
-	defer fd.WgServer.Done()
-
-	// feed management logs
-	if err := fd.ManagementServer.Serve(fd.ManagementListener); err != nil {
-		kg.Print("Terminated the management gRPC service")
 	}
 }
 

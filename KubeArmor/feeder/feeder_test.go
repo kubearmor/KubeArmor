@@ -62,7 +62,6 @@ func freeTCPPort(t *testing.T) string {
 func configureTestPorts(t *testing.T) {
 	t.Helper()
 	cfg.GlobalCfg.GRPC = freeTCPPort(t)
-	cfg.GlobalCfg.ManagementGRPC = freeTCPPort(t)
 }
 
 // setup once for this package
@@ -143,7 +142,6 @@ func TestNewFeeder(t *testing.T) {
 			name: "GRPCPortInUseFailure",
 			setup: func(t *testing.T) {
 				cfg.GlobalCfg = cloneConfig()
-				cfg.GlobalCfg.ManagementGRPC = freeTCPPort(t)
 
 				listener, err := net.Listen("tcp", ":0")
 				if err != nil {
