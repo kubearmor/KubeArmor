@@ -41,8 +41,8 @@ func cloneConfig() cfg.KubearmorConfig {
 
 func configureTestTLS(t *testing.T) {
 	t.Helper()
-	cfg.GlobalCfg.TLSCertProvider = cert.DevCertProvider
-	cfg.GlobalCfg.TLSCertPath = t.TempDir()
+	cfg.GlobalCfg.ManagementTLSCertProvider = cert.DevCertProvider
+	cfg.GlobalCfg.ManagementTLSCertPath = t.TempDir()
 }
 
 func serverAddr(t *testing.T, s *ManagementServer) string {
@@ -55,8 +55,8 @@ func createClientCreds(t *testing.T) credentials.TransportCredentials {
 	t.Helper()
 	tlsConfig := cert.TlsConfig{
 		CertProvider: cert.ExternalCertProvider,
-		CACertPath:   cert.GetCACertPath(cfg.GlobalCfg.TLSCertPath),
-		CertPath:     cert.GetClientCertPath(cfg.GlobalCfg.TLSCertPath),
+		CACertPath:   cert.GetCACertPath(cfg.GlobalCfg.ManagementTLSCertPath),
+		CertPath:     cert.GetClientCertPath(cfg.GlobalCfg.ManagementTLSCertPath),
 	}
 	creds, err := cert.NewTlsCredentialManager(&tlsConfig).CreateTlsClientCredentials()
 	if err != nil {
@@ -71,9 +71,9 @@ func setupTestServer(t *testing.T) (*ManagementServer, credentials.TransportCred
 	configureTestTLS(t)
 
 	ms, err := NewManagementServer(Config{
-		Addr:       ":0",
-		TLSEnabled: cfg.GlobalCfg.TLSEnabled,
-		NodeIP:     "10.0.0.1",
+		FallbackAddr: ":0",
+		TLSEnabled:   true,
+		NodeIP:       "10.0.0.1",
 	})
 	if err != nil {
 		t.Fatalf("Failed to create management server: %v", err)
@@ -104,9 +104,9 @@ func TestNewServer(t *testing.T) {
 		{
 			name: "DefaultConfigSuccess",
 			cfg: Config{
-				Addr:       ":0",
-				TLSEnabled: true,
-				NodeIP:     "10.0.0.1",
+				FallbackAddr: ":0",
+				TLSEnabled:   true,
+				NodeIP:       "10.0.0.1",
 			},
 			expectNil: false,
 		},
@@ -121,9 +121,9 @@ func TestNewServer(t *testing.T) {
 		{
 			name: "TLSCredentialsFailure",
 			cfg: Config{
-				Addr:       ":0",
-				TLSEnabled: true,
-				NodeIP:     "10.0.0.1",
+				FallbackAddr: ":0",
+				TLSEnabled:   true,
+				NodeIP:       "10.0.0.1",
 			},
 			expectNil: true,
 		},
@@ -133,14 +133,14 @@ func TestNewServer(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			cfg.GlobalCfg = cloneConfig()
 
-			if tt.cfg.TLSEnabled && tt.name != "TLSCredentialsFailure" {
+			if tt.name == "DefaultConfigSuccess" {
 				configureTestTLS(t)
 			}
 
 			if tt.name == "TLSCredentialsFailure" {
 				cfg.GlobalCfg.TLSEnabled = true
-				cfg.GlobalCfg.TLSCertProvider = cert.SelfCertProvider
-				cfg.GlobalCfg.TLSCertPath = t.TempDir()
+				cfg.GlobalCfg.ManagementTLSCertProvider = cert.SelfCertProvider
+				cfg.GlobalCfg.ManagementTLSCertPath = t.TempDir()
 			}
 
 			ms, err := NewManagementServer(tt.cfg)
