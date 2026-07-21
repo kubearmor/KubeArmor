@@ -79,9 +79,19 @@ jobs:
             done
             sudo test -s /var/lib/kubearmor/tls/$file
           done
+          for file in ca.crt server.crt server.key client.crt client.key; do
+            for i in {1..30}; do
+              sudo test -s /var/lib/kubearmor/tls/management/$file && break
+              sleep 1
+            done
+            sudo test -s /var/lib/kubearmor/tls/management/$file
+          done
           sudo chown "$USER:$USER" /var/lib/kubearmor/tls /var/lib/kubearmor/tls/ca.crt /var/lib/kubearmor/tls/client.crt /var/lib/kubearmor/tls/client.key
+          sudo chown -R "$USER:$USER" /var/lib/kubearmor/tls/management
           sudo chmod 0750 /var/lib/kubearmor/tls
           sudo chmod 0600 /var/lib/kubearmor/tls/*
+          sudo chmod 0750 /var/lib/kubearmor/tls/management
+          sudo chmod 0600 /var/lib/kubearmor/tls/management/*
 
       - name: Check journalctl
         run: sudo journalctl -u kubearmor --no-pager
