@@ -14,13 +14,9 @@ spec:
   defaultFilePosture: block
   defaultNetworkPosture: block
   defaultVisibility: process,file,network,capabilities
-  tls:
-    enable: true
   kubearmorImage:
     image: kubearmor/kubearmor-ubi:latest
     imagePullPolicy: Never
-    args:
-    - -managementGRPC=32765
   kubearmorInitImage:
     image: kubearmor/kubearmor-init-ubi:latest
     imagePullPolicy: Never
