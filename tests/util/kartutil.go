@@ -843,14 +843,14 @@ func kubearmorTLSPath() string {
 	if val, ok := os.LookupEnv("TLSCERTPATH"); ok {
 		return val
 	}
-	return "/var/lib/kubearmor/tls"
+	return "/var/lib/kubearmor/tls/log"
 }
 
 func kubearmorManagementTLSPath() string {
 	if val, ok := os.LookupEnv("KUBEARMOR_MANAGEMENT_TLS_CERT_PATH"); ok {
 		return val
 	}
-	return kubearmorTLSPath() + "/management"
+	return "/var/lib/kubearmor/tls/management"
 }
 
 func newManagementGRPCClient() (*grpc.ClientConn, error) {

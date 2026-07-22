@@ -142,7 +142,7 @@ kubearmor:
   args: []
 
   tls:
-    tlsCertPath: /var/lib/kubearmor/tls
+    tlsCertPath: /var/lib/kubearmor/tls/log
     tlsCertProvider: self
     managementTLSCertPath: /var/lib/kubearmor/tls/management
     managementTLSCertProvider: self
@@ -154,7 +154,7 @@ kubearmor:
     managementExtraDnsNames: ["localhost"]
     managementExtraIpAddresses: ["127.0.0.1"]
     kubearmorCACertVolumeMount:
-    - mountPath: /var/lib/kubearmor/tls
+    - mountPath: /var/lib/kubearmor/tls/log
       name: kubearmor-ca-secret
       readOnly: true
     kubearmorCACertVolume:
