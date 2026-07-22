@@ -175,6 +175,12 @@ func NewBPFEnforcer(node tp.Node, pinpath string, logger *fd.Feeder, monitor *mo
 		return be, err
 	}
 
+	be.Probes[be.obj.EnforceNetBind.String()], err = link.AttachLSM(link.LSMOptions{Program: be.obj.EnforceNetBind})
+	if err != nil {
+		be.Logger.Errf("opening lsm %s: %s", be.obj.EnforceNetBind.String(), err)
+		return be, err
+	}
+
 	be.Probes[be.obj.EnforceNetAccept.String()], err = link.AttachLSM(link.LSMOptions{Program: be.obj.EnforceNetAccept})
 	if err != nil {
 		be.Logger.Errf("opening lsm %s: %s", be.obj.EnforceNetAccept.String(), err)
@@ -480,6 +486,13 @@ func (be *BPFEnforcer) DestroyBPFEnforcer() error {
 		return nil
 	}
 	var errBPFCleanUp error
+
+	if be.obj.KubearmorNetRules != nil {
+		if err := be.obj.KubearmorNetRules.Unpin(); err != nil {
+			be.Logger.Err(err.Error())
+			errBPFCleanUp = errors.Join(errBPFCleanUp, err)
+		}
+	}
 
 	if err := be.obj.Close(); err != nil {
 		be.Logger.Err(err.Error())
