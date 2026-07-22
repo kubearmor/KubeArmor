@@ -159,9 +159,9 @@ func readCmdLineParams() {
 	managementGRPCStr := flag.String(ConfigManagementGRPC, "32768", "management gRPC port number")
 	grpcHealthStr := flag.String(ConfigGRPCHealthPort, "32766", "gRPC health check port number")
 	tlsEnabled := flag.Bool(ConfigTLS, true, "enable tls for secure grpc connection")
-	tlsCertsStr := flag.String(ConfigTLSCertPath, "/var/lib/kubearmor/tls", "path to tls ca certificate files ca.crt, ca.crt")
+	tlsCertsStr := flag.String(ConfigTLSCertPath, "/var/lib/kubearmor/tls/log", "path to tls ca certificate files ca.crt, ca.crt")
 	tlsCertProvider := flag.String(ConfigTLSCertProvider, "self", "source of certificate {self|external|dev}, self: create certificate dynamically, external: provided by some external entity, dev: use development CA certificate")
-	managementTLSCertStr := flag.String(ConfigManagementTLSCertPath, "", "management tls cert path (defaults to {tlsCertPath}/management)")
+	managementTLSCertStr := flag.String(ConfigManagementTLSCertPath, "/var/lib/kubearmor/tls/management", "management tls cert path")
 	managementTLSCertProvider := flag.String(ConfigManagementTLSCertProvider, "", "management tls cert provider {self|external|dev} (defaults to tlsCertProvider)")
 	logStr := flag.String(ConfigLogPath, "none", "log file path, {path|stdout|none}")
 	seLinuxProfileDirStr := flag.String(ConfigSELinuxProfileDir, "/tmp/kubearmor.selinux", "SELinux profile directory")
@@ -365,7 +365,7 @@ func LoadConfig() error {
 	GlobalCfg.TLSCertProvider = viper.GetString(ConfigTLSCertProvider)
 	GlobalCfg.ManagementTLSCertPath = viper.GetString(ConfigManagementTLSCertPath)
 	if GlobalCfg.ManagementTLSCertPath == "" {
-		GlobalCfg.ManagementTLSCertPath = GlobalCfg.TLSCertPath + "/management"
+		GlobalCfg.ManagementTLSCertPath = "/var/lib/kubearmor/tls/management"
 	}
 	GlobalCfg.ManagementTLSCertProvider = viper.GetString(ConfigManagementTLSCertProvider)
 	if GlobalCfg.ManagementTLSCertProvider == "" {
