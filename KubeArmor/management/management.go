@@ -68,8 +68,8 @@ func NewManagementServer(cfg Config) (*ManagementServer, error) {
 	if cfg.TLSEnabled {
 		tlsCredentials, err := grpcutil.LoadServerTLS(cfg.NodeIP, globalCfg.ManagementTLSCertPath, globalCfg.ManagementTLSCertProvider, "kubearmor-management")
 		if err != nil {
-			listener.Close()
-			return nil, fmt.Errorf("cannot create management gRPC server: %s", err)
+			_ = listener.Close()
+			return nil, fmt.Errorf("cannot load management gRPC TLS credentials: %s", err)
 		}
 
 		kg.Print("Management server started with TLS enabled")
@@ -113,7 +113,7 @@ func (ms *ManagementServer) GracefulStop() {
 	}
 
 	if ms.Listener != nil {
-		ms.Listener.Close()
+		_ = ms.Listener.Close()
 		ms.Listener = nil
 	}
 
