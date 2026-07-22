@@ -656,23 +656,25 @@ func KubeArmor() {
 
 	// == //
 
-	// initialize management server
-	mgmtErr := error(nil)
-	dm.ManagementServer, mgmtErr = management.NewManagementServer(management.Config{
-		SocketPath:   cfg.GlobalCfg.ManagementSocketPath,
-		FallbackAddr: cfg.GlobalCfg.ManagementFallbackAddr,
-		TLSEnabled:   cfg.GlobalCfg.TLSEnabled,
-		NodeIP:       dm.Node.NodeIP,
-	})
-	if mgmtErr != nil {
-		dm.Logger.Errf("Failed to initialize KubeArmor Management Server: %v", mgmtErr)
+	// initialize management server (VM/unorchestrated mode only)
+	if !dm.K8sEnabled {
+		mgmtErr := error(nil)
+		dm.ManagementServer, mgmtErr = management.NewManagementServer(management.Config{
+			SocketPath:   cfg.GlobalCfg.ManagementSocketPath,
+			FallbackAddr: cfg.GlobalCfg.ManagementFallbackAddr,
+			TLSEnabled:   cfg.GlobalCfg.TLSEnabled,
+			NodeIP:       dm.Node.NodeIP,
+		})
+		if mgmtErr != nil {
+			dm.Logger.Errf("Failed to initialize KubeArmor Management Server: %v", mgmtErr)
 
-		// destroy the daemon
-		dm.DestroyKubeArmorDaemon()
+			// destroy the daemon
+			dm.DestroyKubeArmorDaemon()
 
-		return
+			return
+		}
+		dm.Logger.Print("Initialized KubeArmor Management Server")
 	}
-	dm.Logger.Print("Initialized KubeArmor Management Server")
 
 	// == //
 
@@ -1173,13 +1175,19 @@ func KubeArmor() {
 		}
 	}
 
-	reflection.Register(dm.ManagementServer.Server) // Helps grpc clients list out what all svc/endpoints available
+	if dm.ManagementServer != nil {
+		reflection.Register(dm.ManagementServer.Server) // Helps grpc clients list out what all svc/endpoints available
+	}
 
 	// serve log feeds
 	go dm.ServeLogFeeds()
-	go dm.ServeManagementServer()
+	if dm.ManagementServer != nil {
+		go dm.ServeManagementServer()
+	}
 	dm.Logger.Print("Started to serve gRPC-based log feeds")
-	dm.Logger.Print("Started to serve gRPC-based management server")
+	if dm.ManagementServer != nil {
+		dm.Logger.Print("Started to serve gRPC-based management server")
+	}
 	if err := dm.SetHealthStatus(pb.LogService_ServiceDesc.ServiceName, grpc_health_v1.HealthCheckResponse_SERVING); err != nil {
 		dm.Logger.Warnf("Failed to set health status for LogService: %v", err)
 	}
