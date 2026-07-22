@@ -17,7 +17,7 @@ Significant features require a written proposal (a GitHub Wiki  or a GitHub Disc
 Routine bug fixes and small enhancements follow the standard pull-request flow with lazy consensus (see  [GOVERNANCE.md § Roadmap and contribution acceptance](https://github.com/kubearmor/KubeArmor/blob/main/GOVERNANCE.md#roadmap-and-contribution-acceptance)).
   * Describe the target persona or user(s) for the project?
 
-Platform engineers, SREs, and DevSecOps/security teams operating Kubernetes clusters, Linux Host machines, IoT devices and 5G control planes who need to harden workloads at runtime without hand-authoring AppArmor/SELinux profiles. See the [KubeArmor differentiation guide](https://github.com/kubearmor/KubeArmor/blob/main/getting-started/differentiation.md) and the [IoT/Edge](https://open-horizon.github.io/docs/kubearmor-integration/docs/README/) and [5G](https://nephio.org/publications/) use cases on [kubearmor.io](https://kubearmor.io/).
+DevSecOps and Security teams operating Kubernetes clusters, Linux Host machines, IoT devices, and 5G control planes who need to harden workloads at runtime without hand-authoring AppArmor/SELinux profiles. See the [KubeArmor differentiation guide](https://github.com/kubearmor/KubeArmor/blob/main/getting-started/differentiation.md) and the [IoT/Edge](https://open-horizon.github.io/docs/kubearmor-integration/docs/README/) and [5G](https://5gsec.com/) use cases on [kubearmor.io](https://kubearmor.io/).
 
   * Explain the primary use case for the project. What additional use cases are supported by the project?
 
@@ -32,7 +32,9 @@ AI/ML model and inference workload protection via the  [ModelArmor](https://docs
 
   * Explain which use cases have been identified as unsupported by the project.  
 
-KubeArmor is not a general purpose policy engine or a CNI.
+* KubeArmor is not a general-purpose policy engine (such as OPA) or a CNI.
+* KubeArmor does not intend to be a resource utilization tracking solution. For e.g., the amount of CPU/memory used by the workloads.
+* KubeArmor does not intend to be a debugging tool, such as for system call tracing or object-level action tracing, even though there have been instances where the tool was used in the context to check if a particular process is indeed modifying the given file or not.
 
   * Describe the intended types of organizations who would benefit from adopting this project. (i.e. financial services, any software manufacturer, organizations providing platform engineering services)?  
 
@@ -53,17 +55,30 @@ Primarily through Kubernetes-native CRDs (`kubectl apply -f policy.yaml`) and th
 There is no dedicated project-maintained GUI
 
   * Describe the user experience (UX) and user interface (UI) of the project.  
-N/A
+For Kubernetes users, the user experience is very much k8s native:
+1. Onboarding: The onboarding of kubearmor happens using kubernetes operator. The configuration used for the installation is available as part of the config map.
+2. Policy Creation/Apply: K8s native resource definitions are available for policies. K8s native tools can be used to enlist, edit, track these policies.
+3. Policy Violations: KubeArmor provides a relay service that aggregates policy violations/telemetry across all the nodes in the k8s env. The karmor cli tool helps provides a way to filter, access the telemetry or violations in a live environment.
+
+For non-kubernetes users:
+1. Onboarding: The onboarding is handled using systemd services in Linux.
+2. Policy creation/apply: The policy structure for k8s and non-k8s env are same except for the change in the selector options. The policy is applied using karmor cli tool.
+3. Policy Violations: Policy violations can be observed in exactly the same way as it is done in the context of k8s env using karmor cli tool. 
+
 
   * Describe how this project integrates with other projects in a production environment.
 
-N/A
+The following are the different ways:
+1. Other projects can listen to the telemetry that is emitted by KubeArmor and operate on it. For e.g., if a particular file is opened, then take an action.
+2. Projects can listen to the policy violations and then use the alert as an IoC (Indicator of Compromise) to further handle the investigation. KubeArmor telemetry before and after the policy violation can be used for triaging along with other log/telemetry sources. Projects integrate with Threat Intelligence sources such as MISP, AlienVault, VirusTotal, etc to further check the possibility of a compromise.
+3. Metrics, Telemetry, and violations can be handled by other projects and used for application-specific actions.
 
 ### Design
 
   * Explain the design principles and best practices the project is following.
 
 KubeArmor is built around few core ideas:
+**Pre-emptive Mitigation** KubeArmor has ensured that it does not deviate from its stance of doing pre-emptive mitigation, i.e., using primitives such as LSM (Linux Security Modules) to prevent a malicious action, rather than detecting and then sending a kill signal or any other post-attack remedial action. Our thesis has been that, "If you allow the attacker to execute their code in the target environment, however briefly, one cannot recover from that state."
 **Deny by default, allow what you trust.** Policies work on a "least privilege" / Zero Trust model . Nothing is permitted unless you explicitly say so, this flips the usual mindset from "block the bad stuff" to "only allow what you know is good," which is a much safer default.
 **You shouldn't need to be a kernel security expert.** Writing raw AppArmor or SELinux profiles by hand is tedious and error-prone, especially when every cloud provider defaults to a different LSM under the hood. KubeArmor abstracts that away, you write one policy  and we handle the translation to whatever's running on the node.
 **Nothing about your workloads needs to change.** No rebuilding images, no editing pod specs. Enforcement gets injected automatically through a mutating webhook and/or a node-level agent, so your existing deployments just work.
@@ -75,13 +90,15 @@ KubeArmor only requires a running Kubernetes cluster with a supported LSM enable
   * Define any specific service dependencies the project relies on in the cluster.  
 N/A
   * Describe how the project implements Identity and Access Management.  
-N/A
+KubeArmor creates service accounts for itself to modify certain cluster wide resources such as KubeArmor policies. The access management is least-permissive, it only requests for the specific API accesses that are needed to handle its task.
   * Describe how the project has addressed sovereignty.  
-N/A
+KubeArmor or any of the other associated projects never sends any beacon message or telemetry to any outside system. KubeArmor can easily operate even in air-gapped environments.
   * Describe any compliance requirements addressed by the project.  
-N/A
+KubeArmor helps enforce CIS benchmarks. For e.g., one of the CIS benchmark is to set the `/tmp` in noexec mode such that only read/write is possible but process executions are not possible from `/tmp` folder. The CIS benchmarks remediation requires one to create a separate mount point for `/tmp` and set the `noexec` attribute in the context. This approach is not possible in the context of containerized or k8s orchestrated workloads since creating a separate mount point for every container/pod is impossible. KubeArmor helps achieve fulfillment of such CIS benchmarks by creating a policy that sets the `/tmp` folder in R/W mode but no executions would be allowed.
   * Describe the project’s High Availability requirements.  
-N/A
+KubeArmor leverages K8s native design for high availability.
+1. KubeArmor Daemonset: The daemonset is k8s construct. If the daemonset pod on the node goes down, the k8s control plane ensures to bring it up.
+2. KubeArmor Relay/Controller: K8s replicasets are used for high availability.
   * Describe the project’s resource requirements, including CPU, Network and Memory.  
 
 Resource-wise, the DaemonSet, Controller, and Relay each request a modest `10m` CPU / `64Mi` memory to run.
@@ -96,6 +113,8 @@ In host mode of installation, KubeArmor will persist rules, logs and other requi
 
 * Please outline the project’s API Design.
 KubeArmor doesn't expose any REST APIs, instead, it uses gRPC to provide core functionality like log watching, policy enforcement, and health checks. These functions change infrequently since we aim to keep them as generic as possible. When a change is unavoidable, we add a new function, mark the old one as deprecated, and remove it only after it has aged out of the support window.
+
+For Policy creation/updates, k8s native resource model is used for managing the policies.
 
   * Describe the project’s release processes, including major, minor and patch releases.
 
