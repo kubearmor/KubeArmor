@@ -208,7 +208,6 @@ jobs:
 
       - name: Test KubeArmor using Ginkgo
         run: |
-          export KUBEARMOR_MANAGEMENT_SERVICE=localhost:32765
           go install -mod=mod github.com/onsi/ginkgo/v2/ginkgo
           make
         working-directory: ./tests/k8s_env
@@ -237,12 +236,7 @@ jobs:
       - name: Get karmor sysdump
         if: ${{ failure() }}
         run: |
-          kubectl get pods -A -o wide || true
-          kubectl get events -A --sort-by=.lastTimestamp || true
-          kubectl describe pod -n kubearmor -l kubearmor-app=kubearmor || true
-          kubectl logs -n kubearmor -l kubearmor-app=kubearmor --all-containers --tail=200 --prefix || true
-          kubectl logs -n kubearmor -l kubearmor-app=kubearmor-operator --all-containers --tail=200 --prefix || true
-          kubectl logs -n kubearmor -l kubearmor-app=kubearmor-relay --all-containers --tail=200 --prefix || true
+          kubectl describe pod -n kubearmor -l kubearmor-app=kubearmor
           curl -sfL http://get.kubearmor.io/ | sudo sh -s -- -b /usr/local/bin
           mkdir -p /tmp/kubearmor/ && cd /tmp/kubearmor && karmor sysdump
 
