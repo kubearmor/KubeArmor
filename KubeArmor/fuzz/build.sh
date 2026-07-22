@@ -4,4 +4,9 @@ printf "package transform\nimport _ \"github.com/AdamKorcz/go-118-fuzz-build/tes
 go mod tidy
 compile_native_go_fuzzer github.com/kubearmor/KubeArmor/KubeArmor/policy FuzzContainerPolicy FuzzContainerPolicy
 compile_native_go_fuzzer github.com/kubearmor/KubeArmor/KubeArmor/policy FuzzHostPolicy FuzzHostPolicy
+compile_native_go_fuzzer github.com/kubearmor/KubeArmor/KubeArmor/monitor FuzzReadContextFromBuff FuzzReadContextFromBuff
+compile_native_go_fuzzer github.com/kubearmor/KubeArmor/KubeArmor/monitor FuzzReadArgFromBuff FuzzReadArgFromBuff
+compile_native_go_fuzzer github.com/kubearmor/KubeArmor/KubeArmor/monitor FuzzGetHashes FuzzGetHashes
+compile_native_go_fuzzer github.com/kubearmor/KubeArmor/KubeArmor/monitor FuzzGetArgs FuzzGetArgs
+
 
