@@ -131,15 +131,6 @@ func generateDaemonset(name, enforcer, runtime, socket, nriSocket, btfPresent, a
 
 	AddOrUpdateEnv(&daemonset.Spec.Template.Spec.Containers[0].Env, common.GlobalEnv)
 	AddOrUpdateEnv(&daemonset.Spec.Template.Spec.Containers[0].Env, common.KubeArmorEnv)
-	// KUBEARMOR_NAMESPACE is used by KubeArmorServerSANs (cert/cert.go) to include
-	// K8s service DNS names in generated server certificates, enabling TLS hostname
-	// verification when the relay connects via in-cluster DNS.
-	AddOrUpdateEnv(&daemonset.Spec.Template.Spec.Containers[0].Env, []corev1.EnvVar{
-		{
-			Name:  "KUBEARMOR_NAMESPACE",
-			Value: common.Namespace,
-		},
-	})
 	AddOrUpdateEnv(&daemonset.Spec.Template.Spec.InitContainers[0].Env, common.GlobalEnv)
 	AddOrUpdateEnv(&daemonset.Spec.Template.Spec.InitContainers[0].Env, common.KubeArmorInitEnv)
 
