@@ -30,7 +30,7 @@ jobs:
 
       - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
-          go-version-file: 'KubeArmor/go.mod'
+          go-version-file: "KubeArmor/go.mod"
 
       - name: Install the latest LLVM toolchain
         run: ./.github/workflows/install-llvm.sh
@@ -51,7 +51,7 @@ jobs:
           go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.11
           go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.6.1
           echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
-    
+
       - name: Build Systemd Release
         run: make local-release
         working-directory: KubeArmor
@@ -62,12 +62,10 @@ jobs:
 
       - name: Check journalctl
         run: sudo journalctl -u kubearmor --no-pager
-      
-      - name: Test kubearmor using ginkgo 
+
+      - name: Test kubearmor using ginkgo
         run: |
-          go install -mod=mod github.com/onsi/ginkgo/v2/ginkgo
+          go install -mod=mod github.com/onsi/ginkgo/v2/ginkgo@9ff1646a26f77a4c0d33ddba3e6368c42c0e8842
           make
         working-directory: ./tests/nonk8s_env
         timeout-minutes: 30
-        
-      
