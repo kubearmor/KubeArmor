@@ -401,7 +401,7 @@ var KubeArmorCaVolume = []corev1.Volume{
 var KubeArmorCaVolumeMount = []corev1.VolumeMount{
 	{
 		Name:      "kubearmor-ca-secret",
-		MountPath: "/var/lib/kubearmor/tls/log",
+		MountPath: DefaultTlsCertPath,
 		ReadOnly:  true,
 	},
 }
