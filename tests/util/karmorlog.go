@@ -224,7 +224,7 @@ func KarmorLogStart(logFilter string, ns string, op string, pod string) error {
 			opt = klog.Options{
 				LogFilter:        logFilter,
 				ReadCAFromSecret: true,
-				TlsCertPath:      "/var/lib/kubearmor/tls/log",
+				TlsCertPath:      "/var/lib/kubearmor/tls",
 				TlsCertProvider:  klog.SelfCertProvider,
 				Namespace:        ns,
 				Operation:        op,
@@ -237,7 +237,7 @@ func KarmorLogStart(logFilter string, ns string, op string, pod string) error {
 			opt = klog.Options{
 				LogFilter:        logFilter,
 				ReadCAFromSecret: true,
-				TlsCertPath:      "/var/lib/kubearmor/tls/log",
+				TlsCertPath:      "/var/lib/kubearmor/tls",
 				TlsCertProvider:  klog.SelfCertProvider,
 				Operation:        op,
 				MsgPath:          "none",
