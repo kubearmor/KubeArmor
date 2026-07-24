@@ -24,7 +24,7 @@ type PodRefresherReconciler struct {
 	client.Client
 	Scheme           *runtime.Scheme
 	Cluster          *types.Cluster
-	ClientSet        *kubernetes.Clientset
+	ClientSet        kubernetes.Interface
 	AnnotateExisting bool
 }
 type ResourceInfo struct {
@@ -37,122 +37,113 @@ type ResourceInfo struct {
 func (r *PodRefresherReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 
 	log := log.FromContext(ctx)
-	var podList corev1.PodList
+	var pod corev1.Pod
 
-	if err := r.List(ctx, &podList); err != nil {
-		log.Error(err, "Unable to list pods")
+	if err := r.Get(ctx, req.NamespacedName, &pod); err != nil {
+		log.Error(err, "Unable to get pod")
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
 	log.Info("Watching for blocked pods")
-	poddeleted := false
 	deploymentMap := make(map[string]ResourceInfo)
-	for _, pod := range podList.Items {
-		if pod.DeletionTimestamp != nil {
-			continue
+	if pod.DeletionTimestamp != nil {
+		return ctrl.Result{}, nil
+	}
+	if pod.Spec.NodeName == "" {
+		return ctrl.Result{}, nil
+	}
+	r.Cluster.ClusterLock.RLock()
+	if _, exist := r.Cluster.Nodes[pod.Spec.NodeName]; exist {
+		if !r.Cluster.Nodes[pod.Spec.NodeName].KubeArmorActive {
+			log.Info(fmt.Sprintf("skip annotating pod as kubearmor not present on node %s", pod.Spec.NodeName))
+			r.Cluster.ClusterLock.RUnlock()
+			return ctrl.Result{}, nil
 		}
-		if pod.Spec.NodeName == "" {
-			continue
-		}
-		r.Cluster.ClusterLock.RLock()
-		if _, exist := r.Cluster.Nodes[pod.Spec.NodeName]; exist {
-			if !r.Cluster.Nodes[pod.Spec.NodeName].KubeArmorActive {
-				log.Info(fmt.Sprintf("skip annotating pod as kubearmor not present on node %s", pod.Spec.NodeName))
-				r.Cluster.ClusterLock.RUnlock()
-				continue
+	}
+	enforcer := ""
+	if _, ok := r.Cluster.Nodes[pod.Spec.NodeName]; ok {
+		enforcer = "apparmor"
+	} else {
+		enforcer = "bpf"
+	}
+	r.Cluster.ClusterLock.RUnlock()
+
+	if _, ok := pod.Annotations["kubearmor-policy"]; !ok {
+		orginalPod := pod.DeepCopy()
+		common.AddCommonAnnotations(&pod.ObjectMeta)
+		patch := client.MergeFrom(orginalPod)
+		err := r.Patch(ctx, &pod, patch)
+		if err != nil {
+			if !errors.IsNotFound(err) {
+				log.Info(fmt.Sprintf("Failed to patch pod annotations: %s", err.Error()))
 			}
 		}
-		enforcer := ""
-		if _, ok := r.Cluster.Nodes[pod.Spec.NodeName]; ok {
-			enforcer = "apparmor"
-		} else {
-			enforcer = "bpf"
-		}
-		r.Cluster.ClusterLock.RUnlock()
+	}
 
-		if _, ok := pod.Annotations["kubearmor-policy"]; !ok {
-			orginalPod := pod.DeepCopy()
-			common.AddCommonAnnotations(&pod.ObjectMeta)
-			patch := client.MergeFrom(orginalPod)
-			err := r.Patch(ctx, &pod, patch)
-			if err != nil {
-				if !errors.IsNotFound(err) {
-					log.Info(fmt.Sprintf("Failed to patch pod annotations: %s", err.Error()))
-				}
-			}
-		}
+	// restart not required for special pods and already annotated pods
 
-		// restart not required for special pods and already annotated pods
+	restartPod := requireRestart(pod, enforcer)
+	if restartPod {
+		// for annotating pre-existing pods on apparmor-nodes
+		// the pod is managed by a controller (e.g: replicaset)
+		if pod.OwnerReferences != nil && len(pod.OwnerReferences) != 0 {
+			// log.Info("Deleting pod " + pod.Name + "in namespace " + pod.Namespace + " as it is managed")
+			for _, ref := range pod.OwnerReferences {
 
-		restartPod := requireRestart(pod, enforcer)
-		if restartPod {
-			// for annotating pre-existing pods on apparmor-nodes
-			// the pod is managed by a controller (e.g: replicaset)
-			if pod.OwnerReferences != nil && len(pod.OwnerReferences) != 0 {
-				// log.Info("Deleting pod " + pod.Name + "in namespace " + pod.Namespace + " as it is managed")
-				for _, ref := range pod.OwnerReferences {
-
-					if *ref.Controller {
-						if ref.Kind == "ReplicaSet" {
-							replicaSet, err := r.ClientSet.AppsV1().ReplicaSets(pod.Namespace).Get(ctx, ref.Name, metav1.GetOptions{})
-							if err != nil {
-								log.Error(err, fmt.Sprintf("Failed to get ReplicaSet %s:", ref.Name))
-								continue
-							}
-							// Check if the ReplicaSet is managed by a Deployment
-							for _, rsOwnerRef := range replicaSet.OwnerReferences {
-								if rsOwnerRef.Kind == "Deployment" {
-									deploymentName := rsOwnerRef.Name
-									deploymentMap[deploymentName] = ResourceInfo{
-										kind:          rsOwnerRef.Kind,
-										namespaceName: pod.Namespace,
-									}
+				if *ref.Controller {
+					if ref.Kind == "ReplicaSet" {
+						replicaSet, err := r.ClientSet.AppsV1().ReplicaSets(pod.Namespace).Get(ctx, ref.Name, metav1.GetOptions{})
+						if err != nil {
+							log.Error(err, fmt.Sprintf("Failed to get ReplicaSet %s:", ref.Name))
+							continue
+						}
+						// Check if the ReplicaSet is managed by a Deployment
+						for _, rsOwnerRef := range replicaSet.OwnerReferences {
+							if rsOwnerRef.Kind == "Deployment" {
+								deploymentName := rsOwnerRef.Name
+								deploymentMap[deploymentName] = ResourceInfo{
+									kind:          rsOwnerRef.Kind,
+									namespaceName: pod.Namespace,
 								}
 							}
-						} else {
-							deploymentMap[ref.Name] = ResourceInfo{
-								namespaceName: pod.Namespace,
-								kind:          ref.Kind,
-							}
+						}
+					} else {
+						deploymentMap[ref.Name] = ResourceInfo{
+							namespaceName: pod.Namespace,
+							kind:          ref.Kind,
 						}
 					}
 				}
-
-				// find out deployment--- patch it
-				// if err := r.Delete(ctx, &pod); err != nil {
-				// 	if !errors.IsNotFound(err) {
-				// 		log.Error(err, "Could not delete pod "+pod.Name+" in namespace "+pod.Namespace)
-				// 	}
-			} else {
-				// single pods
-				// mimic kubectl replace --force
-				// delete the pod --force ==> grace period equals zero
-				log.Info("Deleting single pod " + pod.Name + " in namespace " + pod.Namespace)
-				if err := r.Delete(ctx, &pod, client.GracePeriodSeconds(0)); err != nil {
-					if !errors.IsNotFound(err) {
-						log.Error(err, "Couldn't delete pod "+pod.Name+" in namespace "+pod.Namespace)
-					}
-				}
-
-				// clean the pre-polutated attributes
-				pod.ResourceVersion = ""
-
-				// re-create the pod
-				if err := r.Create(ctx, &pod); err != nil {
-					log.Error(err, "Could not create pod "+pod.Name+" in namespace "+pod.Namespace)
-				}
-				poddeleted = true
 			}
 
+			// find out deployment--- patch it
+			// if err := r.Delete(ctx, &pod); err != nil {
+			// 	if !errors.IsNotFound(err) {
+			// 		log.Error(err, "Could not delete pod "+pod.Name+" in namespace "+pod.Namespace)
+			// 	}
+		} else {
+			// single pods
+			// mimic kubectl replace --force
+			// delete the pod --force ==> grace period equals zero
+			log.Info("Deleting single pod " + pod.Name + " in namespace " + pod.Namespace)
+			if err := r.Delete(ctx, &pod, client.GracePeriodSeconds(0)); err != nil {
+				if !errors.IsNotFound(err) {
+					log.Error(err, "Couldn't delete pod "+pod.Name+" in namespace "+pod.Namespace)
+				}
+			}
+
+			// clean the pre-polutated attributes
+			pod.ResourceVersion = ""
+
+			// re-create the pod
+			if err := r.Create(ctx, &pod); err != nil {
+				log.Error(err, "Could not create pod "+pod.Name+" in namespace "+pod.Namespace)
+			}
 		}
+
 	}
 
 	restartResources(deploymentMap, r.ClientSet)
-
-	// give time for pods to be deleted
-	if poddeleted {
-		time.Sleep(10 * time.Second)
-	}
 
 	return ctrl.Result{}, nil
 }
@@ -182,7 +173,7 @@ func requireRestart(pod corev1.Pod, enforcer string) bool {
 
 	return false
 }
-func restartResources(resourcesMap map[string]ResourceInfo, corev1 *kubernetes.Clientset) error {
+func restartResources(resourcesMap map[string]ResourceInfo, corev1 kubernetes.Interface) error {
 
 	ctx := context.Background()
 	log := log.FromContext(ctx)
@@ -241,8 +232,6 @@ func restartResources(resourcesMap map[string]ResourceInfo, corev1 *kubernetes.C
 				log.Error(err, fmt.Sprintf("error updating daemonset %s in namespace %s", name, resInfo.namespaceName))
 			}
 		}
-		// wait for few seconds after updating every resource
-		time.Sleep(5 * time.Second)
 	}
 
 	return nil
