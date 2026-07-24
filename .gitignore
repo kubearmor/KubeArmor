@@ -24,9 +24,6 @@ contribution/vagrant/*.log
 # object files
 **/BPF/**/*.o
 
-# kernel header
-vmlinux.h
-
 # ignore list
 **/ignore.lst
 **/syscheck

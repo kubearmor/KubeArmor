@@ -17,7 +17,7 @@ on:
       - "protobuf/**"
       - ".github/workflows/ci-test-go.yml"
       - "pkg/KubeArmorOperator/**"
-    
+
 # Declare default permissions as read only.
 permissions: read-all
 
@@ -29,7 +29,7 @@ jobs:
 
       - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
-          go-version-file: 'KubeArmor/go.mod'
+          go-version-file: "KubeArmor/go.mod"
 
       - name: Check gofmt
         run: make gofmt
@@ -42,7 +42,7 @@ jobs:
 
       - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
-          go-version-file: 'KubeArmor/go.mod'
+          go-version-file: "KubeArmor/go.mod"
 
       - name: Run Revive Action on KubeArmor
         uses: morphy2k/revive-action@bd8016177e3722fe0aad85e22507805641be5bb1 # v2
@@ -56,7 +56,7 @@ jobs:
 
       - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
-          go-version-file: 'KubeArmor/go.mod'
+          go-version-file: "KubeArmor/go.mod"
 
       - name: Run Revive Action on KubeArmor tests
         uses: morphy2k/revive-action@bd8016177e3722fe0aad85e22507805641be5bb1 # v2
@@ -70,7 +70,17 @@ jobs:
 
       - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
-          go-version-file: 'KubeArmor/go.mod'
+          go-version-file: "KubeArmor/go.mod"
+
+      - name: Install LLVM/Clang
+        run: ./.github/workflows/install-llvm.sh
+
+      - name: Install libbpf headers
+        run: sudo apt-get update && sudo apt-get install -y libbpf-dev
+
+      - name: Generate BPF files
+        run: go generate ./...
+        working-directory: KubeArmor
 
       - name: Run Gosec Security Scanner
         run: make gosec
@@ -83,9 +93,19 @@ jobs:
 
       - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
-          go-version-file: 'KubeArmor/go.mod'
+          go-version-file: "KubeArmor/go.mod"
 
-      - name: Run govulncheck 
+      - name: Install LLVM/Clang
+        run: ./.github/workflows/install-llvm.sh
+
+      - name: Install libbpf headers
+        run: sudo apt-get update && sudo apt-get install -y libbpf-dev
+
+      - name: Generate BPF files
+        run: go generate ./...
+        working-directory: KubeArmor
+
+      - name: Run govulncheck
         run: make scan
         working-directory: KubeArmor
 
@@ -96,7 +116,17 @@ jobs:
 
       - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
-          go-version-file: 'KubeArmor/go.mod'
+          go-version-file: "KubeArmor/go.mod"
+
+      - name: Install LLVM/Clang
+        run: ./.github/workflows/install-llvm.sh
+
+      - name: Install libbpf headers
+        run: sudo apt-get update && sudo apt-get install -y libbpf-dev
+
+      - name: Generate BPF files
+        run: go generate ./...
+        working-directory: KubeArmor
 
       - name: Run go test on the KubeArmor/KubeArmor directory
         run: go test ./...

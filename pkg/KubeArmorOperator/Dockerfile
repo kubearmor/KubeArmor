@@ -12,6 +12,12 @@ ADD deployments deployments
 ADD KubeArmor KubeArmor
 ADD pkg/KubeArmorController pkg/KubeArmorController
 
+# Install clang, llvm, and libbpf dependencies to compile BPF bytecode
+RUN apt-get update && apt-get install -y clang llvm libbpf-dev libelf-dev && rm -rf /var/lib/apt/lists/*
+
+# Generate BPF bytecode
+RUN cd KubeArmor && go generate ./...
+
 # KubeArmorOperator directory
 ARG OPERATOR_DIR=pkg/KubeArmorOperator
 WORKDIR /KubeArmor/$OPERATOR_DIR

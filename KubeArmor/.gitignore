@@ -1,0 +1,8 @@
+enforcer/bpflsm/*.o
+monitor/*.o
+presets/anonmapexec/*.o
+presets/exec/*.o
+presets/filelessexec/*.o
+presets/protectenv/*.o
+presets/protectproc/*.o
+utils/bpflsmprobe/*.o
