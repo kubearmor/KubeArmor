@@ -16,49 +16,110 @@ import (
 )
 
 // GeneratePki - generate pub/priv keypair
-func GeneratePki(namespace string, serviceName string) (*bytes.Buffer, *bytes.Buffer, *bytes.Buffer, error) {
+func GeneratePki(namespace string, serviceName string) (caPEM, caKeyPEM, crtPEM, crtKeyPEM *bytes.Buffer, err error) {
 	ca, cakey, err := GenerateCA()
 	if err != nil {
-		return bytes.NewBuffer([]byte{}), bytes.NewBuffer([]byte{}), bytes.NewBuffer([]byte{}), err
+		return nil, nil, nil, nil, err
 	}
 	csr, csrkey, err := GenerateCSR(namespace, serviceName)
 	if err != nil {
-		return bytes.NewBuffer([]byte{}), bytes.NewBuffer([]byte{}), bytes.NewBuffer([]byte{}), err
+		return nil, nil, nil, nil, err
 	}
 	crt, err := SignCSR(ca, cakey, csr, csrkey)
 	if err != nil {
-		return bytes.NewBuffer([]byte{}), bytes.NewBuffer([]byte{}), bytes.NewBuffer([]byte{}), err
+		return nil, nil, nil, nil, err
 	}
 
 	caBytes, err := x509.CreateCertificate(rand.Reader, ca, ca, &cakey.PublicKey, cakey)
 	if err != nil {
-		return bytes.NewBuffer([]byte{}), bytes.NewBuffer([]byte{}), bytes.NewBuffer([]byte{}), err
+		return nil, nil, nil, nil, err
 	}
-	caPEM := new(bytes.Buffer)
+	caPEM = new(bytes.Buffer)
 	err = pem.Encode(caPEM, &pem.Block{
 		Type:  "CERTIFICATE",
 		Bytes: caBytes,
 	})
 	if err != nil {
-		return bytes.NewBuffer([]byte{}), bytes.NewBuffer([]byte{}), bytes.NewBuffer([]byte{}), err
+		return nil, nil, nil, nil, err
 	}
-	crtPEM := new(bytes.Buffer)
+
+	caKeyPEM = new(bytes.Buffer)
+	err = pem.Encode(caKeyPEM, &pem.Block{
+		Type:  "RSA PRIVATE KEY",
+		Bytes: x509.MarshalPKCS1PrivateKey(cakey),
+	})
+	if err != nil {
+		return nil, nil, nil, nil, err
+	}
+
+	crtPEM = new(bytes.Buffer)
 	err = pem.Encode(crtPEM, &pem.Block{
 		Type:  "CERTIFICATE",
 		Bytes: crt,
 	})
 	if err != nil {
-		return bytes.NewBuffer([]byte{}), bytes.NewBuffer([]byte{}), bytes.NewBuffer([]byte{}), err
+		return nil, nil, nil, nil, err
 	}
-	crtKeyPEM := new(bytes.Buffer)
+	crtKeyPEM = new(bytes.Buffer)
 	err = pem.Encode(crtKeyPEM, &pem.Block{
 		Type:  "RSA PRIVATE KEY",
 		Bytes: x509.MarshalPKCS1PrivateKey(csrkey),
 	})
 	if err != nil {
-		return bytes.NewBuffer([]byte{}), bytes.NewBuffer([]byte{}), bytes.NewBuffer([]byte{}), err
+		return nil, nil, nil, nil, err
 	}
-	return caPEM, crtPEM, crtKeyPEM, nil
+	return caPEM, caKeyPEM, crtPEM, crtKeyPEM, nil
+}
+
+// GeneratePkiWithCA - generate leaf keypair signed by the given CA cert and CA key
+func GeneratePkiWithCA(namespace string, serviceName string, caPEM []byte, caKeyPEM []byte) (caCert, crtPEM, crtKeyPEM *bytes.Buffer, err error) {
+	// Parse CA Cert PEM
+	block, _ := pem.Decode(caPEM)
+	if block == nil {
+		return nil, nil, nil, errors.New("failed to decode CA certificate PEM")
+	}
+	ca, err := x509.ParseCertificate(block.Bytes)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	// Parse CA Key PEM
+	keyBlock, _ := pem.Decode(caKeyPEM)
+	if keyBlock == nil {
+		return nil, nil, nil, errors.New("failed to decode CA key PEM")
+	}
+	caKey, err := x509.ParsePKCS1PrivateKey(keyBlock.Bytes)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	csr, csrkey, err := GenerateCSR(namespace, serviceName)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	crt, err := SignCSR(ca, caKey, csr, csrkey)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	crtPEM = new(bytes.Buffer)
+	err = pem.Encode(crtPEM, &pem.Block{
+		Type:  "CERTIFICATE",
+		Bytes: crt,
+	})
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	crtKeyPEM = new(bytes.Buffer)
+	err = pem.Encode(crtKeyPEM, &pem.Block{
+		Type:  "RSA PRIVATE KEY",
+		Bytes: x509.MarshalPKCS1PrivateKey(csrkey),
+	})
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	return bytes.NewBuffer(caPEM), crtPEM, crtKeyPEM, nil
 }
 
 // GenerateCA - generate private key and a cert for a CA
