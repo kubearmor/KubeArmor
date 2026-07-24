@@ -308,12 +308,8 @@ func (dm *KubeArmorDaemon) InitSystemMonitor() error {
 		return fmt.Errorf("failed to create new system monitor")
 	}
 
-	if cfg.GlobalCfg.SystemMonitor {
-		if err := dm.SystemMonitor.InitBPF(); err != nil {
-			return fmt.Errorf("failed to initialize BPF: %w", err)
-		}
-	} else {
-		dm.Logger.Print("System Monitor BPF initialization skipped")
+	if err := dm.SystemMonitor.InitBPF(); err != nil {
+		return fmt.Errorf("failed to initialize BPF: %w", err)
 	}
 
 	return nil
