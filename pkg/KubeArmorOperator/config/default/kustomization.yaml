@@ -4,6 +4,7 @@ kind: Kustomization
 namespace: kubearmor
 
 resources:
+- namespace.yaml
 - ../crd
 - ../rbac
 - ../operator
