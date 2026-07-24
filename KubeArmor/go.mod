@@ -29,7 +29,7 @@ require (
 	github.com/containerd/containerd/api v1.11.1
 	github.com/containerd/containerd/v2 v2.3.2
 	github.com/containerd/nri v0.12.0
-	github.com/containerd/typeurl/v2 v2.2.3
+	github.com/containerd/typeurl/v2 v2.3.0
 	github.com/florianl/go-nflog/v2 v2.3.0
 	github.com/fsnotify/fsnotify v1.10.1
 	github.com/google/gopacket v1.1.19
