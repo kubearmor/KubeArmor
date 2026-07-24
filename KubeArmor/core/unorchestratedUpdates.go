@@ -46,6 +46,24 @@ func (dm *KubeArmorDaemon) SetContainerNSVisibility() {
 	dm.UpdateVisibility("ADDED", "container_namespace", visibility)
 }
 
+func uniqueEndpointNamespaces(endpoints []tp.EndPoint) []string {
+	namespaces := make([]string, 0, len(endpoints))
+	seen := make(map[string]struct{}, len(endpoints))
+
+	for _, ep := range endpoints {
+		if _, ok := seen[ep.NamespaceName]; ok {
+			continue
+		}
+
+		seen[ep.NamespaceName] = struct{}{}
+		namespaces = append(namespaces, ep.NamespaceName)
+	}
+
+	slices.Sort(namespaces)
+
+	return namespaces
+}
+
 // =================== //
 // == Config Update == //
 // =================== //
@@ -77,10 +95,15 @@ func (dm *KubeArmorDaemon) WatchConfigChanges() {
 		dm.UpdateGlobalPosture(globalPosture)
 
 		// Update default posture for endpoints
-		for _, ep := range dm.EndPoints {
-			dm.Logger.Printf("Updating Default Posture for endpoint %s", ep.EndPointName)
-			dm.UpdateDefaultPosture("MODIFIED", ep.NamespaceName, globalPosture, false)
-			dm.UpdateVisibility("MODIFIED", ep.NamespaceName, visibility)
+		dm.EndPointsLock.RLock()
+		endPointsCopy := make([]tp.EndPoint, len(dm.EndPoints))
+		copy(endPointsCopy, dm.EndPoints)
+		dm.EndPointsLock.RUnlock()
+
+		for _, namespace := range uniqueEndpointNamespaces(endPointsCopy) {
+			dm.Logger.Printf("Updating Default Posture for namespace %s", namespace)
+			dm.UpdateDefaultPosture("MODIFIED", namespace, globalPosture, false)
+			dm.UpdateVisibility("MODIFIED", namespace, visibility)
 		}
 
 		// Update throttling configs
