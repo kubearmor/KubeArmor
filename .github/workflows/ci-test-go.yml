@@ -99,8 +99,29 @@ jobs:
           go-version-file: 'KubeArmor/go.mod'
 
       - name: Run go test on the KubeArmor/KubeArmor directory
-        run: go test ./...
+        run: go test -coverprofile=coverage.out -covermode=atomic ./...
         working-directory: KubeArmor
+
+      - name: Generate coverage report
+        if: ${{ always() }}
+        run: |
+          if [ -f coverage.out ]; then
+            go tool cover -func coverage.out
+            echo "## Unit Test Coverage" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            go tool cover -func coverage.out | tail -1 >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          else
+            echo "Coverage file not found." >> $GITHUB_STEP_SUMMARY
+          fi
+        working-directory: KubeArmor
+
+      - name: Upload coverage report
+        if: ${{ always() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: unit-test-coverage
+          path: KubeArmor/coverage.out
 
   license:
     runs-on: ubuntu-22.04
