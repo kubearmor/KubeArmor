@@ -31,7 +31,7 @@ COPY --from=builder /workspace/manager .
 ENTRYPOINT ["/manager"]
 
 # Build controller with ubi as base image
-FROM redhat/ubi10-minimal AS controller-ubi
+FROM redhat/ubi10-minimal@sha256:04140c8d78c6c6915b5c1fdad2f16d10eac3630c3339999ccdf659d8c903be50 AS controller-ubi
 
 ARG VERSION=latest
 
