@@ -1,25 +1,7 @@
 name: ci-test-ubi-ginkgo
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - "KubeArmor/**"
-      - "tests/**"
-      - "protobuf/**"
-      - ".github/workflows/ci-test-ubi-image.yml"
-      - "pkg/KubeArmorOperator/**"
-      - "deployments/helm/**"
-  pull_request:
-    branches: [main]
-    paths:
-      - "KubeArmor/**"
-      - "tests/**"
-      - "protobuf/**"
-      - ".github/workflows/ci-test-ubi-image.yml"
-      - "examples/multiubuntu/build/**"
-      - "pkg/KubeArmorOperator/**"
-      - "deployments/helm/**"
+  workflow_call:
 
 # Declare default permissions as read only.
 permissions: read-all

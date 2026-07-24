@@ -1,22 +1,7 @@
 name: ci-test-go
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - "KubeArmor/**"
-      - "tests/**"
-      - "protobuf/**"
-      - ".github/workflows/ci-test-go.yml"
-      - "pkg/KubeArmorOperator/**"
-  pull_request:
-    branches: [main]
-    paths:
-      - "KubeArmor/**"
-      - "tests/**"
-      - "protobuf/**"
-      - ".github/workflows/ci-test-go.yml"
-      - "pkg/KubeArmorOperator/**"
+  workflow_call:
     
 # Declare default permissions as read only.
 permissions: read-all
@@ -101,13 +86,3 @@ jobs:
       - name: Run go test on the KubeArmor/KubeArmor directory
         run: go test ./...
         working-directory: KubeArmor
-
-  license:
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
-
-      - name: Check License Header
-        uses: apache/skywalking-eyes@ed436a5593c63a25f394ea29da61b0ac3731a9fe
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
