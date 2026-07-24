@@ -686,7 +686,7 @@ func KubeArmor() {
 
 	// Containerized workloads with Host
 	if cfg.GlobalCfg.Policy || cfg.GlobalCfg.HostPolicy {
-		// initialize system monitor
+		// always initialize system monitor struct
 		if err := dm.InitSystemMonitor(); err != nil {
 			dm.Logger.Errf("Failed to initialize KubeArmor Monitor: %v", err)
 
@@ -697,9 +697,11 @@ func KubeArmor() {
 		}
 		dm.Logger.Print("Initialized KubeArmor Monitor")
 
-		// monitor system events
-		go dm.MonitorSystemEvents()
-		dm.Logger.Print("Started to monitor system events")
+		if cfg.GlobalCfg.SystemMonitor {
+			// monitor system events
+			go dm.MonitorSystemEvents()
+			dm.Logger.Print("Started to monitor system events")
+		}
 
 		// initialize runtime enforcer
 		if cfg.GlobalCfg.LsmOrder[0] == "" || cfg.GlobalCfg.LsmOrder[0] == "none" {
@@ -730,7 +732,9 @@ func KubeArmor() {
 
 	enableContainerPolicy := true
 
-	dm.SystemMonitor.Logger.ContainerNsKey = make(map[string]common.OuterKey)
+	if dm.SystemMonitor != nil {
+		dm.SystemMonitor.Logger.ContainerNsKey = make(map[string]common.OuterKey)
+	}
 
 	// Un-orchestrated workloads
 	if !dm.K8sEnabled && cfg.GlobalCfg.Policy {

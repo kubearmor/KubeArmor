@@ -1,0 +1,10 @@
+{
+  "buildx.build.ref": "mybuilder/mybuilder0/hjf90961oe05pydkqsu94iyhg",
+  "containerimage.descriptor": {
+    "mediaType": "application/vnd.oci.image.index.v1+json",
+    "digest": "sha256:462ef733d3e500f0e94394e8f7b74a5e8c406205d2ef8848193b20c27c3b4ab4",
+    "size": 1607
+  },
+  "containerimage.digest": "sha256:462ef733d3e500f0e94394e8f7b74a5e8c406205d2ef8848193b20c27c3b4ab4",
+  "image.name": "aryan1126/kubearmor-snitch:v0.1"
+}

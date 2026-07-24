@@ -3847,7 +3847,6 @@ func (dm *KubeArmorDaemon) UpdateVisibility(action string, namespace string, vis
 var visibilityKey string = "kubearmor-visibility"
 
 func (dm *KubeArmorDaemon) updateVisibilityWithCM(cm *corev1.ConfigMap, _ string) {
-
 	dm.SystemMonitor.UpdateVisibility() // update host and global default bpf maps
 
 	// get all namespaces
