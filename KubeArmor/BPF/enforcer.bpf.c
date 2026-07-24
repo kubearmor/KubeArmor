@@ -677,7 +677,7 @@ static __always_inline int socket_match_lsm(struct socket *sock, struct sockaddr
     return 0;
   }
 
-  int sock_type = BPF_CORE_READ(sock, type);
+  int sock_type = BPF_CORE_READ(sock, type) & 0xf;
   struct sock *sk = BPF_CORE_READ(sock, sk);
   int protocol = 0;
   if (sk) {
@@ -771,7 +771,7 @@ static __always_inline int socket_match_lsm(struct socket *sock, struct sockaddr
         continue;
       }
 
-      if (rule->family != family) {
+      if (rule->family != 0 && rule->family != family) {
         continue;
       }
 
@@ -897,7 +897,7 @@ static __always_inline int socket_match_lsm(struct socket *sock, struct sockaddr
 
   dpath[offset++] = ' '; dpath[offset++] = 'p'; dpath[offset++] = 'o'; dpath[offset++] = 'r'; dpath[offset++] = 't'; dpath[offset++] = '=';
   int ptemp = dport;
-  if (ptemp >= 10000) { dpath[offset++] = '0' + (ptemp / 10000); ptemp %= 10000; dpath[offset++] = '0' + (ptemp / 100); ptemp %= 1000; dpath[offset++] = '0' + (ptemp / 100); ptemp %= 100; dpath[offset++] = '0' + (ptemp / 10); dpath[offset++] = '0' + (ptemp % 10); }
+  if (ptemp >= 10000) { dpath[offset++] = '0' + (ptemp / 10000); ptemp %= 10000; dpath[offset++] = '0' + (ptemp / 1000); ptemp %= 1000; dpath[offset++] = '0' + (ptemp / 100); ptemp %= 100; dpath[offset++] = '0' + (ptemp / 10); dpath[offset++] = '0' + (ptemp % 10); }
   else if (ptemp >= 1000) { dpath[offset++] = '0' + (ptemp / 1000); ptemp %= 1000; dpath[offset++] = '0' + (ptemp / 100); ptemp %= 100; dpath[offset++] = '0' + (ptemp / 10); dpath[offset++] = '0' + (ptemp % 10); }
   else if (ptemp >= 100) { dpath[offset++] = '0' + (ptemp / 100); ptemp %= 100; dpath[offset++] = '0' + (ptemp / 10); dpath[offset++] = '0' + (ptemp % 10); }
   else if (ptemp >= 10) { dpath[offset++] = '0' + (ptemp / 10); dpath[offset++] = '0' + (ptemp % 10); }
