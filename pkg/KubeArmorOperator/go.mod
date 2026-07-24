@@ -27,7 +27,6 @@ require (
 	k8s.io/client-go v0.36.1
 	k8s.io/cri-api v0.36.1
 	k8s.io/klog/v2 v2.140.0
-	k8s.io/kubectl v0.36.1
 	sigs.k8s.io/controller-runtime v0.24.1
 )
 
@@ -92,6 +91,8 @@ require (
 	github.com/kubearmor/KubeArmor/protobuf v0.0.0-20260521154542-6789b83a8cee // indirect
 	github.com/moby/docker-image-spec v1.3.1 // indirect
 	github.com/moby/moby/api v1.54.2 // indirect
+	github.com/onsi/ginkgo/v2 v2.28.1 // indirect
+	github.com/onsi/gomega v1.39.1 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	sigs.k8s.io/structured-merge-diff/v6 v6.4.0 // indirect
 )
