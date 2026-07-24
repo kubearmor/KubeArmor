@@ -215,15 +215,9 @@ func (dm *KubeArmorDaemon) UpdateContainer(containerID string, container tp.Cont
 			return fmt.Errorf("container not found for removal: %s", containerID)
 		}
 		dm.EndPointsLock.Lock()
-		dm.MatchandRemoveContainerFromEndpoint(containerID)
-		dm.EndPointsLock.Unlock()
-		delete(dm.Containers, containerID)
-		dm.ContainersLock.Unlock()
-
-		dm.EndPointsLock.Lock()
-		// remove apparmor profile for that endpoint
+		// remove apparmor profile for that endpoint BEFORE removing container ID from endpoint
 		for idx, endPoint := range dm.EndPoints {
-			if endPoint.NamespaceName == container.NamespaceName && endPoint.EndPointName == container.EndPointName && kl.ContainsElement(endPoint.Containers, container.ContainerID) {
+			if endPoint.NamespaceName == container.NamespaceName && endPoint.EndPointName == container.ContainerName && kl.ContainsElement(endPoint.Containers, container.ContainerID) {
 
 				// update apparmor profiles
 				for idxA, profile := range endPoint.AppArmorProfiles {
@@ -236,7 +230,20 @@ func (dm *KubeArmorDaemon) UpdateContainer(containerID string, container tp.Cont
 				break
 			}
 		}
+		dm.MatchandRemoveContainerFromEndpoint(containerID)
 		dm.EndPointsLock.Unlock()
+		delete(dm.Containers, containerID)
+		dm.ContainersLock.Unlock()
+		if dm.RuntimeEnforcer != nil && container.AppArmorProfile != "" {
+			appArmorProfiles := map[string]string{
+				container.ContainerName: container.AppArmorProfile,
+			}
+			privilegedProfiles := map[string]struct{}{}
+			if container.Privileged {
+				privilegedProfiles[container.AppArmorProfile] = struct{}{}
+			}
+			dm.RuntimeEnforcer.UpdateAppArmorProfiles(container.ContainerName, "DELETED", appArmorProfiles, privilegedProfiles)
+		}
 		// delete endpoint if no security rules and containers
 		idx := 0
 		endpointsLength := len(dm.EndPoints)
