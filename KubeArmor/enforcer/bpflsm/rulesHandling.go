@@ -798,4 +798,16 @@ func (be *BPFEnforcer) UpdateNetworkRules(id string, securityPolicies []tp.Secur
 			index++
 		}
 	}
+	for i := index; i < 64; i++ {
+		oldKey := enforcerNetRuleKey{
+			Index: i,
+		}
+		oldKey.Okey.PidNs = container.Key.PidNS
+		oldKey.Okey.MntNs = container.Key.MntNS
+		if err := be.obj.KubearmorNetRules.Delete(oldKey); err != nil {
+			if !errors.Is(err, os.ErrNotExist) {
+				be.Logger.Errf("error deleting old net rule for container %s: %s", id, err)
+			}
+		}
+	}
 }

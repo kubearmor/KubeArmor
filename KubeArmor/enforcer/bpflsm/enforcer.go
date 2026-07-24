@@ -394,13 +394,14 @@ func (be *BPFEnforcer) TraceEvents() {
 			log.Resource = string(bytes.Trim(event.Data.Path[:], "\x00"))
 			log.Data = "lsm=" + mon.GetSyscallName(int32(event.EventID))
 
-		case mon.SocketCreate, mon.SocketConnect, mon.SocketAccept:
-			var sockProtocol int32
-			sockProtocol = int32(event.Data.Path[1])
+		case mon.SocketCreate, mon.SocketConnect, mon.SocketAccept, mon.SocketBind:
 			log.Operation = "Network"
-			if event.Data.Path[0] == 2 {
+			if event.Data.Path[0] == 'e' || event.Data.Path[0] == 'i' {
+				log.Resource = string(bytes.Trim(event.Data.Path[:], "\x00"))
+			} else if event.Data.Path[0] == 2 {
 				log.Resource = fd.GetProtocolFromType(int32(event.Data.Path[1]))
 			} else if event.Data.Path[0] == 3 {
+				var sockProtocol int32 = int32(event.Data.Path[1])
 				log.Resource = fd.GetProtocolFromName(mon.GetProtocol(sockProtocol))
 			}
 			log.Data = "lsm=" + mon.GetSyscallName(int32(event.EventID)) + " " + log.Resource

@@ -150,7 +150,7 @@ static __always_inline int string_prefix_match(const char *name, const char *pre
   {
     i++;
   }
-  return (i == prefix_len - 1) ? 1 : 0;
+  return (prefix[i] == '\0') ? 1 : 0;
 }
 
 // ============
