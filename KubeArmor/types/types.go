@@ -5,6 +5,7 @@
 package types
 
 import (
+	"encoding/json"
 	"regexp"
 	"time"
 
@@ -93,8 +94,11 @@ type EndPoint struct {
 
 	SecurityPolicies []SecurityPolicy `json:"securityPolicies"`
 
-	// only needed for unorchestrated containers
-	PrivilegedContainers map[string]struct{} `json:"privilegdContainers"`
+	// only needed for unorchestrated containers.
+	// Keep the legacy misspelled JSON key during the transition so existing
+	// consumers continue to receive the field while new consumers can rely on
+	// the corrected privilegedContainers contract.
+	PrivilegedContainers map[string]struct{} `json:"privilegedContainers"`
 
 	// == //
 
@@ -105,6 +109,43 @@ type EndPoint struct {
 	FileVisibilityEnabled         bool `json:"fileVisibilityEnabled"`
 	NetworkVisibilityEnabled      bool `json:"networkVisibilityEnabled"`
 	CapabilitiesVisibilityEnabled bool `json:"capabilitiesVisibilityEnabled"`
+}
+
+type endPointJSON EndPoint
+
+// MarshalJSON emits both the corrected and legacy JSON keys for
+// PrivilegedContainers to preserve compatibility with existing consumers.
+func (ep EndPoint) MarshalJSON() ([]byte, error) {
+	type endpointCompat struct {
+		endPointJSON
+		LegacyPrivilegedContainers map[string]struct{} `json:"privilegdContainers"`
+	}
+
+	return json.Marshal(endpointCompat{
+		endPointJSON:               endPointJSON(ep),
+		LegacyPrivilegedContainers: ep.PrivilegedContainers,
+	})
+}
+
+// UnmarshalJSON accepts both the corrected and legacy JSON keys, preferring
+// the corrected field when both are present.
+func (ep *EndPoint) UnmarshalJSON(data []byte) error {
+	type endpointCompat struct {
+		endPointJSON
+		LegacyPrivilegedContainers map[string]struct{} `json:"privilegdContainers"`
+	}
+
+	var aux endpointCompat
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+
+	*ep = EndPoint(aux.endPointJSON)
+	if ep.PrivilegedContainers == nil && aux.LegacyPrivilegedContainers != nil {
+		ep.PrivilegedContainers = aux.LegacyPrivilegedContainers
+	}
+
+	return nil
 }
 
 // Node Structure
