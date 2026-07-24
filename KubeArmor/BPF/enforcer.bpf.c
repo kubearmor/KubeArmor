@@ -653,6 +653,267 @@ int BPF_PROG(enforce_net_create, int family, int type, int protocol)
   return match_net_rules(type, protocol, _SOCKET_CREATE);
 }
 
+static __always_inline bool ip_prefix_match_v4(u32 addr, const u8 *rule_ip, const u8 *rule_mask) {
+  u32 rip = 0;
+  u32 rmask = 0;
+  __builtin_memcpy(&rip, rule_ip, 4);
+  __builtin_memcpy(&rmask, rule_mask, 4);
+  return (addr & rmask) == (rip & rmask);
+}
+
+static __always_inline bool ip_prefix_match_v6(const u8 *addr, const u8 *rule_ip, const u8 *rule_mask) {
+  #pragma unroll
+  for (int i = 0; i < 16; i++) {
+    if ((addr[i] & rule_mask[i]) != (rule_ip[i] & rule_mask[i])) {
+      return false;
+    }
+  }
+  return true;
+}
+
+static __always_inline int socket_match_lsm(struct socket *sock, struct sockaddr *address, int addrlen, u8 direction, u32 eventID)
+{
+  if (!sock) {
+    return 0;
+  }
+
+  int sock_type = BPF_CORE_READ(sock, type);
+  struct sock *sk = BPF_CORE_READ(sock, sk);
+  int protocol = 0;
+  if (sk) {
+    protocol = BPF_CORE_READ(sk, sk_protocol);
+  }
+
+  struct sockaddr_in sin;
+  struct sockaddr_in6 sin6;
+  u16 family = 0;
+  u16 dport = 0;
+  u8 dip[16] = {0};
+
+  if (address) {
+    if (bpf_probe_read_kernel(&family, sizeof(family), &address->sa_family) == 0) {
+      if (family == AF_INET) {
+        if (bpf_probe_read_kernel(&sin, sizeof(sin), address) == 0) {
+          dport = bpf_ntohs(sin.sin_port);
+          *(u32 *)dip = sin.sin_addr.s_addr;
+        }
+      } else if (family == AF_INET6) {
+        if (bpf_probe_read_kernel(&sin6, sizeof(sin6), address) == 0) {
+          dport = bpf_ntohs(sin6.sin6_port);
+          #pragma unroll
+          for (int i = 0; i < 16; i++) {
+            dip[i] = sin6.sin6_addr.in6_u.u6_addr8[i];
+          }
+        }
+      }
+    }
+  }
+
+  struct task_struct *t = (struct task_struct *)bpf_get_current_task();
+  struct outer_key okey;
+  get_outer_key(&okey, t);
+
+  u32 *inner = bpf_map_lookup_elem(&kubearmor_containers, &okey);
+  if (!inner) {
+    return 0;
+  }
+
+  bool fromSourceCheck = true;
+  struct file *file_p = get_task_file(t);
+  if (file_p == NULL)
+    fromSourceCheck = false;
+  bufs_t *src_buf = get_buf(PATH_BUFFER);
+  if (src_buf == NULL)
+    fromSourceCheck = false;
+  
+  if (fromSourceCheck) {
+    struct path f_src = BPF_CORE_READ(file_p, f_path);
+    if (!prepend_path(&f_src, src_buf))
+      fromSourceCheck = false;
+  }
+
+  u32 *src_offset = get_buf_off(PATH_BUFFER);
+  if (src_offset == NULL)
+    fromSourceCheck = false;
+
+  u32 three = 3;
+  bufs_k *src_store = bpf_map_lookup_elem(&bufk, &three);
+  if (src_store != NULL) {
+    __builtin_memset(src_store->source, 0, MAX_STRING_SIZE);
+  }
+
+  if (fromSourceCheck && src_store != NULL) {
+    u32 src_off = *src_offset;
+    if (src_off < MAX_BUFFER_SIZE) {
+      void *src_ptr = &src_buf->buf[src_off];
+      bpf_probe_read_str(src_store->source, MAX_STRING_SIZE, src_ptr);
+    }
+  }
+
+  struct net_rule_key rkey = {
+    .okey = okey,
+    .index = 0
+  };
+
+  bool matched = false;
+  u8 matched_action = 0;
+
+  if (family == AF_INET || family == AF_INET6) {
+    #pragma unroll
+    for (int i = 0; i < 64; i++) {
+      rkey.index = i;
+      struct net_rule_value *rule = bpf_map_lookup_elem(&kubearmor_net_rules, &rkey);
+      if (!rule) {
+        break;
+      }
+
+      if (rule->direction != direction) {
+        continue;
+      }
+
+      if (rule->family != 0 && rule->family != family) {
+        continue;
+      }
+
+      if (rule->proto != 0 && rule->proto != protocol) {
+        continue;
+      }
+
+      if (rule->port != 0 && rule->port != dport) {
+        continue;
+      }
+
+      if (family == AF_INET) {
+        if (!ip_prefix_match_v4(*(u32 *)dip, rule->ip, rule->mask)) {
+          continue;
+        }
+      } else if (family == AF_INET6) {
+        if (!ip_prefix_match_v6(dip, rule->ip, rule->mask)) {
+          continue;
+        }
+      }
+
+      if (rule->source[0] != '\0' && src_store != NULL) {
+        if (!string_prefix_match(src_store->source, rule->source, MAX_STRING_SIZE)) {
+          continue;
+        }
+      }
+
+      matched = true;
+      matched_action = rule->action;
+      break;
+    }
+  }
+
+  if (!matched) {
+    return match_net_rules(sock_type, protocol, eventID);
+  }
+
+  int retval = 0;
+  if (matched_action == 0) { // BLOCK
+    retval = -EPERM;
+  } else if (matched_action == 1) { // AUDIT
+    retval = 0;
+  }
+
+  if (retval != -EPERM && (!matched || matched_action != 1)) {
+    return 0;
+  }
+
+  if (get_kubearmor_config(_ALERT_THROTTLING) && should_drop_alerts_per_container(okey)) {
+    return retval;
+  }
+
+  event *task_info = bpf_ringbuf_reserve(&kubearmor_events, sizeof(event), 0);
+  if (!task_info) {
+    return retval;
+  }
+
+  __builtin_memset(task_info->data.path, 0, sizeof(task_info->data.path));
+  __builtin_memset(task_info->data.source, 0, sizeof(task_info->data.source));
+
+  init_context(task_info);
+  task_info->event_id = eventID;
+  task_info->retval = retval;
+
+  char *dpath = task_info->data.path;
+  
+  if (direction == 0) {
+    dpath[0] = 'e'; dpath[1] = 'g'; dpath[2] = 'r'; dpath[3] = 'e'; dpath[4] = 's'; dpath[5] = 's'; dpath[6] = ' ';
+  } else {
+    dpath[0] = 'i'; dpath[1] = 'n'; dpath[2] = 'g'; dpath[3] = 'r'; dpath[4] = 'e'; dpath[5] = 's'; dpath[6] = 's';
+  }
+
+  int offset = 7;
+  if (protocol == IPPROTO_TCP) {
+    dpath[offset] = 'T'; dpath[offset+1] = 'C'; dpath[offset+2] = 'P'; dpath[offset+3] = ' ';
+    offset += 4;
+  } else if (protocol == IPPROTO_UDP) {
+    dpath[offset] = 'U'; dpath[offset+1] = 'D'; dpath[offset+2] = 'P'; dpath[offset+3] = ' ';
+    offset += 4;
+  } else if (protocol == IPPROTO_ICMP) {
+    dpath[offset] = 'I'; dpath[offset+1] = 'C'; dpath[offset+2] = 'M'; dpath[offset+3] = 'P'; dpath[offset+4] = ' ';
+    offset += 5;
+  } else {
+    dpath[offset] = 'O'; dpath[offset+1] = 'T'; dpath[offset+2] = 'H'; dpath[offset+3] = 'E'; dpath[offset+4] = 'R'; dpath[offset+5] = ' ';
+    offset += 6;
+  }
+
+  if (family == AF_INET) {
+    u8 octet0 = dip[0];
+    u8 octet1 = dip[1];
+    u8 octet2 = dip[2];
+    u8 octet3 = dip[3];
+    
+    dpath[offset++] = 'I'; dpath[offset++] = 'P'; dpath[offset++] = '=';
+    
+    int temp = octet0;
+    if (temp >= 100) { dpath[offset++] = '0' + (temp / 100); temp %= 100; dpath[offset++] = '0' + (temp / 10); dpath[offset++] = '0' + (temp % 10); }
+    else if (temp >= 10) { dpath[offset++] = '0' + (temp / 10); dpath[offset++] = '0' + (temp % 10); }
+    else { dpath[offset++] = '0' + temp; }
+    dpath[offset++] = '.';
+
+    temp = octet1;
+    if (temp >= 100) { dpath[offset++] = '0' + (temp / 100); temp %= 100; dpath[offset++] = '0' + (temp / 10); dpath[offset++] = '0' + (temp % 10); }
+    else if (temp >= 10) { dpath[offset++] = '0' + (temp / 10); dpath[offset++] = '0' + (temp % 10); }
+    else { dpath[offset++] = '0' + temp; }
+    dpath[offset++] = '.';
+
+    temp = octet2;
+    if (temp >= 100) { dpath[offset++] = '0' + (temp / 100); temp %= 100; dpath[offset++] = '0' + (temp / 10); dpath[offset++] = '0' + (temp % 10); }
+    else if (temp >= 10) { dpath[offset++] = '0' + (temp / 10); dpath[offset++] = '0' + (temp % 10); }
+    else { dpath[offset++] = '0' + temp; }
+    dpath[offset++] = '.';
+
+    temp = octet3;
+    if (temp >= 100) { dpath[offset++] = '0' + (temp / 100); temp %= 100; dpath[offset++] = '0' + (temp / 10); dpath[offset++] = '0' + (temp % 10); }
+    else if (temp >= 10) { dpath[offset++] = '0' + (temp / 10); dpath[offset++] = '0' + (temp % 10); }
+    else { dpath[offset++] = '0' + temp; }
+    
+  } else if (family == AF_INET6) {
+    dpath[offset++] = 'I'; dpath[offset++] = 'P'; dpath[offset++] = 'v'; dpath[offset++] = '6'; dpath[offset++] = '=';
+    dpath[offset++] = 'a'; dpath[offset++] = 'd'; dpath[offset++] = 'd'; dpath[offset++] = 'r';
+  }
+
+  dpath[offset++] = ' '; dpath[offset++] = 'p'; dpath[offset++] = 'o'; dpath[offset++] = 'r'; dpath[offset++] = 't'; dpath[offset++] = '=';
+  int ptemp = dport;
+  if (ptemp >= 10000) { dpath[offset++] = '0' + (ptemp / 10000); ptemp %= 10000; dpath[offset++] = '0' + (ptemp / 1000); ptemp %= 1000; dpath[offset++] = '0' + (ptemp / 100); ptemp %= 100; dpath[offset++] = '0' + (ptemp / 10); dpath[offset++] = '0' + (ptemp % 10); }
+  else if (ptemp >= 1000) { dpath[offset++] = '0' + (ptemp / 1000); ptemp %= 1000; dpath[offset++] = '0' + (ptemp / 100); ptemp %= 100; dpath[offset++] = '0' + (ptemp / 10); dpath[offset++] = '0' + (ptemp % 10); }
+  else if (ptemp >= 100) { dpath[offset++] = '0' + (ptemp / 100); ptemp %= 100; dpath[offset++] = '0' + (ptemp / 10); dpath[offset++] = '0' + (ptemp % 10); }
+  else if (ptemp >= 10) { dpath[offset++] = '0' + (ptemp / 10); dpath[offset++] = '0' + (ptemp % 10); }
+  else { dpath[offset++] = '0' + ptemp; }
+
+  if (src_store != NULL) {
+    #pragma unroll
+    for (int j = 0; j < MAX_STRING_SIZE; j++) {
+      task_info->data.source[j] = src_store->source[j];
+    }
+  }
+
+  bpf_ringbuf_submit(task_info, 0);
+  return retval;
+}
+
 #define LSM_NET(name, ID)                            \
   int BPF_PROG(name, struct socket *sock)            \
   {                                                  \
@@ -664,7 +925,16 @@ int BPF_PROG(enforce_net_create, int family, int type, int protocol)
   }
 
 SEC("lsm/socket_connect")
-LSM_NET(enforce_net_connect, _SOCKET_CONNECT);
+int BPF_PROG(enforce_net_connect, struct socket *sock, struct sockaddr *address, int addrlen)
+{
+  return socket_match_lsm(sock, address, addrlen, 0, _SOCKET_CONNECT);
+}
+
+SEC("lsm/socket_bind")
+int BPF_PROG(enforce_net_bind, struct socket *sock, struct sockaddr *address, int addrlen)
+{
+  return socket_match_lsm(sock, address, addrlen, 1, _SOCKET_BIND);
+}
 
 SEC("lsm/socket_accept")
 LSM_NET(enforce_net_accept, _SOCKET_ACCEPT);

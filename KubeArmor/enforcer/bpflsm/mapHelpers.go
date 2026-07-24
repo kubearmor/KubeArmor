@@ -98,6 +98,21 @@ func (be *BPFEnforcer) DeleteContainerInnerMap(containerID string) {
 			}
 		}
 
+		if be.obj.KubearmorNetRules != nil {
+			for i := uint32(0); i < 64; i++ {
+				netKey := enforcerNetRuleKey{
+					Index: i,
+				}
+				netKey.Okey.PidNs = be.ContainerMap[containerID].Key.PidNS
+				netKey.Okey.MntNs = be.ContainerMap[containerID].Key.MntNS
+				if err := be.obj.KubearmorNetRules.Delete(netKey); err != nil {
+					if !errors.Is(err, os.ErrNotExist) {
+						be.Logger.Errf("error deleting net rule for container %s in kubearmor_net_rules map: %s", containerID, err.Error())
+					}
+				}
+			}
+		}
+
 		for key, val := range be.ContainerMap[containerID].Rules.ArgumentsList {
 
 			for _, arg := range val {

@@ -521,10 +521,24 @@ type MatchDNSQueryType struct {
 	Action     string            `json:"action,omitempty"`
 }
 
+// NetworkRuleType Structure for CIDR/Port Socket Filtering
+type NetworkRuleType struct {
+	Direction  string            `json:"direction,omitempty"` // egress, ingress
+	Protocol   string            `json:"protocol,omitempty"`  // tcp, udp, icmp, icmpv6
+	IP         string            `json:"ip,omitempty"`        // CIDR format, e.g. 192.168.1.0/24
+	Port       uint16            `json:"port,omitempty"`      // Port number
+	FromSource []MatchSourceType `json:"fromSource,omitempty"`
+	Severity   int               `json:"severity,omitempty"`
+	Tags       []string          `json:"tags,omitempty"`
+	Message    string            `json:"message,omitempty"`
+	Action     string            `json:"action,omitempty"`
+}
+
 // NetworkType Structure
 type NetworkType struct {
 	MatchProtocols  []NetworkProtocolType `json:"matchProtocols,omitempty"`
 	MatchDNSQueries []MatchDNSQueryType   `json:"matchDNSQueries,omitempty"`
+	MatchRules      []NetworkRuleType     `json:"matchRules,omitempty"`
 
 	Severity int      `json:"severity,omitempty"`
 	Tags     []string `json:"tags,omitempty"`
