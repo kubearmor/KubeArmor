@@ -28,6 +28,7 @@ RUN CGO_ENABLED=0 GO111MODULE=on go build -a -o manager cmd/main.go
 FROM scratch AS controller
 WORKDIR /
 COPY --from=builder /workspace/manager .
+USER 1000
 ENTRYPOINT ["/manager"]
 
 # Build controller with ubi as base image
