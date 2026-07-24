@@ -20,17 +20,22 @@ type KubearmorConfig struct {
 	Cluster string // Cluster name to use for feeds
 	Host    string // Host name to use for feeds
 
-	GRPC              string // gRPC Port to use
-	GRPCHealthPort    string // gRPC Health Port to use
-	TLSEnabled        bool   // enable tls
-	TLSCertPath       string // tls certification path
-	TLSCertProvider   string // tls certificate provider
-	LogPath           string // Log file to use
-	SELinuxProfileDir string // Directory to store SELinux profiles
-	CRISocket         string // Container runtime to use
-	NRISocket         string // NRI socket to use
-	NRIIndex          string // NRI socket to use
-	NRIEnabled        bool   // enable NRI
+	GRPC                      string // gRPC Port to use
+	ManagementGRPC            string // Management GRPC Port to use
+	GRPCHealthPort            string // gRPC Health Port to use
+	TLSEnabled                bool   // enable tls
+	TLSCertPath               string // tls certification path for observability
+	TLSCertProvider           string // tls certificate provider for observability
+	ManagementTLSCertPath     string // tls certification path for management
+	ManagementTLSCertProvider string // tls certificate provider for management
+	ManagementSocketPath      string // management unix domain socket path
+	ManagementFallbackAddr    string // management tcp fallback address
+	LogPath                   string // Log file to use
+	SELinuxProfileDir         string // Directory to store SELinux profiles
+	CRISocket                 string // Container runtime to use
+	NRISocket                 string // NRI socket to use
+	NRIIndex                  string // NRI socket to use
+	NRIEnabled                bool   // enable NRI
 
 	Visibility     string // Container visibility to use
 	HostVisibility string // Host visibility to use
@@ -92,9 +97,14 @@ const (
 	ConfigCluster                        string = "cluster"
 	ConfigHost                           string = "host"
 	ConfigGRPC                           string = "gRPC"
+	ConfigManagementGRPC                 string = "managementGRPC"
 	ConfigGRPCHealthPort                 string = "gRPCHealthPort"
 	ConfigTLSCertPath                    string = "tlsCertPath"
 	ConfigTLSCertProvider                string = "tlsCertProvider"
+	ConfigManagementTLSCertPath          string = "managementTLSCertPath"
+	ConfigManagementTLSCertProvider      string = "managementTLSCertProvider"
+	ConfigManagementSocketPath           string = "managementSocketPath"
+	ConfigManagementFallbackAddr         string = "managementFallbackAddr"
 	SelfCertProvider                     string = "self"
 	ExternalCertProvider                 string = "external"
 	ConfigTLS                            string = "tlsEnabled"
@@ -146,10 +156,13 @@ func readCmdLineParams() {
 	hostStr := flag.String(ConfigHost, hostname, "host name")
 
 	grpcStr := flag.String(ConfigGRPC, "32767", "gRPC port number")
+	managementGRPCStr := flag.String(ConfigManagementGRPC, "32768", "management gRPC port number")
 	grpcHealthStr := flag.String(ConfigGRPCHealthPort, "32766", "gRPC health check port number")
-	tlsEnabled := flag.Bool(ConfigTLS, false, "enable tls for secure grpc connection")
+	tlsEnabled := flag.Bool(ConfigTLS, true, "enable tls for secure grpc connection")
 	tlsCertsStr := flag.String(ConfigTLSCertPath, "/var/lib/kubearmor/tls", "path to tls ca certificate files ca.crt, ca.crt")
-	tlsCertProvider := flag.String(ConfigTLSCertProvider, "self", "source of certificate {self|external}, self: create certificate dynamically, external: provided by some external entity")
+	tlsCertProvider := flag.String(ConfigTLSCertProvider, "self", "source of certificate {self|external|dev}, self: create certificate dynamically, external: provided by some external entity, dev: use development CA certificate")
+	managementTLSCertStr := flag.String(ConfigManagementTLSCertPath, "", "management tls cert path (defaults to {tlsCertPath}/management)")
+	managementTLSCertProvider := flag.String(ConfigManagementTLSCertProvider, "", "management tls cert provider {self|external|dev} (defaults to tlsCertProvider)")
 	logStr := flag.String(ConfigLogPath, "none", "log file path, {path|stdout|none}")
 	seLinuxProfileDirStr := flag.String(ConfigSELinuxProfileDir, "/tmp/kubearmor.selinux", "SELinux profile directory")
 	criSocket := flag.String(ConfigCRISocket, "", "path to CRI socket (format: unix:///path/to/file.sock)")
@@ -214,6 +227,9 @@ func readCmdLineParams() {
 
 	networkPolicyEnforcer := flag.Bool(ConfigNetworkPolicyEnforcer, true, "Enable network policy enforcement")
 
+	managementSocketPath := flag.String(ConfigManagementSocketPath, "", "management unix domain socket path (default: disabled, uses TCP)")
+	managementFallbackAddr := flag.String(ConfigManagementFallbackAddr, "", "management tcp fallback address (defaults to :ManagementGRPC)")
+
 	flags := []string{}
 	flag.VisitAll(func(f *flag.Flag) {
 		kv := fmt.Sprintf("%s:%v", f.Name, f.Value)
@@ -227,10 +243,13 @@ func readCmdLineParams() {
 	viper.SetDefault(ConfigHost, *hostStr)
 
 	viper.SetDefault(ConfigGRPC, *grpcStr)
+	viper.SetDefault(ConfigManagementGRPC, *managementGRPCStr)
 	viper.SetDefault(ConfigGRPCHealthPort, *grpcHealthStr)
 	viper.SetDefault(ConfigTLS, *tlsEnabled)
 	viper.SetDefault(ConfigTLSCertPath, *tlsCertsStr)
 	viper.SetDefault(ConfigTLSCertProvider, *tlsCertProvider)
+	viper.SetDefault(ConfigManagementTLSCertPath, *managementTLSCertStr)
+	viper.SetDefault(ConfigManagementTLSCertProvider, *managementTLSCertProvider)
 	viper.SetDefault(ConfigLogPath, *logStr)
 	viper.SetDefault(ConfigSELinuxProfileDir, *seLinuxProfileDirStr)
 	viper.SetDefault(ConfigCRISocket, *criSocket)
@@ -296,6 +315,9 @@ func readCmdLineParams() {
 	viper.SetDefault(ConfigArgMatching, *matchArgs)
 
 	viper.SetDefault(ConfigNetworkPolicyEnforcer, *networkPolicyEnforcer)
+
+	viper.SetDefault(ConfigManagementSocketPath, *managementSocketPath)
+	viper.SetDefault(ConfigManagementFallbackAddr, *managementFallbackAddr)
 }
 
 // LoadConfig Load configuration
@@ -331,10 +353,24 @@ func LoadConfig() error {
 	}
 
 	GlobalCfg.GRPC = viper.GetString(ConfigGRPC)
+	GlobalCfg.ManagementGRPC = viper.GetString(ConfigManagementGRPC)
+	GlobalCfg.ManagementSocketPath = viper.GetString(ConfigManagementSocketPath)
+	GlobalCfg.ManagementFallbackAddr = viper.GetString(ConfigManagementFallbackAddr)
+	if GlobalCfg.ManagementFallbackAddr == "" {
+		GlobalCfg.ManagementFallbackAddr = ":" + GlobalCfg.ManagementGRPC
+	}
 	GlobalCfg.GRPCHealthPort = viper.GetString(ConfigGRPCHealthPort)
 	GlobalCfg.TLSEnabled = viper.GetBool(ConfigTLS)
 	GlobalCfg.TLSCertPath = viper.GetString(ConfigTLSCertPath)
 	GlobalCfg.TLSCertProvider = viper.GetString(ConfigTLSCertProvider)
+	GlobalCfg.ManagementTLSCertPath = viper.GetString(ConfigManagementTLSCertPath)
+	if GlobalCfg.ManagementTLSCertPath == "" {
+		GlobalCfg.ManagementTLSCertPath = GlobalCfg.TLSCertPath + "/management"
+	}
+	GlobalCfg.ManagementTLSCertProvider = viper.GetString(ConfigManagementTLSCertProvider)
+	if GlobalCfg.ManagementTLSCertProvider == "" {
+		GlobalCfg.ManagementTLSCertProvider = GlobalCfg.TLSCertProvider
+	}
 	GlobalCfg.LogPath = viper.GetString(ConfigLogPath)
 
 	GlobalCfg.CRISocket = os.Getenv("CRI_SOCKET")

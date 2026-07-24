@@ -17,6 +17,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -121,10 +122,213 @@ func GetServerCertPath(base string) CertPath {
 	}
 }
 
+// KubeArmorServerSANs returns the default server SANs expected by local,
+// node-level, and in-cluster clients. The serverName parameter is the
+// primary DNS identity (e.g. "kubearmor" for the observability server,
+// "kubearmor-management" for the management server).
+func KubeArmorServerSANs(nodeIP string, serverName string, extraNames ...string) ([]string, []string) {
+	var dnsNames []string
+	var ipNames []string
+	seenDNS := map[string]struct{}{}
+	seenIP := map[string]struct{}{}
+
+	addName := func(name string) {
+		name = strings.TrimSpace(name)
+		if name == "" {
+			return
+		}
+		if ip := net.ParseIP(name); ip != nil {
+			ipName := ip.String()
+			if _, ok := seenIP[ipName]; !ok {
+				ipNames = append(ipNames, ipName)
+				seenIP[ipName] = struct{}{}
+			}
+			return
+		}
+		if _, ok := seenDNS[name]; !ok {
+			dnsNames = append(dnsNames, name)
+			seenDNS[name] = struct{}{}
+		}
+	}
+
+	addName("localhost")
+	addName(serverName)
+
+	if hostname, err := os.Hostname(); err == nil {
+		addName(hostname)
+	}
+
+	for _, name := range extraNames {
+		addName(name)
+	}
+
+	if namespace := strings.TrimSpace(os.Getenv("KUBEARMOR_NAMESPACE")); namespace != "" {
+		addName(serverName + "." + namespace)
+		addName(serverName + "." + namespace + ".svc")
+		addName(serverName + "." + namespace + ".svc.cluster.local")
+	}
+
+	addName("127.0.0.1")
+	addName("::1")
+	addName(nodeIP)
+
+	return dnsNames, ipNames
+}
+
+// certPairExists checks if the certificate pair (certificate and key) exists at the given path
+func certPairExists(path *CertPath) bool {
+	if _, err := os.Stat(filepath.Join(path.Base, path.CertFile)); err != nil {
+		return false
+	}
+
+	if !path.CertOnly {
+		if _, err := os.Stat(filepath.Join(path.Base, path.KeyFile)); err != nil {
+			return false
+		}
+	}
+
+	return true
+}
+
+// EnsureDevelopmentPKI ensures the complete development PKI exists.
+// It bootstraps the CA, server certificate and client certificate
+// on first startup. Subsequent startups simply reuse the existing
+// certificates. serverName is the primary DNS identity (e.g. "kubearmor").
+func EnsureDevelopmentPKI(base string, nodeIP string, serverName string, extraNames ...string) error {
+	if err := os.MkdirAll(base, 0750); err != nil {
+		return err
+	}
+
+	caPath := GetCACertPath(base)
+	serverPath := GetServerCertPath(base)
+	clientPath := GetClientCertPath(base)
+
+	// ------------------------------------------------------------------
+	// Ensure CA
+	// ------------------------------------------------------------------
+
+	var ca *CertKeyPair
+
+	if !certPairExists(&caPath) {
+		klog.Infof("Generating development CA")
+
+		DefaultKubeArmorCAConfig.NotAfter = time.Now().AddDate(10, 0, 0)
+
+		caBytes, err := GenerateCA(&DefaultKubeArmorCAConfig)
+		if err != nil {
+			return err
+		}
+
+		if err := os.WriteFile(
+			filepath.Join(caPath.Base, caPath.CertFile),
+			caBytes.Crt,
+			0600,
+		); err != nil {
+			return err
+		}
+
+		if err := os.WriteFile(
+			filepath.Join(caPath.Base, caPath.KeyFile),
+			caBytes.Key,
+			0600,
+		); err != nil {
+			return err
+		}
+
+		ca, err = GetCertKeyPairFromCertBytes(caBytes)
+		if err != nil {
+			return err
+		}
+	} else {
+		caBytes, err := ReadCertFromFile(&caPath)
+		if err != nil {
+			return err
+		}
+
+		ca, err = GetCertKeyPairFromCertBytes(caBytes)
+		if err != nil {
+			return err
+		}
+	}
+
+	// ------------------------------------------------------------------
+	// Ensure Server Certificate
+	// ------------------------------------------------------------------
+
+	if !certPairExists(&serverPath) {
+		klog.Infof("Generating development server certificate")
+
+		cfg := DefaultKubeArmorServerConfig
+		cfg.DNS, cfg.IPs = KubeArmorServerSANs(nodeIP, serverName, extraNames...)
+		cfg.NotAfter = time.Now().AddDate(1, 0, 0)
+
+		serverBytes, err := GenerateSelfSignedCert(ca, &cfg)
+		if err != nil {
+			return err
+		}
+
+		if err := os.WriteFile(
+			filepath.Join(serverPath.Base, serverPath.CertFile),
+			serverBytes.Crt,
+			0600,
+		); err != nil {
+			return err
+		}
+
+		if err := os.WriteFile(
+			filepath.Join(serverPath.Base, serverPath.KeyFile),
+			serverBytes.Key,
+			0600,
+		); err != nil {
+			return err
+		}
+	}
+
+	// ------------------------------------------------------------------
+	// Ensure Client Certificate
+	// ------------------------------------------------------------------
+
+	if !certPairExists(&clientPath) {
+		klog.Infof("Generating development client certificate")
+
+		cfg := DefaultKubeArmorClientConfig
+		cfg.NotAfter = time.Now().AddDate(1, 0, 0)
+
+		clientBytes, err := GenerateSelfSignedCert(ca, &cfg)
+		if err != nil {
+			return err
+		}
+
+		if err := os.WriteFile(
+			filepath.Join(clientPath.Base, clientPath.CertFile),
+			clientBytes.Crt,
+			0600,
+		); err != nil {
+			return err
+		}
+
+		if err := os.WriteFile(
+			filepath.Join(clientPath.Base, clientPath.KeyFile),
+			clientBytes.Key,
+			0600,
+		); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func GetCertKeyPairFromCertBytes(certBytes *CertBytes) (*CertKeyPair, error) {
 	// Parse CA certificate and key
 	certPem, _ := pem.Decode(certBytes.Crt)
+	if certPem == nil {
+		return nil, fmt.Errorf("failed to decode CA certificate")
+	}
 	keyPem, _ := pem.Decode(certBytes.Key)
+	if keyPem == nil {
+		return nil, fmt.Errorf("failed to decode CA private key")
+	}
 
 	crt, err := x509.ParseCertificate(certPem.Bytes)
 	if err != nil {
@@ -238,7 +442,9 @@ func GenerateCert(cfg *CertConfig) (*CertKeyPair, error) {
 	template.DNSNames = append(template.DNSNames, cfg.DNS...)
 
 	for _, ip := range cfg.IPs {
-		template.IPAddresses = append(template.IPAddresses, net.ParseIP(ip))
+		if parsedIP := net.ParseIP(ip); parsedIP != nil {
+			template.IPAddresses = append(template.IPAddresses, parsedIP)
+		}
 	}
 
 	return &CertKeyPair{Crt: &template, Key: key}, nil

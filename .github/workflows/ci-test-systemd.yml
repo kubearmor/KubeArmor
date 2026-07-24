@@ -60,6 +60,39 @@ jobs:
         run: sudo apt install -y ./dist/kubearmor*amd64.deb
         working-directory: KubeArmor
 
+      - name: Configure KubeArmor mTLS for systemd tests
+        run: |
+          sudo systemctl stop kubearmor
+          sudo install -d -m 0750 /var/lib/kubearmor/tls
+          sudo install -d /etc/systemd/system/kubearmor.service.d
+          sudo tee /etc/systemd/system/kubearmor.service.d/ci-mtls.conf >/dev/null <<'EOF'
+          [Service]
+          ExecStart=
+          ExecStart=/opt/kubearmor/kubearmor -tlsCertProvider=dev -tlsCertPath=/var/lib/kubearmor/tls
+          EOF
+          sudo systemctl daemon-reload
+          sudo systemctl restart kubearmor
+          for file in ca.crt server.crt server.key client.crt client.key; do
+            for i in {1..30}; do
+              sudo test -s /var/lib/kubearmor/tls/$file && break
+              sleep 1
+            done
+            sudo test -s /var/lib/kubearmor/tls/$file
+          done
+          for file in ca.crt server.crt server.key client.crt client.key; do
+            for i in {1..30}; do
+              sudo test -s /var/lib/kubearmor/tls/management/$file && break
+              sleep 1
+            done
+            sudo test -s /var/lib/kubearmor/tls/management/$file
+          done
+          sudo chown "$USER:$USER" /var/lib/kubearmor/tls /var/lib/kubearmor/tls/ca.crt /var/lib/kubearmor/tls/client.crt /var/lib/kubearmor/tls/client.key
+          sudo chown -R "$USER:$USER" /var/lib/kubearmor/tls/management
+          sudo chmod 0750 /var/lib/kubearmor/tls
+          sudo chmod 0600 /var/lib/kubearmor/tls/*
+          sudo chmod 0750 /var/lib/kubearmor/tls/management
+          sudo chmod 0600 /var/lib/kubearmor/tls/management/*
+
       - name: Check journalctl
         run: sudo journalctl -u kubearmor --no-pager
       
@@ -68,6 +101,8 @@ jobs:
           go install -mod=mod github.com/onsi/ginkgo/v2/ginkgo
           make
         working-directory: ./tests/nonk8s_env
+        env:
+          KUBEARMOR_TLS_CERT_PATH: /var/lib/kubearmor/tls
         timeout-minutes: 30
         
       
