@@ -6,6 +6,7 @@ package blockposture
 import (
 	"time"
 
+	pb "github.com/kubearmor/KubeArmor/protobuf"
 	"github.com/kubearmor/KubeArmor/tests/util"
 	. "github.com/kubearmor/KubeArmor/tests/util"
 	. "github.com/onsi/ginkgo/v2"
@@ -84,11 +85,12 @@ var _ = Describe("Posture", func() {
 				MatchRegexp("<!DOCTYPE html>((?:.*\r?\n?)*)</html>"), true,
 			)
 			// check policy violation alert
-			_, alerts, err := KarmorGetLogs(10*time.Second, 1)
+			res, err := KarmorGetTargetAlert(10*time.Second, &pb.Alert{
+				PolicyName: "DefaultPosture",
+				Action:     "Block",
+			})
 			Expect(err).To(BeNil())
-			Expect(len(alerts)).To(BeNumerically(">=", 1))
-			Expect(alerts[0].PolicyName).To(Equal("DefaultPosture"))
-			Expect(alerts[0].Action).To(Equal("Block"))
+			Expect(res.Found).To(BeTrue())
 		})
 	})
 
