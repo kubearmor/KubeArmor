@@ -650,6 +650,10 @@ ringbuf:
 SEC("lsm/socket_create")
 int BPF_PROG(enforce_net_create, int family, int type, int protocol)
 {
+  if (family != AF_INET && family != AF_INET6)
+  {
+    return 0;
+  }
   return match_net_rules(type, protocol, _SOCKET_CREATE);
 }
 
@@ -681,7 +685,13 @@ static __always_inline int socket_match_lsm(struct socket *sock, struct sockaddr
   struct sock *sk = BPF_CORE_READ(sock, sk);
   int protocol = 0;
   if (sk) {
+    u16 sock_family = BPF_CORE_READ(sk, __sk_common.skc_family);
+    if (sock_family != AF_INET && sock_family != AF_INET6) {
+      return 0;
+    }
     protocol = BPF_CORE_READ(sk, sk_protocol);
+  } else {
+    return 0;
   }
 
   struct sockaddr_in sin;
@@ -914,16 +924,6 @@ static __always_inline int socket_match_lsm(struct socket *sock, struct sockaddr
   return retval;
 }
 
-#define LSM_NET(name, ID)                            \
-  int BPF_PROG(name, struct socket *sock)            \
-  {                                                  \
-    int sock_type = BPF_CORE_READ(sock, type);       \
-    struct sock *sk;                                 \
-    sk = BPF_CORE_READ(sock, sk);                    \
-    int protocol = BPF_CORE_READ(sk, sk_protocol);   \
-    return match_net_rules(sock_type, protocol, ID); \
-  }
-
 SEC("lsm/socket_connect")
 int BPF_PROG(enforce_net_connect, struct socket *sock, struct sockaddr *address, int addrlen)
 {
@@ -937,7 +937,20 @@ int BPF_PROG(enforce_net_bind, struct socket *sock, struct sockaddr *address, in
 }
 
 SEC("lsm/socket_accept")
-LSM_NET(enforce_net_accept, _SOCKET_ACCEPT);
+int BPF_PROG(enforce_net_accept, struct socket *sock, struct socket *newsock)
+{
+  int sock_type = BPF_CORE_READ(sock, type);
+  struct sock *sk = BPF_CORE_READ(sock, sk);
+  if (!sk) {
+    return 0;
+  }
+  u16 family = BPF_CORE_READ(sk, __sk_common.skc_family);
+  if (family != AF_INET && family != AF_INET6) {
+    return 0;
+  }
+  int protocol = BPF_CORE_READ(sk, sk_protocol);
+  return match_net_rules(sock_type, protocol, _SOCKET_ACCEPT);
+}
 
 SEC("lsm/file_open")
 int BPF_PROG(enforce_file, struct file *file)
