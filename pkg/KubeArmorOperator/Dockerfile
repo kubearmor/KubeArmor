@@ -27,10 +27,7 @@ RUN arch=$(uname -m) bpftool_version=v7.3.0 && \
 
 RUN test -s KubeArmor/BPF/vmlinux.h || \
     (bpftool btf dump file /sys/kernel/btf/vmlinux format c > KubeArmor/BPF/vmlinux.h || \
-     (echo "ERROR: could not generate vmlinux.h -- /sys/kernel/btf/vmlinux not visible" \
-           "in this build environment (common with buildx docker-container driver)." \
-           "Generate vmlinux.h on the HOST before docker build instead, so COPY picks it up." \
-      && exit 1))
+     (echo "ERROR: Generate vmlinux.h on the host before docker build." && exit 1))
 
 RUN cd KubeArmor && go generate ./...
 
