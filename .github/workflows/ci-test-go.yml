@@ -45,7 +45,7 @@ jobs:
           go-version-file: 'KubeArmor/go.mod'
 
       - name: Run Revive Action on KubeArmor
-        uses: morphy2k/revive-action@bd8016177e3722fe0aad85e22507805641be5bb1 # v2
+        uses: docker://ghcr.io/morphy2k/revive-action:v2
         with:
           path: "./KubeArmor/..."
 
@@ -59,7 +59,7 @@ jobs:
           go-version-file: 'KubeArmor/go.mod'
 
       - name: Run Revive Action on KubeArmor tests
-        uses: morphy2k/revive-action@bd8016177e3722fe0aad85e22507805641be5bb1 # v2
+        uses: docker://ghcr.io/morphy2k/revive-action:v2
         with:
           path: "./tests/..."
 
