@@ -12,6 +12,16 @@ WORKDIR /usr/src/KubeArmor
 
 COPY . .
 
+RUN arch=$(uname -m) bpftool_version=v7.3.0 && \
+    if [[ "$arch" == "aarch64" ]]; then \
+        arch=arm64; \
+    elif [[ "$arch" == "x86_64" ]]; then \
+        arch=amd64; \
+    fi && \
+    curl -LO https://github.com/libbpf/bpftool/releases/download/$bpftool_version/bpftool-$bpftool_version-$arch.tar.gz && \
+    tar -xzf bpftool-$bpftool_version-$arch.tar.gz -C /usr/local/bin && \
+    chmod +x /usr/local/bin/bpftool
+
 WORKDIR /usr/src/KubeArmor/KubeArmor
 
 RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.11
@@ -20,18 +30,6 @@ RUN go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.6.1
 RUN make
 
 WORKDIR /usr/src/KubeArmor/BPF
-
-# install bpftool  
-RUN arch=$(uname -m) bpftool_version=v7.3.0 && \
-    if [[ "$arch" == "aarch64" ]]; then \
-        arch=arm64; \
-    elif [[ "$arch" == "x86_64" ]]; then \
-        arch=amd64; \   
-    fi && \
-    curl -LO https://github.com/libbpf/bpftool/releases/download/$bpftool_version/bpftool-$bpftool_version-$arch.tar.gz && \
-    tar -xzf bpftool-$bpftool_version-$arch.tar.gz -C /usr/local/bin && \
-    chmod +x /usr/local/bin/bpftool
-
 
 COPY ./KubeArmor/BPF .
 
