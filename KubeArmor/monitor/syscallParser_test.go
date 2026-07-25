@@ -17,8 +17,8 @@ func writeMockString(buf *bytes.Buffer, s string) {
 	// then bytes of s, then null terminator (byte 0)
 	size := int32(len(s) + 1)
 	_ = binary.Write(buf, binary.LittleEndian, size)
-	buf.WriteString(s)
-	buf.WriteByte(0)
+	_, _ = buf.WriteString(s)
+	_ = buf.WriteByte(0)
 }
 
 func TestReadContextFromBuff(t *testing.T) {
@@ -77,7 +77,7 @@ func TestReadArgFromBuff(t *testing.T) {
 		{
 			name: "intT",
 			setup: func(b *bytes.Buffer) {
-				b.WriteByte(intT)
+				_ = b.WriteByte(intT)
 				_ = binary.Write(b, binary.LittleEndian, int32(42))
 			},
 			expected: int32(42),
@@ -85,7 +85,7 @@ func TestReadArgFromBuff(t *testing.T) {
 		{
 			name: "strT",
 			setup: func(b *bytes.Buffer) {
-				b.WriteByte(strT)
+				_ = b.WriteByte(strT)
 				writeMockString(b, "hello")
 			},
 			expected: "hello",
@@ -93,7 +93,7 @@ func TestReadArgFromBuff(t *testing.T) {
 		{
 			name: "strT empty",
 			setup: func(b *bytes.Buffer) {
-				b.WriteByte(strT)
+				_ = b.WriteByte(strT)
 				_ = binary.Write(b, binary.LittleEndian, int32(0))
 			},
 			expected: "",
@@ -522,27 +522,27 @@ func FuzzReadContextFromBuff(f *testing.F) {
 func FuzzReadArgFromBuff(f *testing.F) {
 	// Seed 1: intT
 	var buf1 bytes.Buffer
-	buf1.WriteByte(intT)
+	_ = buf1.WriteByte(intT)
 	_ = binary.Write(&buf1, binary.LittleEndian, int32(42))
 	f.Add(buf1.Bytes())
 
 	// Seed 2: strT
 	var buf2 bytes.Buffer
-	buf2.WriteByte(strT)
+	_ = buf2.WriteByte(strT)
 	writeMockString(&buf2, "fuzz_str")
 	f.Add(buf2.Bytes())
 
 	// Seed 3: strArrT
 	var buf3 bytes.Buffer
-	buf3.WriteByte(strArrT)
-	buf3.WriteByte(strT)
+	_ = buf3.WriteByte(strArrT)
+	_ = buf3.WriteByte(strT)
 	writeMockString(&buf3, "a")
-	buf3.WriteByte(strArrT)
+	_ = buf3.WriteByte(strArrT)
 	f.Add(buf3.Bytes())
 
 	// Seed 4: sockAddrT AF_INET
 	var buf4 bytes.Buffer
-	buf4.WriteByte(sockAddrT)
+	_ = buf4.WriteByte(sockAddrT)
 	_ = binary.Write(&buf4, binary.LittleEndian, int16(2))            // AF_INET
 	_ = binary.Write(&buf4, binary.BigEndian, uint16(8080))           // Port
 	_ = binary.Write(&buf4, binary.BigEndian, uint32(0x7f000001))     // IP
@@ -557,11 +557,11 @@ func FuzzReadArgFromBuff(f *testing.F) {
 
 func FuzzGetHashes(f *testing.F) {
 	var buf bytes.Buffer
-	buf.WriteByte(1)
+	_ = buf.WriteByte(1)
 	_ = binary.Write(&buf, binary.LittleEndian, int32(30))
 	var h [32]byte
 	copy(h[:], "somehashdatahere")
-	buf.Write(h[:])
+	_, _ = buf.Write(h[:])
 	f.Add(buf.Bytes())
 
 	f.Fuzz(func(t *testing.T, data []byte) {
@@ -572,7 +572,7 @@ func FuzzGetHashes(f *testing.F) {
 
 func FuzzGetArgs(f *testing.F) {
 	var buf bytes.Buffer
-	buf.WriteByte(intT)
+	_ = buf.WriteByte(intT)
 	_ = binary.Write(&buf, binary.LittleEndian, int32(100))
 	f.Add(buf.Bytes(), int32(1))
 

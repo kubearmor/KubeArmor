@@ -64,7 +64,7 @@ func TestNewOTelExporterAndPush(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create listener: %v", err)
 	}
-	defer lis.Close()
+	defer func() { _ = lis.Close() }()
 
 	s := grpc.NewServer()
 	go func() {
