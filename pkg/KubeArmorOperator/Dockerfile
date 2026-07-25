@@ -16,6 +16,22 @@ ADD pkg/KubeArmorController pkg/KubeArmorController
 RUN apt-get update && apt-get install -y clang llvm libbpf-dev libelf-dev && rm -rf /var/lib/apt/lists/*
 
 # Generate BPF bytecode
+RUN arch=$(uname -m) bpftool_version=v7.3.0 && \
+    if [ "$arch" = "aarch64" ]; then arch=arm64; \
+    elif [ "$arch" = "x86_64" ]; then arch=amd64; \
+    fi && \
+    curl -LO https://github.com/libbpf/bpftool/releases/download/$bpftool_version/bpftool-$bpftool_version-$arch.tar.gz && \
+    tar -xzf bpftool-$bpftool_version-$arch.tar.gz -C /usr/local/bin && \
+    chmod +x /usr/local/bin/bpftool && \
+    rm bpftool-$bpftool_version-$arch.tar.gz
+
+RUN test -s KubeArmor/BPF/vmlinux.h || \
+    (bpftool btf dump file /sys/kernel/btf/vmlinux format c > KubeArmor/BPF/vmlinux.h || \
+     (echo "ERROR: could not generate vmlinux.h -- /sys/kernel/btf/vmlinux not visible" \
+           "in this build environment (common with buildx docker-container driver)." \
+           "Generate vmlinux.h on the HOST before docker build instead, so COPY picks it up." \
+      && exit 1))
+
 RUN cd KubeArmor && go generate ./...
 
 # KubeArmorOperator directory
