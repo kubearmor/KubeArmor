@@ -107,7 +107,7 @@ jobs:
 
       - name: Test KubeArmor using Ginkgo
         run: |
-          go install -mod=mod github.com/onsi/ginkgo/v2/ginkgo
+          go install github.com/onsi/ginkgo/v2/ginkgo@v2.28.1
           ginkgo --vv --flake-attempts=10 --timeout=10m smoke/
         working-directory: ./tests/k8s_env
         timeout-minutes: 30
