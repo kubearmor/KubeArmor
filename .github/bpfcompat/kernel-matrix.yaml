@@ -1,0 +1,15 @@
+# Kernels for the build-on-target BPF compatibility lane. Each is built against
+# its OWN kernel BTF inside the guest, matching KubeArmor's per-node build model.
+# (Ubuntu 20.04/5.4 is intentionally omitted: focal's bundled bpftool predates
+# raw-BTF dump, so `bpftool btf dump file /sys/kernel/btf/vmlinux` fails there -
+# KubeArmor's own build hits the same on focal.)
+name: kubearmor-buildontarget
+profiles:
+  - id: almalinux-8-4.18   # RHEL family backports many features onto 4.18
+    required: true
+  - id: ubuntu-22.04-5.15
+    required: true
+  - id: debian-12-6.1
+    required: true
+  - id: ubuntu-24.04-6.8
+    required: true
