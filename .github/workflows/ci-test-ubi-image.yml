@@ -187,7 +187,7 @@ jobs:
       - name: Get karmor sysdump
         if: ${{ failure() }}
         run: |
-          kubectl describe pod -n kubearmor -l kubearmor-app=kubearmor
+          kubectl describe pod -n kubearmor -l kubearmor-app=kubearmor || true
           curl -sfL http://get.kubearmor.io/ | sudo sh -s -- -b /usr/local/bin
           mkdir -p /tmp/kubearmor/ && cd /tmp/kubearmor && karmor sysdump
 
