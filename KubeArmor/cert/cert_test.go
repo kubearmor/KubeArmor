@@ -9,10 +9,11 @@ import (
 )
 
 func TestGenerateCA_Success(t *testing.T) {
-	cfg := &DefaultKubeArmorCAConfig
+	// take a value copy so the package-level default stays untouched
+	cfg := DefaultKubeArmorCAConfig
 	cfg.NotAfter = time.Now().Add(24 * time.Hour)
 
-	caBytes, err := GenerateCA(cfg)
+	caBytes, err := GenerateCA(&cfg)
 	if err != nil {
 		t.Fatalf("expected no error generating CA, got: %v", err)
 	}
@@ -27,20 +28,23 @@ func TestGenerateCA_Success(t *testing.T) {
 }
 
 func TestGenerateCA_ErrorPropagationOnSelfSignedCertFailure(t *testing.T) {
+	// take a value copy so the package-level default stays untouched
+	cfg := DefaultKubeArmorCAConfig
+
 	// 1. Test GenerateSelfSignedCert with invalid/nil CA struct returns error
-	_, err := GenerateSelfSignedCert(nil, &DefaultKubeArmorCAConfig)
+	_, err := GenerateSelfSignedCert(nil, &cfg)
 	if err == nil {
 		t.Errorf("expected error when generating self-signed cert with nil CA, got nil")
 	}
 
-	_, err = GenerateSelfSignedCert(&CertKeyPair{}, &DefaultKubeArmorCAConfig)
+	_, err = GenerateSelfSignedCert(&CertKeyPair{}, &cfg)
 	if err == nil {
 		t.Errorf("expected error when generating self-signed cert with empty CertKeyPair, got nil")
 	}
 
 	// 2. Test GenerateCA error propagation when inner GenerateSelfSignedCert fails with uninitialized CA key
 	invalidCA := &CertKeyPair{}
-	_, err = GenerateSelfSignedCert(invalidCA, &DefaultKubeArmorCAConfig)
+	_, err = GenerateSelfSignedCert(invalidCA, &cfg)
 	if err == nil {
 		t.Errorf("expected error from GenerateSelfSignedCert with uninitialized CA key, got nil")
 	}
