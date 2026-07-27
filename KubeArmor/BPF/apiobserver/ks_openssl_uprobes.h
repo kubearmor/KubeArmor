@@ -73,6 +73,36 @@ ks_ssl_uprobe(struct pt_regs *ctx, void *ssl, uintptr_t buffer,
     }
   }
 
+  /* Pre-populate address from the persistent per-FD cache.
+   *
+   * On keep-alive HTTPS connections, subsequent SSL_read calls after
+   * the first one serve data from OpenSSL's internal TLS record buffer
+   * without calling recv() — so tcp_recvmsg never fires and the address
+   * would stay family=0 causing the chunk to be dropped.
+   *
+   * ks_openssl_conn_addr is written the FIRST time tcp_recvmsg fires for
+   * a given (pid,fd). We seed info.address_info from it here so that all
+   * subsequent SSL calls on the same FD already carry the correct address
+   * before tcp_recvmsg has a chance to fire (or not). */
+  if (info.fd != ks_invalid_fd && info.address_info.family == 0) {
+    __u32 pid = id >> 32;
+    __u64 fd_key = (__u64)pid << 32 | (__u32)info.fd;
+    struct ks_address_info *cached = bpf_map_lookup_elem(&ks_openssl_conn_addr, &fd_key);
+    if (cached != NULL && cached->family != 0) {
+      /* Copy cached address into the ssl_info so tcp_recvmsg is optional. */
+      info.address_info.family = cached->family;
+      if (cached->family == AF_INET) {
+        info.address_info.saddr4 = cached->saddr4;
+        info.address_info.daddr4 = cached->daddr4;
+      } else if (cached->family == AF_INET6) {
+        __builtin_memcpy(info.address_info.saddr6, cached->saddr6, 16);
+        __builtin_memcpy(info.address_info.daddr6, cached->daddr6, 16);
+      }
+      info.address_info.sport = cached->sport;
+      info.address_info.dport = cached->dport;
+    }
+  }
+
   bpf_map_update_elem(map_fd, &id, &info, BPF_ANY);
 }
 

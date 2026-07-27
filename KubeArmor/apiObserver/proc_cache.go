@@ -55,9 +55,11 @@ func NewProcCache() *ProcCache {
 func (pc *ProcCache) Diff() (newSnaps []ProcSnapshot, gonePIDs []uint32) {
 	entries, err := os.ReadDir(ssl.ProcRoot)
 	if err != nil {
-		kg.Warnf("ProcCache.Diff: ReadDir(%s) failed: %v", ssl.ProcRoot, err)
+		kg.Printf("ProcWalker: failed to read %s: %v", ssl.ProcRoot, err)
 		return nil, nil
 	}
+
+	kg.Debugf("ProcWalker: scanning %d entries in %s", len(entries), ssl.ProcRoot)
 
 	seen := make(map[uint32]struct{}, len(entries))
 
@@ -81,21 +83,49 @@ func (pc *ProcCache) Diff() (newSnaps []ProcSnapshot, gonePIDs []uint32) {
 		}
 
 		// Cheap readlink — one syscall.
-		exeLink := fmt.Sprintf("%s/%d/exe", ssl.ProcRoot, pid)
+		// IMPORTANT: /proc/<pid>/exe is a kernel "magic symlink" that resolves
+		// correctly ONLY through the kernel's real procfs mount point.
+		// Accessing it through a bind-mounted path (ssl.ProcRoot = /host/procfs)
+		// causes ENOENT for every user-space process because the kernel does not
+		// apply magic-symlink resolution across bind mounts.
+		// With hostPID: true the container's /proc IS the host procfs, so we
+		// use /proc directly here and only use ssl.ProcRoot for plain file reads
+		// (e.g. /maps, /cgroup, /stat) where bind mounts work fine.
+		exeLink := fmt.Sprintf("/proc/%d/exe", pid)
 		exePath, err := os.Readlink(exeLink)
 		if err != nil {
-			continue // process may have exited between ReadDir and Readlink
+			// Kernel threads have no /exe symlink — this is normal and expected.
+			// Only log at debug level to avoid flooding INFO logs.
+			kg.Debugf("ProcWalker: PID %d readlink %s failed: %v (likely kernel thread)", pid, exeLink, err)
+			continue
 		}
 
 		// Resolve through procfs root for containerised binaries.
-		hostPath := fmt.Sprintf("%s/%d/root%s", ssl.ProcRoot, pid, exePath)
-		if _, err := os.Stat(hostPath); err != nil {
-			hostPath = exePath
-		}
-
-		// Cheap stat — one syscall. Gives us the inode.
+		// We use native /proc directly instead of ssl.ProcRoot to avoid ebpf/link
+		// failing with ENOENT when crossing the /host/procfs bind mount.
+		hostPath := fmt.Sprintf("/proc/%d/root%s", pid, exePath)
 		fi, err := os.Stat(hostPath)
 		if err != nil {
+			kg.Debugf("ProcWalker: PID %d stat %s failed: %v — using exe path", pid, hostPath, err)
+			hostPath = exePath
+			fi, err = os.Stat(hostPath)
+		}
+		if err != nil {
+			kg.Printf("ProcWalker: PID %d stat final %s failed (%v) — yielding inode=0 snapshot", pid, hostPath, err)
+			// Don't drop the PID: the sslScannerFunc can still discover SSL
+			// libs for this process via /proc/<pid>/maps directly.
+			// We skip inode-based dedup (inode=0) and rely on PID dedup only.
+			pc.mu.RLock()
+			_, alreadyKnown := pc.byPID[pid]
+			pc.mu.RUnlock()
+			if !alreadyKnown {
+				newSnaps = append(newSnaps, ProcSnapshot{
+					PID:      pid,
+					ExePath:  exePath,
+					HostPath: "",
+					Inode:    0,
+				})
+			}
 			continue
 		}
 		stat, ok := fi.Sys().(*syscall.Stat_t)
@@ -107,10 +137,13 @@ func (pc *ProcCache) Diff() (newSnaps []ProcSnapshot, gonePIDs []uint32) {
 			continue // stat failed to produce a valid inode
 		}
 
-		// THE KEY LINE: skip PIDs whose binary inode is already known.
-		// This makes 99%+ of steady-state ticks zero-cost.
+		// Skip PIDs already in cache — we've already dispatched them.
+		// Note: we track by PID (not inode) because each process needs its
+		// own ssl_symaddrs BPF map entry (keyed by TGID). The inode is still
+		// carried in the snapshot so individual scanners that attach uprobes
+		// per-binary (Go HTTP/2, gRPC-C) can deduplicate on inode themselves.
 		pc.mu.RLock()
-		_, alreadyKnown := pc.byInode[inode]
+		_, alreadyKnown := pc.byPID[pid]
 		pc.mu.RUnlock()
 		if alreadyKnown {
 			continue
@@ -142,7 +175,9 @@ func (pc *ProcCache) Diff() (newSnaps []ProcSnapshot, gonePIDs []uint32) {
 func (pc *ProcCache) Commit(snap ProcSnapshot) {
 	pc.mu.Lock()
 	pc.byPID[snap.PID] = snap
-	pc.byInode[snap.Inode] = snap.PID
+	if snap.Inode != 0 {
+		pc.byInode[snap.Inode] = snap.PID
+	}
 	pc.mu.Unlock()
 }
 
@@ -159,7 +194,7 @@ func (pc *ProcCache) Remove(pid uint32) (ProcSnapshot, bool) {
 
 	// Only remove the inode mapping if this PID was the one indexed.
 	// Multiple PIDs can share the same inode (same binary, different containers).
-	if pc.byInode[old.Inode] == pid {
+	if old.Inode != 0 && pc.byInode[old.Inode] == pid {
 		delete(pc.byInode, old.Inode)
 	}
 	delete(pc.byPID, pid)

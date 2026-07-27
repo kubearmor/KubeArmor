@@ -16,10 +16,11 @@ import (
 // sockets), producing two identical events per request. This cache
 // eliminates the second observation.
 type DedupCache struct {
-	mu      sync.Mutex
-	entries map[string]time.Time
-	ttl     time.Duration
-	done    chan struct{}
+	mu       sync.Mutex
+	entries  map[string]time.Time
+	ttl      time.Duration
+	done     chan struct{}
+	stopOnce sync.Once
 }
 
 // NewDedupCache creates a dedup cache with the given TTL.
@@ -47,24 +48,16 @@ func (d *DedupCache) IsDuplicate(key string) bool {
 	return false
 }
 
-// Stop terminates the cleanup goroutine.
+// Stop terminates the cleanup goroutine. Safe to call multiple times.
 func (d *DedupCache) Stop() {
-	close(d.done)
+	d.stopOnce.Do(func() {
+		close(d.done)
+	})
 }
 
 // cleanupLoop periodically evicts expired entries to prevent memory leak.
-// The 15s stagger at startup prevents this loop from firing concurrently
-// with the /proc scanner (t=0), correlator cleanup (t=10s), and
-// eviction loop (t=20s).
 func (d *DedupCache) cleanupLoop() {
-	// Stagger: offset from other periodic loops.
-	select {
-	case <-time.After(15 * time.Second):
-	case <-d.done:
-		return
-	}
-
-	ticker := time.NewTicker(10 * time.Second)
+	ticker := time.NewTicker(d.ttl * 5)
 	defer ticker.Stop()
 	for {
 		select {
@@ -72,7 +65,7 @@ func (d *DedupCache) cleanupLoop() {
 			d.mu.Lock()
 			now := time.Now()
 			for k, t := range d.entries {
-				if now.Sub(t) > d.ttl {
+				if now.Sub(t) >= d.ttl {
 					delete(d.entries, k)
 				}
 			}

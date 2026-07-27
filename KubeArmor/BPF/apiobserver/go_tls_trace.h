@@ -109,25 +109,156 @@
  */
 static __always_inline s32
 go_tls_get_fd(struct pt_regs *ctx, u64 conn_ptr) {
-  /* Read tls.Conn.conn — a Go interface {type_ptr, data_ptr} at offset 0 */
+  /* Default Go stdlib offsets (correct for all standard Go >= 1.17):
+   *   conn_ptr + 8:  data pointer of tls.Conn.conn (net.Conn iface)
+   *   netfd   + 16:  netFD.pfd.Sysfd (after 16-byte fdMutex)
+   * These can be overridden per-TGID via ks_go_tls_fd_offsets. */
+  u64 conn_data_off   = 8;   /* tls.Conn.conn data ptr */
+  u64 netfd_sysfd_off = 16;  /* netFD.pfd.Sysfd */
+
+  __u32 tgid = bpf_get_current_pid_tgid() >> 32;
+  struct ks_go_tls_symaddrs *offsets =
+      bpf_map_lookup_elem(&ks_go_tls_fd_offsets, &tgid);
+  if (offsets != NULL) {
+    if (offsets->conn_data_offset > 0)
+      conn_data_off = offsets->conn_data_offset;
+    if (offsets->netfd_sysfd_offset > 0)
+      netfd_sysfd_off = offsets->netfd_sysfd_offset;
+  }
+
+  /* Step 1: Read the data pointer of tls.Conn.conn (a net.Conn interface).
+   * tls.Conn.conn is the first field (offset 0); the interface is
+   * {type_ptr, data_ptr} so the data pointer is at conn_data_off (+8). */
   void *conn_iface_data = NULL;
-  /* interface data pointer is the second word (offset +8) */
   bpf_probe_read_user(&conn_iface_data, sizeof(conn_iface_data),
-                      (void *)(conn_ptr + 8));
+                      (void *)(conn_ptr + conn_data_off));
   if (!conn_iface_data)
     return -1;
 
-  /* Read the underlying net.conn/net.TCPConn struct pointer */
+  /* Step 2: Read the *netFD pointer.
+   * conn_iface_data → *net.TCPConn; first field is net.conn.fd *netFD
+   * at offset 0 in the TCPConn struct. */
   void *netfd_ptr = NULL;
   bpf_probe_read_user(&netfd_ptr, sizeof(netfd_ptr), conn_iface_data);
   if (!netfd_ptr)
     return -1;
 
-  /* Read netFD.pfd.Sysfd at offset 0x10 (standard Go stdlib layout) */
+  /* Step 3: Read netFD.pfd.Sysfd.
+   * netFD.pfd is at offset 0; pfd.Sysfd follows a 16-byte fdMutex
+   * → netfd_sysfd_off (+16 = 0x10) in standard Go stdlib. */
   int fd = -1;
-  bpf_probe_read_user(&fd, sizeof(fd), (void *)((u64)netfd_ptr + 0x10));
+  bpf_probe_read_user(&fd, sizeof(fd),
+                      (void *)((u64)netfd_ptr + netfd_sysfd_off));
   return (s32)fd;
 }
+
+/*
+ * go_tls_extract_addr_to_info — eCapture-style direct address extraction.
+ *
+ * Reads laddr/raddr directly from the Go net.netFD struct in the target
+ * process's userspace memory. This eliminates the dependency on the
+ * tcp_sendmsg/tcp_recvmsg kprobe chain for address resolution:
+ *   - kprobes fire asynchronously and may miss the window
+ *   - For connections established before probe attachment, the kprobe
+ *     cache is empty (cold start), so the first few chunks get no address
+ *
+ * Go net.netFD struct layout (standard stdlib, all Go >= 1.9):
+ *   offset  0: pfd poll.FD    (size 56 bytes on amd64)
+ *              - offset 0:  fdMutex (16 bytes)
+ *              - offset 16: Sysfd int
+ *   offset 56: family int
+ *   offset 60: sotype int
+ *   offset 64: isConnected bool
+ *   offset 72: net string   (8+8 bytes)
+ *   offset 88: laddr net.Addr  (interface: {type 8} + {data 8})
+ *   offset 104: raddr net.Addr (interface: {type 8} + {data 8})
+ *
+ * For *net.TCPAddr (implements net.Addr):
+ *   offset 0:  IP   net.IP ([]byte: {ptr 8, len 8, cap 8} = 24 bytes)
+ *   offset 24: Port int    (8 bytes on amd64)
+ *
+ * Returns true if at least one address was populated.
+ */
+static __always_inline bool
+go_tls_extract_addr_to_info(u64 conn_ptr, struct ks_ssl_info *info) {
+  /* Re-resolve the netFD pointer (same chain as go_tls_get_fd). */
+  void *conn_iface_data = NULL;
+  bpf_probe_read_user(&conn_iface_data, sizeof(conn_iface_data),
+                      (void *)(conn_ptr + 8));
+  if (!conn_iface_data)
+    return false;
+
+  void *netfd_ptr = NULL;
+  bpf_probe_read_user(&netfd_ptr, sizeof(netfd_ptr), conn_iface_data);
+  if (!netfd_ptr)
+    return false;
+
+  /* Read laddr interface data pointer (at netFD offset +88+8 = +96). */
+  void *laddr_data = NULL;
+  bpf_probe_read_user(&laddr_data, sizeof(laddr_data),
+                      (void *)((u64)netfd_ptr + 96));
+  /* Read raddr interface data pointer (at netFD offset +104+8 = +112). */
+  void *raddr_data = NULL;
+  bpf_probe_read_user(&raddr_data, sizeof(raddr_data),
+                      (void *)((u64)netfd_ptr + 112));
+
+  if (!laddr_data && !raddr_data)
+    return false;
+
+  /* TCPAddr.IP is a []byte slice at offset 0: {ptr, len, cap} (8+8+8 bytes).
+   * Read IP bytes ptr and length. */
+  void *lip_ptr = NULL, *rip_ptr = NULL;
+  u64   lip_len = 0, rip_len = 0;
+  if (laddr_data) {
+    bpf_probe_read_user(&lip_ptr, sizeof(lip_ptr), laddr_data);
+    bpf_probe_read_user(&lip_len, sizeof(lip_len),
+                        (void *)((u64)laddr_data + 8));
+  }
+  if (raddr_data) {
+    bpf_probe_read_user(&rip_ptr, sizeof(rip_ptr), raddr_data);
+    bpf_probe_read_user(&rip_len, sizeof(rip_len),
+                        (void *)((u64)raddr_data + 8));
+  }
+
+  bool got_addr = false;
+
+  if (lip_len == 4 && rip_len == 4 && lip_ptr && rip_ptr) {
+    /* IPv4: read 4 bytes from each IP slice pointer. */
+    __u8 sip[4] = {0}, dip[4] = {0};
+    bpf_probe_read_user(sip, 4, lip_ptr);
+    bpf_probe_read_user(dip, 4, rip_ptr);
+    /* net.IP is stored in network byte order (big-endian).
+     * Our ks_address_info.saddr4 uses __be32. */
+    info->address_info.saddr4 = *((__be32 *)sip);
+    info->address_info.daddr4 = *((__be32 *)dip);
+    info->address_info.family = 2; /* AF_INET */
+    got_addr = true;
+  } else if (lip_len == 16 && rip_len == 16 && lip_ptr && rip_ptr) {
+    /* IPv6: read 16 bytes from each IP slice pointer. */
+    bpf_probe_read_user(info->address_info.saddr6, 16, lip_ptr);
+    bpf_probe_read_user(info->address_info.daddr6, 16, rip_ptr);
+    info->address_info.family = 10; /* AF_INET6 */
+    got_addr = true;
+  }
+
+  if (got_addr) {
+    /* TCPAddr.Port is an int at offset 24 within TCPAddr. */
+    s64 lport = 0, rport = 0;
+    if (laddr_data)
+      bpf_probe_read_user(&lport, sizeof(lport),
+                          (void *)((u64)laddr_data + 24));
+    if (raddr_data)
+      bpf_probe_read_user(&rport, sizeof(rport),
+                          (void *)((u64)raddr_data + 24));
+    info->address_info.sport = bpf_htons((u16)lport);
+    info->address_info.dport = bpf_htons((u16)rport);
+  }
+
+  return got_addr;
+}
+
+
+
 
 /* ---- Entry probes (same for both architectures) ---- */
 
@@ -161,8 +292,15 @@ go_tls_entry(struct pt_regs *ctx, void *context_map) {
   if (fd > 2)
     info.fd = (__u32)fd;
 
+  /* eCapture-style: extract src/dst addresses directly from netFD.laddr/raddr.
+   * This populates address_info WITHOUT depending on the tcp_kprobe chain,
+   * ensuring addresses are always available — even for connections established
+   * before probe attachment or where tcp_recvmsg doesn't fire. */
+  go_tls_extract_addr_to_info(conn_ptr, &info);
+
   bpf_map_update_elem(context_map, &key, &info, BPF_ANY);
 }
+
 
 /*
  * Return handler (attached at each ret instruction offset):

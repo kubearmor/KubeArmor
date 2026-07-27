@@ -31,6 +31,12 @@ func NewFilterer() *Filterer {
 	}
 }
 
+// Stop releases resources held by the Filterer, including the dedup cache
+// cleanup goroutine. Must be called when the Filterer is no longer needed.
+func (f *Filterer) Stop() {
+	f.dedup.Stop()
+}
+
 // IsDuplicate returns true if this event was already seen within the dedup
 // window. The key is constructed from sorted IPs (so client/server
 // observations hash identically), method, path, and status.
@@ -117,16 +123,14 @@ func isHostLAN(ip string) bool {
 // This happens when the ks_go_user_kernel_write_context map lookup fails
 // (family=0 → SrcIPString() returns "" or uint32ToIP(0) → "0.0.0.0").
 func isUnresolved(ip string) bool {
-	return ip == "" || ip == "0.0.0.0"
+	return ip == "" || ip == "0.0.0.0" || ip == "::" || ip == "::0"
 }
 
 // isNonRoutable returns true for IPs that are never valid API traffic endpoints:
 // loopback (127.x), multicast (224-239.x), link-local (169.254.x),
 // broadcast (255.255.255.255).
 func isNonRoutable(ip string) bool {
-	// if strings.HasPrefix(ip, "127.") {
-	// 	return true
-	// }
+	// Loopback (127.x) is intentionally not filtered here — see IsLoopbackTraffic.
 	if ip == "255.255.255.255" {
 		return true
 	}
@@ -181,7 +185,6 @@ var infraGRPCServices = []string{
 // infraAuthorities lists :authority header values (exact or prefix) that
 // indicate infrastructure traffic. Matched against the resolved authority.
 var infraAuthorities = []string{
-	"spire.api.server.",
 	"spire-server",
 	"spire-agent",
 	"agents-operator.agents.svc.",
