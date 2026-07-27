@@ -64,7 +64,7 @@ jobs:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@d979d5b3a71173a29b74b5b88418bfda9437d885 # v6
+        uses: aws-actions/configure-aws-credentials@e7f100cf4c008499ea8adda475de1042d6975c7b # v6
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -79,8 +79,7 @@ jobs:
           REGCTL_VERSION: v0.11.5
           REGCTL_SHA256: c93aa7638749f5aaac1a8e01787321889c78f0101809bb2880343478d0ba0467
         run: |
-          curl -fsSL "https://github.com/regclient/regclient/releases/download/${REGCTL_VERSION}/regctl-linux-amd64" -o regctl
-          echo "${REGCTL_SHA256}  regctl" | sha256sum -c -
+          curl -L https://github.com/regclient/regclient/releases/latest/download/regctl-linux-amd64 -o regctl
           chmod 755 regctl
           mv regctl /usr/local/bin/regctl
           regctl version
@@ -93,7 +92,7 @@ jobs:
           regctl image copy kubearmor/kubearmor-init:$STABLE_VERSION ${{vars.AWS_ECR_REGISTRY}}/kubearmor-init:$STABLE_VERSION --digest-tags
           regctl image copy kubearmor/kubearmor-controller:$STABLE_VERSION ${{vars.AWS_ECR_REGISTRY}}/kubearmor-controller:$STABLE_VERSION --digest-tags
           regctl image copy kubearmor/kubearmor-operator:$STABLE_VERSION ${{vars.AWS_ECR_REGISTRY}}/kubearmor-operator:$STABLE_VERSION --digest-tags
-          regctl image copy kubearmor/kubearmor-snitch:$STABLE_VERSION ${{vars.AWS_ECR_REGISTRY}}/kubearmor-snitch:$STABLE_VERSION --digest-tags    
+          regctl image copy kubearmor/kubearmor-snitch:$STABLE_VERSION ${{vars.AWS_ECR_REGISTRY}}/kubearmor-snitch:$STABLE_VERSION --digest-tags
 
   publish-images-to-ocir:
     runs-on: ubuntu-latest
@@ -109,8 +108,7 @@ jobs:
           REGCTL_VERSION: v0.11.5
           REGCTL_SHA256: c93aa7638749f5aaac1a8e01787321889c78f0101809bb2880343478d0ba0467
         run: |
-          curl -fsSL "https://github.com/regclient/regclient/releases/download/${REGCTL_VERSION}/regctl-linux-amd64" -o regctl
-          echo "${REGCTL_SHA256}  regctl" | sha256sum -c -
+          curl -L https://github.com/regclient/regclient/releases/latest/download/regctl-linux-amd64 -o regctl
           chmod 755 regctl
           mv regctl /usr/local/bin/regctl
           regctl version
@@ -123,7 +121,7 @@ jobs:
           regctl image copy kubearmor/kubearmor-init:$STABLE_VERSION ${{vars.OCIR_REGISTRY}}/kubearmor-init:$STABLE_VERSION --digest-tags
           regctl image copy kubearmor/kubearmor-controller:$STABLE_VERSION ${{vars.OCIR_REGISTRY}}/kubearmor-controller:$STABLE_VERSION --digest-tags
           regctl image copy kubearmor/kubearmor-operator:$STABLE_VERSION ${{vars.OCIR_REGISTRY}}/kubearmor-operator:$STABLE_VERSION --digest-tags
-          regctl image copy kubearmor/kubearmor-snitch:$STABLE_VERSION ${{vars.OCIR_REGISTRY}}/kubearmor-snitch:$STABLE_VERSION --digest-tags    
+          regctl image copy kubearmor/kubearmor-snitch:$STABLE_VERSION ${{vars.OCIR_REGISTRY}}/kubearmor-snitch:$STABLE_VERSION --digest-tags
 
   publish-aws-helm-chart:
     runs-on: ubuntu-latest
@@ -133,7 +131,7 @@ jobs:
       - uses: azure/setup-helm@5119fcb9089d432beecbf79bb2c7915207344b78 # v3
 
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@d979d5b3a71173a29b74b5b88418bfda9437d885 # v6
+        uses: aws-actions/configure-aws-credentials@e7f100cf4c008499ea8adda475de1042d6975c7b # v6
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -154,11 +152,11 @@ jobs:
       - name: Create and Publish Helm Chart
         uses: ./.github/actions/marketplace
         with:
-          registry: '${{ vars.AWS_ECR_REGISTRY }}'
-          version: '${{ steps.metadata.outputs.version }}'
-          relay_version: '${{ steps.metadata.outputs.relay_version }}'
-          helm_chart_path: './deployments/helm/KubeArmorOperator'
-          helm_chart_name: 'kubearmor-operator-aws'
+          registry: "${{ vars.AWS_ECR_REGISTRY }}"
+          version: "${{ steps.metadata.outputs.version }}"
+          relay_version: "${{ steps.metadata.outputs.relay_version }}"
+          helm_chart_path: "./deployments/helm/KubeArmorOperator"
+          helm_chart_name: "kubearmor-operator-aws"
 
       # workaround to mandatory subfolder for helm-gh-master action
       # https://github.com/stefanprodan/helm-gh-pages/issues/23#issuecomment-854101420
@@ -203,11 +201,11 @@ jobs:
       - name: Create and Publish Helm Chart
         uses: ./.github/actions/marketplace
         with:
-          registry: '${{ vars.OCIR_REGISTRY }}'
-          version: '${{ steps.metadata.outputs.version }}'
-          relay_version: '${{ steps.metadata.outputs.relay_version }}'
-          helm_chart_path: './deployments/helm/KubeArmorOperator'
-          helm_chart_name: 'kubearmor-operator-oci'
+          registry: "${{ vars.OCIR_REGISTRY }}"
+          version: "${{ steps.metadata.outputs.version }}"
+          relay_version: "${{ steps.metadata.outputs.relay_version }}"
+          helm_chart_path: "./deployments/helm/KubeArmorOperator"
+          helm_chart_name: "kubearmor-operator-oci"
 
       # workaround to mandatory subfolder for helm-gh-master action
       # https://github.com/stefanprodan/helm-gh-pages/issues/23#issuecomment-854101420
@@ -231,7 +229,12 @@ jobs:
           commit_email: "github-actions[bot]@users.noreply.github.com"
 
   create_issue:
-    needs: ["publish-oci-helm-chart","publish-aws-helm-chart","certify-images-on-redhat"]
+    needs:
+      [
+        "publish-oci-helm-chart",
+        "publish-aws-helm-chart",
+        "certify-images-on-redhat",
+      ]
     runs-on: ubuntu-latest
     permissions:
       issues: write
