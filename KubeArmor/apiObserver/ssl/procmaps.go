@@ -66,7 +66,9 @@ func IsSelfProcess(pid int) bool {
 	if SelfExePath == "" {
 		return false
 	}
-	exe, err := os.Readlink(fmt.Sprintf("%s/%d/exe", ProcRoot, pid))
+	// Use native /proc (not ProcRoot) — /proc/<pid>/exe is a magic symlink
+	// that only resolves correctly through the kernel's real procfs mount.
+	exe, err := os.Readlink(fmt.Sprintf("/proc/%d/exe", pid))
 	if err != nil {
 		return false
 	}
@@ -86,7 +88,8 @@ var infraBinaries = []string{
 // IsInfraProcess returns true if the PID's executable matches a known
 // infrastructure binary that should not be SSL-probed.
 func IsInfraProcess(pid int) bool {
-	exe, err := os.Readlink(fmt.Sprintf("%s/%d/exe", ProcRoot, pid))
+	// Use native /proc (not ProcRoot) — magic symlink, see IsSelfProcess.
+	exe, err := os.Readlink(fmt.Sprintf("/proc/%d/exe", pid))
 	if err != nil {
 		return false
 	}
@@ -134,7 +137,7 @@ func ParseProcMaps(pid int) ([]string, error) {
 		if len(fields) < 6 {
 			continue
 		}
-		path := fields[len(fields)-1]
+		path := fields[5]
 		if !strings.HasPrefix(path, "/") {
 			continue
 		}
@@ -168,8 +171,36 @@ func FindLibInMaps(maps []string, libName string, searchType MatchType) string {
 
 // HostPath converts a container-local path to the host-accessible path
 // via /proc/<pid>/root/. This handles mount namespace differences.
+//
+// IMPORTANT: We always use native /proc (not ProcRoot) here.
+// The magic symlinks in /proc/<pid>/map_files/ are kernel special files that
+// must be opened through the kernel's own procfs to be followed correctly by
+// link.OpenExecutable(). Accessing them via a bind-mounted path (e.g.
+// /host/procfs) may return the wrong inode or fail open() entirely on
+// overlayfs containers because the kernel resolves magic symlinks relative
+// to the process's mount namespace only when opened through /proc.
 func HostPath(pid int, containerPath string) string {
-	return fmt.Sprintf("%s/%d/root%s", ProcRoot, pid, containerPath)
+	// Try map_files first — points to the underlying inode (bypasses overlayfs).
+	// This is required for correct uprobe attachment on containerised binaries.
+	mapFilesDir := fmt.Sprintf("/proc/%d/map_files", pid)
+	entries, err := os.ReadDir(mapFilesDir)
+	if err == nil {
+		for _, entry := range entries {
+			linkPath := filepath.Join(mapFilesDir, entry.Name())
+			linkTarget, err := os.Readlink(linkPath)
+			if err == nil {
+				// The kernel appends " (deleted)" to the readlink output if the file was unlinked.
+				cleanTarget := strings.TrimSuffix(linkTarget, " (deleted)")
+				if cleanTarget == containerPath {
+					return linkPath
+				}
+			}
+		}
+	}
+
+	// Fallback: /proc/<pid>/root/<path> — works for non-overlayfs mounts and
+	// when the process is still alive. Always use native /proc for uprobe compat.
+	return fmt.Sprintf("/proc/%d/root%s", pid, containerPath)
 }
 
 // PidExists checks if a process is still alive by testing /proc/<pid>.

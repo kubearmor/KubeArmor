@@ -63,8 +63,16 @@ type SSLLibMatcher struct {
 
 // SSLLibMatch is a concrete result of matching a library for a PID.
 type SSLLibMatch struct {
-	// LibSSLPath is the host-accessible path to the SSL library.
+	// LibSSLPath is the host-accessible path used for uprobe attachment.
+	// This is typically a /proc/<pid>/map_files/<range> magic symlink that
+	// resolves to the underlying inode (bypassing overlayfs). It is the
+	// correct path to pass to link.OpenExecutable().
 	LibSSLPath string
+	// CanonicalPath is the original container-relative library path as it
+	// appears in /proc/<pid>/maps (e.g. /usr/lib/libssl.so.3). Use this
+	// for version detection via OffsetsForLib() and filename-based lookups.
+	// If empty, falls back to LibSSLPath.
+	CanonicalPath string
 	// PID is the process that loaded this library.
 	PID int
 	// Matcher is the matcher that found this library.
@@ -113,8 +121,9 @@ func DiscoverSSLLibsForPID(pid int) []SSLLibMatch {
 
 	for _, matcher := range DefaultMatchers {
 		if matcher.SearchType == MatchExecutable {
-			// For executable matchers (e.g. Node.js), check /proc/PID/exe
-			exePath, err := os.Readlink(fmt.Sprintf("%s/%d/exe", ProcRoot, pid))
+			// For executable matchers (e.g. Node.js, Envoy), check /proc/PID/exe.
+			// Use native /proc — same magic-symlink rule as proc_cache.go.
+			exePath, err := os.Readlink(fmt.Sprintf("/proc/%d/exe", pid))
 			if err != nil {
 				continue
 			}
@@ -132,9 +141,10 @@ func DiscoverSSLLibsForPID(pid int) []SSLLibMatch {
 			}
 			seenInodes[hostPath] = true
 			matches = append(matches, SSLLibMatch{
-				LibSSLPath: hostPath,
-				PID:        pid,
-				Matcher:    matcher,
+				LibSSLPath:    hostPath,
+				CanonicalPath: exePath, // the real exe path for version detection
+				PID:           pid,
+				Matcher:       matcher,
 			})
 			continue
 		}
@@ -151,9 +161,10 @@ func DiscoverSSLLibsForPID(pid int) []SSLLibMatch {
 		seenInodes[hostPath] = true
 
 		match := SSLLibMatch{
-			LibSSLPath: hostPath,
-			PID:        pid,
-			Matcher:    matcher,
+			LibSSLPath:    hostPath,
+			CanonicalPath: path, // original /proc/maps path for version detection
+			PID:           pid,
+			Matcher:       matcher,
 		}
 		matches = append(matches, match)
 	}

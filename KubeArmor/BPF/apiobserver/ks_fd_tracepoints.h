@@ -172,3 +172,23 @@ SEC("tracepoint/syscalls/sys_enter_recvmsg")
 void ks_sys_enter_recvmsg(struct ks_sys_enter_sendmsg_recvmsg_ctx *ctx) {
   ks_handle_read(ctx, ctx->fd);
 }
+
+/* ---- readv / writev support (Java NIO vectored I/O) ---- */
+
+struct ks_sys_enter_rwv_ctx {
+  __u64 __unused_syscall_header;
+  __u32 __unused_syscall_nr;
+  __u64 fd;
+  const struct iovec *vec;
+  __u64 vlen;
+};
+
+SEC("tracepoint/syscalls/sys_enter_writev")
+void ks_sys_enter_writev(struct ks_sys_enter_rwv_ctx *ctx) {
+  ks_handle_write(ctx, ctx->fd);
+}
+
+SEC("tracepoint/syscalls/sys_enter_readv")
+void ks_sys_enter_readv(struct ks_sys_enter_rwv_ctx *ctx) {
+  ks_handle_read(ctx, ctx->fd);
+}

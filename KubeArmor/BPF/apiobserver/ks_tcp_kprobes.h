@@ -76,7 +76,7 @@ ks_tcp_forward_go(struct pt_regs *ctx, __u64 id, __u32 fd,
 static __always_inline void
 ks_tcp_forward_openssl(struct pt_regs *ctx, __u64 id,
                        struct ks_ssl_info *info_ptr,
-                       struct ks_address_info addr) {
+                       struct ks_address_info addr, __u32 fd) {
   info_ptr->address_info.family = addr.family;
 
   if (addr.family == AF_INET) {
@@ -89,6 +89,9 @@ ks_tcp_forward_openssl(struct pt_regs *ctx, __u64 id,
 
   info_ptr->address_info.dport = addr.dport;
   info_ptr->address_info.sport = addr.sport;
+
+  __u64 key = id & 0xffffffff00000000ULL | (fd & 0xffffffffULL);
+  bpf_map_update_elem(&ks_openssl_conn_addr, &key, &addr, BPF_ANY);
 }
 
 /* Shared kprobe handler for tcp_sendmsg / tcp_recvmsg. */
@@ -104,14 +107,23 @@ ks_tcp_kprobe(struct pt_regs *ctx, void *map_fd_openssl,
   /* Try OpenSSL context first. */
   struct ks_ssl_info *info_ptr = bpf_map_lookup_elem(map_fd_openssl, &id);
   if (info_ptr != NULL) {
-    ks_tcp_forward_openssl(ctx, id, info_ptr, addr);
+    ks_tcp_forward_openssl(ctx, id, info_ptr, addr, info_ptr->fd);
     return;
   }
 
   /* Try Go kernel context. */
   __u32 *fd_ptr = bpf_map_lookup_elem(map_fd_go_kernel, &id);
-  if (fd_ptr != NULL)
+  if (fd_ptr != NULL) {
     ks_tcp_forward_go(ctx, id, *fd_ptr, addr, map_fd_go_user_kernel);
+    return;
+  }
+
+  /* Handle Node.js memory BIO case. */
+  __u32 *node_fd_ptr = bpf_map_lookup_elem(&ks_pid_last_socket_fd, &id);
+  if (node_fd_ptr != NULL) {
+    __u64 key = id & 0xffffffff00000000ULL | (*node_fd_ptr & 0xffffffffULL);
+    bpf_map_update_elem(&ks_openssl_conn_addr, &key, &addr, BPF_ANY);
+  }
 }
 
 /* ---- SEC entries ---- */

@@ -12,6 +12,7 @@ package goprobe
 import (
 	"debug/buildinfo"
 	"debug/elf"
+	"debug/gosym"
 	"fmt"
 	"os"
 	"strings"
@@ -147,7 +148,7 @@ var TargetSymbols = map[string][]string{
 	},
 	// Go crypto/tls — entry probes only.
 	// Return probes use ret-instruction offsets (not uretprobes) and are
-	// attached separately via GoTlsOffsets. See attachGoHTTP2Uprobes.
+	// attached separately via GoTlsOffsets. See attachGoTlsRetProbes.
 	"go_tls_write": {
 		"crypto/tls.(*Conn).Write",
 	},
@@ -277,13 +278,17 @@ func ScanProc() ([]GoUProbeTarget, error) {
 		if pid == 1 || ssl.IsSelfProcess(int(pid)) {
 			continue
 		}
-		exeLink := fmt.Sprintf("%s/%d/exe", ssl.ProcRoot, pid)
+		// Use native /proc — /proc/<pid>/exe is a magic symlink
+		// that fails with ENOENT across bind mounts (like ssl.ProcRoot).
+		exeLink := fmt.Sprintf("/proc/%d/exe", pid)
 		exePath, err := os.Readlink(exeLink)
 		if err != nil {
 			continue
 		}
 		// Resolve through procfs root for containerised binaries.
-		hostPath := fmt.Sprintf("%s/%d/root%s", ssl.ProcRoot, pid, exePath)
+		// We use native /proc directly instead of ssl.ProcRoot to avoid ebpf/link
+		// failing with ENOENT when crossing the /host/procfs bind mount.
+		hostPath := fmt.Sprintf("/proc/%d/root%s", pid, exePath)
 		if _, err := os.Stat(hostPath); err != nil {
 			hostPath = exePath
 		}
@@ -405,7 +410,7 @@ func isGoBinary(path string) bool {
 func resolveSymbols(ef *elf.File, path string) (map[string]uint64, error) {
 	allSyms, err := ef.Symbols()
 	if err != nil {
-		return nil, fmt.Errorf("read symbols from %s: %w", path, err)
+		return resolveSymbolsFromPclntab(ef, path)
 	}
 
 	// Build a map of name → file offset for quick lookup.
@@ -449,5 +454,67 @@ func resolveSymbols(ef *elf.File, path string) (map[string]uint64, error) {
 		}
 	}
 
+	return result, nil
+}
+
+// resolveSymbolsFromPclntab is a fallback for stripped Go binaries.
+// It parses the .gopclntab section using debug/gosym.
+func resolveSymbolsFromPclntab(ef *elf.File, path string) (map[string]uint64, error) {
+	var pclndata []byte
+	if sec := ef.Section(".gopclntab"); sec != nil {
+		pclndata, _ = sec.Data()
+	}
+	var textAddr uint64
+	if sec := ef.Section(".text"); sec != nil {
+		textAddr = sec.Addr
+	}
+	if pclndata == nil {
+		return nil, fmt.Errorf("read symbols from %s: no .symtab or .gopclntab", path)
+	}
+
+	var symtabdat []byte
+	if sec := ef.Section(".gosymtab"); sec != nil {
+		symtabdat, _ = sec.Data()
+	}
+
+	lineTab := gosym.NewLineTable(pclndata, textAddr)
+	symTab, err := gosym.NewTable(symtabdat, lineTab)
+	if err != nil {
+		return nil, fmt.Errorf("parse .gopclntab from %s: %w", path, err)
+	}
+
+	symMap := make(map[string]uint64)
+	for _, f := range symTab.Funcs {
+		if f.Value == 0 {
+			continue
+		}
+		offset := f.Value
+		for _, prog := range ef.Progs {
+			if prog.Type != elf.PT_LOAD {
+				continue
+			}
+			if prog.Vaddr <= f.Value && f.Value < (prog.Vaddr+prog.Memsz) {
+				offset = f.Value - prog.Vaddr + prog.Off
+				break
+			}
+		}
+		symMap[f.Name] = offset
+	}
+
+	result := make(map[string]uint64)
+	for shortID, candidates := range TargetSymbols {
+		for _, candidate := range candidates {
+			if addr, ok := symMap[candidate]; ok {
+				result[shortID] = addr
+				break
+			}
+			for name, addr := range symMap {
+				if strings.HasSuffix(name, candidate) {
+					result[shortID] = addr
+					break
+				}
+			}
+		}
+	}
 	return result, nil
 }

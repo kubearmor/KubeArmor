@@ -78,6 +78,23 @@ static __attribute__((always_inline)) int should_trace_port(u16 port) {
   return excluded == NULL;  // trace if NOT excluded
 }
 
+// ka_is_port_excluded — skb-based port exclusion for cgroup_skb programs.
+// Checks both local and remote ports. Returns 1 if the packet should be
+// dropped (port is excluded), 0 if it should be traced.
+static __attribute__((always_inline)) int ka_is_port_excluded(struct __sk_buff *skb) {
+  __u16 local_port  = (__u16)(skb->local_port  & 0xFFFF);
+  __u16 remote_port = (__u16)(bpf_ntohl(skb->remote_port) & 0xFFFF);
+  __u8 *excl_local  = bpf_map_lookup_elem(&port_exclusion_map, &local_port);
+  if (excl_local != NULL) {
+      return 1;
+  }
+  __u8 *excl_remote = bpf_map_lookup_elem(&port_exclusion_map, &remote_port);
+  if (excl_remote != NULL) {
+      return 2; /* Different return value prevents Clang bitwise OR optimization */
+  }
+  return 0;
+}
+
 // Loopback check: returns 1 if IP is in 127.0.0.0/8.
 // skc_rcv_saddr is __be32 (network byte order). BPF_CORE_READ_INTO copies
 // raw bytes into a native u32. On all supported little-endian architectures
