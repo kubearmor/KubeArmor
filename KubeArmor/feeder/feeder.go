@@ -236,6 +236,7 @@ type BaseFeeder struct {
 	Output    string
 	LogFile   *os.File
 	LogWriter *bufio.Writer // persistent buffered writer for LogFile
+	LogWriterLock sync.Mutex
 
 	// Activated Enforcer
 	Enforcer     string
@@ -364,7 +365,9 @@ func NewFeeder(node *tp.Node, nodeLock **sync.RWMutex) (feeder *Feeder) {
 				if !fd.Running {
 					return
 				}
+				fd.LogWriterLock.Lock()
 				fd.LogWriter.Flush()
+				fd.LogWriterLock.Unlock()
 			}
 		}()
 	}
@@ -485,9 +488,12 @@ func (fd *BaseFeeder) DestroyFeeder() error {
 	}
 
 	// flush and close LogFile
+	fd.LogWriterLock.Lock()
 	if fd.LogWriter != nil {
 		fd.LogWriter.Flush()
 	}
+	fd.LogWriterLock.Unlock()
+	
 	if fd.LogFile != nil {
 		if err := fd.LogFile.Close(); err != nil {
 			kg.Err(err.Error())
@@ -534,6 +540,8 @@ func (fd *BaseFeeder) PushAPIEvent(event *apipb.APIEvent) {
 
 // StrToFile Function
 func (fd *Feeder) StrToFile(str string) {
+	fd.LogWriterLock.Lock()
+	defer fd.LogWriterLock.Unlock()
 	if fd.LogWriter != nil {
 		// Write directly to persistent buffered writer.
 		// Flush happens periodically via background goroutine.
@@ -847,7 +855,9 @@ func (fd *Feeder) PushLog(log tp.Log) {
 	if fd.Output == "stdout" {
 		json.NewEncoder(os.Stdout).Encode(log)
 	} else if fd.Output != "none" && fd.LogWriter != nil {
+		fd.LogWriterLock.Lock()
 		json.NewEncoder(fd.LogWriter).Encode(log)
+		fd.LogWriterLock.Unlock()
 	}
 
 	// gRPC output

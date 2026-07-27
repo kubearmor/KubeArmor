@@ -16,16 +16,6 @@ import (
 	"syscall"
 	"time"
 
-	apiobserver "github.com/kubearmor/KubeArmor/KubeArmor/apiObserver"
-	"github.com/kubearmor/KubeArmor/KubeArmor/apiObserver/ssl"
-	"github.com/kubearmor/KubeArmor/KubeArmor/common"
-	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
-	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
-	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
-	"github.com/kubearmor/KubeArmor/KubeArmor/policy"
-	"github.com/kubearmor/KubeArmor/KubeArmor/presets"
-	"github.com/kubearmor/KubeArmor/KubeArmor/state"
-	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 	pb "github.com/kubearmor/KubeArmor/protobuf"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health"
@@ -797,7 +787,19 @@ func KubeArmor() {
 		// Build ClusterIP->FQDN resolver for :authority enrichment.
 		resolver := dm.buildServiceResolver()
 
-		apiObs, err := apiobserver.NewAPIObserver(dm.Node, dm.SystemMonitor.PinPath, dm.Logger, resolver)
+		// Build Pod resolver for Namespace/Name enrichment.
+		podResolver := func(ip string) (string, string) {
+			dm.EndPointsLock.RLock()
+			defer dm.EndPointsLock.RUnlock()
+			for _, ep := range dm.EndPoints {
+				if ep.PodIP == ip {
+					return ep.NamespaceName, ep.EndPointName
+				}
+			}
+			return "", ""
+		}
+
+		apiObs, err := apiobserver.NewAPIObserver(dm.Node, dm.SystemMonitor.PinPath, dm.Logger, resolver, podResolver)
 		if err != nil {
 			dm.Logger.Warnf("Failed to initialize API Observer: %v", err)
 		} else {

@@ -16,6 +16,171 @@
 #include "common/structs.h"
 #include "filter_helpers.h"
 
+/* =========================================================================
+ * Core SSL / Go TLS maps (Kubeshark-style — "ks_" prefix)
+ * ========================================================================= */
+
+#define KS_MAX_ENTRIES_LRU_HASH (1 << 14) /* 16384 */
+
+/* OpenSSL per-operation context: pid_tgid → ks_ssl_info. */
+struct {
+  __uint(type, BPF_MAP_TYPE_LRU_HASH);
+  __uint(max_entries, KS_MAX_ENTRIES_LRU_HASH);
+  __type(key, __u64);
+  __type(value, struct ks_ssl_info);
+} ks_openssl_write_context SEC(".maps");
+
+struct {
+  __uint(type, BPF_MAP_TYPE_LRU_HASH);
+  __uint(max_entries, KS_MAX_ENTRIES_LRU_HASH);
+  __type(key, __u64);
+  __type(value, struct ks_ssl_info);
+} ks_openssl_read_context SEC(".maps");
+
+/* Go crypto/tls per-operation context: (pid<<32|goroutine_id) → ks_ssl_info */
+struct {
+  __uint(type, BPF_MAP_TYPE_LRU_HASH);
+  __uint(max_entries, KS_MAX_ENTRIES_LRU_HASH);
+  __type(key, __u64);
+  __type(value, struct ks_ssl_info);
+} ks_go_write_context SEC(".maps");
+
+struct {
+  __uint(type, BPF_MAP_TYPE_LRU_HASH);
+  __uint(max_entries, KS_MAX_ENTRIES_LRU_HASH);
+  __type(key, __u64);
+  __type(value, struct ks_ssl_info);
+} ks_go_read_context SEC(".maps");
+
+/* Go kernel-side FD capture: pid_tgid → fd (filled by sys_enter_write tracepoint) */
+struct {
+  __uint(type, BPF_MAP_TYPE_LRU_HASH);
+  __uint(max_entries, KS_MAX_ENTRIES_LRU_HASH);
+  __type(key, __u64);
+  __type(value, __u32);
+} ks_go_kernel_write_context SEC(".maps");
+
+struct {
+  __uint(type, BPF_MAP_TYPE_LRU_HASH);
+  __uint(max_entries, KS_MAX_ENTRIES_LRU_HASH);
+  __type(key, __u64);
+  __type(value, __u32);
+} ks_go_kernel_read_context SEC(".maps");
+
+/* Go user-kernel address bridge: (pid<<32|fd) → ks_address_info.
+ * Filled by tcp_kprobes from struct sock; consumed by Go TLS return probes. */
+struct {
+  __uint(type, BPF_MAP_TYPE_LRU_HASH);
+  __uint(max_entries, KS_MAX_ENTRIES_LRU_HASH);
+  __type(key, __u64);
+  __type(value, struct ks_address_info);
+} ks_go_user_kernel_write_context SEC(".maps");
+
+struct {
+  __uint(type, BPF_MAP_TYPE_LRU_HASH);
+  __uint(max_entries, KS_MAX_ENTRIES_LRU_HASH);
+  __type(key, __u64);
+  __type(value, struct ks_address_info);
+} ks_go_user_kernel_read_context SEC(".maps");
+
+/* Connection context: (pid<<32|fd) → ks_conn_flags (client/server bit).
+ * Filled by connect/accept tracepoints. */
+struct {
+  __uint(type, BPF_MAP_TYPE_LRU_HASH);
+  __uint(max_entries, KS_MAX_ENTRIES_LRU_HASH);
+  __type(key, __u64);
+  __type(value, ks_conn_flags);
+} ks_connection_context SEC(".maps");
+
+/* Persistent per-FD address cache: (pid<<32|fd) → ks_address_info.
+ *
+ * Problem: on keep-alive HTTPS connections, subsequent SSL_read calls
+ * serve data from OpenSSL's internal TLS record buffer — recv() is NOT
+ * called, so tcp_recvmsg never fires and address_info stays family=0.
+ * This map fixes that by caching the peer address the FIRST time
+ * tcp_recvmsg fires for a (pid,fd) pair. All subsequent SSL operations
+ * on the same FD look up this cache in the SSL entry probe so the
+ * address is always available regardless of whether tcp_recvmsg fired.
+ */
+struct {
+  __uint(type, BPF_MAP_TYPE_LRU_HASH);
+  __uint(max_entries, KS_MAX_ENTRIES_LRU_HASH);
+  __type(key, __u64);            /* (pid << 32) | fd */
+  __type(value, struct ks_address_info);
+} ks_openssl_conn_addr SEC(".maps");
+
+/* Per-CPU scratch for TLS chunk assembly. */
+struct {
+  __uint(type, BPF_MAP_TYPE_PERCPU_ARRAY);
+  __uint(max_entries, 1);
+  __type(key, int);
+  __type(value, struct ks_tls_chunk);
+} ks_heap SEC(".maps");
+
+/* Perf buffer for TLS chunks: BPF → Go TlsPoller. */
+struct {
+  __uint(type, BPF_MAP_TYPE_PERF_EVENT_ARRAY);
+  __uint(max_entries, 1024);
+  __type(key, int);
+  __type(value, __u32);
+} ks_chunks_buffer SEC(".maps");
+
+/* Per-thread last-socket-FD cache (memory BIO fallback for Node.js). */
+struct {
+  __uint(type, BPF_MAP_TYPE_LRU_HASH);
+  __uint(max_entries, 8192);
+  __type(key, __u64);
+  __type(value, __u32);
+} ks_pid_last_socket_fd SEC(".maps");
+
+/* Per-process last-socket-FD cache (Java/Netty useTasks=true fallback). */
+struct {
+  __uint(type, BPF_MAP_TYPE_LRU_HASH);
+  __uint(max_entries, 4096);
+  __type(key, __u32);
+  __type(value, __u32);
+} ks_tgid_last_socket_fd SEC(".maps");
+
+
+/* ks_go_tls_symaddrs — per-TGID Go TLS struct layout offsets.
+ * Populated by userspace scanner (goprobe.ScanBinary) with values
+ * derived from DWARF debug info or known Go stdlib defaults:
+ *   conn_data_offset:   offset of net.Conn interface data pointer within
+ *                       *tls.Conn. tls.Conn.conn is at +0; data ptr is
+ *                       second word of the iface → +8.
+ *   netfd_sysfd_offset: offset of poll.FD.Sysfd within *netFD.
+ *                       netFD.pfd is at +0; pfd.Sysfd follows a 16-byte
+ *                       fdMutex → +16 (0x10).
+ * Written into ks_go_tls_fd_offsets[tgid]. BPF reads them in
+ * go_tls_get_fd() instead of hardcoded constants; falls back to
+ * standard defaults when no entry exists for the current TGID. */
+struct ks_go_tls_symaddrs {
+  __u64 conn_data_offset;    /* default  8 — tls.Conn.conn data ptr at +8  */
+  __u64 netfd_sysfd_offset;  /* default 16 — netFD.pfd.Sysfd at +0x10     */
+};
+
+/* Per-TGID OpenSSL/BoringSSL struct field offsets. */
+struct {
+  __uint(type, BPF_MAP_TYPE_HASH);
+  __uint(max_entries, 4096);
+  __type(key, __u32);
+  __type(value, struct ssl_symaddrs);
+} ssl_symaddrs SEC(".maps");
+
+/* Per-TGID Go TLS struct layout offsets.
+ * Allows go_tls_get_fd() to use binary-specific offsets instead of
+ * hardcoded defaults. Written by userspace when a Go binary is probed.
+ * If no entry exists for the current TGID, BPF falls back to defaults. */
+struct {
+  __uint(type, BPF_MAP_TYPE_LRU_HASH);
+  __uint(max_entries, 4096);
+  __type(key, __u32);
+  __type(value, struct ks_go_tls_symaddrs);
+} ks_go_tls_fd_offsets SEC(".maps");
+
+
+
+
 /* ---- Helpers ---- */
 
 static __always_inline struct ks_ssl_info ks_new_ssl_info(void) {
@@ -161,6 +326,10 @@ static __always_inline void ks_output_ssl_chunk(struct pt_regs *ctx,
 
   chunk->flags = flags;
   chunk->timestamp = bpf_ktime_get_ns();
+  /* CRITICAL: populate cgroup_id so the Go side can attribute this chunk
+   * to the correct K8s namespace. Without this, all TLS chunks arrive
+   * with CgroupID=0, making namespace-based correlation impossible. */
+  chunk->cgroup_id = (__u32)bpf_get_current_cgroup_id();
   chunk->pid = id >> 32;
   chunk->tgid = id;
   chunk->len = count_bytes;
@@ -168,5 +337,15 @@ static __always_inline void ks_output_ssl_chunk(struct pt_regs *ctx,
 
   ks_add_address_to_chunk(ctx, chunk, id, chunk->fd, info);
 
+  /* NOTE: We intentionally do NOT drop chunks where family==0 (address
+   * resolution missed this connection). Instead, we send all chunks to
+   * userspace so the /proc socket resolver can fill in missing IPs.
+   *
+   * Rationale: tcp_sendmsg/tcp_recvmsg kprobes fire asynchronously and
+   * may not have populated the address map before the first TLS chunk
+   * arrives. Dropping here causes permanent data loss for connections
+   * established before probe attachment. Userspace resolves IPs via
+   * /proc/<pid>/net/tcp (process-namespace scoped) which is accurate
+   * and avoids the :0>:0 connKey collision in the dissector. */
   ks_send_chunk(ctx, info->buffer, id, chunk);
 }

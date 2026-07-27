@@ -152,6 +152,20 @@ struct {
   __type(value, struct go_h2_single_header_event);
 } go_h2_single_header_scratch SEC(".maps");
 
+/* Ring buffer for operateHeaders transport-level header events. */
+struct {
+    __uint(type, BPF_MAP_TYPE_RINGBUF);
+    __uint(max_entries, 2 * 1024 * 1024);
+} go_h2_transport_events SEC(".maps");
+
+/* Per-CPU scratch for go_h2_transport_event. */
+struct {
+    __uint(type, BPF_MAP_TYPE_PERCPU_ARRAY);
+    __uint(max_entries, 1);
+    __type(key, u32);
+    __type(value, struct go_h2_transport_event);
+} go_h2_transport_scratch SEC(".maps");
+
 /* ---- Helpers ---- */
 
 static __always_inline void go_addr_key_init(struct go_addr_key *key,

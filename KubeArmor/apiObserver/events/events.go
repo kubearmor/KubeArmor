@@ -87,12 +87,9 @@ type DataEvent struct {
 	HasConnRole  bool
 	IsClientConn bool // true = connect() side, false = accept() side
 
-	// Cached IP strings (lazily computed, avoid repeated allocation).
-	srcIPStr string
-	dstIPStr string
 }
 
-func (e DataEvent) IsSSL() bool {
+func (e *DataEvent) IsSSL() bool {
 	return e.Flags&FlagIsSSL != 0
 }
 
@@ -147,21 +144,13 @@ func ParseDataEvent(data []byte) (*DataEvent, error) {
 }
 
 // SrcIPString returns the source IP in dotted-decimal notation.
-// The result is cached to avoid repeated allocation on the hot path.
 func (e *DataEvent) SrcIPString() string {
-	if e.srcIPStr == "" {
-		e.srcIPStr = uint32ToIP(e.SrcIP).String()
-	}
-	return e.srcIPStr
+	return uint32ToIP(e.SrcIP).String()
 }
 
 // DstIPString returns the destination IP in dotted-decimal notation.
-// The result is cached to avoid repeated allocation on the hot path.
 func (e *DataEvent) DstIPString() string {
-	if e.dstIPStr == "" {
-		e.dstIPStr = uint32ToIP(e.DstIP).String()
-	}
-	return e.dstIPStr
+	return uint32ToIP(e.DstIP).String()
 }
 
 // Time converts the BPF ktime_get_ns() nanosecond timestamp to time.Time.

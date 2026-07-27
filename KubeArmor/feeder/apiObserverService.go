@@ -212,8 +212,8 @@ func matchesFilter(event *pb.APIEvent, f *pb.APIEventFilter) bool {
 	}
 	if len(f.Methods) > 0 {
 		method := ""
-		if event.Request != nil {
-			method = event.Request.Method
+		if req := event.GetRequest(); req != nil {
+			method = req.Method
 		}
 		if !sliceContains(f.Methods, method) {
 			return false
@@ -221,8 +221,8 @@ func matchesFilter(event *pb.APIEvent, f *pb.APIEventFilter) bool {
 	}
 	if len(f.StatusPatterns) > 0 {
 		code := ""
-		if event.Response != nil {
-			code = fmt.Sprintf("%d", event.Response.StatusCode)
+		if res := event.GetResponse(); res != nil {
+			code = fmt.Sprintf("%d", res.StatusCode)
 		}
 		matched := false
 		for _, p := range f.StatusPatterns {
@@ -255,14 +255,14 @@ func (s *APIObserverService) updateMetrics(event *pb.APIEvent) {
 	s.metrics.eventsByProtocol[event.Protocol]++
 
 	code := ""
-	if event.Response != nil {
-		code = fmt.Sprintf("%d", event.Response.StatusCode)
+	if res := event.GetResponse(); res != nil {
+		code = fmt.Sprintf("%d", res.StatusCode)
 	}
 	s.metrics.eventsByStatus[code]++
 
 	method, path := "", ""
-	if event.Request != nil {
-		method, path = event.Request.Method, event.Request.Path
+	if req := event.GetRequest(); req != nil {
+		method, path = req.Method, req.Path
 	}
 	endpoint := method + " " + path
 

@@ -28,11 +28,8 @@ type GonePIDFunc func(pid uint32, snap ProcSnapshot)
 //
 // On steady-state ticks (no new pods, no exits), Diff() returns empty
 // slices and tick() returns immediately — a near-zero-cost no-op.
-//
-// The walker is staggered 10s from startup to let BPF attachment settle.
 type UnifiedProcWalker struct {
 	interval time.Duration
-	stagger  time.Duration
 	cache    *ProcCache
 	scanners []ScannerFunc
 	onGone   GonePIDFunc
@@ -44,7 +41,6 @@ type UnifiedProcWalker struct {
 func NewUnifiedProcWalker(interval time.Duration, scanners []ScannerFunc, onGone GonePIDFunc) *UnifiedProcWalker {
 	return &UnifiedProcWalker{
 		interval: interval,
-		stagger:  10 * time.Second,
 		cache:    NewProcCache(),
 		scanners: scanners,
 		onGone:   onGone,
@@ -54,14 +50,6 @@ func NewUnifiedProcWalker(interval time.Duration, scanners []ScannerFunc, onGone
 // Run starts the walker loop. It blocks until ctx is cancelled.
 // Call from a goroutine: go walker.Run(ctx)
 func (w *UnifiedProcWalker) Run(ctx context.Context) {
-	// Stagger from startup — let BPF attach, ring buffer readers, and
-	// other tickers settle before the first /proc walk.
-	select {
-	case <-time.After(w.stagger):
-	case <-ctx.Done():
-		return
-	}
-
 	// Initial scan — processes everything currently running.
 	w.tick(ctx)
 
@@ -103,16 +91,21 @@ func (w *UnifiedProcWalker) tick(ctx context.Context) {
 		default:
 		}
 
+		// Run all scanners; track whether any failed.
+		scanFailed := false
 		for _, scanner := range w.scanners {
 			if err := scanner(snap); err != nil {
-				kg.Warnf("ProcWalker: scanner error for PID %d: %v", snap.PID, err)
+				kg.Warnf("ProcWalker: scanner error for PID %d: %v — will retry next tick", snap.PID, err)
+				scanFailed = true
 			}
 		}
 
-		// Commit to cache only after all scanners have processed.
-		// This ensures that if a scanner fails, the PID will be
-		// retried on the next tick.
-		w.cache.Commit(snap)
+		// Commit to cache only when all scanners succeeded.
+		// If any scanner failed, the PID is not committed so it will be
+		// retried on the next tick (Diff will re-discover it).
+		if !scanFailed {
+			w.cache.Commit(snap)
+		}
 	}
 
 	// Handle gone PIDs — close uprobe links for exited containers.
