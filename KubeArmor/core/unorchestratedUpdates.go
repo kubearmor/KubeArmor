@@ -10,7 +10,6 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/aquasecurity/trivy/pkg/policy"
 	"github.com/fsnotify/fsnotify"
 	"github.com/spf13/viper"
 
@@ -831,8 +830,13 @@ func (dm *KubeArmorDaemon) backupPolicy(kind string, metadata map[string]string,
 	var file *os.File
 	var err error
 
-	if file, err = os.Create(cfg.GlobalCfg.RestorePath + policy.Metadata["policyName"] + ".yaml"); err == nil {
-		if policyBytes, err := yl.Marshal(policy); err == nil {
+	policyName, ok := metadata["policyName"]
+	if !ok || policyName == "" {
+		policyName = metadata["name"]
+	}
+
+	if file, err = os.Create(cfg.GlobalCfg.RestorePath + policyName + ".yaml"); err == nil {
+		if policyBytes, err := yl.Marshal(backup); err == nil {
 			if _, err = file.Write(policyBytes); err == nil {
 				if err := file.Close(); err != nil {
 					dm.Logger.Err(err.Error())
@@ -846,6 +850,11 @@ func (dm *KubeArmorDaemon) backupPolicy(kind string, metadata map[string]string,
 // backupKubeArmorHostPolicy Function
 func (dm *KubeArmorDaemon) backupKubeArmorHostPolicy(policy tp.HostSecurityPolicy) {
 	dm.backupPolicy("KubeArmorHostPolicy", policy.Metadata, policy.Spec)
+}
+
+// backupKubeArmorNetworkPolicy Function
+func (dm *KubeArmorDaemon) backupKubeArmorNetworkPolicy(policy tp.NetworkSecurityPolicy) {
+	dm.backupPolicy("KubeArmorNetworkPolicy", policy.Metadata, policy.Spec)
 }
 
 // Back up KubeArmor container policies in /opt/kubearmor/policies
@@ -898,7 +907,6 @@ func (dm *KubeArmorDaemon) restoreKubeArmorPolicies() {
 			if data, err := os.ReadFile(cfg.GlobalCfg.RestorePath + file.Name()); err == nil {
 
 				var k struct {
-					Kind     string            `json:"kind"`
 					Kind     string            `json:"kind"`
 					Metadata map[string]string `json:"metadata"`
 				}

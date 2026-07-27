@@ -61,10 +61,10 @@ type KubearmorConfig struct {
 	DefaultPostureLogs bool         // Enable/Disable Default Posture logs for AppArmor LSM
 	InitTimeout        string       // Timeout for main thread init stages
 
-	UseOCIHooks bool   // Use OCI hooks for container visibility instead of CRI socket
-	HookFilePath    string // OCI hook path to use
-	StateAgent  bool   // enable KubeArmor state agent
-	RestorePath string // Path to restore policies from
+	UseOCIHooks  bool   // Use OCI hooks for container visibility instead of CRI socket
+	HookFilePath string // OCI hook path to use
+	StateAgent   bool   // enable KubeArmor state agent
+	RestorePath  string // Path to restore policies from
 
 	AlertThrottling   bool  // Enable/Disable Alert Throttling
 	MaxAlertPerSec    int32 // Maximum alerts allowed per second
@@ -121,7 +121,6 @@ const (
 	ConfigCoverageTest                   string = "coverageTest"
 	ConfigK8sEnv                         string = "k8s"
 	ConfigDebug                          string = "debug"
-	UseOCIHooks                          string = "useOCIHooks"
 	HookFilePath                         string = "hookFilePath"
 	RestorePath                          string = "restorePath"
 	ConfigUntrackedNs                    string = "untrackedNs"
@@ -195,8 +194,6 @@ func readCmdLineParams() {
 	initTimeout := flag.String(ConfigInitTimeout, "60s", "Timeout for main thread init stages")
 
 	stateAgent := flag.Bool(ConfigStateAgent, false, "enabling KubeArmor State Agent client")
-
-	useOCIHooks := flag.Bool(UseOCIHooks, false, "Use OCI hooks to get new containers instead of using container runtime socket")
 
 	hookFilePath := flag.String(HookFilePath, "/opt/kubearmor_hook_output.json", "OCI hook container info output file path to use")
 
