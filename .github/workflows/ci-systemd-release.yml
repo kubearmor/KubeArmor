@@ -70,7 +70,7 @@ jobs:
         uses: sigstore/cosign-installer@dc72c7d5c4d10cd6bcb8cf6e3fd625a9e5e537da
 
       - name: Install karmor
-        run: curl -sfL https://raw.githubusercontent.com/kubearmor/kubearmor-client/main/install.sh | sudo sh -s -- -b .
+        run: curl -sfL https://raw.githubusercontent.com/kubearmor/kubearmor-client/main/install.sh -o /tmp/install-karmor.sh && sudo sh /tmp/install-karmor.sh -b .
         working-directory: KubeArmor
 
       - name: Build KubeArmor object files
