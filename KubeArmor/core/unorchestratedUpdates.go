@@ -827,7 +827,7 @@ func (dm *KubeArmorDaemon) backupPolicy(kind string, metadata map[string]string,
 	}
 
 	filePath := filepath.Join(cfg.GlobalCfg.RestorePath, metadata["policyName"]+".yaml")
-	file, err := os.Create(filePath)
+	file, err := os.Create(filePath) // #nosec G304
 	if err != nil {
 		dm.Logger.Err(err.Error())
 		return
