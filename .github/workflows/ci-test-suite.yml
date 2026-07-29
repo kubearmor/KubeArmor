@@ -22,10 +22,10 @@ jobs:
       codespell: ${{ steps.filter.outputs.codespell_any_changed }}
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         
       - name: Filter Repository Paths
-        uses: tj-actions/changed-files@v44
+        uses: tj-actions/changed-files@9426d40962ed5378910ee2e21d5f8c6fcbf2dd96 # v47.0.6
         id: filter
         with:
           files_yaml: |
@@ -46,8 +46,9 @@ jobs:
               - '.github/workflows/ci-test-operator.yaml'
             ebpf:
               - 'KubeArmor/BPF/**'
-              - '.github/workflows/ci-test-ebpf.yml'
               - 'KubeArmor/enforcer/**/*.o'
+              - '.github/workflows/ci-test-ebpf.yml'
+              - '.github/workflows/ci-test-lvh-matrix.yml'
             codespell:
               - '.codespellrc'
               - '.github/workflows/ci-codespell.yml'
@@ -81,7 +82,7 @@ jobs:
   go-tests:
     name: "Go Tests"
     if: |
-      always() &&
+      !cancelled() &&
       (needs.codespell.result == 'success' || needs.codespell.result == 'skipped') &&
       (needs.license.result == 'success') &&
       needs.detect-changes.outputs.go == 'true'
@@ -89,20 +90,29 @@ jobs:
     uses: ./.github/workflows/ci-test-go.yml
 
   ebpf-tests:
-    name: "eBPF Tests"
+    name: "eBPF Test"
     if: |
-      always() &&
+      !cancelled() &&
       (needs.codespell.result == 'success' || needs.codespell.result == 'skipped') &&
       (needs.license.result == 'success') &&
       needs.detect-changes.outputs.ebpf == 'true'
     needs: [detect-changes, license, codespell]
     uses: ./.github/workflows/ci-test-ebpf.yml
 
+  lvh-tests:
+    name: "LVH Tests"
+    needs: [detect-changes, ebpf-tests]
+    if: |
+      !cancelled() &&
+      needs.detect-changes.outputs.ebpf == 'true' &&
+      needs.ebpf-tests.result == 'success'
+    uses: ./.github/workflows/ci-test-lvh-matrix.yml
+
   matrix-tests:
     name: "Ginkgo Tests - K8s"
     needs: [detect-changes, go-tests, ebpf-tests]
     if: |
-      always() &&
+      !cancelled() &&
       (needs.go-tests.result == 'success' || needs.go-tests.result == 'skipped') &&
       (needs.ebpf-tests.result == 'success' || needs.ebpf-tests.result == 'skipped') &&
       (needs.go-tests.result == 'success' || needs.ebpf-tests.result == 'success')
@@ -112,7 +122,7 @@ jobs:
     name: "Ginkgo Tests (UBI) - K8s"
     needs: [detect-changes, go-tests, ebpf-tests]
     if: |
-      always() &&
+      !cancelled() &&
       (needs.go-tests.result == 'success' || needs.go-tests.result == 'skipped') &&
       (needs.ebpf-tests.result == 'success' || needs.ebpf-tests.result == 'skipped') &&
       (needs.go-tests.result == 'success' || needs.ebpf-tests.result == 'success')
@@ -122,7 +132,7 @@ jobs:
     name: "Ginkgo Tests - Systemd"
     needs: [detect-changes, go-tests, ebpf-tests]
     if: |
-      always() &&
+      !cancelled() &&
       (needs.go-tests.result == 'success' || needs.go-tests.result == 'skipped') &&
       (needs.ebpf-tests.result == 'success' || needs.ebpf-tests.result == 'skipped') &&
       (needs.go-tests.result == 'success' || needs.ebpf-tests.result == 'success')
@@ -132,7 +142,7 @@ jobs:
     name: "Ginkgo Tests (Network) - K8s"
     needs: [detect-changes, go-tests, ebpf-tests]
     if: |
-      always() &&
+      !cancelled() &&
       (needs.go-tests.result == 'success' || needs.go-tests.result == 'skipped') &&
       (needs.ebpf-tests.result == 'success' || needs.ebpf-tests.result == 'skipped') &&
       (needs.go-tests.result == 'success' || needs.ebpf-tests.result == 'success')
@@ -142,7 +152,7 @@ jobs:
     name: "Ginkgo Tests (Controller) - K8s"
     needs: [detect-changes, go-tests, ebpf-tests]
     if: |
-      always() &&
+      !cancelled() &&
       (needs.go-tests.result == 'success' || needs.go-tests.result == 'skipped') &&
       (needs.ebpf-tests.result == 'success' || needs.ebpf-tests.result == 'skipped') &&
       (needs.go-tests.result == 'success' || needs.ebpf-tests.result == 'success')
@@ -152,7 +162,7 @@ jobs:
     name: "Build Test - Operator"
     needs: [detect-changes, go-tests, ebpf-tests]
     if: |
-      always() &&
+      !cancelled() &&
       (needs.go-tests.result == 'success' || needs.go-tests.result == 'skipped') &&
       (needs.ebpf-tests.result == 'success' || needs.ebpf-tests.result == 'skipped') &&
       (needs.go-tests.result == 'success' || needs.ebpf-tests.result == 'success')
@@ -168,6 +178,7 @@ jobs:
       - matrix-tests-network
       - matrix-tests-controller
       - build-test-operator
+      - lvh-tests
     runs-on: ubuntu-latest
     steps:
       - run: |
