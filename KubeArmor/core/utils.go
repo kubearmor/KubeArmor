@@ -41,8 +41,8 @@ func (dm *KubeArmorDaemon) CreateEndpoint(endPoint *tp.EndPoint, container tp.Co
 
 		dm.SecurityPoliciesLock.RLock()
 		for _, secPol := range dm.SecurityPolicies {
-		// required only in ADDED event, this alone will update the namespaceList for csp
-		updateNamespaceListforCSP(&secPol)
+			// required only in ADDED event, this alone will update the namespaceList for csp
+			updateNamespaceListforCSP(&secPol)
 
 			// match ksp || csp
 			if (kl.MatchIdentities(secPol.Spec.Selector.Identities, endPoint.Identities) && kl.MatchExpIdentities(secPol.Spec.Selector, endPoint.Identities)) ||

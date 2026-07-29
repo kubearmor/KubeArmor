@@ -5,9 +5,10 @@ package core
 
 import (
 	"encoding/json"
+	"errors"
 	"io"
 	"os"
-	"errors"
+	"path/filepath"
 	"time"
 
 	"github.com/fsnotify/fsnotify"
@@ -22,10 +23,10 @@ func (dm *KubeArmorDaemon) HandleFile(file string) {
 		if time.Since(timeNow) > 300*time.Second {
 			return
 		}
-		if _, err := os.Stat(file); errors.Is(err, os.ErrNotExist) {
+		if _, err := os.Stat(filepath.Clean(file)); errors.Is(err, os.ErrNotExist) {
 			continue
 		}
-		f, err = os.Open(file)
+		f, err = os.Open(filepath.Clean(file)) // #nosec G304
 		if err != nil {
 			dm.Logger.Errf("Failed to open file '%s': %v. Ensure the file exists and has appropriate permissions.", file, err)
 			return
@@ -81,7 +82,7 @@ func (dm *KubeArmorDaemon) HandleFile(file string) {
 			}
 
 			if e.Op&fsnotify.Write == fsnotify.Write {
-				f, err := os.Open(file)
+				f, err := os.Open(filepath.Clean(file)) // #nosec G304
 				if err != nil {
 					dm.Logger.Errf("Error opening file: (%s)", err.Error())
 					continue
