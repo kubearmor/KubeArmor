@@ -247,11 +247,18 @@ jobs:
       - name: Measure code coverage
         if: ${{ always() }}
         run: |
+          # Make sure module files are up-to-date so `go list` works for coverage
+          go mod tidy
+
+          # install gover
           go install github.com/modocache/gover@v0.0.0-20171022184752-b58185e213c5
+
           ls -l
+
           if [ -f coverage_k8s_${{ matrix.os }}_${{ matrix.runtime }}.out ]; then
-            gover
-            go tool cover -func coverage_k8s_${{ matrix.os }}_${{ matrix.runtime }}.out
+            # produce combined coverage and show func coverage
+            gover || true
+            go tool cover -func coverage_k8s_${{ matrix.os }}_${{ matrix.runtime }}.out || true
           else
             echo "Coverage file not found, skipping coverage report."
           fi

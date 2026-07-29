@@ -2,7 +2,7 @@
 
 This PR utilizes cgroup namespaces for host process identification in the BPF Enforcer. It updates the BPF helpers, maps, enforcers, and daemon handlers to include cgroup namespace ID tracking alongside PID and mount namespace IDs. This resolves process identification collisions under `hostPID: true` configurations.
 
-Fixes #2781
+Fixes #2816
 
 **Does this PR introduce a breaking change?**
 
