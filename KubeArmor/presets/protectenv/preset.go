@@ -90,7 +90,7 @@ func (p *Preset) RegisterPreset(logger *fd.Feeder, monitor *mon.SystemMonitor) (
 
 	p.BPFContainerMap, _ = ebpf.NewMapWithOptions(&ebpf.MapSpec{
 		Type:       ebpf.Hash,
-		KeySize:    8,
+		KeySize:    12,
 		ValueSize:  4,
 		MaxEntries: 256,
 		Pinning:    ebpf.PinByName,
@@ -224,8 +224,8 @@ func (p *Preset) TraceEvents() {
 }
 
 // RegisterContainer registers a container
-func (p *Preset) RegisterContainer(containerID string, pidns, mntns uint32) {
-	ckv := base.NsKey{PidNS: pidns, MntNS: mntns}
+func (p *Preset) RegisterContainer(containerID string, pidns, mntns, cgroupns uint32) {
+	ckv := base.NsKey{PidNS: pidns, MntNS: mntns, CgroupNS: cgroupns}
 
 	p.ContainerMapLock.Lock()
 	defer p.ContainerMapLock.Unlock()

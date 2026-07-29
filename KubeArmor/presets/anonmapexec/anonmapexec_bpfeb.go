@@ -16,9 +16,10 @@ import (
 type anonmapexecArgBufsK struct {
 	_    structs.HostLayout
 	Okey struct {
-		_     structs.HostLayout
-		PidNs uint32
-		MntNs uint32
+		_        structs.HostLayout
+		PidNs    uint32
+		MntNs    uint32
+		CgroupNs uint32
 	}
 	Store anonmapexecBufsK
 	Arg   [104]int8

@@ -23,8 +23,9 @@ type ContainerKV struct {
 
 // NsKey Structure acts as an Identifier for containers
 type NsKey struct {
-	PidNS uint32
-	MntNS uint32
+	PidNS    uint32
+	MntNS    uint32
+	CgroupNS uint32
 }
 
 // InnerKey Structure contains Map Rule Identifier
@@ -44,8 +45,8 @@ type ArgListKey struct {
 }
 
 // AddContainerIDToMap adds container metadata to Outer eBPF container Map for initialising enforcement tracking and initiates an InnerMap to store the container specific rules
-func (be *BPFEnforcer) AddContainerIDToMap(containerID string, pidns, mntns uint32) {
-	key := NsKey{PidNS: pidns, MntNS: mntns}
+func (be *BPFEnforcer) AddContainerIDToMap(containerID string, pidns, mntns, cgroupns uint32) {
+	key := NsKey{PidNS: pidns, MntNS: mntns, CgroupNS: cgroupns}
 
 	be.ContainerMapLock.Lock()
 	defer be.ContainerMapLock.Unlock()
@@ -127,7 +128,7 @@ func (be *BPFEnforcer) DeleteContainerInnerMap(containerID string) {
 
 // AddHostToMap adds host to Outer eBPF container Map for initialising enforcement tracking and initiates an InnerMap to store the host specific rules
 func (be *BPFEnforcer) AddHostToMap() {
-	key := NsKey{PidNS: 0, MntNS: 0}
+	key := NsKey{PidNS: 0, MntNS: 0, CgroupNS: 0}
 
 	be.ContainerMapLock.Lock()
 	defer be.ContainerMapLock.Unlock()

@@ -17,8 +17,9 @@ const (
 
 // NSkey struct
 type NsKey struct {
-	PidNS uint32
-	MntNS uint32
+	PidNS    uint32
+	MntNS    uint32
+	CgroupNS uint32
 }
 
 // ContainerVal struct
@@ -85,7 +86,7 @@ type PresetInterface interface {
 	Name() string
 	// Init() error
 	RegisterPreset(logger *fd.Feeder, monitor *mon.SystemMonitor) (PresetInterface, error)
-	RegisterContainer(containerID string, pidns, mntns uint32)
+	RegisterContainer(containerID string, pidns, mntns, cgroupns uint32)
 	UnregisterContainer(containerID string)
 	UpdateSecurityPolicies(endPoint tp.EndPoint)
 	Destroy() error

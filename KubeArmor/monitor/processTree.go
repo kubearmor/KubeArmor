@@ -35,8 +35,8 @@ func (mon *SystemMonitor) LookupContainerID(pidns, mntns uint32) string {
 }
 
 // AddContainerIDToNsMap Function
-func (mon *SystemMonitor) AddContainerIDToNsMap(containerID string, namespace string, pidns, mntns uint32) {
-	key := NsKey{PidNS: pidns, MntNS: mntns}
+func (mon *SystemMonitor) AddContainerIDToNsMap(containerID string, namespace string, pidns, mntns, cgroupns uint32) {
+	key := NsKey{PidNS: pidns, MntNS: mntns, CgroupNS: cgroupns}
 
 	mon.NsMapLock.Lock()
 	mon.NsMap[key] = containerID
@@ -47,7 +47,7 @@ func (mon *SystemMonitor) AddContainerIDToNsMap(containerID string, namespace st
 		// check if nskey already exist
 		found := false
 		for i := range val.NsKeys {
-			if val.NsKeys[i].MntNS == mntns && val.NsKeys[i].PidNS == pidns {
+			if val.NsKeys[i].MntNS == mntns && val.NsKeys[i].PidNS == pidns && val.NsKeys[i].CgroupNS == cgroupns {
 				found = true
 				break
 			}
@@ -86,15 +86,16 @@ func (mon *SystemMonitor) AddContainerIDToNsMap(containerID string, namespace st
 }
 
 // DeleteContainerIDFromNsMap Function
-func (mon *SystemMonitor) DeleteContainerIDFromNsMap(containerID string, namespace string, pidns, mntns uint32) {
+func (mon *SystemMonitor) DeleteContainerIDFromNsMap(containerID string, namespace string, pidns, mntns, cgroupns uint32) {
 	ns := NsKey{
 		PidNS: pidns,
 		MntNS: mntns,
+		CgroupNS: cgroupns,
 	}
 
 	found := true
 	mon.NsMapLock.Lock()
-	if pidns != 0 && mntns != 0 {
+	if pidns != 0 && mntns != 0 && cgroupns != 0 {
 		delete(mon.NsMap, ns)
 	} else {
 		found = false
@@ -116,7 +117,7 @@ func (mon *SystemMonitor) DeleteContainerIDFromNsMap(containerID string, namespa
 	defer mon.BpfMapLock.Unlock()
 	if val, ok := mon.NamespacePidsMap[namespace]; ok {
 		for i := range val.NsKeys {
-			if val.NsKeys[i].MntNS == ns.MntNS && val.NsKeys[i].PidNS == ns.PidNS {
+			if val.NsKeys[i].MntNS == ns.MntNS && val.NsKeys[i].PidNS == ns.PidNS && val.NsKeys[i].CgroupNS == ns.CgroupNS {
 				val.NsKeys = append(val.NsKeys[:i], val.NsKeys[i+1:]...)
 				break
 			}

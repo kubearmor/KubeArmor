@@ -78,6 +78,14 @@ static __always_inline u32 get_mnt_ns_id(struct nsproxy *ns)
     return READ_KERN(mntns->ns.inum);
 }
 
+static __always_inline u32 get_cgroup_ns_id(struct nsproxy *ns)
+{
+    struct cgroup_namespace *cgroupns = READ_KERN(ns->cgroup_ns);
+    if (!cgroupns)
+        return 0;
+    return READ_KERN(cgroupns->ns.inum);
+}
+
 static inline struct mount *real_mount(struct vfsmount *mnt)
 {
     return container_of(mnt, struct mount, mnt);
@@ -91,6 +99,14 @@ static __always_inline u32 get_task_pid_ns_id(struct task_struct *task)
 static __always_inline u32 get_task_mnt_ns_id(struct task_struct *task)
 {
     return get_mnt_ns_id(READ_KERN(task->nsproxy));
+}
+
+static __always_inline u32 get_task_cgroup_ns_id(struct task_struct *task)
+{
+    struct nsproxy *nsproxy = READ_KERN(task->nsproxy);
+    if (!nsproxy)
+        return 0;
+    return get_cgroup_ns_id(nsproxy);
 }
 
 static __always_inline u32 get_task_pid_vnr(struct task_struct *task)
@@ -141,10 +157,12 @@ static __always_inline void get_outer_key(struct outer_key *pokey,
 {
     pokey->pid_ns = get_task_pid_ns_id(t);
     pokey->mnt_ns = get_task_mnt_ns_id(t);
-    if (pokey->pid_ns == PROC_PID_INIT_INO)
+    pokey->cgroup_ns = get_task_cgroup_ns_id(t);
+    if (pokey->pid_ns == PROC_PID_INIT_INO && pokey->cgroup_ns == PROC_CGROUP_INIT_INO)
     {
         pokey->pid_ns = 0;
         pokey->mnt_ns = 0;
+        pokey->cgroup_ns = 0;
     }
 }
 

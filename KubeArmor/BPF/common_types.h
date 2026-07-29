@@ -5,6 +5,7 @@ struct outer_key
 {
     u32 pid_ns;
     u32 mnt_ns;
+    u32 cgroup_ns;
 };
 
 #endif // _COMMON_TYPES_H

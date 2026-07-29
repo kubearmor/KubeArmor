@@ -47,8 +47,9 @@ const (
 
 // NsKey Structure
 type NsKey struct {
-	PidNS uint32
-	MntNS uint32
+	PidNS    uint32
+	MntNS    uint32
+	CgroupNS uint32
 }
 
 // NsVisibility Structure
@@ -235,7 +236,7 @@ func (mon *SystemMonitor) initBPFMaps() error {
 		&cle.MapSpec{
 			Name:       "kubearmor_visibility",
 			Type:       cle.HashOfMaps,
-			KeySize:    8,
+			KeySize:    12,
 			ValueSize:  4,
 			MaxEntries: 65535,
 			Pinning:    cle.PinByName,
@@ -465,6 +466,7 @@ func (mon *SystemMonitor) UpdateVisibility() {
 	hostNSKey := NsKey{
 		PidNS: 0,
 		MntNS: 0,
+		CgroupNS: 0,
 	}
 
 	hostVisibility := tp.Visibility{}
@@ -493,6 +495,7 @@ func (mon *SystemMonitor) UpdateVisibility() {
 	nsKey := NsKey{
 		PidNS: DefaultVisibilityKey,
 		MntNS: DefaultVisibilityKey,
+		CgroupNS: DefaultVisibilityKey,
 	}
 
 	visibility := tp.Visibility{}

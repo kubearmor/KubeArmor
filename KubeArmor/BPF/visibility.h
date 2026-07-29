@@ -47,6 +47,7 @@ static __always_inline u32 drop_syscall(u32 scope)
     struct outer_key defaultvizkey;
     defaultvizkey.pid_ns = DEFAULT_VISIBILITY_KEY;
     defaultvizkey.mnt_ns = DEFAULT_VISIBILITY_KEY;
+    defaultvizkey.cgroup_ns = DEFAULT_VISIBILITY_KEY;
     u32 *d_visibility = bpf_map_lookup_elem(&kubearmor_visibility, &defaultvizkey);
     if (d_visibility) {
         u32 *d_on_off_switch = bpf_map_lookup_elem(d_visibility, &scope);

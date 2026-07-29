@@ -16,9 +16,10 @@ import (
 type execArgBufsK struct {
 	_    structs.HostLayout
 	Okey struct {
-		_     structs.HostLayout
-		PidNs uint32
-		MntNs uint32
+		_        structs.HostLayout
+		PidNs    uint32
+		MntNs    uint32
+		CgroupNs uint32
 	}
 	Store execBufsK
 	Arg   [104]int8

@@ -251,6 +251,12 @@ func (ch *ContainerdHandler) GetContainerInfo(ctx context.Context, containerID, 
 		}
 	}
 
+	if data, err := os.Readlink(filepath.Join(cfg.GlobalCfg.ProcFsMount, pid, "/ns/cgroup")); err == nil {
+		if _, err := fmt.Sscanf(data, "cgroup:[%d]\n", &container.CgroupNS); err != nil {
+			kg.Warnf("Unable to get CgroupNS (%s, %s, %s)", containerID, pid, err.Error())
+		}
+	}
+
 	taskReq := task.ListPidsRequest{ContainerID: container.ContainerID}
 	if taskRes, err := ch.client.TaskService().ListPids(ctx, &taskReq); err == nil {
 		if len(taskRes.Processes) == 0 {
@@ -270,6 +276,12 @@ func (ch *ContainerdHandler) GetContainerInfo(ctx context.Context, containerID, 
 		if data, err := os.Readlink(filepath.Join(cfg.GlobalCfg.ProcFsMount, pid, "/ns/mnt")); err == nil {
 			if _, err := fmt.Sscanf(data, "mnt:[%d]\n", &container.MntNS); err != nil {
 				kg.Warnf("Unable to get MntNS (%s, %s, %s)", containerID, pid, err.Error())
+			}
+		}
+
+		if data, err := os.Readlink(filepath.Join(cfg.GlobalCfg.ProcFsMount, pid, "/ns/cgroup")); err == nil {
+			if _, err := fmt.Sscanf(data, "cgroup:[%d]\n", &container.CgroupNS); err != nil {
+				kg.Warnf("Unable to get CgroupNS (%s, %s, %s)", containerID, pid, err.Error())
 			}
 		}
 	} else {
@@ -514,15 +526,16 @@ func (dm *KubeArmorDaemon) UpdateContainerdContainer(ctx context.Context, contai
 		if dm.SystemMonitor != nil && cfg.GlobalCfg.Policy {
 			// for throttling
 			dm.SystemMonitor.Logger.ContainerNsKey[containerID] = common.OuterKey{
-				MntNs: container.MntNS,
-				PidNs: container.PidNS,
+				MntNs:    container.MntNS,
+				PidNs:    container.PidNS,
+				CgroupNs: container.CgroupNS,
 			}
 
 			// update NsMap
-			dm.SystemMonitor.AddContainerIDToNsMap(containerID, container.NamespaceName, container.PidNS, container.MntNS)
-			dm.RuntimeEnforcer.RegisterContainer(containerID, container.PidNS, container.MntNS)
+			dm.SystemMonitor.AddContainerIDToNsMap(containerID, container.NamespaceName, container.PidNS, container.MntNS, container.CgroupNS)
+			dm.RuntimeEnforcer.RegisterContainer(containerID, container.PidNS, container.MntNS, container.CgroupNS)
 			if dm.Presets != nil {
-				dm.Presets.RegisterContainer(container.ContainerID, container.PidNS, container.MntNS)
+				dm.Presets.RegisterContainer(container.ContainerID, container.PidNS, container.MntNS, container.CgroupNS)
 			}
 
 			if len(endPoint.SecurityPolicies) > 0 { // struct can be empty or no policies registered for the endPoint yet
@@ -543,7 +556,7 @@ func (dm *KubeArmorDaemon) UpdateContainerdContainer(ctx context.Context, contai
 			go dm.StateAgent.PushContainerEvent(container, state.EventAdded)
 		}
 
-		dm.Logger.Printf("Detected a container (added/%.12s/pidns=%d/mntns=%d)", containerID, container.PidNS, container.MntNS)
+		dm.Logger.Printf("Detected a container (added/%.12s/pidns=%d/mntns=%d/cgroupns=%d)", containerID, container.PidNS, container.MntNS, container.CgroupNS)
 
 	} else if action == "destroy" {
 		dm.ContainersLock.Lock()
@@ -600,7 +613,7 @@ func (dm *KubeArmorDaemon) UpdateContainerdContainer(ctx context.Context, contai
 			dm.Logger.DeleteAlertMapKey(outkey)
 			delete(dm.SystemMonitor.Logger.ContainerNsKey, containerID)
 			// update NsMap
-			dm.SystemMonitor.DeleteContainerIDFromNsMap(containerID, container.NamespaceName, container.PidNS, container.MntNS)
+			dm.SystemMonitor.DeleteContainerIDFromNsMap(containerID, container.NamespaceName, container.PidNS, container.MntNS, container.CgroupNS)
 			dm.RuntimeEnforcer.UnregisterContainer(containerID)
 			if dm.Presets != nil {
 				dm.Presets.UnregisterContainer(containerID)
@@ -612,7 +625,7 @@ func (dm *KubeArmorDaemon) UpdateContainerdContainer(ctx context.Context, contai
 			go dm.StateAgent.PushContainerEvent(container, state.EventDeleted)
 		}
 
-		dm.Logger.Printf("Detected a container (removed/%.12s/pidns=%d/mntns=%d)", containerID, container.PidNS, container.MntNS)
+		dm.Logger.Printf("Detected a container (removed/%.12s/pidns=%d/mntns=%d/cgroupns=%d)", containerID, container.PidNS, container.MntNS, container.CgroupNS)
 	}
 
 	return nil

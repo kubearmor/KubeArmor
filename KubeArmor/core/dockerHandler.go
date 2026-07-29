@@ -154,6 +154,12 @@ func (dh *DockerHandler) GetContainerInfo(containerID, nodeID string, OwnerInfo 
 		}
 	}
 
+	if data, err := os.Readlink(filepath.Join(cfg.GlobalCfg.ProcFsMount, pid, "/ns/cgroup")); err == nil {
+		if _, err := fmt.Sscanf(data, "cgroup:[%d]\n", &container.CgroupNS); err != nil {
+			kg.Warnf("Unable to get CgroupNS (%s, %s, %s)", containerID, pid, err.Error())
+		}
+	}
+
 	// == //
 
 	if !cfg.GlobalCfg.K8sEnv {
@@ -472,15 +478,16 @@ func (dm *KubeArmorDaemon) GetAlreadyDeployedDockerContainers() {
 				if dm.SystemMonitor != nil && cfg.GlobalCfg.Policy {
 					// for throttling
 					dm.SystemMonitor.Logger.ContainerNsKey[container.ContainerID] = common.OuterKey{
-						MntNs: container.MntNS,
-						PidNs: container.PidNS,
+						MntNs:    container.MntNS,
+						PidNs:    container.PidNS,
+						CgroupNs: container.CgroupNS,
 					}
 
 					// update NsMap
-					dm.SystemMonitor.AddContainerIDToNsMap(container.ContainerID, container.NamespaceName, container.PidNS, container.MntNS)
-					dm.RuntimeEnforcer.RegisterContainer(container.ContainerID, container.PidNS, container.MntNS)
+					dm.SystemMonitor.AddContainerIDToNsMap(container.ContainerID, container.NamespaceName, container.PidNS, container.MntNS, container.CgroupNS)
+					dm.RuntimeEnforcer.RegisterContainer(container.ContainerID, container.PidNS, container.MntNS, container.CgroupNS)
 					if dm.Presets != nil {
-						dm.Presets.RegisterContainer(container.ContainerID, container.PidNS, container.MntNS)
+						dm.Presets.RegisterContainer(container.ContainerID, container.PidNS, container.MntNS, container.CgroupNS)
 					}
 
 					if len(endPoint.SecurityPolicies) > 0 { // struct can be empty or no policies registered for the endpoint yet
@@ -673,15 +680,16 @@ func (dm *KubeArmorDaemon) UpdateDockerContainer(containerID, action string) {
 		if dm.SystemMonitor != nil && cfg.GlobalCfg.Policy {
 			// for throttling
 			dm.SystemMonitor.Logger.ContainerNsKey[containerID] = common.OuterKey{
-				MntNs: container.MntNS,
-				PidNs: container.PidNS,
+				MntNs:    container.MntNS,
+				PidNs:    container.PidNS,
+				CgroupNs: container.CgroupNS,
 			}
 
 			// update NsMap
-			dm.SystemMonitor.AddContainerIDToNsMap(containerID, container.NamespaceName, container.PidNS, container.MntNS)
-			dm.RuntimeEnforcer.RegisterContainer(containerID, container.PidNS, container.MntNS)
+			dm.SystemMonitor.AddContainerIDToNsMap(containerID, container.NamespaceName, container.PidNS, container.MntNS, container.CgroupNS)
+			dm.RuntimeEnforcer.RegisterContainer(containerID, container.PidNS, container.MntNS, container.CgroupNS)
 			if dm.Presets != nil {
-				dm.Presets.RegisterContainer(containerID, container.PidNS, container.MntNS)
+				dm.Presets.RegisterContainer(containerID, container.PidNS, container.MntNS, container.CgroupNS)
 			}
 
 			if len(endPoint.SecurityPolicies) > 0 { // struct can be empty or no policies registered for the endpoint yet
@@ -770,7 +778,7 @@ func (dm *KubeArmorDaemon) UpdateDockerContainer(containerID, action string) {
 			dm.Logger.DeleteAlertMapKey(outkey)
 			delete(dm.SystemMonitor.Logger.ContainerNsKey, containerID)
 			// update NsMap
-			dm.SystemMonitor.DeleteContainerIDFromNsMap(containerID, container.NamespaceName, container.PidNS, container.MntNS)
+			dm.SystemMonitor.DeleteContainerIDFromNsMap(containerID, container.NamespaceName, container.PidNS, container.MntNS, container.CgroupNS)
 			dm.RuntimeEnforcer.UnregisterContainer(containerID)
 			if dm.Presets != nil {
 				dm.Presets.UnregisterContainer(containerID)
