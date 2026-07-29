@@ -604,6 +604,43 @@ func (dm *KubeArmorDaemon) HandleUnknownNamespaceNsMap(container *tp.Container) 
 	dm.SystemMonitor.NsMapLock.Unlock()
 }
 
+// parseAppArmorAnnotations extracts container-to-profile mappings from a pod's
+// "container.apparmor.security.beta.kubernetes.io/*" annotations. Malformed
+// annotation keys (missing the "/<containerName>" suffix) or values (missing
+// the "localhost/<profile>" form) are skipped and reported back as warnings
+// instead of causing an index-out-of-range panic.
+func parseAppArmorAnnotations(annotations map[string]string) (map[string]string, []string) {
+	result := map[string]string{}
+	var warnings []string
+
+	for k, v := range annotations {
+		if !strings.HasPrefix(k, "container.apparmor.security.beta.kubernetes.io") {
+			continue
+		}
+
+		keyParts := strings.Split(k, "/")
+		if len(keyParts) != 2 {
+			warnings = append(warnings, fmt.Sprintf("Skipping malformed AppArmor annotation key (%s)", k))
+			continue
+		}
+		containerName := keyParts[1]
+
+		if v == "unconfined" {
+			result[containerName] = v
+			continue
+		}
+
+		valueParts := strings.Split(v, "/")
+		if len(valueParts) != 2 {
+			warnings = append(warnings, fmt.Sprintf("Skipping malformed AppArmor annotation value (%s: %s)", k, v))
+			continue
+		}
+		result[containerName] = valueParts[1]
+	}
+
+	return result, warnings
+}
+
 func (dm *KubeArmorDaemon) handlePodEvent(event string, obj *corev1.Pod) {
 	if event != addEvent && event != updateEvent && event != deleteEvent {
 		return
@@ -840,16 +877,12 @@ func (dm *KubeArmorDaemon) handlePodEvent(event string, obj *corev1.Pod) {
 		}
 		dm.OwnerInfoLock.RUnlock()
 
-		for k, v := range pod.Annotations {
-			if strings.HasPrefix(k, "container.apparmor.security.beta.kubernetes.io") {
-				if v == "unconfined" {
-					containerName := strings.Split(k, "/")[1]
-					appArmorAnnotations[containerName] = v
-				} else {
-					containerName := strings.Split(k, "/")[1]
-					appArmorAnnotations[containerName] = strings.Split(v, "/")[1]
-				}
-			}
+		parsedAnnotations, warnings := parseAppArmorAnnotations(pod.Annotations)
+		for containerName, profile := range parsedAnnotations {
+			appArmorAnnotations[containerName] = profile
+		}
+		for _, warning := range warnings {
+			dm.Logger.Warn(warning)
 		}
 
 		for _, container := range obj.Spec.Containers {
