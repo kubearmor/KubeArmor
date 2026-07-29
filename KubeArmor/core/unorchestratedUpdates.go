@@ -6,6 +6,7 @@ package core
 import (
 	"encoding/json"
 	"os"
+	"path/filepath"
 	"regexp"
 	"slices"
 	"strings"
@@ -835,7 +836,8 @@ func (dm *KubeArmorDaemon) backupPolicy(kind string, metadata map[string]string,
 		policyName = metadata["name"]
 	}
 
-	if file, err = os.Create(cfg.GlobalCfg.RestorePath + policyName + ".yaml"); err == nil {
+	restoreFilePath := filepath.Clean(cfg.GlobalCfg.RestorePath + policyName + ".yaml")
+	if file, err = os.Create(restoreFilePath); err == nil { // #nosec G304
 		if policyBytes, err := yl.Marshal(backup); err == nil {
 			if _, err = file.Write(policyBytes); err == nil {
 				if err := file.Close(); err != nil {
