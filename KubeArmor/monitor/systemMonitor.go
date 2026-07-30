@@ -464,8 +464,8 @@ func (mon *SystemMonitor) UpdateNsKeyMap(action string, nsKey NsKey, visibility 
 // UpdateVisibility Function updates host visibility and global default visibility map based on the global config
 func (mon *SystemMonitor) UpdateVisibility() {
 	hostNSKey := NsKey{
-		PidNS: 0,
-		MntNS: 0,
+		PidNS:    0,
+		MntNS:    0,
 		CgroupNS: 0,
 	}
 
@@ -493,8 +493,8 @@ func (mon *SystemMonitor) UpdateVisibility() {
 	}
 
 	nsKey := NsKey{
-		PidNS: DefaultVisibilityKey,
-		MntNS: DefaultVisibilityKey,
+		PidNS:    DefaultVisibilityKey,
+		MntNS:    DefaultVisibilityKey,
 		CgroupNS: DefaultVisibilityKey,
 	}
 

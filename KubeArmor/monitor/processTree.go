@@ -88,8 +88,8 @@ func (mon *SystemMonitor) AddContainerIDToNsMap(containerID string, namespace st
 // DeleteContainerIDFromNsMap Function
 func (mon *SystemMonitor) DeleteContainerIDFromNsMap(containerID string, namespace string, pidns, mntns, cgroupns uint32) {
 	ns := NsKey{
-		PidNS: pidns,
-		MntNS: mntns,
+		PidNS:    pidns,
+		MntNS:    mntns,
 		CgroupNS: cgroupns,
 	}
 
