@@ -57,7 +57,7 @@ var _ = BeforeSuite(func() {
 	Expect(err).NotTo(HaveOccurred())
 	Expect(k8sClient).NotTo(BeNil())
 
-}, 60)
+})
 
 var _ = AfterSuite(func() {
 	By("tearing down the test environment")
