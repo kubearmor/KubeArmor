@@ -105,18 +105,19 @@ type enforcer_pathProgramSpecs struct {
 //
 // It can be passed ebpf.CollectionSpec.Assign.
 type enforcer_pathMapSpecs struct {
-	ArgsBufk               *ebpf.MapSpec `ebpf:"args_bufk"`
-	Bufk                   *ebpf.MapSpec `ebpf:"bufk"`
-	Bufs                   *ebpf.MapSpec `ebpf:"bufs"`
-	BufsOff                *ebpf.MapSpec `ebpf:"bufs_off"`
-	CmdArgsBuf             *ebpf.MapSpec `ebpf:"cmd_args_buf"`
-	KubearmorAlertThrottle *ebpf.MapSpec `ebpf:"kubearmor_alert_throttle"`
-	KubearmorArgsStore     *ebpf.MapSpec `ebpf:"kubearmor_args_store"`
-	KubearmorArguments     *ebpf.MapSpec `ebpf:"kubearmor_arguments"`
-	KubearmorConfig        *ebpf.MapSpec `ebpf:"kubearmor_config"`
-	KubearmorContainers    *ebpf.MapSpec `ebpf:"kubearmor_containers"`
-	KubearmorEvents        *ebpf.MapSpec `ebpf:"kubearmor_events"`
-	KubearmorExecPids      *ebpf.MapSpec `ebpf:"kubearmor_exec_pids"`
+	ArgsBufk                 *ebpf.MapSpec `ebpf:"args_bufk"`
+	Bufk                     *ebpf.MapSpec `ebpf:"bufk"`
+	Bufs                     *ebpf.MapSpec `ebpf:"bufs"`
+	BufsOff                  *ebpf.MapSpec `ebpf:"bufs_off"`
+	CmdArgsBuf               *ebpf.MapSpec `ebpf:"cmd_args_buf"`
+	KubearmorAlertThrottle   *ebpf.MapSpec `ebpf:"kubearmor_alert_throttle"`
+	KubearmorArgsStore       *ebpf.MapSpec `ebpf:"kubearmor_args_store"`
+	KubearmorArguments       *ebpf.MapSpec `ebpf:"kubearmor_arguments"`
+	KubearmorCapableThrottle *ebpf.MapSpec `ebpf:"kubearmor_capable_throttle"`
+	KubearmorConfig          *ebpf.MapSpec `ebpf:"kubearmor_config"`
+	KubearmorContainers      *ebpf.MapSpec `ebpf:"kubearmor_containers"`
+	KubearmorEvents          *ebpf.MapSpec `ebpf:"kubearmor_events"`
+	KubearmorExecPids        *ebpf.MapSpec `ebpf:"kubearmor_exec_pids"`
 }
 
 // enforcer_pathVariableSpecs contains global variables before they are loaded into the kernel.
@@ -145,18 +146,19 @@ func (o *enforcer_pathObjects) Close() error {
 //
 // It can be passed to loadEnforcer_pathObjects or ebpf.CollectionSpec.LoadAndAssign.
 type enforcer_pathMaps struct {
-	ArgsBufk               *ebpf.Map `ebpf:"args_bufk"`
-	Bufk                   *ebpf.Map `ebpf:"bufk"`
-	Bufs                   *ebpf.Map `ebpf:"bufs"`
-	BufsOff                *ebpf.Map `ebpf:"bufs_off"`
-	CmdArgsBuf             *ebpf.Map `ebpf:"cmd_args_buf"`
-	KubearmorAlertThrottle *ebpf.Map `ebpf:"kubearmor_alert_throttle"`
-	KubearmorArgsStore     *ebpf.Map `ebpf:"kubearmor_args_store"`
-	KubearmorArguments     *ebpf.Map `ebpf:"kubearmor_arguments"`
-	KubearmorConfig        *ebpf.Map `ebpf:"kubearmor_config"`
-	KubearmorContainers    *ebpf.Map `ebpf:"kubearmor_containers"`
-	KubearmorEvents        *ebpf.Map `ebpf:"kubearmor_events"`
-	KubearmorExecPids      *ebpf.Map `ebpf:"kubearmor_exec_pids"`
+	ArgsBufk                 *ebpf.Map `ebpf:"args_bufk"`
+	Bufk                     *ebpf.Map `ebpf:"bufk"`
+	Bufs                     *ebpf.Map `ebpf:"bufs"`
+	BufsOff                  *ebpf.Map `ebpf:"bufs_off"`
+	CmdArgsBuf               *ebpf.Map `ebpf:"cmd_args_buf"`
+	KubearmorAlertThrottle   *ebpf.Map `ebpf:"kubearmor_alert_throttle"`
+	KubearmorArgsStore       *ebpf.Map `ebpf:"kubearmor_args_store"`
+	KubearmorArguments       *ebpf.Map `ebpf:"kubearmor_arguments"`
+	KubearmorCapableThrottle *ebpf.Map `ebpf:"kubearmor_capable_throttle"`
+	KubearmorConfig          *ebpf.Map `ebpf:"kubearmor_config"`
+	KubearmorContainers      *ebpf.Map `ebpf:"kubearmor_containers"`
+	KubearmorEvents          *ebpf.Map `ebpf:"kubearmor_events"`
+	KubearmorExecPids        *ebpf.Map `ebpf:"kubearmor_exec_pids"`
 }
 
 func (m *enforcer_pathMaps) Close() error {
@@ -169,6 +171,7 @@ func (m *enforcer_pathMaps) Close() error {
 		m.KubearmorAlertThrottle,
 		m.KubearmorArgsStore,
 		m.KubearmorArguments,
+		m.KubearmorCapableThrottle,
 		m.KubearmorConfig,
 		m.KubearmorContainers,
 		m.KubearmorEvents,

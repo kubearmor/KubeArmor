@@ -26,8 +26,8 @@ import (
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 )
 
-//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -cc clang enforcer ../../BPF/enforcer.bpf.c -- -I/usr/include/ -O2 -g -fno-stack-protector -Wno-missing-declarations
-//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -cc clang enforcer_path ../../BPF/enforcer_path.bpf.c -- -I/usr/include/ -O2 -g -fno-stack-protector -Wno-missing-declarations
+//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -cc clang enforcer ../../BPF/enforcer.bpf.c -- -I/usr/include/ -I../../BPF/libbpf/src -I../../BPF -O2 -g -fno-stack-protector -Wno-missing-declarations
+//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -cc clang enforcer_path ../../BPF/enforcer_path.bpf.c -- -I/usr/include/ -I../../BPF/libbpf/src -I../../BPF -O2 -g -fno-stack-protector -Wno-missing-declarations
 
 // ===================== //
 // == BPFLSM Enforcer == //
@@ -119,7 +119,7 @@ func NewBPFEnforcer(node tp.Node, pinpath string, logger *fd.Feeder, monitor *mo
 
 	be.BPFCapableThrottleMap, err = ebpf.NewMapWithOptions(&ebpf.MapSpec{
 		Type:       ebpf.Hash,
-		KeySize:    16,
+		KeySize:    12,
 		ValueSize:  16,
 		MaxEntries: 10240,
 		Pinning:    ebpf.PinByName,
