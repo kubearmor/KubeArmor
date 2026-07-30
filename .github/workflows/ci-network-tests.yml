@@ -65,7 +65,33 @@ jobs:
         run: ./.github/workflows/install-libbpf.sh
 
       - name: Setup a Kubernetes environment
-        run: ./.github/workflows/install-k3s.sh
+        run: |
+          ./.github/workflows/install-k3s.sh
+          echo "=== k3s service status ==="
+          sudo systemctl status k3s --no-pager || true
+
+      - name: Wait for kube-apiserver readiness
+        run: |
+          set -euo pipefail
+          MAX_RETRIES=60
+          SLEEP_SEC=5
+          echo "Waiting for kube-apiserver to respond..."
+          for i in $(seq 1 $MAX_RETRIES); do
+            if kubectl get --raw /readyz >/dev/null 2>&1; then
+              echo "kube-apiserver is responding and readyz is OK"
+              kubectl get nodes || true
+              break
+            fi
+            echo "kube-apiserver not ready yet ($i/$MAX_RETRIES). Sleeping ${SLEEP_SEC}s..."
+            sleep $SLEEP_SEC
+          done
+          if ! kubectl get --raw /readyz >/dev/null 2>&1; then
+            echo "kube-apiserver failed to become ready after $((MAX_RETRIES * SLEEP_SEC))s"
+            echo "--- k3s journal (last 200 lines) ---"
+            sudo journalctl -u k3s -n 200 --no-pager || true
+            echo "--- End k3s journal ---"
+            exit 1
+          fi
 
       - name: Generate KubeArmor artifacts
         run: |
@@ -137,9 +163,17 @@ jobs:
 
           docker system prune -a -f 
           docker buildx prune -a -f
-          helm upgrade --install kubearmor-operator ./deployments/helm/KubeArmorOperator -n kubearmor --create-namespace --set kubearmorOperator.image.tag=latest  --set kubearmorOperator.annotateExisting=true
+          helm upgrade --install kubearmor-operator ./deployments/helm/KubeArmorOperator -n kubearmor --create-namespace --set kubearmorOperator.image.tag=latest --set kubearmorOperator.imagePullPolicy=IfNotPresent --set kubearmorOperator.annotateExisting=true
           
-          kubectl rollout status --timeout=5m deployment -n kubearmor -l kubearmor-app=kubearmor-operator
+          sleep 10
+          
+          if ! kubectl rollout status --timeout=10m deployment -n kubearmor -l kubearmor-app=kubearmor-operator; then
+            echo "=== Operator deployment rollout failed ==="
+            kubectl -n kubearmor describe deployment -l kubearmor-app=kubearmor-operator || true
+            kubectl -n kubearmor get pods -o wide || true
+            kubectl -n kubearmor logs deployment/kubearmor-operator --all-containers --tail=200 || true
+            exit 1
+          fi
 
           kubectl get pods -A
           if [[ ${{ steps.filter.outputs.controller }} == 'true' ]]; then
@@ -150,7 +184,7 @@ jobs:
             kubectl apply -f pkg/KubeArmorOperator/config/samples/kubearmor-coverage.yaml
           fi
 
-          kubectl wait -n kubearmor --timeout=5m --for=jsonpath='{.status.phase}'=Running kubearmorconfigs/kubearmorconfig-test
+          kubectl wait -n kubearmor --timeout=10m --for=jsonpath='{.status.phase}'=Running kubearmorconfigs/kubearmorconfig-test
 
           while [ ! "$(kubectl wait --timeout=5s --for=condition=ready pod -l kubearmor-app,kubearmor-app!=kubearmor-snitch -n kubearmor >/dev/null 2>&1; echo $?)" -eq 0 ]; do
             kubectl rollout status --timeout=5m deployment -n kubearmor -l kubearmor-app,kubearmor-app!=kubearmor-controller -n kubearmor
@@ -269,6 +303,7 @@ jobs:
         if: ${{ always() }}
         with:
           files: ./KubeArmor/gover.coverprofile
+          fail_ci_if_error: false
 
       - name: Upload coverage file
         if: ${{ always() }}
