@@ -808,7 +808,7 @@ decision:
   return 0;
 
 ringbuf:
-  if (get_kubearmor_config(_ALERT_THROTTLING) && should_drop_alerts_per_container(okey))
+  if (get_kubearmor_config(_ALERT_THROTTLING) && should_drop_capable_alerts(okey, cap))
   {
     return retval;
   }

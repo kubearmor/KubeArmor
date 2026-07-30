@@ -670,6 +670,55 @@ static __always_inline bool should_drop_alerts_per_container(struct outer_key ok
   return false;
 }
 
+static __always_inline bool should_drop_capable_alerts(struct outer_key okey, u32 cap)
+{
+  u64 current_timestamp = bpf_ktime_get_ns();
+
+  struct cap_throttle_key key = {
+      .okey = okey,
+      .cap = cap};
+
+  struct cap_throttle_state *state = bpf_map_lookup_elem(&kubearmor_capable_throttle, &key);
+
+  u64 maxAlert = (u64)get_kubearmor_config(_MAX_ALERT_PER_SEC);
+  if (maxAlert == 0)
+  {
+    return false;
+  }
+
+  if (!state)
+  {
+    struct cap_throttle_state new_state = {
+        .last_update = current_timestamp,
+        .tokens = maxAlert - 1};
+
+    bpf_map_update_elem(&kubearmor_capable_throttle, &key, &new_state, BPF_ANY);
+    return false;
+  }
+
+  u64 elapsed = current_timestamp - state->last_update;
+  u64 tokens_to_add = (elapsed * maxAlert) / 1000000000L;
+
+  if (tokens_to_add > 0)
+  {
+    state->tokens += tokens_to_add;
+    if (state->tokens > maxAlert)
+    {
+      state->tokens = maxAlert;
+    }
+    state->last_update += (tokens_to_add * 1000000000L) / maxAlert;
+  }
+
+  if (state->tokens >= 1)
+  {
+    state->tokens--;
+    bpf_map_update_elem(&kubearmor_capable_throttle, &key, state, BPF_ANY);
+    return false;
+  }
+
+  return true;
+}
+
 static bool is_pts(struct task_struct *task)
 {
   struct signal_struct *signal;

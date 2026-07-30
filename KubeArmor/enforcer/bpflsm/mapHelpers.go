@@ -27,6 +27,17 @@ type NsKey struct {
 	MntNS uint32
 }
 
+type CapThrottleKey struct {
+	NsKey
+	Cap uint32
+}
+
+type CapThrottleState struct {
+	LastUpdate uint64
+	Tokens     uint32
+	Padding    uint32
+}
+
 // InnerKey Structure contains Map Rule Identifier
 type InnerKey struct {
 	Path   [200]byte
@@ -95,6 +106,28 @@ func (be *BPFEnforcer) DeleteContainerInnerMap(containerID string) {
 		if err := be.BPFContainerThrottleMap.Delete(be.ContainerMap[containerID].Key); err != nil {
 			if !errors.Is(err, os.ErrNotExist) {
 				be.Logger.Errf("error deleting container %s from outer map in kubearmor_alert_throttle map: %s", containerID, err.Error())
+			}
+		}
+		if be.BPFCapableThrottleMap != nil {
+			nsKey := be.ContainerMap[containerID].Key
+			var keysToDelete []CapThrottleKey
+			var key CapThrottleKey
+			var val CapThrottleState
+			iter := be.BPFCapableThrottleMap.Iterate()
+			for iter.Next(&key, &val) {
+				if key.NsKey == nsKey {
+					keysToDelete = append(keysToDelete, key)
+				}
+			}
+			if err := iter.Err(); err != nil {
+				be.Logger.Errf("error iterating kubearmor_capable_throttle map for container %s: %s", containerID, err.Error())
+			}
+			for _, k := range keysToDelete {
+				if err := be.BPFCapableThrottleMap.Delete(k); err != nil {
+					if !errors.Is(err, os.ErrNotExist) {
+						be.Logger.Errf("error deleting capability throttle entry from map for container %s: %s", containerID, err.Error())
+					}
+				}
 			}
 		}
 
