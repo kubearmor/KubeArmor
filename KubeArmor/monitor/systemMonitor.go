@@ -593,10 +593,10 @@ func (mon *SystemMonitor) InitBPF() error {
 
 		mon.Probes = make(map[string]link.Link)
 
-		mon.Probes["kprobe__udp_sendmsg"], err = link.Kprobe("udp_sendmsg", mon.BpfModule.Programs["kprobe__udp_sendmsg"], nil)
+		mon.Probes["kprobe__udp_send_skb"], err = link.Kprobe("udp_send_skb", mon.BpfModule.Programs["kprobe__udp_send_skb"], nil)
 		if err != nil {
-			mon.Logger.Warnf("error loading kprobe udp_sendmsg %v", err)
-			delete(mon.Probes, "kprobe__udp_sendmsg")
+			mon.Logger.Warnf("error loading kprobe udp_send_skb %v", err)
+			delete(mon.Probes, "kprobe__udp_send_skb")
 		}
 
 		for _, syscallName := range systemCalls {
@@ -1148,7 +1148,7 @@ func (mon *SystemMonitor) TraceSyscall() {
 				if len(args) != 2 {
 					continue
 				}
-			} else if ctx.EventID == UDPSendMsg {
+			} else if ctx.EventID == UDPSendMsg || ctx.EventID == UDPSendSkb {
 				if len(args) != 3 {
 					continue
 				}

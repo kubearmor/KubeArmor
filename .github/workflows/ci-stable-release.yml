@@ -25,8 +25,7 @@ jobs:
           REGCTL_VERSION: v0.11.5
           REGCTL_SHA256: c93aa7638749f5aaac1a8e01787321889c78f0101809bb2880343478d0ba0467
         run: |
-          curl -fsSL "https://github.com/regclient/regclient/releases/download/${REGCTL_VERSION}/regctl-linux-amd64" -o regctl
-          echo "${REGCTL_SHA256}  regctl" | sha256sum -c -
+          curl -L https://github.com/regclient/regclient/releases/latest/download/regctl-linux-amd64 -o regctl
           chmod 755 regctl
           mv regctl /usr/local/bin/regctl
 

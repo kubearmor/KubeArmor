@@ -189,7 +189,7 @@ spec:
   <summary><h2>Limit access to raw database tables in the pod</h2></summary>
 
 ### Description
-MySQL and other database systems keep their raw tables in a specific folder path. This path can either if a path in a volume mount or local to the pod. Typically, these raw tables are accessed only by certain set of processes such as `mysqld`, `mysqldump`, `mysqladmin`. Any other binary should never be allowed to read or write into this folder.
+MySQL and other database systems keep their raw tables in a specific folder path. This path can either be a path in a volume mount or local to the pod. Typically, these raw tables are accessed only by certain set of processes such as `mysqld`, `mysqldump`, `mysqladmin`. Any other binary should never be allowed to read or write into this folder.
 
 ### Attack Scenario
 Attackers will try to:
@@ -198,7 +198,28 @@ Attackers will try to:
 3. delete the tables to cause system downtime
   
 ### Sample Policy
-TODO
+```yaml
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: limit-mysql-raw-table-access
+  namespace: mysql
+spec:
+  severity: 5
+  selector:
+    matchLabels:
+      app: mysql
+  file:
+    matchDirectories:
+    - dir: /var/lib/mysql/
+      recursive: true
+      fromSource:
+      - path: /usr/sbin/mysqld
+      - path: /usr/bin/mysqldump
+      - path: /usr/bin/mysqladmin
+  action:
+    Allow
+```
 </details>
 
 <details>
@@ -211,7 +232,31 @@ Typically, within a pod/container there are only specific processes that need to
 An attacker binary would try to send a beacon to its C&C (Command and Control) Server. Also the binary might use the network primitives to exfiltrate pod/container data/configuration.
   
 ### Sample Policy
-TODO
+```yaml
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: restrict-network-primitives
+  namespace: default
+spec:
+  severity: 5
+  selector:
+    matchLabels:
+      app: my-app
+  network:
+    matchProtocols:
+    - protocol: tcp
+      fromSource:
+      - path: /usr/bin/curl
+    - protocol: udp
+      fromSource:
+      - path: /usr/bin/curl
+    - protocol: raw
+      fromSource:
+      - path: /bin/ping
+  action:
+    Allow
+```
 </details>
 
 ## Generic use-cases
