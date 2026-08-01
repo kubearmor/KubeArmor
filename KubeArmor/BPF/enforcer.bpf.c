@@ -736,7 +736,7 @@ static __always_inline int socket_match_lsm(struct socket *sock, struct sockaddr
   bufs_t *src_buf = get_buf(PATH_BUFFER);
   if (src_buf == NULL)
     fromSourceCheck = false;
-  
+
   if (fromSourceCheck) {
     struct path f_src = BPF_CORE_READ(file_p, f_path);
     if (!prepend_path(&f_src, src_buf))
@@ -848,7 +848,7 @@ static __always_inline int socket_match_lsm(struct socket *sock, struct sockaddr
   task_info->retval = retval;
 
   char *dpath = task_info->data.path;
-  
+
   if (direction == 0) {
     dpath[0] = 'e'; dpath[1] = 'g'; dpath[2] = 'r'; dpath[3] = 'e'; dpath[4] = 's'; dpath[5] = 's'; dpath[6] = ' ';
   } else {
@@ -875,9 +875,9 @@ static __always_inline int socket_match_lsm(struct socket *sock, struct sockaddr
     u8 octet1 = dip[1];
     u8 octet2 = dip[2];
     u8 octet3 = dip[3];
-    
+
     dpath[offset++] = 'I'; dpath[offset++] = 'P'; dpath[offset++] = '=';
-    
+
     int temp = octet0;
     if (temp >= 100) { dpath[offset++] = '0' + (temp / 100); temp %= 100; dpath[offset++] = '0' + (temp / 10); dpath[offset++] = '0' + (temp % 10); }
     else if (temp >= 10) { dpath[offset++] = '0' + (temp / 10); dpath[offset++] = '0' + (temp % 10); }
@@ -900,7 +900,7 @@ static __always_inline int socket_match_lsm(struct socket *sock, struct sockaddr
     if (temp >= 100) { dpath[offset++] = '0' + (temp / 100); temp %= 100; dpath[offset++] = '0' + (temp / 10); dpath[offset++] = '0' + (temp % 10); }
     else if (temp >= 10) { dpath[offset++] = '0' + (temp / 10); dpath[offset++] = '0' + (temp % 10); }
     else { dpath[offset++] = '0' + temp; }
-    
+
   } else if (family == AF_INET6) {
     dpath[offset++] = 'I'; dpath[offset++] = 'P'; dpath[offset++] = 'v'; dpath[offset++] = '6'; dpath[offset++] = '=';
     dpath[offset++] = 'a'; dpath[offset++] = 'd'; dpath[offset++] = 'd'; dpath[offset++] = 'r';
