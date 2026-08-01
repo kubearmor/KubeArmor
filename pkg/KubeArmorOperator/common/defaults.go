@@ -603,9 +603,9 @@ func GetOCIHooks() bool {
 	val := os.Getenv("KUBEARMOR_OCI_HOOKS")
 	if val != "" {
 		switch val {
-		case "yes":
+		case "yes", "true":
 			return true
-		case "no":
+		case "no", "false":
 			return false
 		default:
 			return false
