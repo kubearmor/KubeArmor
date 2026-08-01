@@ -86,6 +86,7 @@ type NetworkPolicyEnforcer struct {
 	QuotaSilencer sync.Map
 
 	dnsSocketFd int
+	cancelDNS   context.CancelFunc
 }
 
 // NewNetworkPolicyEnforcer Function
@@ -1390,8 +1391,13 @@ func (ne *NetworkPolicyEnforcer) DestroyNetworkPolicyEnforcer() error {
 		ne.cancelNflog()
 	}
 
-	if ne.dnsSocketFd != 0 {
+	if ne.cancelDNS != nil {
+		ne.cancelDNS()
+	}
+
+	if ne.dnsSocketFd != 0 && ne.dnsSocketFd != -1 {
 		_ = syscall.Close(ne.dnsSocketFd)
+		ne.dnsSocketFd = -1
 	}
 
 	// cleanup nftables tables
@@ -1404,7 +1410,7 @@ func (ne *NetworkPolicyEnforcer) DestroyNetworkPolicyEnforcer() error {
 	return nil
 }
 
-func loadDNSSocketFilter() (*ebpf.Program, error) {
+func loadDNSSocketFilter() (*ebpf.Collection, *ebpf.Program, error) {
 	bpfPath := "/opt/kubearmor/BPF/system_monitor.bpf.o"
 	if _, err := os.Stat(filepath.Clean(bpfPath)); err != nil { // #nosec G703
 		bpfPath = "./BPF/system_monitor.bpf.o"
@@ -1424,7 +1430,7 @@ func loadDNSSocketFilter() (*ebpf.Program, error) {
 
 	spec, err := ebpf.LoadCollectionSpec(filepath.Clean(bpfPath)) // #nosec G304
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	for name := range spec.Programs {
@@ -1432,23 +1438,28 @@ func loadDNSSocketFilter() (*ebpf.Program, error) {
 			delete(spec.Programs, name)
 		}
 	}
+	for name := range spec.Maps {
+		if name != "kubearmor_dns_visibility" && !strings.HasPrefix(name, ".") {
+			delete(spec.Maps, name)
+		}
+	}
 
 	coll, err := ebpf.NewCollectionWithOptions(spec, ebpf.CollectionOptions{
 		Maps: ebpf.MapOptions{
-			PinPath: "/sys/fs/bpf",
+			PinPath: kl.GetMapRoot(),
 		},
 	})
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	prog, ok := coll.Programs["filter_dns"]
 	if !ok {
 		coll.Close()
-		return nil, fmt.Errorf("filter_dns program not found")
+		return nil, nil, fmt.Errorf("filter_dns program not found")
 	}
 
-	return prog, nil
+	return coll, prog, nil
 }
 
 func htons(i uint16) uint16 {
@@ -1456,7 +1467,10 @@ func htons(i uint16) uint16 {
 }
 
 func (ne *NetworkPolicyEnforcer) monitorDNSPackets() {
-	prog, err := loadDNSSocketFilter()
+	ctx, cancel := context.WithCancel(context.Background())
+	ne.cancelDNS = cancel
+
+	coll, prog, err := loadDNSSocketFilter()
 	if err != nil {
 		if ne.Logger != nil {
 			ne.Logger.Warnf("failed to load BPF DNS socket filter: %v", err)
@@ -1469,6 +1483,7 @@ func (ne *NetworkPolicyEnforcer) monitorDNSPackets() {
 		if ne.Logger != nil {
 			ne.Logger.Warnf("failed to create raw socket: %v", err)
 		}
+		coll.Close()
 		return
 	}
 	ne.dnsSocketFd = fd
@@ -1479,8 +1494,14 @@ func (ne *NetworkPolicyEnforcer) monitorDNSPackets() {
 			ne.Logger.Warnf("failed to attach BPF socket filter: %v", err)
 		}
 		_ = syscall.Close(fd)
+		ne.dnsSocketFd = -1
+		coll.Close()
 		return
 	}
+	coll.Close() // Kernel socket retains the BPF program reference; close user-space FDs to prevent leaks
+
+	tv := syscall.Timeval{Sec: 1, Usec: 0}
+	_ = syscall.SetsockoptTimeval(fd, syscall.SOL_SOCKET, syscall.SO_RCVTIMEO, &tv)
 
 	if ne.Logger != nil {
 		ne.Logger.Print("Successfully attached DNS socket filter to raw socket")
@@ -1488,8 +1509,17 @@ func (ne *NetworkPolicyEnforcer) monitorDNSPackets() {
 
 	buf := make([]byte, 2048)
 	for {
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
+
 		n, _, err := syscall.Recvfrom(fd, buf, 0)
 		if err != nil {
+			if err == syscall.EAGAIN || err == syscall.EWOULDBLOCK || err == syscall.EINTR {
+				continue
+			}
 			break
 		}
 

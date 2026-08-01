@@ -2801,7 +2801,8 @@ int filter_dns(struct __sk_buff *skb)
                 if (bpf_skb_load_bytes(skb, 14 + 16, &daddr, 4) < 0)
                     return 0;
 
-                struct ip_key src_key = {};
+                struct ip_key src_key;
+                __builtin_memset(&src_key, 0, sizeof(src_key));
                 src_key.ip[10] = 0xff;
                 src_key.ip[11] = 0xff;
                 __builtin_memcpy(&src_key.ip[12], &saddr, 4);
@@ -2809,7 +2810,8 @@ int filter_dns(struct __sk_buff *skb)
                     return skb->len;
                 }
 
-                struct ip_key dst_key = {};
+                struct ip_key dst_key;
+                __builtin_memset(&dst_key, 0, sizeof(dst_key));
                 dst_key.ip[10] = 0xff;
                 dst_key.ip[11] = 0xff;
                 __builtin_memcpy(&dst_key.ip[12], &daddr, 4);
@@ -2835,7 +2837,8 @@ int filter_dns(struct __sk_buff *skb)
 
             if (ports[0] == htons_local(53) || ports[1] == htons_local(53))
             {
-                struct ip_key src_key = {};
+                struct ip_key src_key;
+                __builtin_memset(&src_key, 0, sizeof(src_key));
                 // IPv6 saddr starts at offset 14 + 8 = 22
                 if (bpf_skb_load_bytes(skb, 22, &src_key.ip, 16) < 0)
                     return 0;
@@ -2843,7 +2846,8 @@ int filter_dns(struct __sk_buff *skb)
                     return skb->len;
                 }
 
-                struct ip_key dst_key = {};
+                struct ip_key dst_key;
+                __builtin_memset(&dst_key, 0, sizeof(dst_key));
                 // IPv6 daddr starts at offset 14 + 24 = 38
                 if (bpf_skb_load_bytes(skb, 38, &dst_key.ip, 16) < 0)
                     return 0;
