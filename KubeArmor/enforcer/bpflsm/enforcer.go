@@ -120,7 +120,7 @@ func NewBPFEnforcer(node tp.Node, pinpath string, logger *fd.Feeder, monitor *mo
 	be.BPFCapableThrottleMap, err = ebpf.NewMapWithOptions(&ebpf.MapSpec{
 		Type:       ebpf.Hash,
 		KeySize:    12,
-		ValueSize:  16,
+		ValueSize:  24,
 		MaxEntries: 10240,
 		Pinning:    ebpf.PinByName,
 		Name:       "kubearmor_capable_throttle",

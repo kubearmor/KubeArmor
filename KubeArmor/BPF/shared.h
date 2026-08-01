@@ -674,49 +674,73 @@ static __always_inline bool should_drop_capable_alerts(struct outer_key okey, u3
 {
   u64 current_timestamp = bpf_ktime_get_ns();
 
-  struct cap_throttle_key key = {
-      .okey = okey,
-      .cap = cap};
+  struct cap_throttle_key key;
+  __builtin_memset(&key, 0, sizeof(key));
+  key.okey.pid_ns = okey.pid_ns;
+  key.okey.mnt_ns = okey.mnt_ns;
+  key.cap = cap;
 
-  struct cap_throttle_state *state = bpf_map_lookup_elem(&kubearmor_capable_throttle, &key);
-
-  u64 maxAlert = (u64)get_kubearmor_config(_MAX_ALERT_PER_SEC);
-  if (maxAlert == 0)
-  {
-    return false;
-  }
+  struct alert_throttle_state *state = bpf_map_lookup_elem(&kubearmor_capable_throttle, &key);
 
   if (!state)
   {
-    struct cap_throttle_state new_state = {
-        .last_update = current_timestamp,
-        .tokens = maxAlert - 1};
+    struct alert_throttle_state new_state = {
+        .first_event_timestamp = current_timestamp,
+        .event_count = 1,
+        .throttle = 0};
 
     bpf_map_update_elem(&kubearmor_capable_throttle, &key, &new_state, BPF_ANY);
     return false;
   }
 
-  u64 elapsed = current_timestamp - state->last_update;
-  u64 tokens_to_add = (elapsed * maxAlert) / 1000000000L;
+  u64 throttle_sec = (u64)get_kubearmor_config(_THROTTLE_SEC);
+  u64 throttle_nsec = throttle_sec * 1000000000L;
+  u64 maxAlert = (u64)get_kubearmor_config(_MAX_ALERT_PER_SEC);
 
-  if (tokens_to_add > 0)
+  if (state->throttle)
   {
-    state->tokens += tokens_to_add;
-    if (state->tokens > maxAlert)
+    u64 time_difference = current_timestamp - state->first_event_timestamp;
+    if (time_difference < throttle_nsec)
     {
-      state->tokens = maxAlert;
+      return true;
     }
-    state->last_update += (tokens_to_add * 1000000000L) / maxAlert;
   }
 
-  if (state->tokens >= 1)
+  u64 time_difference = current_timestamp - state->first_event_timestamp;
+
+  if (time_difference >= 1000000000L)
+  { // 1 second
+    state->first_event_timestamp = current_timestamp;
+    state->event_count = 1;
+    state->throttle = 0;
+  }
+  else
   {
-    state->tokens--;
-    bpf_map_update_elem(&kubearmor_capable_throttle, &key, state, BPF_ANY);
-    return false;
+    state->event_count++;
   }
 
-  return true;
+  if (state->event_count > maxAlert)
+  {
+    state->event_count = 0;
+    state->throttle = 1;
+    bpf_map_update_elem(&kubearmor_capable_throttle, &key, state, BPF_ANY);
+
+    // Generating Throttling Alert
+    event *event_data = bpf_ringbuf_reserve(&kubearmor_events, sizeof(event), 0);
+    if (!event_data)
+    {
+      return true;
+    }
+    init_context(event_data);
+    event_data->event_id = _DROPPING_ALERT;
+    event_data->retval = 0;
+    bpf_ringbuf_submit(event_data, 0);
+
+    return true;
+  }
+
+  bpf_map_update_elem(&kubearmor_capable_throttle, &key, state, BPF_ANY);
+  return false;
 }
 
 static bool is_pts(struct task_struct *task)

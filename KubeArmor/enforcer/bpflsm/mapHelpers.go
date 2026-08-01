@@ -33,9 +33,9 @@ type CapThrottleKey struct {
 }
 
 type CapThrottleState struct {
-	LastUpdate uint64
-	Tokens     uint32
-	Padding    uint32
+	FirstEventTimestamp uint64
+	EventCount          uint64
+	Throttle            uint64
 }
 
 // InnerKey Structure contains Map Rule Identifier

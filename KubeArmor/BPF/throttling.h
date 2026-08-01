@@ -27,16 +27,11 @@ struct cap_throttle_key {
   u32 cap;
 };
 
-struct cap_throttle_state {
-  u64 last_update;
-  u32 tokens;
-};
-
 struct cap_throttle_map {
   __uint(type, BPF_MAP_TYPE_HASH);
   __uint(max_entries, 10240);
   __uint(key_size, sizeof(struct cap_throttle_key));
-  __uint(value_size, sizeof(struct cap_throttle_state));
+  __uint(value_size, sizeof(struct alert_throttle_state));
   __uint(pinning, LIBBPF_PIN_BY_NAME);
 };
 
