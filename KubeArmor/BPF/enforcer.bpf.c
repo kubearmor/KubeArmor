@@ -414,6 +414,7 @@ ringbuf:
 
 static inline int match_net_rules(int type, int protocol, u32 eventID)
 {
+  type = type & 0xf;
   event *task_info;
   int retval = 0;
 
@@ -760,10 +761,10 @@ static __always_inline int socket_match_lsm(struct socket *sock, struct sockaddr
     }
   }
 
-  struct net_rule_key rkey = {
-    .okey = okey,
-    .index = 0
-  };
+  struct net_rule_key rkey;
+  __builtin_memset(&rkey, 0, sizeof(rkey));
+  rkey.okey = okey;
+  rkey.index = 0;
 
   bool matched = false;
   u8 matched_action = 0;

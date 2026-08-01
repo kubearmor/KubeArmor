@@ -132,7 +132,6 @@ endif
 .PHONY: scan
 scan: 
 	go install golang.org/x/vuln/cmd/govulncheck@latest ;\
-	export PATH=$$PATH:$$(go env GOPATH)/bin ;\
 	cd $(CURDIR);\
 	govulncheck ./... ;\
 	cd $(CURDIR)/../tests;\
