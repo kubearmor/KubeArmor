@@ -35,14 +35,6 @@ The current stable release is recorded in [`STABLE-RELEASE`](./STABLE-RELEASE) a
 
 ## Support window
 
-<!--
-TODO: Confirm the support window with the Maintainers.
-
-Suggested default, modelled on Cilium: maintain the latest two MINOR releases. Older MINOR releases are unsupported and do not receive bug fixes or security patches except in exceptional cases agreed by the Maintainers.
-
-Currently maintained branches (as of 2026-06): release-v1.7, release-v1.6.
--->
-
 The project currently maintains the **latest two MINOR releases** with bug fixes and security patches. Older MINOR releases are unsupported and do not receive backports except by Maintainer agreement on a case-by-case basis.
 
 When a new MINOR release ships, the oldest maintained MINOR release transitions to unsupported. End-of-life dates are announced in the release notes.
