@@ -83,8 +83,12 @@ kubearmor-operator: get
 snitch: get
 	go build -o snitch cmd/snitch-cmd/main.go
 
+.PHONY: hook
+hook: get
+	go build -o hook/hook ./hook
+
 .PHONY: build
-build: snitch kubearmor-operator
+build: snitch kubearmor-operator hook
 
 .PHONY: docker-build
 docker-build: ## Build docker image with the manager.
@@ -181,4 +185,4 @@ bundle: operator-sdk
 
 .PHONY: clean
 clean:
-	rm snitch kubearmor-operator
+	rm -f snitch kubearmor-operator hook/hook
