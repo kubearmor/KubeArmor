@@ -803,10 +803,13 @@ func KubeArmor() {
 	}
 
 	if dm.K8sEnabled && cfg.GlobalCfg.Policy {
-		if cfg.GlobalCfg.UseOCIHooks &&
-			(strings.Contains(dm.Node.ContainerRuntimeVersion, "cri-o") ||
-				(strings.Contains(dm.Node.ContainerRuntimeVersion, "containerd") && dm.checkNRIAvailability() == nil)) {
-			go dm.ListenToK8sHook()
+		if cfg.GlobalCfg.UseOCIHooks {
+			if strings.Contains(dm.Node.ContainerRuntimeVersion, "cri-o") ||
+				(strings.Contains(dm.Node.ContainerRuntimeVersion, "containerd") && dm.checkNRIAvailability() == nil) {
+				go dm.ListenToK8sHook()
+			} else {
+				go dm.HandleFile(cfg.GlobalCfg.HookFilePath)
+			}
 		} else if dm.checkNRIAvailability() == nil {
 			// monitor NRI events
 			go dm.MonitorNRIEvents()
