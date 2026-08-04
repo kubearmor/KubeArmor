@@ -49,8 +49,8 @@ func init() {
 
 }
 
-// TestMain - test to drive external testing coverage
-func TestMain(t *testing.T) {
+// TestMainFunction - test to drive external testing coverage
+func TestMainFunction(t *testing.T) {
 	// Reset Test Flags before executing main
 	flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ExitOnError)
 

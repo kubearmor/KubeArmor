@@ -42,6 +42,7 @@ func TestAppArmorEnforcer(t *testing.T) {
 	// configuration
 	cfg.GlobalCfg.Policy = true
 	cfg.GlobalCfg.HostPolicy = true
+	cfg.GlobalCfg.GRPC = "38264"
 
 	// create logger
 	logger := feeder.NewFeeder(&node, &nodeLock)
@@ -108,6 +109,7 @@ func TestAppArmorProfile(t *testing.T) {
 	// configuration
 	cfg.GlobalCfg.Policy = true
 	cfg.GlobalCfg.HostPolicy = false
+	cfg.GlobalCfg.GRPC = "38265"
 
 	// create logger
 	logger := feeder.NewFeeder(&node, &nodeLock)
@@ -222,6 +224,7 @@ func TestHostAppArmorProfile(t *testing.T) {
 	// configuration
 	cfg.GlobalCfg.Policy = false
 	cfg.GlobalCfg.HostPolicy = true
+	cfg.GlobalCfg.GRPC = "38266"
 
 	// create logger
 	logger := feeder.NewFeeder(&node, &nodeLock)

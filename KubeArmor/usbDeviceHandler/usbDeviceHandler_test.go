@@ -98,6 +98,7 @@ func TestUpdateHostSecurityPolicies(t *testing.T) {
 	// enable USB Device Handler
 	cfg.GlobalCfg.HostPolicy = true
 	cfg.GlobalCfg.USBDeviceHandler = true
+	cfg.GlobalCfg.GRPC = "38270"
 
 	// logger
 	logger := fd.NewFeeder(&node, &nodeLock)

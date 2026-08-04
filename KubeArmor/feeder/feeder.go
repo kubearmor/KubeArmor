@@ -235,6 +235,9 @@ type BaseFeeder struct {
 
 	// username map
 	UserNameMap UserNameMap
+
+	// OpenTelemetry Exporter
+	OTelExporter *OTelExporter
 }
 
 type OuterKey struct {
@@ -409,6 +412,16 @@ func NewFeeder(node *tp.Node, nodeLock **sync.RWMutex) (feeder *Feeder) {
 		ttl:       10 * time.Minute,
 	}
 
+	if cfg.GlobalCfg.OTel {
+		otelExp, err := NewOTelExporter(cfg.GlobalCfg.OTelEndpoint, cfg.GlobalCfg.OTelInsecure)
+		if err != nil {
+			kg.Errf("Failed to initialize OTel exporter: %v", err)
+		} else {
+			fd.OTelExporter = otelExp
+			kg.Print("Initialized OpenTelemetry exporter")
+		}
+	}
+
 	return fd
 }
 
@@ -434,6 +447,11 @@ func (fd *BaseFeeder) DestroyFeeder() error {
 			kg.Err(err.Error())
 		}
 		fd.LogFile = nil
+	}
+
+	// close OTelExporter
+	if fd.OTelExporter != nil {
+		fd.OTelExporter.Shutdown()
 	}
 
 	// wait for other routines
@@ -545,6 +563,10 @@ func (fd *BaseFeeder) ServeLogFeeds() {
 
 // PushMessage Function
 func (fd *Feeder) PushMessage(level, message string) {
+	if fd.OTelExporter != nil {
+		fd.OTelExporter.PushMessage(level, message)
+	}
+
 	if !cfg.GlobalCfg.Debug {
 		// Only Push Message over GRPC when Debug Mode
 		return
@@ -760,6 +782,10 @@ func (fd *Feeder) PushLog(log tp.Log) {
 	if log.Type == "MatchedHostPolicy" || log.Type == "HostLog" {
 		// getting username is supported for host alerts only due to performance overhead
 		log.UserName = fd.UserNameMap.GetUsername(uint32(log.UID))
+	}
+
+	if fd.OTelExporter != nil {
+		fd.OTelExporter.PushLog(log)
 	}
 
 	// standard output / file output

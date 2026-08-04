@@ -85,26 +85,43 @@ jobs:
         run: make -C pkg/KubeArmorController/ docker-build-ubi TAG=latest
 
       - name: Run KubeArmor
-        timeout-minutes: 7
+        timeout-minutes: 15
         run: |
-          docker save kubearmor/kubearmor-init-ubi:latest | sudo podman load
+          # Add K3s health check before proceeding
+          for i in {1..30}; do
+            if kubectl cluster-info &>/dev/null; then
+              echo "Kubernetes cluster is healthy"
+              break
+            fi
+            if [ $i -eq 30 ]; then
+              echo "ERROR: Kubernetes cluster failed to become healthy after 5 minutes"
+              kubectl get nodes
+              sudo systemctl status k3s || true
+              sudo journalctl -u k3s -n 50 || true
+              exit 1
+            fi
+            echo "Waiting for Kubernetes cluster to be ready... (attempt $i/30)"
+            sleep 10
+          done
+
+          sudo podman pull docker-daemon:kubearmor/kubearmor-init-ubi:latest
           sudo podman tag docker.io/kubearmor/kubearmor-init-ubi:latest kubearmor/kubearmor-init-ubi:latest
 
-          docker save kubearmor/kubearmor-ubi:latest | sudo podman load
+          sudo podman pull docker-daemon:kubearmor/kubearmor-ubi:latest
           sudo podman tag docker.io/kubearmor/kubearmor-ubi:latest kubearmor/kubearmor-ubi:latest
 
-          docker save kubearmor/kubearmor-operator-ubi:latest | sudo podman load
+          sudo podman pull docker-daemon:kubearmor/kubearmor-operator-ubi:latest
           sudo podman tag docker.io/kubearmor/kubearmor-operator-ubi:latest kubearmor/kubearmor-operator-ubi:latest
 
-          docker save kubearmor/kubearmor-snitch-ubi:latest | sudo podman load
+          sudo podman pull docker-daemon:kubearmor/kubearmor-snitch-ubi:latest
           sudo podman tag docker.io/kubearmor/kubearmor-snitch-ubi:latest kubearmor/kubearmor-snitch-ubi:latest
 
           if [ ${{ steps.filter.outputs.controller }} == 'true' ]; then
-            docker save kubearmor/kubearmor-controller-ubi:latest | sudo podman load
+            sudo podman pull docker-daemon:kubearmor/kubearmor-controller-ubi:latest
             sudo podman tag docker.io/kubearmor/kubearmor-controller-ubi:latest kubearmor/kubearmor-controller-ubi:latest
           fi
           if [[ ${{ steps.filter.outputs.multiubuntu }} == 'true' ]]; then
-            docker save kubearmor/ubuntu-w-utils:latest | sudo podman load
+            sudo podman pull docker-daemon:kubearmor/ubuntu-w-utils:latest
             sudo podman tag docker.io/kubearmor/ubuntu-w-utils:latest kubearmor/ubuntu-w-utils:latest
           fi
 
@@ -159,7 +176,7 @@ jobs:
 
       - name: Test KubeArmor using Ginkgo
         run: |
-          go install -mod=mod github.com/onsi/ginkgo/v2/ginkgo
+          go install github.com/onsi/ginkgo/v2/ginkgo@v2.28.1
           make
         working-directory: ./tests/k8s_env
         timeout-minutes: 30
@@ -187,6 +204,8 @@ jobs:
       - name: Get karmor sysdump
         if: ${{ failure() }}
         run: |
+          kubectl describe pod -n kubearmor -l kubearmor-app=kubearmor || true
+          curl -sfL http://get.kubearmor.io/ | sudo sh -s -- -b /usr/local/bin
           kubectl describe pod -n kubearmor -l kubearmor-app=kubearmor
           curl -sfL http://get.kubearmor.io/ -o /tmp/install-karmor.sh && sudo sh /tmp/install-karmor.sh -b /usr/local/bin
           mkdir -p /tmp/kubearmor/ && cd /tmp/kubearmor && karmor sysdump

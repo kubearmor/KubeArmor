@@ -42,6 +42,7 @@ func TestSELinuxEnforcer(t *testing.T) {
 	// configuration
 	cfg.GlobalCfg.Policy = true
 	cfg.GlobalCfg.HostPolicy = true
+	cfg.GlobalCfg.GRPC = "38267"
 
 	// create logger
 	logger := feeder.NewFeeder(&node, &nodeLock)
@@ -108,6 +109,7 @@ func TestSELinuxProfile(t *testing.T) {
 	// configuration
 	cfg.GlobalCfg.Policy = true
 	cfg.GlobalCfg.HostPolicy = false
+	cfg.GlobalCfg.GRPC = "38268"
 
 	// create logger
 	logger := feeder.NewFeeder(&node, &nodeLock)
@@ -174,6 +176,7 @@ func TestSELinuxHostProfile(t *testing.T) {
 	// configuration
 	cfg.GlobalCfg.Policy = false
 	cfg.GlobalCfg.HostPolicy = true
+	cfg.GlobalCfg.GRPC = "38269"
 
 	// create logger
 	logger := feeder.NewFeeder(&node, &nodeLock)

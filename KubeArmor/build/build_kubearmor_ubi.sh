@@ -42,6 +42,33 @@ echo "[INFO] Removed existing $REPO images"
 unset LABEL
 [[ "$GITHUB_SHA" != "" ]] && LABEL="--label github_sha=$GITHUB_SHA"
 
+# set the $IS_COVERAGE env var to 'true' to build the kubearmor-ubi-test image for coverage calculation
+if [[ "$IS_COVERAGE" == "true" ]]; then
+    # build a kubearmor-ubi-test image
+    DTAG="-t $REPO-ubi:$VERSION"
+    echo "[INFO] Building $DTAG (Coverage)"
+    cd $ARMOR_HOME/..; docker build $DTAG -f Dockerfile --target kubearmor-ubi-test . $LABEL
+
+    if [ $? != 0 ]; then
+        echo "[FAILED] Failed to build $REPO-ubi:$VERSION"
+        exit 1
+    fi
+    echo "[PASSED] Built $REPO-ubi:$VERSION"
+
+    # build a kubearmor-init image
+    DTAGINI="-t $REPO-init-ubi:$VERSION"
+    echo "[INFO] Building $DTAGINI"
+    cd $ARMOR_HOME/..; docker build $DTAGINI -f Dockerfile.init --build-arg VERSION=$VERSION --target kubearmor-init-ubi . $LABEL
+
+    if [ $? != 0 ]; then
+        echo "[FAILED] Failed to build $REPO-init-ubi:$VERSION"
+        exit 1
+    fi
+    echo "[PASSED] Built $REPO-init-ubi:$VERSION"
+
+    exit 0
+fi
+
 # build kubearmor image
 DTAG="-t $REPO-ubi:$VERSION"
 echo "[INFO] Building $DTAG"

@@ -1,7 +1,7 @@
 # KubeArmor Automated Tests
 
 ## Prerequisites
-1. Install ginkgo `go install -mod=mod github.com/onsi/ginkgo/v2/ginkgo`
+1. Install ginkgo `go install github.com/onsi/ginkgo/v2/ginkgo@v2.28.1`
 2. `kubectl` needs to be installed
 
 ## How to add a new testsuite?
