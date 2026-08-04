@@ -136,15 +136,7 @@ func generateDaemonset(name, enforcer, runtime, socket, nriSocket, btfPresent, a
 	AddOrUpdateEnv(&daemonset.Spec.Template.Spec.InitContainers[0].Env, common.GlobalEnv)
 	AddOrUpdateEnv(&daemonset.Spec.Template.Spec.InitContainers[0].Env, common.KubeArmorInitEnv)
 
-	// TODO: handle passing annotateResource flag to kubearmor
-	// ideally this configuration should be part of kubearmoconfig to avoid hardcoding version checks
-	// to detect flag compatibility
 
-	// if annotateResource {
-	// 	common.AddOrReplaceArg("-annotateResource=true", "-annotateResource=false", &daemonset.Spec.Template.Spec.Containers[0].Args)
-	// } else {
-	// 	common.AddOrReplaceArg("-annotateResource=false", "-annotateResource=true", &daemonset.Spec.Template.Spec.Containers[0].Args)
-	// }
 
 	if common.EnableTls {
 		vols = append(vols, common.KubeArmorCaVolume...)
@@ -816,7 +808,7 @@ func (clusterWatcher *ClusterWatcher) WatchRequiredResources() {
 		addOwnership(deployments.GetRelayClusterRole()).(*rbacv1.ClusterRole),
 	}
 	controllerClusterRole := addOwnership(deployments.GetKubeArmorControllerClusterRole()).(*rbacv1.ClusterRole)
-	if annotateExisting {
+	if common.OperatorConfigCrd != nil && common.OperatorConfigCrd.Spec.AnnotateExisting {
 		controllerClusterRole.Rules = append(controllerClusterRole.Rules, []rbacv1.PolicyRule{
 			{
 				APIGroups: []string{"apps"},
@@ -828,7 +820,7 @@ func (clusterWatcher *ClusterWatcher) WatchRequiredResources() {
 	clusterRoles = append(clusterRoles, controllerClusterRole)
 
 	kaClusterRole := addOwnership(deployments.GetClusterRole()).(*rbacv1.ClusterRole)
-	if annotateResource {
+	if common.ConfigMapData[common.ConfigAnnotateResources] == "true" {
 		kaClusterRole.Rules = append(kaClusterRole.Rules, []rbacv1.PolicyRule{
 			{
 				APIGroups: []string{"apps"},
@@ -905,8 +897,10 @@ func (clusterWatcher *ClusterWatcher) WatchRequiredResources() {
 	UpdateArgsIfDefinedAndUpdated(&controller.Spec.Template.Spec.Containers[0].Args, common.KubeArmorControllerArgs)
 
 	// add annotateExisting flag to controller args
-	if annotateExisting {
-		UpdateArgsIfDefinedAndUpdated(&controller.Spec.Template.Spec.Containers[0].Args, []string{"annotateExisting=true"})
+	if common.OperatorConfigCrd != nil && common.OperatorConfigCrd.Spec.AnnotateExisting {
+		common.AddOrReplaceArg("--annotateExisting=false", "--annotateExisting=true", &controller.Spec.Template.Spec.Containers[0].Args)
+	} else {
+		common.AddOrReplaceArg("--annotateExisting=true", "--annotateExisting=false", &controller.Spec.Template.Spec.Containers[0].Args)
 	}
 
 	UpdateImagePullSecretsIfDefinedAndUpdated(&controller.Spec.Template.Spec.ImagePullSecrets, common.KubeArmorControllerImagePullSecrets)
