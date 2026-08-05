@@ -323,7 +323,6 @@ func (dm *KubeArmorDaemon) ParseAndUpdateContainerSecurityPolicy(event tp.K8sKub
 	containername := ""
 	for k, v := range secPolicy.Spec.Selector.MatchLabels {
 		secPolicy.Spec.Selector.Identities = append(secPolicy.Spec.Selector.Identities, k+"="+v)
-		// TODO: regex based matching
 		if k == "kubearmor.io/container.name" {
 			expr, err := regexp.CompilePOSIX(v)
 			if err != nil {
