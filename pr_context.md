@@ -59,6 +59,6 @@ This document outlines the standard operating procedure (SOP) for making open-so
 ### Contribution 5: Remove Obsolete Regex TODO
 - **Issue:** Developer `TODO: regex based matching` in `KubeArmor/core/unorchestratedUpdates.go` where the regex logic (`regexp.CompilePOSIX`) was already implemented immediately following the comment.
 - **Fix:** Removed the obsolete TODO comment to keep the code clean.
-- **Issue Number:** TBD (recently created)
+- **Issue Number:** #2836
 - **Branch:** `chore/remove-obsolete-regex-todo`
 - **Status:** PR Opened.
