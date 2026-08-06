@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// Copyright 2026 Authors of KubeArmor
+// Copyright 2022 Authors of KubeArmor
 
 package monitor
 
@@ -17,12 +17,10 @@ import (
 	"net"
 	"strconv"
 	"strings"
-
-	"golang.org/x/sys/unix"
 )
 
 // ===================== //
-// == Const. Variables == //
+// == Const. Vaiables == //
 // ===================== //
 
 // Data Types
@@ -63,9 +61,21 @@ func readInt8FromBuff(buff io.Reader) (int8, error) {
 	return res, err
 }
 
+func readUInt8FromBuff(buff io.Reader) (uint8, error) {
+	var res uint8
+	err := binary.Read(buff, binary.LittleEndian, &res)
+	return res, err
+}
+
 // readInt16FromBuff Function
 func readInt16FromBuff(buff io.Reader) (int16, error) {
 	var res int16
+	err := binary.Read(buff, binary.LittleEndian, &res)
+	return res, err
+}
+
+func readUInt16FromBuff(buff io.Reader) (uint16, error) {
+	var res uint16
 	err := binary.Read(buff, binary.LittleEndian, &res)
 	return res, err
 }
@@ -95,6 +105,20 @@ func readUInt32FromBuff(buff io.Reader) (uint32, error) {
 func readUInt32BigendFromBuff(buff io.Reader) (uint32, error) {
 	var res uint32
 	err := binary.Read(buff, binary.BigEndian, &res)
+	return res, err
+}
+
+// readInt64FromBuff Function
+func readInt64FromBuff(buff io.Reader) (int64, error) {
+	var res int64
+	err := binary.Read(buff, binary.LittleEndian, &res)
+	return res, err
+}
+
+// readUInt64FromBuff Function
+func readUInt64FromBuff(buff io.Reader) (uint64, error) {
+	var res uint64
+	err := binary.Read(buff, binary.LittleEndian, &res)
 	return res, err
 }
 
@@ -795,48 +819,6 @@ var Capabilities = map[int32]string{
 	36: "CAP_BLOCK_SUSPEND",
 	37: "CAP_AUDIT_READ",
 }
-var CapToCode = map[string]uint8{
-	"CAP_AUDIT_CONTROL":    unix.CAP_AUDIT_CONTROL,
-	"CAP_AUDIT_READ":       unix.CAP_AUDIT_READ,
-	"CAP_AUDIT_WRITE":      unix.CAP_AUDIT_WRITE,
-	"CAP_DAC_READ_SEARCH":  unix.CAP_DAC_READ_SEARCH,
-	"CAP_DAC_OVERRIDE":     unix.CAP_DAC_OVERRIDE,
-	"CAP_LINUX_IMMUTABLE":  unix.CAP_LINUX_IMMUTABLE,
-	"CAP_NET_BROADCAST":    unix.CAP_NET_BROADCAST,
-	"CAP_NET_ADMIN":        unix.CAP_NET_ADMIN,
-	"CAP_NET_BIND_SERVICE": unix.CAP_NET_BIND_SERVICE,
-	"CAP_NET_RAW":          unix.CAP_NET_RAW,
-	"CAP_IPC_LOCK":         unix.CAP_IPC_LOCK,
-	"CAP_IPC_OWNER":        unix.CAP_IPC_OWNER,
-	"CAP_SYS_MODULE":       unix.CAP_SYS_MODULE,
-	"CAP_SYS_RAWIO":        unix.CAP_SYS_RAWIO,
-	"CAP_SYS_PTRACE":       unix.CAP_SYS_PTRACE,
-	"CAP_SYS_PACCT":        unix.CAP_SYS_PACCT,
-	"CAP_SYS_ADMIN":        unix.CAP_SYS_ADMIN,
-	"CAP_SYS_BOOT":         unix.CAP_SYS_BOOT,
-	"CAP_SYS_NICE":         unix.CAP_SYS_NICE,
-	"CAP_SYS_RESOURCE":     unix.CAP_SYS_RESOURCE,
-	"CAP_SYS_TIME":         unix.CAP_SYS_TIME,
-	"CAP_SYS_TTY_CONFIG":   unix.CAP_SYS_TTY_CONFIG,
-	"CAP_SYS_CHROOT":       unix.CAP_SYS_CHROOT,
-	"CAP_SYSLOG":           unix.CAP_SYSLOG,
-	"CAP_LEASE":            unix.CAP_LEASE,
-	"CAP_MAC_OVERRIDE":     unix.CAP_MAC_OVERRIDE,
-	"CAP_MAC_ADMIN":        unix.CAP_MAC_ADMIN,
-	"CAP_WAKE_ALARM":       unix.CAP_WAKE_ALARM,
-	"CAP_BLOCK_SUSPEND":    unix.CAP_BLOCK_SUSPEND,
-	"CAP_CHOWN":            unix.CAP_CHOWN,
-	"CAP_FOWNER":           unix.CAP_FOWNER,
-	"CAP_FSETID":           unix.CAP_FSETID,
-	"CAP_KILL":             unix.CAP_KILL,
-	"CAP_SETGID":           unix.CAP_SETGID,
-	"CAP_SETUID":           unix.CAP_SETUID,
-	"CAP_SETPCAP":          unix.CAP_SETPCAP,
-	"CAP_PERFMON":          unix.CAP_PERFMON,
-	"CAP_MKNOD":            unix.CAP_MKNOD,
-	"CAP_SETFCAP":          unix.CAP_SETFCAP,
-	"CAP_BPF":              unix.CAP_BPF,
-}
 
 // getCapabilityName Function
 func getCapabilityName(cap int32) string {
@@ -1026,9 +1008,9 @@ func readArgTypeFromBuff(buff io.Reader) (uint8, error) {
 }
 
 // readArgFromBuff Function
-func readArgFromBuff(dataBuff io.Reader) (any, error) {
+func readArgFromBuff(dataBuff io.Reader) (interface{}, error) {
 	var err error
-	var res any
+	var res interface{}
 
 	at, err := readArgTypeFromBuff(dataBuff)
 	if err != nil {
@@ -1184,8 +1166,8 @@ func GetHashes(dataBuff *bytes.Buffer) (HashContext, error) {
 }
 
 // GetArgs Function
-func GetArgs(dataBuff *bytes.Buffer, Argnum int32) ([]any, error) {
-	args := []any{}
+func GetArgs(dataBuff *bytes.Buffer, Argnum int32) ([]interface{}, error) {
+	args := []interface{}{}
 
 	for i := 0; i < int(Argnum); i++ {
 		arg, err := readArgFromBuff(dataBuff)

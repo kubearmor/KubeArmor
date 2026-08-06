@@ -5,13 +5,10 @@ package feeder
 
 import (
 	"math"
-	"os"
 	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
-	"syscall"
-
 	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 )
@@ -88,17 +85,7 @@ func fetchProtocol(resource string) string {
 	return resource
 }
 
-func getFileProcessUID(path string) string {
-	info, err := os.Stat(path)
-	if err == nil {
-		stat := info.Sys().(*syscall.Stat_t)
-		uid := stat.Uid
 
-		return strconv.Itoa(int(uid))
-	}
-
-	return ""
-}
 
 // getOperationAndCapabilityFromName Function
 func getOperationAndCapabilityFromName(capName string) (op, capability string) {
@@ -2314,7 +2301,7 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 				}
 			}
 
-		} else if log.Type == "MatchedPolicy" {
+		} else if log.Type == "MatchedPolicy" || log.Type == "MatchedHostPolicy" {
 			if log.Action == "Allow" && log.Result == "Passed" {
 				return tp.Log{}
 			}
@@ -2349,7 +2336,7 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 					return log
 				}
 			}
-		} else if log.Type == "MatchedPolicy" {
+		} else if log.Type == "MatchedPolicy" || log.Type == "MatchedHostPolicy" {
 			log.Type = "MatchedHostPolicy"
 
 			if log.Action == "Allow" && log.Result == "Passed" {

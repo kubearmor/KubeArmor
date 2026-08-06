@@ -1,0 +1,1 @@
+﻿Get-WinEvent -LogName "Microsoft-Windows-AppLocker/EXE and DLL" -MaxEvents 5 -ErrorAction SilentlyContinue | Select-Object Id, RecordId, TimeCreated, Message | Format-Table -AutoSize

@@ -1,0 +1,6 @@
+*.bin
+*.BIN
+.vs
+x64/
+Debug/
+build/
