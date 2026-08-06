@@ -38,9 +38,6 @@ jobs:
       - name: Compile libbpf
         run: ./.github/workflows/install-libbpf.sh
 
-      - name: Install bpftool
-        run: ./.github/workflows/install-bpftool.sh
-
       - name: Install GoReleaser
         uses: goreleaser/goreleaser-action@b953231f81b8dfd023c58e0854a721e35037f28b # v2
         with:

@@ -6,3 +6,4 @@ presets/filelessexec/*.o
 presets/protectenv/*.o
 presets/protectproc/*.o
 utils/bpflsmprobe/*.o
+BPF/vmlinux.h
