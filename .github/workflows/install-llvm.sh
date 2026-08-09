@@ -6,6 +6,7 @@
 
 set -euo pipefail
 
+sudo apt-get update
 sudo apt-get -y install build-essential libelf-dev pkg-config
 
 if [ "$VERSION_CODENAME" == "focal" ] || [ "$VERSION_CODENAME" == "bionic" ]; then
