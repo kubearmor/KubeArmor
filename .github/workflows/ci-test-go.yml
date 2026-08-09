@@ -78,6 +78,7 @@ jobs:
       - name: Install libbpf headers
         run: sudo apt-get update && sudo apt-get install -y libbpf-dev
 
+      # Install BPF tool
       - name: Install bpftool
         run: ./.github/workflows/install-bpftool.sh
 
@@ -118,7 +119,6 @@ jobs:
       - name: Generate BPF files
         run: go generate ./...
         working-directory: KubeArmor
-
 
       - name: Run govulncheck
         run: make scan
