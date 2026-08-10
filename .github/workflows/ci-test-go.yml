@@ -99,8 +99,16 @@ jobs:
           go-version-file: "KubeArmor/go.mod"
 
       - name: Run go test on the KubeArmor/KubeArmor directory
-        run: go test ./...
+        run: go test -coverprofile=coverage.txt -covermode=atomic ./...
         working-directory: KubeArmor
+
+      - name: Upload code coverage to Codecov
+        uses: codecov/codecov-action@b9fd7d16f6d7d1b5d2bec1a2887e65ceed900238 # v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: KubeArmor/coverage.txt
+          flags: unittests
+          fail_ci_if_error: false
 
   license:
     runs-on: ubuntu-22.04

@@ -10,6 +10,14 @@ RUN apk add --no-cache git clang llvm make gcc protobuf protobuf-dev curl elfuti
 
 WORKDIR /usr/src/KubeArmor
 
+COPY KubeArmor/go.mod KubeArmor/go.sum ./KubeArmor/
+COPY pkg/ ./pkg/
+COPY protobuf/ ./protobuf/
+WORKDIR /usr/src/KubeArmor/KubeArmor
+RUN go mod download && go mod verify
+
+WORKDIR /usr/src/KubeArmor
+
 COPY . .
 
 WORKDIR /usr/src/KubeArmor/KubeArmor
@@ -17,7 +25,7 @@ WORKDIR /usr/src/KubeArmor/KubeArmor
 RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.11
 RUN go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.6.1
 
-RUN make
+RUN GOPROXY=off make
 
 WORKDIR /usr/src/KubeArmor/BPF
 
