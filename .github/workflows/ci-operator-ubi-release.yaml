@@ -30,7 +30,7 @@ env:
 jobs:
   kubearmor-operator-release:
     name: Build & Push KubeArmor Operator
-    if: github.repository == 'kubearmor/kubearmor'     
+    if: github.repository == 'kubearmor/kubearmor'
     runs-on: ubuntu-22.04
     permissions:
       id-token: write
@@ -40,7 +40,7 @@ jobs:
 
       - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
-          go-version-file: 'KubeArmor/go.mod'
+          go-version-file: "KubeArmor/go.mod"
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@2b82ce82d56a2a04d2637cd93a637ae1b359c0a7 # v2
@@ -54,7 +54,7 @@ jobs:
         uses: docker/login-action@465a07811f14bebb1938fbed4728c6a1ff8901fc # v2
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_AUTHTOK }} 
+          password: ${{ secrets.DOCKER_AUTHTOK }}
 
       # - name: Set up AWS Credentials
       #   uses: aws-actions/configure-aws-credentials@v6
@@ -62,7 +62,7 @@ jobs:
       #     aws-access-key-id: ${{ secrets.AWS_ECR_ACCESS_ID }}
       #     aws-secret-access-key: ${{ secrets.AWS_ECR_SECRET_ID }}
       #     aws-region: us-east-1
-  
+
       # - name: Login to AWS ECR
       #   run: |
       #     aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws/k9v9d5v2
@@ -90,10 +90,26 @@ jobs:
             core.setOutput('tag', tag);
             console.log(`Creating operator release with tag: ${tag}`);
 
+      - name: Install LLVM/Clang
+        run: ./.github/workflows/install-llvm.sh
+
+      - name: Install libbpf headers
+        run: sudo apt-get update && sudo apt-get install -y libbpf-dev
+
+      - name: Install bpftool
+        run: ./.github/workflows/install-bpftool.sh
+
+      - name: Generate vmlinux.h
+        run: make -C BPF kernel_headers
+        working-directory: KubeArmor
+
+      - name: Generate BPF files
+        run: go generate ./...
+        working-directory: KubeArmor
+
       - name: Build & Push KubeArmor Operator
         working-directory: ./pkg/KubeArmorOperator
         run: PLATFORM=$PLATFORM make docker-buildx-ubi TAG=${{ steps.vars.outputs.tag }} BUILD_MODE=--push
-
 
       - name: Install Cosign
         uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # main
@@ -110,25 +126,24 @@ jobs:
           cosign sign -r kubearmor/kubearmor-operator-ubi@${{ steps.digest.outputs.operatordigest }} --yes
           cosign sign -r kubearmor/kubearmor-snitch-ubi@${{ steps.digest.outputs.snitchdigest }} --yes
 
-
       - name: Install regctl
         run: |
           curl -L https://github.com/regclient/regclient/releases/latest/download/regctl-linux-amd64 -o regctl
           chmod 755 regctl
           mv regctl /usr/local/bin
-  
+
       - name: Check install
         run: regctl version
-        
+
       # - name: Generate the tag version of Operator and Snitch in ECR
       #   run: |
       #     regctl image copy kubearmor/kubearmor-operator-ubi:${{ steps.vars.outputs.tag }} public.ecr.aws/k9v9d5v2/kubearmor/kubearmor-operator-ubi:${{ steps.vars.outputs.tag }} --digest-tags
       #     regctl image copy kubearmor/kubearmor-snitch-ubi:${{ steps.vars.outputs.tag }} public.ecr.aws/k9v9d5v2/kubearmor/kubearmor-snitch-ubi:${{ steps.vars.outputs.tag }} --digest-tags
-          
+
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           ref: main
-      
+
       - name: Get and Match Stable Tag
         id: stable
         run: |
@@ -152,4 +167,3 @@ jobs:
       #     STABLE_VERSION=`cat STABLE-RELEASE`
       #     regctl image copy kubearmor/kubearmor-operator-ubi:$STABLE_VERSION public.ecr.aws/k9v9d5v2/kubearmor/kubearmor-operator-ubi:stable --digest-tags
       #     regctl image copy kubearmor/kubearmor-snitch-ubi:$STABLE_VERSION public.ecr.aws/k9v9d5v2/kubearmor/kubearmor-snitch-ubi:stable --digest-tags
-
