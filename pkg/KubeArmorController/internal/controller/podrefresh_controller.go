@@ -24,7 +24,7 @@ type PodRefresherReconciler struct {
 	client.Client
 	Scheme           *runtime.Scheme
 	Cluster          *types.Cluster
-	ClientSet        *kubernetes.Clientset
+	ClientSet        kubernetes.Interface
 	AnnotateExisting bool
 }
 type ResourceInfo struct {
@@ -182,7 +182,7 @@ func requireRestart(pod corev1.Pod, enforcer string) bool {
 
 	return false
 }
-func restartResources(resourcesMap map[string]ResourceInfo, corev1 *kubernetes.Clientset) error {
+func restartResources(resourcesMap map[string]ResourceInfo, corev1 kubernetes.Interface) error {
 
 	ctx := context.Background()
 	log := log.FromContext(ctx)
@@ -205,7 +205,7 @@ func restartResources(resourcesMap map[string]ResourceInfo, corev1 *kubernetes.C
 			if err != nil {
 				log.Error(err, fmt.Sprintf("error updating deployment %s in namespace %s", name, resInfo.namespaceName))
 			}
-		case "Statefulset":
+		case "StatefulSet":
 			statefulSet, err := corev1.AppsV1().StatefulSets(resInfo.namespaceName).Get(ctx, name, metav1.GetOptions{})
 			if err != nil {
 				log.Error(err, fmt.Sprintf("error getting statefulset %s in namespace %s", name, resInfo.namespaceName))
@@ -223,7 +223,7 @@ func restartResources(resourcesMap map[string]ResourceInfo, corev1 *kubernetes.C
 				log.Error(err, fmt.Sprintf("error updating statefulset %s in namespace %s", name, resInfo.namespaceName))
 			}
 
-		case "Daemonset":
+		case "DaemonSet":
 			daemonSet, err := corev1.AppsV1().DaemonSets(resInfo.namespaceName).Get(ctx, name, metav1.GetOptions{})
 			if err != nil {
 				log.Error(err, fmt.Sprintf("error getting daemonset %s in namespace %s", name, resInfo.namespaceName))
