@@ -77,7 +77,13 @@ func (dm *KubeArmorDaemon) WatchConfigChanges() {
 		dm.UpdateGlobalPosture(globalPosture)
 
 		// Update default posture for endpoints
-		for _, ep := range dm.EndPoints {
+		// Copy endpoints under lock to avoid racing with concurrent endpoint updates
+		dm.EndPointsLock.RLock()
+		endPointsCopy := make([]tp.EndPoint, len(dm.EndPoints))
+		copy(endPointsCopy, dm.EndPoints)
+		dm.EndPointsLock.RUnlock()
+
+		for _, ep := range endPointsCopy {
 			dm.Logger.Printf("Updating Default Posture for endpoint %s", ep.EndPointName)
 			dm.UpdateDefaultPosture("MODIFIED", ep.NamespaceName, globalPosture, false)
 			dm.UpdateVisibility("MODIFIED", ep.NamespaceName, visibility)
