@@ -6,6 +6,8 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"maps"
+	"slices"
 	"time"
 
 	"github.com/kubearmor/KubeArmor/pkg/KubeArmorController/common"
@@ -134,11 +136,9 @@ func (r *PodRefresherReconciler) Reconcile(ctx context.Context, req ctrl.Request
 					}
 				}
 
-				// clean the pre-polutated attributes
-				pod.ResourceVersion = ""
-
 				// re-create the pod
-				if err := r.Create(ctx, &pod); err != nil {
+				podToCreate := podForRecreate(&pod)
+				if err := r.Create(ctx, podToCreate); err != nil {
 					log.Error(err, "Could not create pod "+pod.Name+" in namespace "+pod.Namespace)
 				}
 				poddeleted = true
@@ -182,6 +182,21 @@ func requireRestart(pod corev1.Pod, enforcer string) bool {
 
 	return false
 }
+
+func podForRecreate(pod *corev1.Pod) *corev1.Pod {
+	return &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:         pod.Name,
+			GenerateName: pod.GenerateName,
+			Namespace:    pod.Namespace,
+			Labels:       maps.Clone(pod.Labels),
+			Annotations:  maps.Clone(pod.Annotations),
+			Finalizers:   slices.Clone(pod.Finalizers),
+		},
+		Spec: *pod.Spec.DeepCopy(),
+	}
+}
+
 func restartResources(resourcesMap map[string]ResourceInfo, corev1 *kubernetes.Clientset) error {
 
 	ctx := context.Background()
