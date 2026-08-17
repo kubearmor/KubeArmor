@@ -16,7 +16,7 @@ jobs:
   verify:
     name: Verify SLSA Provenance
     if: github.repository == 'kubearmor/kubearmor'
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
