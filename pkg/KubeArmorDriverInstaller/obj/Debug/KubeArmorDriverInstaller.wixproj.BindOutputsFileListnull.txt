@@ -1,0 +1,2 @@
+D:\kubearmor-remote\KubeArmor\pkg\KubeArmorDriverInstaller\bin\Debug\KubeArmorDriverInstaller.msi
+D:\kubearmor-remote\KubeArmor\pkg\KubeArmorDriverInstaller\bin\Debug\KubeArmorDriverInstaller.wixpdb

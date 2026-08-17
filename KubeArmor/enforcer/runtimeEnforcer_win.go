@@ -37,10 +37,6 @@ type RuntimeEnforcerWin struct {
 	// Mutex for serializing policy updates
 	mu sync.Mutex
 
-	// Cached set of Packaged App executables (.exe basenames).
-	// Built at startup by scanning %ProgramFiles%\WindowsApps.
-	appxSet map[string]struct{}
-
 	// AppLocker event-log poller — emits MatchedHostPolicy alerts for
 	// processes blocked by AppLocker rules.
 	appLockerPoller *AppLockerPoller
@@ -68,10 +64,6 @@ func NewRuntimeEnforcer(node tp.Node, logger *fd.Feeder, monitor *mon.SystemMoni
 		re.deviceHandle = handle
 		logger.Printf("Karmor driver device opened successfully for enforcement")
 	}
-
-	// Build the set of Packaged App executables for AppLocker policy generation.
-	re.appxSet = buildAppxExeSet()
-	logger.Printf("Built Packaged App set: found %d executables", len(re.appxSet))
 
 	// Start the AppLocker event-log poller. It polls every 5 seconds for new
 	// AppLocker block events (Event IDs 8003/8004/8006) and emits them as
@@ -154,9 +146,8 @@ func (re *RuntimeEnforcerWin) UpdateHostSecurityPolicies(secPolicies []tp.HostSe
 	debugLog("UpdateHostSecurityPolicies: Rules cleared successfully")
 
 	// Apply AppLocker policies for process enforcement
-	// We pass the cached appxSet to correctly route rules to the Exe vs Appx collections.
 	debugLog("UpdateHostSecurityPolicies: Applying AppLocker policy...")
-	errAppLocker := applyAppLockerPolicy(secPolicies, re.appxSet)
+	errAppLocker := applyAppLockerPolicy(secPolicies)
 	debugLog("UpdateHostSecurityPolicies: applyAppLockerPolicy returned %v", errAppLocker)
 	if errAppLocker == nil {
 		re.Logger.Printf("AppLocker policy applied successfully for process enforcement")

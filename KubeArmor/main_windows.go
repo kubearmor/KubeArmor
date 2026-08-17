@@ -78,16 +78,20 @@ loop:
 		case req := <-requests:
 			switch req.Cmd {
 			case svc.Stop, svc.Shutdown:
-				status <- svc.Status{State: svc.StopPending}
+				status <- svc.Status{State: svc.StopPending, WaitHint: 20000}
 				if core.Daemon != nil {
 					elog.Info(1, "KubeArmor service stopping...")
-					core.Daemon.DestroyKubeArmorDaemon()
-					elog.Info(1, "KubeArmor service stopped")
+					go core.Daemon.DestroyKubeArmorDaemon()
+					elog.Info(1, "KubeArmor service shutdown initiated")
 				}
-				// Wait for core.KubeArmor() goroutine to exit
-				elog.Info(2, "Waiting for core goroutine to exit")
-				<-done
-				elog.Info(2, "Core goroutine exited")
+				// Wait for core.KubeArmor() goroutine to exit, but with a timeout to avoid SCM Error 1053
+				elog.Info(2, "Waiting for core goroutine to exit (up to 15s)")
+				select {
+				case <-done:
+					elog.Info(2, "Core goroutine exited cleanly")
+				case <-time.After(15 * time.Second):
+					elog.Info(2, "Timeout waiting for core goroutine. Forcing shutdown.")
+				}
 
 				// Tell SCM we are fully stopped
 				status <- svc.Status{State: svc.Stopped}

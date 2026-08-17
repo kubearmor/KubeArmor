@@ -5,7 +5,6 @@ package enforcer
 
 import (
 	"fmt"
-	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -74,41 +73,6 @@ const appLockerTemplate = `
 </AppLockerPolicy>
 `
 
-// (Removed clearPolicyXML)
-
-// buildAppxExeSet scans %ProgramFiles%\WindowsApps and returns a set of
-// lowercase .exe basenames found there. All Packaged Apps install exclusively
-// to this directory, so membership in this set definitively identifies a
-// Packaged App executable.
-//
-// The scan is fast (<100 ms on typical systems) because WindowsApps contains
-// ~100-500 executables total.
-func buildAppxExeSet() map[string]struct{} {
-	set := make(map[string]struct{})
-
-	programFiles := os.Getenv("ProgramFiles")
-	if programFiles == "" {
-		programFiles = `C:\Program Files`
-	}
-	windowsAppsDir := filepath.Join(programFiles, "WindowsApps")
-
-	_ = filepath.WalkDir(windowsAppsDir, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			// Access denied on some subdirs is normal — skip silently.
-			return nil
-		}
-		if d.IsDir() {
-			return nil
-		}
-		if strings.EqualFold(filepath.Ext(path), ".exe") {
-			set[strings.ToLower(filepath.Base(path))] = struct{}{}
-		}
-		return nil
-	})
-
-	return set
-}
-
 type collectionRouting struct {
 	Exe    bool
 	Appx   bool
@@ -118,7 +82,16 @@ type collectionRouting struct {
 }
 
 // classifyForAppLocker decides which AppLocker collections should receive a deny rule.
-func classifyForAppLocker(path string, appxSet map[string]struct{}) collectionRouting {
+//
+// IMPORTANT: The AppLocker "Appx" collection enforces on package *publisher identity*
+// (FilePublisherRule), NOT on file paths. FilePathRule entries in the Appx collection
+// are silently misinterpreted and end up matching entire package families, causing all
+// packaged apps to be blocked when only one is targeted.
+//
+// Therefore we NEVER route rules into the Appx collection via file-path rules.
+// Packaged app executables (in WindowsApps) are routed into the Exe collection instead,
+// where FilePathRule with a wildcard (e.g. *\Notepad.exe) works correctly.
+func classifyForAppLocker(path string) collectionRouting {
 	lower := strings.ToLower(path)
 	ext := filepath.Ext(lower)
 
@@ -131,28 +104,17 @@ func classifyForAppLocker(path string, appxSet map[string]struct{}) collectionRo
 		return collectionRouting{Msi: true}
 	}
 
-	// For .exe or no extension:
-	if strings.ContainsAny(path, `/\`) {
-		if strings.Contains(lower, "windowsapps") {
-			return collectionRouting{Appx: true} // definitively a Packaged App
-		}
-		return collectionRouting{Exe: true} // definitively a traditional EXE
-	}
-
-	// Bare filename — look it up in the scanned Appx set
-	_, isAppx := appxSet[lower]
-	if isAppx {
-		return collectionRouting{Exe: true, Appx: true}
-	}
+	// All .exe paths — whether traditional Win32 or packaged app — go into the
+	// Exe collection. FilePathRule is valid there and correctly matches by path.
 	return collectionRouting{Exe: true}
 }
 
 // applyAppLockerPolicy converts KubeArmor host policies into an AppLocker XML
 // policy and applies it via Set-AppLockerPolicy.
 //
-// appxSet is the pre-built set of Packaged App exe names (from buildAppxExeSet).
-// Pass an empty map if unavailable — rules will fall back to Exe-only.
-func applyAppLockerPolicy(secPolicies []tp.HostSecurityPolicy, appxSet map[string]struct{}) error {
+// Appx package policies should use the matchPackages stanza, which emits native
+// FilePublisherRule entries into the Appx collection.
+func applyAppLockerPolicy(secPolicies []tp.HostSecurityPolicy) error {
 	var exeRules strings.Builder
 	var appxRules strings.Builder
 	var dllRules strings.Builder
@@ -179,7 +141,7 @@ func applyAppLockerPolicy(secPolicies []tp.HostSecurityPolicy, appxSet map[strin
 				baseName = path[idx+1:]
 			}
 
-			routing := classifyForAppLocker(path, appxSet)
+			routing := classifyForAppLocker(path)
 
 			// Build a standard FilePathRule string
 			buildRule := func(namePrefix string, overridePath string) string {
@@ -196,7 +158,16 @@ func applyAppLockerPolicy(secPolicies []tp.HostSecurityPolicy, appxSet map[strin
 			}
 
 			if routing.Exe {
-				exeRules.WriteString(buildRule("Exe", ""))
+				// For packaged apps (WindowsApps), use *\basename wildcard so it
+				// matches regardless of the versioned package directory.
+				// For traditional EXEs, use the path as-is.
+				var rulePath string
+				if strings.Contains(strings.ToLower(path), "windowsapps") {
+					rulePath = `*\` + baseName
+				} else {
+					rulePath = path
+				}
+				exeRules.WriteString(buildRule("Exe", rulePath))
 			}
 			if routing.Dll {
 				dllRules.WriteString(buildRule("Dll", ""))
@@ -207,9 +178,50 @@ func applyAppLockerPolicy(secPolicies []tp.HostSecurityPolicy, appxSet map[strin
 			if routing.Msi {
 				msiRules.WriteString(buildRule("Msi", ""))
 			}
-			if routing.Appx {
-				// Use *\basename wildcard so it matches regardless of the versioned WindowsApps directory.
-				appxRules.WriteString(buildRule("Packaged", `*\`+baseName))
+		}
+
+		// === Process matchPackages — AppLocker Appx FilePublisherRule ===
+		//
+		// pkg.Name is treated as a regex/glob pattern matched against all installed
+		// AppX package identity names. One FilePublisherRule is emitted per match,
+		// using the exact package identity name and publisher from the system.
+		for _, pkg := range policy.Spec.Process.MatchPackages {
+			action := resolveAction(pkg.Action, defaultAction)
+			if action != ruleActionBlock {
+				continue
+			}
+
+			// Resolve the name pattern against all installed AppX packages.
+			// publisherFilter is applied as an additional AND filter if specified.
+			matched := resolvePackageMatches(pkg.Name, pkg.Publisher)
+			if len(matched) == 0 {
+				fmt.Printf("WARNING: matchPackages: no installed AppX packages matched pattern '%s' (publisher filter: '%s')\n",
+					pkg.Name, pkg.Publisher)
+				continue
+			}
+
+			for _, resolved := range matched {
+				// Use the exact publisher from the installed package if the policy
+				// didn't specify one, otherwise use the policy-provided value.
+				publisherName := resolved.Publisher
+				if pkg.Publisher != "" {
+					publisherName = pkg.Publisher
+				}
+				if publisherName == "" {
+					publisherName = "*"
+				}
+
+				fmt.Printf("INFO: matchPackages: blocking package '%s' (publisher: %s)\n",
+					resolved.Name, publisherName)
+
+				appxRules.WriteString(fmt.Sprintf(`
+    <FilePublisherRule Id="%s" Name="KubeArmor Block Appx %s" Description="KubeArmor Enforced" UserOrGroupSid="S-1-1-0" Action="Deny">
+      <Conditions>
+        <FilePublisherCondition PublisherName="%s" ProductName="%s" BinaryName="*">
+          <BinaryVersionRange LowSection="0.0.0.0" HighSection="*" />
+        </FilePublisherCondition>
+      </Conditions>
+    </FilePublisherRule>`, uuid.New().String(), resolved.Name, publisherName, resolved.Name))
 			}
 		}
 	}

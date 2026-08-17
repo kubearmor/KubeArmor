@@ -98,10 +98,46 @@ type ProcessPatternType struct {
 	Action ActionType `json:"action,omitempty"`
 }
 
+// PackageMatchType identifies a Windows packaged (MSIX/AppX) application by publisher
+// identity for AppLocker Appx-collection enforcement.
+// All string fields support AppLocker wildcards (e.g. "*Notepad").
+// Fields have an AND relationship: all non-empty fields must match.
+type PackageMatchType struct {
+	// Publisher is the signing certificate Subject DN.
+	// Example: "CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US"
+	// Omit or set "*" to match any publisher.
+	// +kubebuilder:validation:optional
+	Publisher string `json:"publisher,omitempty"`
+
+	// Name is the package product name (Get-AppxPackage | select Name).
+	// Supports wildcards, e.g. "*Notepad".
+	// Omit or set "*" to match any product name.
+	// +kubebuilder:validation:optional
+	Name string `json:"name,omitempty"`
+
+	// PackageFamily is the package family name (name + publisher hash).
+	// Example: "Microsoft.WindowsNotepad_8wekyb3d8bbwe"
+	// +kubebuilder:validation:optional
+	PackageFamily string `json:"packageFamily,omitempty"`
+
+	// +kubebuilder:validation:optional
+	Severity SeverityType `json:"severity,omitempty"`
+	// +kubebuilder:validation:optional
+	Tags []string `json:"tags,omitempty"`
+	// +kubebuilder:validation:optional
+	Message string `json:"message,omitempty"`
+	// +kubebuilder:validation:optional
+	Action ActionType `json:"action,omitempty"`
+}
+
 type ProcessType struct {
 	MatchPaths       []ProcessPathType      `json:"matchPaths,omitempty"`
 	MatchDirectories []ProcessDirectoryType `json:"matchDirectories,omitempty"`
 	MatchPatterns    []ProcessPatternType   `json:"matchPatterns,omitempty"`
+	// MatchPackages targets Windows packaged (MSIX/AppX) applications via
+	// AppLocker FilePublisherRule entries in the Appx collection.
+	// +kubebuilder:validation:optional
+	MatchPackages []PackageMatchType `json:"matchPackages,omitempty"`
 
 	// +kubebuilder:validation:optional
 	Severity SeverityType `json:"severity,omitempty"`

@@ -1,0 +1,4 @@
+D:\kubearmor-remote\KubeArmor\pkg\KubeArmorWindowsDriver\x64\Debug\kubearmor\kubearmor.cat
+..\..\KubeArmor\KubeArmor.exe
+D:\kubearmor-remote\KubeArmor\pkg\KubeArmorWindowsDriver\x64\Debug\kubearmor\kubearmor.inf
+D:\kubearmor-remote\KubeArmor\pkg\KubeArmorWindowsDriver\x64\Debug\kubearmor\kubearmor.sys

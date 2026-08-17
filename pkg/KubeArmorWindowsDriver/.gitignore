@@ -1,5 +1,7 @@
 *.bin
 *.BIN
+*.aps
+*.user
 .vs
 x64/
 Debug/

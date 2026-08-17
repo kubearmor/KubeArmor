@@ -29,7 +29,8 @@ public:
 
         if (m_Buffer != nullptr) {
             m_MaxSize = MaxSize;
-            RtlZeroMemory(m_Buffer, MaxSize);
+            // ExAllocatePool2 guarantees zero-initialised memory \u2014 no explicit
+            // RtlZeroMemory needed here.
         }
     }
 

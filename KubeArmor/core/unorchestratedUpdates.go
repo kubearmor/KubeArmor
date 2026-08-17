@@ -897,6 +897,10 @@ func (dm *KubeArmorDaemon) restoreKubeArmorPolicies() {
 					var hostPolicy tp.K8sKubeArmorHostPolicy
 					if err := json.Unmarshal(data, &hostPolicy); err == nil {
 						hostPolicy.Metadata.Name = k.Metadata["policyName"]
+						kg.Printf("DEBUG (KubeArmor engine): Unmarshaled HostPolicy MatchPackages count: %d", len(hostPolicy.Spec.Process.MatchPackages))
+						if len(hostPolicy.Spec.Process.MatchPackages) > 0 {
+							kg.Printf("DEBUG (KubeArmor engine): Package 0: %+v", hostPolicy.Spec.Process.MatchPackages[0])
+						}
 						dm.ParseAndUpdateHostSecurityPolicy(tp.K8sKubeArmorHostPolicyEvent{
 							Type:   "ADDED",
 							Object: hostPolicy,

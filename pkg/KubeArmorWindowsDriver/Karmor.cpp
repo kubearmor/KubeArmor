@@ -6,13 +6,14 @@
 #include "Protocol.h"
 #include "ProcessEvent.h"
 #include "AsyncEventDispatcher.h"
+#include "ProcessNode.h"
 
 Globals g_State;
 SCANNER_DATA g_ScannerData;
+REGHANDLE g_EtwRegHandle = 0;
 BOOLEAN g_ProcessNotifyRegistered = FALSE, g_SymLinkCreated = FALSE;
 
 void OnProcessNotify(_Inout_ PEPROCESS Process, _In_ HANDLE ProcessId, _Inout_opt_ PPS_CREATE_NOTIFY_INFO CreateInfo);
-VOID LogProcessEvent(RuleAction action, PPROCESS_EVENT_DATA EventData);
 DRIVER_DISPATCH KarmorDeviceControl, KarmorCreateClose;
 
 #include <ntstrsafe.h>
@@ -112,40 +113,6 @@ void KarmorUnload(PDRIVER_OBJECT DriverObject) {
     KdPrint(("karmor driver Unload called\n"));
 }
 
-VOID TestRuleApi() {
-    UNICODE_STRING testPath;
-    RtlInitUnicodeString(&testPath, L"\\??\\C:\\Test\\Binary.exe");
-
-    KdPrint(("Inserting rule...\n"));
-    if (g_State.InsertRule(&testPath, RuleAction::Audit)) {
-        KdPrint(("Rule inserted successfully\n"));
-    }
-    else {
-        KdPrint(("Failed to insert rule\n"));
-    }
-
-    KdPrint(("Looking up rule...\n"));
-    PRULE_ENTRY found = g_State.LookupRule(&testPath);
-    if (found) {
-        KdPrint(("Rule found: Path = %wZ, Action = %s\n",
-            &found->Path,
-            found->Action == RuleAction::Block ? "Block" : "Audit"));
-    }
-    else {
-        KdPrint(("Rule not found\n"));
-    }
-
-    /*KdPrint(("Removing rule...\n"));
-    if (g_State.RemoveRule(&testPath)) {
-        KdPrint(("Rule removed successfully\n"));
-    }
-    else {
-        KdPrint(("Failed to remove rule\n"));
-    }*/
-
-   /* KdPrint(("Destroying Rule Hash Table...\n"));
-    g_State.DestroyRuleHashTable();*/
-}
 
 #ifdef __cplusplus
 extern "C"
@@ -173,12 +140,23 @@ DriverEntry(PDRIVER_OBJECT DriverObject, PUNICODE_STRING RegistryPath) {
         return status;
     }
 
+    status = ProcessCache::GetInstance().Initialize();
+    if (!NT_SUCCESS(status)) {
+        KdPrint(("ProcessCache::Initialize() failed (0x%08X)\n", status));
+        g_State.DestroyRuleHashTable();
+        g_State.DestroyFileRuleHashTable();
+        return status;
+    }
+
     do {
         WriteLogFile("Calling RegisterFilter()\r\n");
         status = RegisterFilter(DriverObject);
         if (!NT_SUCCESS(status)) {
             KdPrint(("Failed to register Filter: (0x%x)\n", status));
             WriteLogFile("RegisterFilter() failed with status 0x%08X\r\n", status);
+            // Clean up hash tables allocated by g_State.Init() before returning.
+            g_State.DestroyRuleHashTable();
+            g_State.DestroyFileRuleHashTable();
             return status;
         }
 
@@ -248,23 +226,16 @@ DriverEntry(PDRIVER_OBJECT DriverObject, PUNICODE_STRING RegistryPath) {
 */
 NTSTATUS InitializeETW()
 {
-    NTSTATUS status;
-
-    // Register ETW provider
-    status = EtwRegister(
+    NTSTATUS status = EtwRegister(
         &KarmorProvider,  // From generated header
-        NULL,                         // Enable callback (optional)
-        NULL,                         // Enable callback context
+        NULL,             // Enable callback (optional)
+        NULL,             // Enable callback context
         &g_EtwRegHandle
     );
-
     if (!NT_SUCCESS(status)) {
         KdPrint(("EventRegister failed: 0x%x\n", status));
-        return status;
     }
-
-    KdPrint(("ETW provider registered successfully\n"));
-    return STATUS_SUCCESS;
+    return status;
 }
 
 VOID CleanupETW()
@@ -272,37 +243,6 @@ VOID CleanupETW()
     if (g_EtwRegHandle != 0) {
         EtwUnregister(g_EtwRegHandle);
         g_EtwRegHandle = 0;
-    }
-}
-
-VOID LogProcessEvent(RuleAction action, PPROCESS_EVENT_DATA EventData)
-{
-    EVENT_DATA_DESCRIPTOR eventDataDescriptor[6];
-    const EVENT_DESCRIPTOR* eventDescriptor;
-    NTSTATUS status;
-
-    // Select the appropriate event descriptor from generated header
-    eventDescriptor = action == RuleAction::Block ? &ProcessBlocked : &ProcessAudited;
-
-    // Prepare event data descriptors
-    EventDataDescCreate(&eventDataDescriptor[0], &EventData->ProcessId, sizeof(ULONG));
-    EventDataDescCreate(&eventDataDescriptor[1], &EventData->ParentProcessId, sizeof(ULONG));
-    EventDataDescCreate(&eventDataDescriptor[2], EventData->ImagePath.Buffer, EventData->ImagePath.Length);
-    EventDataDescCreate(&eventDataDescriptor[3], EventData->CommandLine.Buffer, EventData->CommandLine.Length);
-    EventDataDescCreate(&eventDataDescriptor[4], EventData->UserSid.Buffer, EventData->UserSid.Length);
-    EventDataDescCreate(&eventDataDescriptor[5], EventData->RuleName.Buffer, EventData->RuleName.Length);
-
-    // Write ETW event with correct parameter order
-    status = EtwWrite(
-        g_EtwRegHandle,         // [in] REGHANDLE RegHandle
-        eventDescriptor,        // [in] PCEVENT_DESCRIPTOR EventDescriptor  
-        NULL,                   // [in, optional] LPCGUID ActivityId
-        6,                      // [in] ULONG UserDataCount
-        eventDataDescriptor     // [in, optional] PEVENT_DATA_DESCRIPTOR UserData
-    );
-
-    if (!NT_SUCCESS(status)) {
-        KdPrint(("EtwWrite failed: 0x%x\n", status));
     }
 }
 
@@ -445,39 +385,6 @@ void OnProcessNotify(PEPROCESS Process, HANDLE ProcessId, PPS_CREATE_NOTIFY_INFO
                 goto skip_rule_check;
             }
 
-            // Guard 2: Skip suffix-based process blocking for processes
-            // launching from the Windows packaged app directory (\WindowsApps\).
-            // Packaged apps have a package identity separate from their EXE path.
-            // AppLocker's "Packaged App Rules" enforce policy on that package
-            // identity — our file-path suffix match is the wrong tool here and
-            // can conflict with AppLocker's enforcement infrastructure, causing
-            // all packaged apps to be affected when only one is targeted.
-            {
-                UNICODE_STRING windowsAppsComponent;
-                RtlInitUnicodeString(&windowsAppsComponent, L"\\WindowsApps\\");
-                // Search for the component anywhere in the image path.
-                UNICODE_STRING imagePath = *CreateInfo->ImageFileName;
-                BOOLEAN isPackagedApp = FALSE;
-                if (imagePath.Length > windowsAppsComponent.Length) {
-                    for (USHORT i = 0;
-                         i <= (imagePath.Length - windowsAppsComponent.Length) / sizeof(WCHAR);
-                         ++i)
-                    {
-                        UNICODE_STRING slice;
-                        slice.Buffer        = imagePath.Buffer + i;
-                        slice.Length        = windowsAppsComponent.Length;
-                        slice.MaximumLength = windowsAppsComponent.Length;
-                        if (RtlEqualUnicodeString(&slice, &windowsAppsComponent, TRUE)) {
-                            isPackagedApp = TRUE;
-                            break;
-                        }
-                    }
-                }
-                if (isPackagedApp) {
-                    goto skip_rule_check;
-                }
-            }
-
             // Use LookupRuleAction: acquires m_Lock internally and returns
             // a copied enum value. This is safe against concurrent
             // ClearAllRules calls which free RULE_ENTRY objects under the
@@ -504,18 +411,16 @@ void OnProcessNotify(PEPROCESS Process, HANDLE ProcessId, PPS_CREATE_NOTIFY_INFO
         return;
     }
 
-    DbgPrint("process event serialized!!");
+    KdPrint(("[Karmor] process event dispatched\n"));
 
     // Guard: skip sending if no user-mode client is connected
     if (g_ScannerData.ClientPort == nullptr) {
-        DbgPrint("!!! no user-mode client connected, skipping process event send");
+        KdPrint(("[Karmor] no user-mode client connected, skipping process event send\n"));
         return;
     }
 
     LARGE_INTEGER timeOut = { 0 };
     timeOut.QuadPart = 0;
-
-    DbgPrint("sending %lu bytes data to user-end", event.GetCurrentSize());
 
     status = FltSendMessage(g_ScannerData.Filter,
         &g_ScannerData.ClientPort,
@@ -525,67 +430,8 @@ void OnProcessNotify(PEPROCESS Process, HANDLE ProcessId, PPS_CREATE_NOTIFY_INFO
         NULL,
         &timeOut);
 
-    //DbgPrintHex(event.GetBuffer(), event.GetCurrentSize());
-    if (status == STATUS_SUCCESS) {
-        DbgPrint("!!! successfully process sent event to user-mode");
+    if (!NT_SUCCESS(status)) {
+        KdPrint(("[Karmor] process event send failed: 0x%X\n", status));
     }
-    else {
-        DbgPrint("!!! couldn't send process event to user-mode, status 0x%X\n", status);
-
-    }
-    /*UNREFERENCED_PARAMETER(Process);
-    if (CreateInfo) {
-        KdPrint(("Process Create (%u)\n", HandleToUlong(ProcessId)));
-        //
-        // process created
-        //
-        auto imagePath = CreateInfo->ImageFileName;
-        if (!imagePath)
-            return;
-
-        PROCESS_EVENT_DATA eventData = { 0 };
-        eventData.ProcessId = HandleToULong(ProcessId);
-        eventData.ParentProcessId = HandleToULong(CreateInfo->ParentProcessId);
-        eventData.ImagePath = *CreateInfo->ImageFileName;
-        if (CreateInfo->CommandLine) {
-            eventData.CommandLine = *CreateInfo->CommandLine;
-        }
-        else {
-            RtlInitUnicodeString(&eventData.CommandLine, L"");
-        }
-        RtlInitUnicodeString(&eventData.UserSid, L"Unknown");
-
-        // Set rule name based on your rule evaluation
-        UNICODE_STRING ruleName;
-        RtlInitUnicodeString(&ruleName, L"DefaultRule");
-        eventData.RuleName = ruleName;
-
-        PRULE_ENTRY matched = g_State.LookupRule((PUNICODE_STRING)CreateInfo->ImageFileName);
-        if (matched) {
-            if (matched->Action == RuleAction::Block) {
-                CreateInfo->CreationStatus = STATUS_ACCESS_DENIED;
-                LogProcessEvent(RuleAction::Block, &eventData);
-                KdPrint(("Blocked execution of %wZ\n", imagePath));
-                
-            }
-            else {
-                LogProcessEvent(RuleAction::Audit, &eventData);
-                KdPrint(("Audited execution of %wZ\n", imagePath));
-            }
-        }
-        else if (g_State.IsProcessWhitelist()) {
-            auto defautlProcessPosture = g_State.GetDefaultProcessPosture();
-            if (defautlProcessPosture == RuleAction::Audit) {
-                LogProcessEvent(RuleAction::Audit, &eventData);
-                KdPrint(("Audited execution of not allowed process %wZ\n", imagePath));
-            }
-            else if (defautlProcessPosture == RuleAction::Block) {
-                KdPrint(("Blocking execution of not allowed process is not supported"));
-            }
-        }
-    }
-    else {
-        KdPrint(("Process Exit (%u)\n", HandleToUlong(ProcessId)));
-    }*/
 }
 

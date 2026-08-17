@@ -1,0 +1,6 @@
+D:\kubearmor-remote\KubeArmor\pkg\KubeArmorDriverInstaller\bin\Debug\KubeArmorDriverInstaller.msi
+D:\kubearmor-remote\KubeArmor\pkg\KubeArmorDriverInstaller\bin\Debug\KubeArmorDriverInstaller.wixpdb
+obj\Debug\Product.wixobj
+obj\Debug\KubeArmorDriverInstaller.wixproj.BindContentsFileListnull.txt
+obj\Debug\KubeArmorDriverInstaller.wixproj.BindOutputsFileListnull.txt
+obj\Debug\KubeArmorDriverInstaller.wixproj.BindBuiltOutputsFileListnull.txt

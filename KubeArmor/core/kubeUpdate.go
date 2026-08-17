@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: Apache-2.0
+﻿// SPDX-License-Identifier: Apache-2.0
 // Copyright 2026 Authors of KubeArmor
 
 package core
@@ -1955,6 +1955,42 @@ func (dm *KubeArmorDaemon) CreateHostSecurityPolicy(securityPolicy any) (secPoli
 		}
 	}
 
+
+	if len(secPolicy.Spec.Process.MatchPackages) > 0 {
+		for idx, pkg := range secPolicy.Spec.Process.MatchPackages {
+			if pkg.Severity == 0 {
+				if secPolicy.Spec.Process.Severity != 0 {
+					secPolicy.Spec.Process.MatchPackages[idx].Severity = secPolicy.Spec.Process.Severity
+				} else {
+					secPolicy.Spec.Process.MatchPackages[idx].Severity = secPolicy.Spec.Severity
+				}
+			}
+
+			if len(pkg.Tags) == 0 {
+				if len(secPolicy.Spec.Process.Tags) > 0 {
+					secPolicy.Spec.Process.MatchPackages[idx].Tags = secPolicy.Spec.Process.Tags
+				} else {
+					secPolicy.Spec.Process.MatchPackages[idx].Tags = secPolicy.Spec.Tags
+				}
+			}
+
+			if len(pkg.Message) == 0 {
+				if len(secPolicy.Spec.Process.Message) > 0 {
+					secPolicy.Spec.Process.MatchPackages[idx].Message = secPolicy.Spec.Process.Message
+				} else {
+					secPolicy.Spec.Process.MatchPackages[idx].Message = secPolicy.Spec.Message
+				}
+			}
+
+			if len(pkg.Action) == 0 {
+				if len(secPolicy.Spec.Process.Action) > 0 {
+					secPolicy.Spec.Process.MatchPackages[idx].Action = secPolicy.Spec.Process.Action
+				} else {
+					secPolicy.Spec.Process.MatchPackages[idx].Action = secPolicy.Spec.Action
+				}
+			}
+		}
+	}
 	if len(secPolicy.Spec.File.MatchPaths) > 0 {
 		for idx, path := range secPolicy.Spec.File.MatchPaths {
 			if path.Severity == 0 {

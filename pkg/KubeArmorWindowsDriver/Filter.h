@@ -2,9 +2,6 @@
 #include "pch.h"
 #include "Context.h"
 
-#ifndef __FILTER_H__
-#define __FILTER_H__
-
 EXTERN_C_START
 
 // ==========================
@@ -126,75 +123,9 @@ NTSTATUS RegisterFilter(
 
 EXTERN_C_END
 
-#ifdef ALLOC_PRAGMA
-    #pragma alloc_text (PAGE, InstanceFilterUnloadCallback)
-    #pragma alloc_text (PAGE, InstanceSetupCallback)
-    #pragma alloc_text (PAGE, InstanceQueryTeardownCallback)
-#endif
-
-CONST FLT_OPERATION_REGISTRATION g_callbacks[] =
-{
-    {
-        IRP_MJ_CREATE,
-        0,
-        PreCreateCallback,
-        PostCreateCallback
-    },
-    {
-        IRP_MJ_READ,
-        0,
-        PreReadCallback,
-        PostReadCallback
-    },
-    {
-        IRP_MJ_WRITE,
-        0,
-        PreWriteCallback,
-        PostWriteCallback
-    },
-    { 
-        IRP_MJ_SET_INFORMATION, 
-        FLTFL_OPERATION_REGISTRATION_SKIP_PAGING_IO, 
-        PreSetInformationCallback, 
-        PostSetInformationCallback 
-    },
-    {
-        IRP_MJ_CLEANUP,
-        0,
-        PreCleanupCallback,
-        PostCleanupCallback
-    },
-
-    { IRP_MJ_OPERATION_END }
-};
-
-const FLT_CONTEXT_REGISTRATION g_ContextCallbacks[] = {
-
-    { FLT_INSTANCE_CONTEXT, 0, InstanceContextCleanup,
-    sizeof(InstanceContext), c_CtxAllocTag },
-
-    { FLT_STREAMHANDLE_CONTEXT, 0, StreamHandleContextCleanup,
-    sizeof(StreamHandleContext), c_CtxAllocTag },
-
-    { FLT_CONTEXT_END }
-};
-
-CONST FLT_REGISTRATION g_filterRegistration =
-{
-    sizeof(FLT_REGISTRATION),      //  Size
-    FLT_REGISTRATION_VERSION,      //  Version
-    0,                             //  Flags
-    g_ContextCallbacks,            //  Context registration
-    g_callbacks,                   //  Operation callbacks
-    InstanceFilterUnloadCallback,  //  FilterUnload
-    InstanceSetupCallback,         //  InstanceSetup
-    InstanceQueryTeardownCallback, //  InstanceQueryTeardown
-    InstanceStartTeardownCallback,         //  InstanceTeardownStart
-    InstanceCompleteTeardownCallback,      //  InstanceTeardownComplete
-    NULL,                          //  GenerateFileName
-    NULL,                          //  GenerateDestinationFileName
-    NULL                           //  NormalizeNameComponent
-};
+extern const FLT_OPERATION_REGISTRATION g_callbacks[];
+extern const FLT_CONTEXT_REGISTRATION   g_ContextCallbacks[];
+extern const FLT_REGISTRATION           g_filterRegistration;
 
 typedef struct _SCANNER_DATA {
 
@@ -210,6 +141,3 @@ extern SCANNER_DATA g_ScannerData;
 #define MAX_FILTER_EVENT_SIZE (64 * 1024)
 
 #include "EventStructs.h"
-
-#endif // !__FILTER_H__
-

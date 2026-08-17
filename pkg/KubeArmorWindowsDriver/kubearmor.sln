@@ -1,16 +1,20 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 17
-VisualStudioVersion = 17.14.36127.28 d17.14
+# Visual Studio Version 18
+VisualStudioVersion = 18.8.12023.21 stable
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "kubearmor", "kubearmor.vcxproj", "{F3593B67-11A2-4790-9A15-D3A9B8BEFF41}"
+EndProject
+Project("{930C7802-8A8C-48F9-8165-68863BCCD9DD}") = "KubeArmorDriverInstaller", "..\KubeArmorDriverInstaller\KubeArmorDriverInstaller.wixproj", "{A37E6B26-0646-4D4E-B68F-B93706363DAF}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|ARM64 = Debug|ARM64
 		Debug|x64 = Debug|x64
+		Debug|x86 = Debug|x86
 		Release|ARM64 = Release|ARM64
 		Release|x64 = Release|x64
+		Release|x86 = Release|x86
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
 		{F3593B67-11A2-4790-9A15-D3A9B8BEFF41}.Debug|ARM64.ActiveCfg = Debug|ARM64
@@ -19,12 +23,30 @@ Global
 		{F3593B67-11A2-4790-9A15-D3A9B8BEFF41}.Debug|x64.ActiveCfg = Debug|x64
 		{F3593B67-11A2-4790-9A15-D3A9B8BEFF41}.Debug|x64.Build.0 = Debug|x64
 		{F3593B67-11A2-4790-9A15-D3A9B8BEFF41}.Debug|x64.Deploy.0 = Debug|x64
+		{F3593B67-11A2-4790-9A15-D3A9B8BEFF41}.Debug|x86.ActiveCfg = Debug|x64
+		{F3593B67-11A2-4790-9A15-D3A9B8BEFF41}.Debug|x86.Build.0 = Debug|x64
+		{F3593B67-11A2-4790-9A15-D3A9B8BEFF41}.Debug|x86.Deploy.0 = Debug|x64
 		{F3593B67-11A2-4790-9A15-D3A9B8BEFF41}.Release|ARM64.ActiveCfg = Release|ARM64
 		{F3593B67-11A2-4790-9A15-D3A9B8BEFF41}.Release|ARM64.Build.0 = Release|ARM64
 		{F3593B67-11A2-4790-9A15-D3A9B8BEFF41}.Release|ARM64.Deploy.0 = Release|ARM64
 		{F3593B67-11A2-4790-9A15-D3A9B8BEFF41}.Release|x64.ActiveCfg = Release|x64
 		{F3593B67-11A2-4790-9A15-D3A9B8BEFF41}.Release|x64.Build.0 = Release|x64
 		{F3593B67-11A2-4790-9A15-D3A9B8BEFF41}.Release|x64.Deploy.0 = Release|x64
+		{F3593B67-11A2-4790-9A15-D3A9B8BEFF41}.Release|x86.ActiveCfg = Release|x64
+		{F3593B67-11A2-4790-9A15-D3A9B8BEFF41}.Release|x86.Build.0 = Release|x64
+		{F3593B67-11A2-4790-9A15-D3A9B8BEFF41}.Release|x86.Deploy.0 = Release|x64
+		{A37E6B26-0646-4D4E-B68F-B93706363DAF}.Debug|ARM64.ActiveCfg = Debug|x86
+		{A37E6B26-0646-4D4E-B68F-B93706363DAF}.Debug|ARM64.Build.0 = Debug|x86
+		{A37E6B26-0646-4D4E-B68F-B93706363DAF}.Debug|x64.ActiveCfg = Debug|x86
+		{A37E6B26-0646-4D4E-B68F-B93706363DAF}.Debug|x64.Build.0 = Debug|x86
+		{A37E6B26-0646-4D4E-B68F-B93706363DAF}.Debug|x86.ActiveCfg = Debug|x86
+		{A37E6B26-0646-4D4E-B68F-B93706363DAF}.Debug|x86.Build.0 = Debug|x86
+		{A37E6B26-0646-4D4E-B68F-B93706363DAF}.Release|ARM64.ActiveCfg = Release|x86
+		{A37E6B26-0646-4D4E-B68F-B93706363DAF}.Release|ARM64.Build.0 = Release|x86
+		{A37E6B26-0646-4D4E-B68F-B93706363DAF}.Release|x64.ActiveCfg = Release|x86
+		{A37E6B26-0646-4D4E-B68F-B93706363DAF}.Release|x64.Build.0 = Release|x86
+		{A37E6B26-0646-4D4E-B68F-B93706363DAF}.Release|x86.ActiveCfg = Release|x86
+		{A37E6B26-0646-4D4E-B68F-B93706363DAF}.Release|x86.Build.0 = Release|x86
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

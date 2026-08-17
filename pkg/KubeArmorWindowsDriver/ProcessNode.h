@@ -33,7 +33,7 @@ struct ProcessEntry {
     // Process identification
     HANDLE processId;
     HANDLE parentProcessId;
-    HANDLE createrProcessId;
+    HANDLE creatorProcessId;
     LARGE_INTEGER createTime;
     LARGE_INTEGER exitTime;      // Set on exit
     BOOLEAN hasExited;
@@ -53,40 +53,32 @@ private:
     static const ULONG HASH_TABLE_SIZE = 4096;  // Power of 2 for fast modulo
 
     // Hash table (array of list heads)
-    LIST_ENTRY hashTable_[HASH_TABLE_SIZE];
+    LIST_ENTRY hashTable_[HASH_TABLE_SIZE] = {};
 
     // Lock for thread safety
-    PushLock tableLock_;
+    PushLock tableLock_ = {};
 
     // Statistics
-    volatile LONGLONG totalProcesses_;
-    volatile LONGLONG activeProcesses_;
-    volatile LONGLONG cacheHits_;
-    volatile LONGLONG cacheMisses_;
-
-    ProcessCache()
-        : totalProcesses_(0), activeProcesses_(0),
-        cacheHits_(0), cacheMisses_(0) {
-
-        // Initialize hash table
-        for (ULONG i = 0; i < HASH_TABLE_SIZE; i++) {
-            InitializeListHead(&hashTable_[i]);
-        }
-
-        // Initialize lock
-        tableLock_.Init();
-    }
+    volatile LONGLONG totalProcesses_ = 0;
+    volatile LONGLONG activeProcesses_ = 0;
+    volatile LONGLONG cacheHits_ = 0;
+    volatile LONGLONG cacheMisses_ = 0;
 
 public:
-    static ProcessCache& GetInstance() {
-        static ProcessCache instance;
-        return instance;
-    }
+    // Explicitly defaulted constructor makes the class TriviallyDefaultConstructible,
+    // guaranteeing no dynamic initializer (.CRT section) is emitted for the global.
+    ProcessCache() = default;
 
+
+    // Returns the single driver-lifetime instance backed by a plain global
+    // (safe in kernel mode — no CRT thread-guard machinery needed).
+    static ProcessCache& GetInstance();
+
+    // Copying and moving are explicitly forbidden — only one instance exists.
     ProcessCache(const ProcessCache&) = delete;
     ProcessCache& operator=(const ProcessCache&) = delete;
-    ProcessCache(ProcessCache&& Other) = delete;
-    ProcessCache& operator=(ProcessCache&& Other) = delete;
+    ProcessCache(ProcessCache&&) = delete;
+    ProcessCache& operator=(ProcessCache&&) = delete;
 
     NTSTATUS Initialize();
     void Cleanup();
