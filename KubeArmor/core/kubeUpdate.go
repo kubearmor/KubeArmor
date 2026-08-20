@@ -1,4 +1,4 @@
-﻿// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: Apache-2.0
 // Copyright 2026 Authors of KubeArmor
 
 package core
@@ -601,7 +601,7 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 // HandleUnknownNamespaceNsMap Function
 func (dm *KubeArmorDaemon) HandleUnknownNamespaceNsMap(container *tp.Container) {
 	dm.SystemMonitor.AddContainerIDToNsMap(container.ContainerID, container.NamespaceName, container.PidNS, container.MntNS)
-	dm.SystemMonitor.NsMapLock.Lock()
+	dm.SystemMonitor.NamespacePidsMapLock.Lock()
 	if val, ok := dm.SystemMonitor.NamespacePidsMap["Unknown"]; ok {
 		for i := range val.NsKeys {
 			if val.NsKeys[i].MntNS == container.MntNS && val.NsKeys[i].PidNS == container.PidNS {
@@ -611,7 +611,7 @@ func (dm *KubeArmorDaemon) HandleUnknownNamespaceNsMap(container *tp.Container) 
 		}
 		dm.SystemMonitor.NamespacePidsMap["Unknown"] = val
 	}
-	dm.SystemMonitor.NsMapLock.Unlock()
+	dm.SystemMonitor.NamespacePidsMapLock.Unlock()
 }
 
 func (dm *KubeArmorDaemon) handlePodEvent(event string, obj *corev1.Pod) {
@@ -1954,7 +1954,6 @@ func (dm *KubeArmorDaemon) CreateHostSecurityPolicy(securityPolicy any) (secPoli
 			}
 		}
 	}
-
 
 	if len(secPolicy.Spec.Process.MatchPackages) > 0 {
 		for idx, pkg := range secPolicy.Spec.Process.MatchPackages {
@@ -3852,7 +3851,9 @@ func (dm *KubeArmorDaemon) validateVisibility(scope string, visibility string) b
 
 // UpdateVisibility Function
 func (dm *KubeArmorDaemon) UpdateVisibility(action string, namespace string, visibility tp.Visibility) {
-	// mon.BpfMapLock removed
+	dm.SystemMonitor.NamespacePidsMapLock.Lock()
+	defer dm.SystemMonitor.NamespacePidsMapLock.Unlock()
+
 	switch action {
 	case addEvent, updateEvent:
 		if val, ok := dm.SystemMonitor.NamespacePidsMap[namespace]; ok {

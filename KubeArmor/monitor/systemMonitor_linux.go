@@ -32,9 +32,10 @@ var (
 
 type MonitorImpl struct {
 	*MonitorState
+	SystemMonitor *SystemMonitor
 
 	// Ima Hash
-	ImaHash *ImaHash
+	ImaHash ImaHash
 
 	BpfModule            *cle.Collection
 	BpfConfigMap         *cle.Map
@@ -44,7 +45,6 @@ type MonitorImpl struct {
 	NsVisibilityMap map[NsKey]*cle.Map
 
 	BpfMapLock *sync.RWMutex
-	PinPath    string
 
 	// Probes Links
 	Probes map[string]link.Link
@@ -64,6 +64,7 @@ func (mon *MonitorImpl) GetContextChannel() <-chan ContextCombined {
 func (mon *SystemMonitor) NewMonitor(ms *MonitorState) Monitor {
 	m := new(MonitorImpl)
 	m.MonitorState = ms
+	m.SystemMonitor = mon
 	m.BpfMapLock = new(sync.RWMutex)
 	m.NsVisibilityMap = make(map[NsKey]*cle.Map)
 	m.BpfVisibilityMapSpec = cle.MapSpec{
@@ -279,12 +280,12 @@ func (mon *MonitorImpl) initBPFMaps() error {
 	mon.BpfConfigMap = bpfConfigMap
 	if cfg.GlobalCfg.HostPolicy {
 		if err := mon.BpfConfigMap.Update(uint32(0), uint32(1), cle.UpdateAny); err != nil {
-			mon.Logger.Errf("Error Updating System Monitor Config Map to enable host visbility : %s", err.Error())
+			mon.Logger.Errf("Error Updating System Monitor Config Map to enable host visibility : %s", err.Error())
 		}
 	}
 	if cfg.GlobalCfg.Policy {
 		if err := mon.BpfConfigMap.Update(uint32(1), uint32(1), cle.UpdateAny); err != nil {
-			mon.Logger.Errf("Error Updating System Monitor Config Map to enable container visbility : %s", err.Error())
+			mon.Logger.Errf("Error Updating System Monitor Config Map to enable container visibility : %s", err.Error())
 		}
 	}
 
@@ -354,6 +355,9 @@ func (mon *MonitorImpl) DestroyBPFMaps() {
 
 // UpdateNsKeyMap Function
 func (mon *MonitorImpl) UpdateNsVisibility(action string, nsKey NsKey, visibility tp.Visibility) {
+	mon.BpfMapLock.Lock()
+	defer mon.BpfMapLock.Unlock()
+
 	var err error
 
 	file := cle.MapKV{
@@ -523,8 +527,6 @@ func (mon *MonitorImpl) UpdateDefaultVisibility() {
 		}
 	}
 
-	mon.BpfMapLock.Lock()
-	defer mon.BpfMapLock.Unlock()
 	mon.UpdateNsVisibility("ADDED", hostNSKey, hostVisibility)
 	mon.UpdateNsVisibility("ADDED", nsKey, visibility)
 }
@@ -573,13 +575,17 @@ func (mon *MonitorImpl) InitImaHash() error {
 	if mon.ImaHash != nil {
 		return nil
 	}
-	var err error
-	err = mon.CheckBPFLSMSupport()
+	err := mon.CheckBPFLSMSupport()
 	if err != nil {
 		return err
 	}
-	if mon.ImaHash, err = NewImaHash(mon.Logger, mon.PinPath); err != nil {
-		return err
+	mon.ImaHash = mon.SystemMonitor.NewImaHash(mon.Logger, mon.PinPath)
+	return nil
+}
+
+func (mon *MonitorImpl) DestroyImaHash() error {
+	if mon.ImaHash != nil {
+		return mon.ImaHash.Destroy()
 	}
 	return nil
 }
@@ -642,7 +648,7 @@ func (mon *MonitorImpl) TraceEvents() {
 					containerID := ""
 
 					if ctx.PidID != 0 && ctx.MntID != 0 {
-						containerID = mon.LookupContainerID(ctx.PidID, ctx.MntID)
+						containerID = mon.SystemMonitor.LookupContainerID(ctx.PidID, ctx.MntID)
 
 						if containerID == "" {
 							time.Sleep(1 * time.Second)
@@ -655,7 +661,7 @@ func (mon *MonitorImpl) TraceEvents() {
 					default:
 						// channel is full, wait for a short time before retrying
 						time.Sleep(1 * time.Second)
-						mon.Logger.Warn("Event droped due to busy event channel")
+						mon.Logger.Warn("Event dropped due to busy event channel")
 					}
 
 				}
@@ -672,7 +678,7 @@ func (mon *MonitorImpl) TraceEvents() {
 
 		case dataRaw, valid := <-mon.SyscallChannel:
 			if !valid {
-				mon.Logger.Debug("Invalid telemtry")
+				mon.Logger.Debug("Invalid telemetry")
 				continue
 			}
 
@@ -703,7 +709,7 @@ func (mon *MonitorImpl) TraceEvents() {
 			containerID := ""
 
 			if ctx.PidID != 0 && ctx.MntID != 0 {
-				containerID = mon.LookupContainerID(ctx.PidID, ctx.MntID)
+				containerID = mon.SystemMonitor.LookupContainerID(ctx.PidID, ctx.MntID)
 
 				if containerID != "" {
 					ContainersLock.RLock()
@@ -783,7 +789,7 @@ func (mon *MonitorImpl) TraceEvents() {
 					}
 
 					// generate a log with the base information
-					log := mon.BuildLogBase(ctx.EventID, ContextCombined{ContainerID: containerID, ContextSys: ctx, HashData: hashes}, false)
+					log := mon.SystemMonitor.BuildLogBase(ctx.EventID, ContextCombined{ContainerID: containerID, ContextSys: ctx, HashData: hashes}, false)
 
 					// fallback logic: in case we get relative path as execPath then we join cwd + execPath to get pull path
 					if !strings.HasPrefix(strings.Split(execPath, " ")[0], "/") && log.Cwd != "/" {
@@ -791,8 +797,8 @@ func (mon *MonitorImpl) TraceEvents() {
 					}
 
 					// build a pid node
-					pidNode := mon.BuildPidNode(containerID, ctx, execPath, nodeArgs, false)
-					mon.AddActivePid(containerID, pidNode)
+					pidNode := mon.SystemMonitor.BuildPidNode(containerID, ctx, execPath, nodeArgs, false)
+					mon.SystemMonitor.AddActivePid(containerID, pidNode)
 
 					// add arguments
 					log.Resource = execPath
@@ -822,7 +828,7 @@ func (mon *MonitorImpl) TraceEvents() {
 					updateHashData(&log, hashes)
 
 					// update the log again
-					log = mon.UpdateLogBase(ctx, log)
+					log = mon.SystemMonitor.UpdateLogBase(ctx, log)
 
 					// get error message
 					if ctx.Retval < 0 {
@@ -853,7 +859,7 @@ func (mon *MonitorImpl) TraceEvents() {
 					var execPath string
 
 					// generate a log with the base information
-					log := mon.BuildLogBase(ctx.EventID, ContextCombined{ContainerID: containerID, ContextSys: ctx, HashData: hashes}, false)
+					log := mon.SystemMonitor.BuildLogBase(ctx.EventID, ContextCombined{ContainerID: containerID, ContextSys: ctx, HashData: hashes}, false)
 
 					if val, ok := args[1].(string); ok {
 						execPath = val // procExecPath
@@ -873,8 +879,8 @@ func (mon *MonitorImpl) TraceEvents() {
 					default:
 						mon.Logger.Warnf("Unexpected args[2] type")
 					}
-					pidNode := mon.BuildPidNode(containerID, ctx, execPath, args_2, false)
-					mon.AddActivePid(containerID, pidNode)
+					pidNode := mon.SystemMonitor.BuildPidNode(containerID, ctx, execPath, args_2, false)
+					mon.SystemMonitor.AddActivePid(containerID, pidNode)
 
 					fd := ""
 					procExecFlag := ""
@@ -919,7 +925,7 @@ func (mon *MonitorImpl) TraceEvents() {
 					updateHashData(&log, hashes)
 
 					// update the log again
-					log = mon.UpdateLogBase(ctx, log)
+					log = mon.SystemMonitor.UpdateLogBase(ctx, log)
 
 					// get error message
 					if ctx.Retval < 0 {
@@ -946,11 +952,11 @@ func (mon *MonitorImpl) TraceEvents() {
 
 				continue
 			} else if ctx.EventID == DoExit {
-				mon.DeleteActivePid(containerID, ctx)
+				mon.SystemMonitor.DeleteActivePid(containerID, ctx)
 				continue
 			} else if ctx.EventID == SecurityBprmCheck {
 				if val, ok := args[0].(string); ok {
-					mon.UpdateExecPath(containerID, ctx.HostPID, val)
+					mon.SystemMonitor.UpdateExecPath(containerID, ctx.HostPID, val)
 				}
 				continue
 			} else if ctx.EventID == TCPConnect {

@@ -1,3 +1,6 @@
+﻿// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Authors of KubeArmor
+
 #include "ProcessNode.h"
 
 // Plain global — initialized before DriverEntry by the WDK CRT startup code.
@@ -76,13 +79,6 @@ NTSTATUS ProcessCache::AddProcess(
 		InterlockedIncrement64(&activeProcesses_);
 	}
 
-	DbgPrintEx(DPFLTR_IHVDRIVER_ID, DPFLTR_INFO_LEVEL,
-		"[EDR] Cached process: PID=%lu, Parent=%lu, Creator=%lu, Image=%wZ\n",
-		HandleToULong(processID),
-		HandleToULong(parentProcessID),
-		HandleToULong(creatorProcessID),
-		&ctx->imagePath);
-
 	return STATUS_SUCCESS;
 }
 
@@ -105,11 +101,6 @@ NTSTATUS ProcessCache::RemoveProcess(_In_ HANDLE processID) {
 
 		InterlockedDecrement64(&activeProcesses_);
 	}
-
-	DbgPrintEx(DPFLTR_IHVDRIVER_ID, DPFLTR_INFO_LEVEL,
-		"[EDR] Removed process: PID=%lu, Image=%wZ\n",
-		HandleToULong(processID),
-		&ctx->imagePath);
 
 	FreeProcessContext(ctx);
 

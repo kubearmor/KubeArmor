@@ -1405,11 +1405,8 @@ func handleFileEvent(buf []byte, log_ *tp.Log) {
 	blocked := buf[16] != 0
 	log_.Action = getAction(blocked)
 	log_.Result = getResult(!blocked)
-	
+
 	log_.Enforcer = "Minifilter"
-	if evType == 2 || blocked {
-		log_.PolicyName = "KubeArmor-File-Block"
-	}
 
 	fileOp := binary.LittleEndian.Uint32(buf[17:21])
 	log_.PID = int32(binary.LittleEndian.Uint32(buf[21:25]))
@@ -1476,6 +1473,20 @@ func handleFileEvent(buf []byte, log_ *tp.Log) {
 			if err == nil {
 				log_.ParentProcessName = windows.UTF16ToString(pathBuf[:size])
 			}
+		}
+	}
+
+	// Resolve the correct policy name from the registry using the resource path.
+	// This replaces the old hardcoded "KubeArmor-File-Block".
+	if evType == 2 || blocked {
+		if log_.Resource != "" {
+			if name := GetPolicyNameRegistry().Lookup(log_.Resource); name != "" {
+				log_.PolicyName = name
+			} else {
+				log_.PolicyName = "KubeArmor-File-Block"
+			}
+		} else {
+			log_.PolicyName = "KubeArmor-File-Block"
 		}
 	}
 
@@ -1603,6 +1614,6 @@ func (mon *SystemMonitor) NewMonitor(ms *MonitorState) Monitor {
 }
 
 func (mon *SystemMonitor) NewImaHash(*fd.Feeder, string) ImaHash { return nil }
-func (mon *MonitorImpl) InitImaHash() error { return nil }
-func (mon *MonitorImpl) DestroyImaHash() error { return nil }
-func (mon *MonitorImpl) UpdateMatchArgsConfig() {}
+func (mon *MonitorImpl) InitImaHash() error                      { return nil }
+func (mon *MonitorImpl) DestroyImaHash() error                   { return nil }
+func (mon *MonitorImpl) UpdateMatchArgsConfig()                  {}

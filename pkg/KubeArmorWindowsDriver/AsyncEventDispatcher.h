@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Authors of KubeArmor
+
+
 #pragma once
 
 extern "C" {
@@ -194,4 +198,4 @@ private:
     EventDedupCache m_dedupCache;
 };
 
-extern AsyncEventDispatcher g_AsyncDispatcher;
+extern AsyncEventDispatcher g_AsyncDispatcher;

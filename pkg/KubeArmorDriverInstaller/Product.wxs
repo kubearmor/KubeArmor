@@ -69,6 +69,26 @@
 
 		<CustomAction Id="InstallDriver" Directory="INSTALLFOLDER" Execute="deferred" Impersonate="no" ExeCommand="&quot;[System64Folder]rundll32.exe&quot; SETUPAPI.DLL,InstallHinfSection DefaultInstall 132 [!kubearmor.inf]" Return="check" />
 		<CustomAction Id="StartDriver" Directory="INSTALLFOLDER" Execute="deferred" Impersonate="no" ExeCommand="&quot;[System64Folder]fltmc.exe&quot; load kubearmor" Return="ignore" />
+
+		<!-- Stop KubeArmorSvc explicitly before touching the driver.
+		     ServiceControl Stop="both" sends a stop request but does NOT
+		     reliably wait for the service process to exit before continuing.
+		     We use sc.exe stop to trigger shutdown, then poll with a
+		     PowerShell loop (up to 30 s) to wait for STOPPED state. -->
+		<CustomAction Id="StopKubeArmorSvc"
+			Directory="INSTALLFOLDER"
+			Execute="deferred"
+			Impersonate="no"
+			ExeCommand="&quot;[System64Folder]sc.exe&quot; stop KubeArmorSvc"
+			Return="ignore" />
+
+		<CustomAction Id="WaitForKubeArmorSvcStopped"
+			Directory="INSTALLFOLDER"
+			Execute="deferred"
+			Impersonate="no"
+			ExeCommand="&quot;[System64Folder]cmd.exe&quot; /C &quot;FOR /L %i IN (1,1,30) DO (sc query KubeArmorSvc | find &quot;STOPPED&quot; &amp;&amp; EXIT 0 || timeout /t 1 /nobreak &gt;nul)&quot;"
+			Return="ignore" />
+
 		<CustomAction Id="StopDriver" Directory="INSTALLFOLDER" Execute="deferred" Impersonate="no" ExeCommand="&quot;[System64Folder]fltmc.exe&quot; unload kubearmor" Return="ignore" />
 		<CustomAction Id="UninstallDriver" Directory="INSTALLFOLDER" Execute="deferred" Impersonate="no" ExeCommand="&quot;[System64Folder]rundll32.exe&quot; SETUPAPI.DLL,InstallHinfSection DefaultUninstall 132 [!kubearmor.inf]" Return="ignore" />
 
@@ -77,9 +97,14 @@
 			<Custom Action="InstallDriver" Before="InstallServices">NOT Installed</Custom>
 			<Custom Action="StartDriver" After="InstallDriver">NOT Installed</Custom>
 
-			<!-- Uninstall: KubeArmorSvc is stopped+deleted by DeleteServices BEFORE we touch the driver.
-			     StopDriver (fltmc unload) must come AFTER DeleteServices so the userspace client
-			     that holds the filter port is fully gone before we unload the minifilter. -->
+			<!-- Uninstall sequence:
+			     1. StopKubeArmorSvc  — send stop request to KubeArmorSvc
+			     2. WaitForKubeArmorSvcStopped — poll until fully stopped (≤30 s)
+			     3. DeleteServices    — WiX removes the service registration
+			     4. StopDriver        — fltmc unload (safe: userspace client is gone)
+			     5. UninstallDriver   — remove driver INF registration -->
+			<Custom Action="StopKubeArmorSvc" Before="DeleteServices">REMOVE="ALL"</Custom>
+			<Custom Action="WaitForKubeArmorSvcStopped" After="StopKubeArmorSvc">REMOVE="ALL"</Custom>
 			<Custom Action="StopDriver" After="DeleteServices">REMOVE="ALL"</Custom>
 			<Custom Action="UninstallDriver" After="StopDriver">REMOVE="ALL"</Custom>
 		</InstallExecuteSequence>

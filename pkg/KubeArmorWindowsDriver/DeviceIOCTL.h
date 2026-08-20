@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Authors of KubeArmor
+
 #pragma once
 
 #define DEVICE_KARMOR 0x8022

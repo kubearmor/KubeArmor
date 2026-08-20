@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Authors of KubeArmor
+
 extern "C" {
 #include <fltKernel.h>
 }
@@ -31,7 +34,7 @@ NTSTATUS AsyncEventDispatcher::Initialize(PFLT_FILTER filter)
         ExAllocatePool2(POOL_FLAG_NON_PAGED, ASYNC_RING_BYTES, ASYNC_RING_TAG));
     if (!m_ring)
     {
-        KdPrint(("[AsyncDisp] ring alloc failed\n"));
+        KdPrint(("[kubearmor] ring alloc failed\n"));
         return STATUS_INSUFFICIENT_RESOURCES;
     }
 
@@ -39,7 +42,7 @@ NTSTATUS AsyncEventDispatcher::Initialize(PFLT_FILTER filter)
         ExAllocatePool2(POOL_FLAG_NON_PAGED, ASYNC_SEND_BUFFER_BYTES, ASYNC_SEND_TAG));
     if (!m_sendBuf)
     {
-        KdPrint(("[AsyncDisp] send-buf alloc failed\n"));
+        KdPrint(("[kubearmor] send-buf alloc failed\n"));
         ExFreePoolWithTag(m_ring, ASYNC_RING_TAG);
         m_ring = nullptr;
         return STATUS_INSUFFICIENT_RESOURCES;
@@ -53,7 +56,7 @@ NTSTATUS AsyncEventDispatcher::Initialize(PFLT_FILTER filter)
 
     if (!NT_SUCCESS(status))
     {
-        KdPrint(("[AsyncDisp] PsCreateSystemThread: %08X\n", status));
+        KdPrint(("[kubearmor] PsCreateSystemThread: %08X\n", status));
         ExFreePoolWithTag(m_sendBuf, ASYNC_SEND_TAG);
         ExFreePoolWithTag(m_ring, ASYNC_RING_TAG);
         m_sendBuf = nullptr;
@@ -68,7 +71,7 @@ NTSTATUS AsyncEventDispatcher::Initialize(PFLT_FILTER filter)
     InterlockedExchange(&m_active, 1);
     m_initialized = true;
 
-    KdPrint(("[AsyncDisp] init ok ring=%lu sendBuf=%lu qpcFreqMs=%I64u\n",
+    KdPrint(("[kubearmor] init ok ring=%lu sendBuf=%lu qpcFreqMs=%I64u\n",
         ASYNC_RING_BYTES, ASYNC_SEND_BUFFER_BYTES, m_qpcFreqMs));
     return STATUS_SUCCESS;
 }
@@ -93,7 +96,7 @@ void AsyncEventDispatcher::Uninitialize()
     m_ring = nullptr;
     m_initialized = false;
 
-    KdPrint(("[AsyncDisp] uninit enqueued=%I64d dropped=%I64d poisoned=%I64d deduped=%I64d\n",
+    KdPrint(("[kubearmor] uninit enqueued=%I64d dropped=%I64d poisoned=%I64d deduped=%I64d\n",
         m_enqueued, m_dropped, m_poisoned, m_deduped));
 }
 
@@ -107,7 +110,7 @@ void AsyncEventDispatcher::OnClientConnected(PFLT_PORT clientPort)
     KeReleaseSpinLock(&m_portLock, irql);
 
     KeSetEvent(&m_dataReady, IO_NO_INCREMENT, FALSE);
-    KdPrint(("[AsyncDisp] client connected port=%p\n", clientPort));
+    KdPrint(("[kubearmor] client connected port=%p\n", clientPort));
 }
 
 _Use_decl_annotations_
@@ -119,7 +122,7 @@ void AsyncEventDispatcher::OnClientDisconnected()
     m_sendTimeouts = 0;
     KeReleaseSpinLock(&m_portLock, irql);
 
-    KdPrint(("[AsyncDisp] client disconnected\n"));
+    KdPrint(("[kubearmor] client disconnected\n"));
 }
 
 _Use_decl_annotations_
@@ -276,7 +279,7 @@ NTSTATUS AsyncEventDispatcher::EnqueueBlockedFileEvent(
         const WCHAR* p   = FilePath->Buffer;
         const WCHAR* end = p + (FilePath->Length / sizeof(WCHAR));
         for (; p < end; ++p)
-            pathHash = ((pathHash << 5) + pathHash) ^ static_cast<UINT32>(*p);
+            pathHash = ((pathHash << 5) + pathHash) ^ static_cast<UINT32>(RtlUpcaseUnicodeChar(*p));
     }
 
     if (m_dedupCache.IsDuplicate(
@@ -303,7 +306,7 @@ NTSTATUS AsyncEventDispatcher::ProduceSlot(const UINT8* bytes, UINT32 size)
 
     if (size > maxPayload)
     {
-        KdPrint(("[AsyncDisp] event too large (%u B)\n", size));
+        KdPrint(("[kubearmor] event too large (%u B)\n", size));
         InterlockedAdd64(&m_dropped, 1);
         // BUG A fix: wake worker even on error so it can drain and free space.
         KeSetEvent(&m_dataReady, IO_NO_INCREMENT, FALSE);
@@ -420,7 +423,7 @@ UINT32 AsyncEventDispatcher::ConsumeOne()
                 stride < static_cast<UINT32>(sizeof(SlotHeader)) ||
                 stride > static_cast<UINT32>(ASYNC_RING_BYTES / 4u))
             {
-                KdPrint(("[AsyncDisp] corrupt slot at readHead=%ld "
+                KdPrint(("[kubearmor] corrupt slot at readHead=%ld "
                     "payload=%u stride=%u - skipping\n",
                     m_readHead, payload, stride));
                 InterlockedExchange(&hdr->state, static_cast<LONG>(SlotState::Free));
@@ -458,7 +461,7 @@ UINT32 AsyncEventDispatcher::ConsumeOne()
                 if (elapsedMs >= ASYNC_CLAIM_TIMEOUT_MS)
                 {
                     // Producer is dead or stuck - skip this slot.
-                    KdPrint(("[AsyncDisp] poisoned slot at readHead=%ld "
+                    KdPrint(("[kubearmor] poisoned slot at readHead=%ld "
                         "elapsed=%I64u ms\n",
                         m_readHead, elapsedMs));
 
@@ -486,7 +489,7 @@ UINT32 AsyncEventDispatcher::ConsumeOne()
         }
 
         // Unexpected Free slot - advance by minimum aligned amount.
-        KdPrint(("[AsyncDisp] unexpected Free slot at readHead=%ld\n", m_readHead));
+        KdPrint(("[kubearmor] unexpected Free slot at readHead=%ld\n", m_readHead));
         m_readHead += static_cast<LONG>(AlignUp(static_cast<UINT32>(sizeof(SlotHeader))));
         return 0;
     }
@@ -532,7 +535,7 @@ NTSTATUS AsyncEventDispatcher::SendOne(UINT32 bytes)
         m_sendTimeouts++;
         if (m_sendTimeouts >= ASYNC_MAX_SEND_TIMEOUTS)
         {
-            KdPrint(("[AsyncDisp] %lu consecutive timeouts - userspace may be "
+            KdPrint(("[kubearmor] %lu consecutive timeouts - userspace may be "
                 "slow, dropping event\n", m_sendTimeouts));
             // Don't null the port - userspace may recover.  Just reset
             // the counter so we retry sending future events normally.
@@ -553,7 +556,7 @@ VOID AsyncEventDispatcher::WorkerEntry(PVOID ctx)
 
 void AsyncEventDispatcher::WorkerLoop()
 {
-    KdPrint(("[AsyncDisp] worker started\n"));
+    KdPrint(("[kubearmor] worker started\n"));
 
     PVOID waitObjects[2] = { &m_stopEvent, &m_dataReady };
 
@@ -608,11 +611,11 @@ void AsyncEventDispatcher::WorkerLoop()
                     continue;
                 }
 
-                KdPrint(("[AsyncDisp] SendOne %08X - stopping drain cycle\n", s));
+                KdPrint(("[kubearmor] SendOne %08X - stopping drain cycle\n", s));
                 break;
             }
         } __except (EXCEPTION_EXECUTE_HANDLER) {
-            KdPrint(("[AsyncDisp] exception 0x%08X in drain loop - "
+            KdPrint(("[kubearmor] exception 0x%08X in drain loop - "
                 "resetting ring\n", GetExceptionCode()));
             // Reset ring pointers to recover from corruption
             InterlockedExchange(&m_readHead, m_writeHead);
@@ -623,5 +626,5 @@ void AsyncEventDispatcher::WorkerLoop()
             break;
     }
 
-    KdPrint(("[AsyncDisp] worker exiting\n"));
+    KdPrint(("[kubearmor] worker exiting\n"));
 }

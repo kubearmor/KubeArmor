@@ -134,7 +134,6 @@
     <ClInclude Include="Filter.h" />
     <ClInclude Include="EventStructs.h" />
     <ClInclude Include="Globals.h" />
-    <ClInclude Include="HashTable.h" />
     <ClInclude Include="KarmorLogs.h" />
     <ClInclude Include="ProcessEvent.h" />
     <ClInclude Include="Rule.h" />

@@ -1,169 +1,11 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Authors of KubeArmor
+
+
 #include "Context.h"
 #include <ntddstor.h>
 
-#ifdef DBG
-void PrintInstanceContext(InstanceContext* context) {
-    if (!context) {
-        DbgPrintEx(DPFLTR_IHVDRIVER_ID, DPFLTR_ERROR_LEVEL,
-            "[kubearmor] InstanceContext is NULL\n");
-        return;
-    }
 
-    DbgPrintEx(DPFLTR_IHVDRIVER_ID, DPFLTR_INFO_LEVEL,
-        "[kubearmor] ===== Instance Context =====\n");
-
-    // Print GUID
-    DbgPrintEx(DPFLTR_IHVDRIVER_ID, DPFLTR_INFO_LEVEL,
-        "[kubearmor] Volume GUID: {%08X-%04X-%04X-%02X%02X-%02X%02X%02X%02X%02X%02X}\n",
-        context->volumeGuid.Data1,
-        context->volumeGuid.Data2,
-        context->volumeGuid.Data3,
-        context->volumeGuid.Data4[0], context->volumeGuid.Data4[1],
-        context->volumeGuid.Data4[2], context->volumeGuid.Data4[3],
-        context->volumeGuid.Data4[4], context->volumeGuid.Data4[5],
-        context->volumeGuid.Data4[6], context->volumeGuid.Data4[7]);
-
-    // Print VolumeType
-    const char* volumeTypeStr = "Unknown";
-    switch (context->volumeType) {
-    case VolumeType::Fixed: volumeTypeStr = "Fixed"; break;
-    case VolumeType::Removable: volumeTypeStr = "Removable"; break;
-    case VolumeType::Network: volumeTypeStr = "Network"; break;
-    case VolumeType::Ram: volumeTypeStr = "RAM"; break;
-    }
-    DbgPrintEx(DPFLTR_IHVDRIVER_ID, DPFLTR_INFO_LEVEL,
-        "[kubearmor] Volume Type: %s\n", volumeTypeStr);
-
-    // Print volumeName
-    if (context->volumeName.Length > 0) {
-        DbgPrintEx(DPFLTR_IHVDRIVER_ID, DPFLTR_INFO_LEVEL,
-            "[kubearmor] Volume Name: %wZ\n", &context->volumeName);
-    }
-    else {
-        DbgPrintEx(DPFLTR_IHVDRIVER_ID, DPFLTR_INFO_LEVEL,
-            "[kubearmor] Volume Name: (empty)\n");
-    }
-
-    // Print isUsbDevice
-    DbgPrintEx(DPFLTR_IHVDRIVER_ID, DPFLTR_INFO_LEVEL,
-        "[kubearmor] Is USB Device: %s\n",
-        context->isUsbDevice ? "Yes" : "No");
-
-    // Print usbDeviceName
-    if (context->isUsbDevice && context->usbDeviceVolumeLabel.Length > 0) {
-        DbgPrintEx(DPFLTR_IHVDRIVER_ID, DPFLTR_INFO_LEVEL,
-            "[kubearmor] USB Device Name: %wZ\n",
-            &context->usbDeviceVolumeLabel);
-    }
-
-    DbgPrintEx(DPFLTR_IHVDRIVER_ID, DPFLTR_INFO_LEVEL,
-        "[kubearmor] ============================\n");
-}
-#endif // DBG
-
-#ifdef DBG
-void PrintStreamHandleContext(StreamHandleContext* context)
-{
-    if (!context) {
-        DbgPrintEx(DPFLTR_IHVDRIVER_ID, DPFLTR_INFO_LEVEL,
-            "[kubearmor] StreamHandleContext is NULL\n");
-        return;
-    }
-
-    DbgPrintEx(DPFLTR_IHVDRIVER_ID, DPFLTR_INFO_LEVEL,
-        "[kubearmor] ========== StreamHandleContext ==========\n");
-
-    // Process information
-    DbgPrintEx(DPFLTR_IHVDRIVER_ID, DPFLTR_INFO_LEVEL,
-        "[kubearmor] Process ID: %lu (0x%p)\n",
-        HandleToULong(context->processId),
-        context->processId);
-
-    // File path (safe printing)
-    if (context->filePath.Length > 0 && context->filePath.Buffer) {
-        DbgPrintEx(DPFLTR_IHVDRIVER_ID, DPFLTR_INFO_LEVEL,
-            "[kubearmor] File Path: %wZ\n",
-            &context->filePath);
-    }
-    else {
-        DbgPrintEx(DPFLTR_IHVDRIVER_ID, DPFLTR_INFO_LEVEL,
-            "[kubearmor] File Path: (empty)\n");
-    }
-
-    // File hash
-    DbgPrintEx(DPFLTR_IHVDRIVER_ID, DPFLTR_INFO_LEVEL,
-        "[kubearmor] File Hash: 0x%08X\n",
-        context->fileHash);
-
-    // File classification flags
-    DbgPrintEx(DPFLTR_IHVDRIVER_ID, DPFLTR_INFO_LEVEL,
-        "[kubearmor] Is Executable: %s\n",
-        context->isExecutable ? "Yes" : "No");
-
-    DbgPrintEx(DPFLTR_IHVDRIVER_ID, DPFLTR_INFO_LEVEL,
-        "[kubearmor] Is System File: %s\n",
-        context->isSystemFile ? "Yes" : "No");
-
-    DbgPrintEx(DPFLTR_IHVDRIVER_ID, DPFLTR_INFO_LEVEL,
-        "[kubearmor] Is Directory: %s\n",
-        context->isDirectory ? "Yes" : "No");
-
-    // File operation flags
-    DbgPrintEx(DPFLTR_IHVDRIVER_ID, DPFLTR_INFO_LEVEL,
-        "[kubearmor] Opened For Execution: %s\n",
-        context->isOpenedForExecution ? "Yes" : "No");
-
-    DbgPrintEx(DPFLTR_IHVDRIVER_ID, DPFLTR_INFO_LEVEL,
-        "[kubearmor] Delete On Close: %s\n",
-        context->deleteOnClose ? "Yes" : "No");
-
-    DbgPrintEx(DPFLTR_IHVDRIVER_ID, DPFLTR_INFO_LEVEL,
-        "[kubearmor] Disposition Delete: %s\n",
-        context->dispositionDelete ? "Yes" : "No");
-
-    DbgPrintEx(DPFLTR_IHVDRIVER_ID, DPFLTR_INFO_LEVEL,
-        "[kubearmor] Was Changed: %s\n",
-        context->wasChanged ? "Yes" : "No");
-
-    // Rule evaluation and enforcement
-    DbgPrintEx(DPFLTR_IHVDRIVER_ID, DPFLTR_INFO_LEVEL,
-        "[kubearmor] Rule Evaluated: %s\n",
-        context->ruleEvaluated ? "Yes" : "No");
-
-    DbgPrintEx(DPFLTR_IHVDRIVER_ID, DPFLTR_INFO_LEVEL,
-        "[kubearmor] Read Only: %s\n",
-        context->readOnly ? "Yes" : "No");
-
-    DbgPrintEx(DPFLTR_IHVDRIVER_ID, DPFLTR_INFO_LEVEL,
-        "[kubearmor] Ignore Event: %s\n",
-        context->ignoreEvent ? "Yes" : "No");
-
-    DbgPrintEx(DPFLTR_IHVDRIVER_ID, DPFLTR_INFO_LEVEL,
-        "[kubearmor] Rule Version: %lu\n",
-        context->ruleVersion);
-
-    // Cached rule action
-    const char* actionStr = "Unknown";
-    switch (context->cachedRuleAction) {
-    case RuleAction::Allow:
-        actionStr = "Allow";
-        break;
-    case RuleAction::Block:
-        actionStr = "Block";
-        break;
-    case RuleAction::Audit:
-        actionStr = "Audit";
-        break;
-    }
-
-    DbgPrintEx(DPFLTR_IHVDRIVER_ID, DPFLTR_INFO_LEVEL,
-        "[kubearmor] Cached Rule Action: %s\n",
-        actionStr);
-
-    DbgPrintEx(DPFLTR_IHVDRIVER_ID, DPFLTR_INFO_LEVEL,
-        "[kubearmor] ============================================\n");
-}
-#endif // DBG
 
 NTSTATUS Context::InitializeInstanceContext(
     PCFLT_RELATED_OBJECTS fltObjects,
@@ -332,7 +174,6 @@ BOOLEAN Context::IsUsbDevice(
             ExAllocatePool2(POOL_FLAG_NON_PAGED, bufferSize, 'bsuC'));
 
     if (!descriptor) {
-        DbgPrint("IsUsbDevice: descripter is nil");
         return FALSE;
     }
 
@@ -354,7 +195,6 @@ BOOLEAN Context::IsUsbDevice(
 
     if (!irp) {
         ExFreePoolWithTag(descriptor, 'bsuC');
-        DbgPrint("IsUsbDevice: irp request failed");
         return FALSE;
     }
 
@@ -367,7 +207,6 @@ BOOLEAN Context::IsUsbDevice(
     BOOLEAN isUsb = FALSE;
 
     if (NT_SUCCESS(status) && descriptor->BusType == BusTypeUsb) {
-        DbgPrint("IsUsbDevice: descriptor detected as usb");
         isUsb = TRUE;
         GetUsbDeviceVolumeLabel(fltObjects->Instance, &context->usbDeviceVolumeLabel);
     }
@@ -404,8 +243,7 @@ NTSTATUS Context::GetUsbDeviceVolumeLabel(
             FileFsVolumeInformation);
 
         if (!NT_SUCCESS(status)) {
-            DbgPrintEx(DPFLTR_IHVDRIVER_ID, DPFLTR_ERROR_LEVEL,
-                "[kubearmor] FltQueryVolumeInformation failed: 0x%08X\n", status);
+            DbgPrintEx(DPFLTR_IHVDRIVER_ID, DPFLTR_ERROR_LEVEL, "[kubearmor] FltQueryVolumeInformation failed: 0x%08X\n", status);
             __leave;
         }
 
@@ -599,7 +437,7 @@ NTSTATUS Context::PopulateProcessPath(
     PEPROCESS process = FltGetRequestorProcess(data);
 
     if (process == NULL) {
-        DbgPrint("!!! unable to get requestor process");
+        DbgPrint("[kubearmor] unable to get requester process");
     }
     else {
         PUNICODE_STRING imagePath = NULL;
@@ -620,7 +458,7 @@ NTSTATUS Context::PopulateProcessPath(
             }
         }
         else {
-            DbgPrint("SeLocateProcessImageName failed 0x%x\n", status);
+            DbgPrint("[kubearmor] SeLocateProcessImageName failed 0x%x\n", status);
         }
     }
     return status;
@@ -692,4 +530,17 @@ ULONG Context::ComputeFilePathHash(PUNICODE_STRING filePath) {
     return hash;
 }
 
-// ============================= //
+// ============================= //
+
+void PrintInstanceContext(InstanceContext* context) {
+    if (!context) {
+        return;
+    }
+    KdPrint(("[Karmor] InstanceContext:\n"));
+    KdPrint(("[Karmor]   VolumeType = %d\n", context->volumeType));
+    KdPrint(("[Karmor]   VolumeName = %wZ\n", &context->volumeName));
+    KdPrint(("[Karmor]   IsUsbDevice = %d\n", context->isUsbDevice));
+    if (context->isUsbDevice) {
+        KdPrint(("[Karmor]   UsbVolumeLabel = %wZ\n", &context->usbDeviceVolumeLabel));
+    }
+}

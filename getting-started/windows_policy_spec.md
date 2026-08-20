@@ -94,7 +94,7 @@ spec:
 |---|---|---|
 | `matchPaths` | ✅ | EXE → AppLocker `Exe` + driver; Scripts/DLLs → AppLocker `Script`/`Dll` + driver file rules |
 | `matchDirectories` | ❌ | Not supported for process enforcement on Windows |
-| `matchPatterns` | ❌ | Not supported on Windows |
+| `matchPatterns` | ✅ (File only) | Supported for file rules (glob matching); not supported for process rules |
 | `matchPackages` | ✅ (Windows only) | AppLocker `Appx` `FilePublisherRule` |
 | `ownerOnly` | ❌ | Ignored on Windows |
 | `fromSource` | ❌ | Ignored on Windows |

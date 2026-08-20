@@ -4,13 +4,13 @@
 package feeder
 
 import (
+	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
+	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 	"math"
 	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
-	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
-	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 )
 
 // ======================= //
@@ -84,8 +84,6 @@ func fetchProtocol(resource string) string {
 	}
 	return resource
 }
-
-
 
 // getOperationAndCapabilityFromName Function
 func getOperationAndCapabilityFromName(capName string) (op, capability string) {

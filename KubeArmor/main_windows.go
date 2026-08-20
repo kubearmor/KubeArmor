@@ -228,7 +228,7 @@ func installDriver() error {
 		return fmt.Errorf("could not determine executable path: %w", err)
 	}
 	dir := filepath.Dir(exePath)
-	
+
 	infPath := filepath.Join(dir, "pkg", "KubeArmorWindowsDriver", "kubearmor.inf")
 	if _, err := os.Stat(infPath); os.IsNotExist(err) {
 		infPath = filepath.Join(dir, "kubearmor.inf")
@@ -286,7 +286,7 @@ func uninstallDriver() error {
 		return fmt.Errorf("could not determine executable path: %w", err)
 	}
 	dir := filepath.Dir(exePath)
-	
+
 	infPath := filepath.Join(dir, "pkg", "KubeArmorWindowsDriver", "kubearmor.inf")
 	if _, err := os.Stat(infPath); os.IsNotExist(err) {
 		infPath = filepath.Join(dir, "kubearmor.inf")
@@ -383,7 +383,7 @@ func stopServiceCmd() error {
 	}
 	fmt.Println("stopping service now...")
 	if err := stopService(s); err != nil {
-		fmt.Printf("error stoping service: %s", err)
+		fmt.Printf("error stopping service: %s", err)
 		return err
 	}
 

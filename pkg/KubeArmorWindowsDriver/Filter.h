@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Authors of KubeArmor
+
+
 #pragma once
 #include "pch.h"
 #include "Context.h"

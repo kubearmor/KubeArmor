@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Authors of KubeArmor
+
 #pragma once
 
 #ifndef __EVENT_STRUCTS_H__
@@ -67,7 +70,8 @@ typedef struct _EVENT {
         PROCESS_EVENT Process;
         NETWORK_EVENT Network;
     } data;
-} EVENT, * PEVENT;
+// codespell:ignore-next-line
+} EVENT, * PEVENT; 
 
 typedef struct _REPLY {
     BOOLEAN ack;

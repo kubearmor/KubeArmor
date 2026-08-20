@@ -171,7 +171,8 @@ type MonitorState struct {
 	NsMapLock *sync.RWMutex
 
 	// namespace -> visibility
-	NamespacePidsMap map[string]NsVisibility
+	NamespacePidsMap     map[string]NsVisibility
+	NamespacePidsMapLock *sync.RWMutex
 
 	// lists to skip
 	UntrackedNamespaces []string
@@ -187,6 +188,7 @@ type MonitorState struct {
 	MonitorLock **sync.RWMutex
 
 	Status          bool
+	PinPath         string
 	UptimeTimeStamp float64
 	HostByteOrder   binary.ByteOrder
 }
@@ -229,6 +231,7 @@ func NewSystemMonitor(node *tp.Node, nodeLock **sync.RWMutex, logger *fd.Feeder,
 	ms.execLogMapLock = new(sync.RWMutex)
 
 	ms.NamespacePidsMap = make(map[string]NsVisibility)
+	ms.NamespacePidsMapLock = new(sync.RWMutex)
 
 	// assign the value of untracked ns from GlobalCfg
 	untrackedNs := cfg.GlobalCfg.ConfigUntrackedNs.Load().([]string)

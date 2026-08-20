@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Authors of KubeArmor
+
+
 // EventDedup.h
 // Kernel-mode event deduplication cache for KubeArmor minifilter.
 //
@@ -9,7 +13,7 @@
 //
 // Design:
 //   - Fixed-size open-addressing hash table (DEDUP_BUCKET_COUNT buckets).
-//   - Key   = (PID, FilePathHash, EventType) packed into 64 bits.
+//   - Key   = (PID, PathHash, EventType) packed into two 64-bit values.
 //   - Value = QPC timestamp of last time this key was seen.
 //   - Protected by a single KSPIN_LOCK (safe at DISPATCH_LEVEL).
 //   - Entries are never explicitly evicted; they expire naturally when the
@@ -23,14 +27,14 @@ extern "C" {
 
 // Number of dedup buckets. Must be a power of two.
 #ifndef DEDUP_BUCKET_COUNT
-#define DEDUP_BUCKET_COUNT  256UL
+#define DEDUP_BUCKET_COUNT  512UL
 #endif
 static_assert((DEDUP_BUCKET_COUNT & (DEDUP_BUCKET_COUNT - 1)) == 0,
     "DEDUP_BUCKET_COUNT must be a power of two");
 
 // Suppress duplicate events seen within this many QPC milliseconds.
 #ifndef DEDUP_WINDOW_MS
-#define DEDUP_WINDOW_MS  500ULL
+#define DEDUP_WINDOW_MS  1000ULL
 #endif
 
 #define DEDUP_INVALID_KEY  0ULL
@@ -42,7 +46,8 @@ static_assert((DEDUP_BUCKET_COUNT & (DEDUP_BUCKET_COUNT - 1)) == 0,
 #pragma pack(push, 1)
 struct DedupEntry
 {
-    UINT64 key;          // packed (PID:32 | EventType:16 | PathHash:16)
+    UINT64 key;          // packed (PID:32 | PathHash:32)
+    UINT16 eventType;    // event type stored separately for full precision
     UINT64 lastSeenTick; // QPC ticks when this key was last admitted
 };
 #pragma pack(pop)
@@ -68,8 +73,8 @@ public:
 
     // Returns TRUE if this event is a duplicate and should be suppressed.
     // qpcFreqMs  - ticks-per-millisecond (from KeQueryPerformanceCounter).
-    // pid        - requestor process ID.
-    // pathHash   - 16-bit hash of the file/resource path.
+    // pid        - requester process ID.
+    // pathHash   - 32-bit hash of the file/resource path.
     // eventType  - protocol::EVENT_TYPE cast to UINT16.
     _IRQL_requires_max_(DISPATCH_LEVEL)
     BOOLEAN IsDuplicate(
@@ -80,26 +85,25 @@ public:
     {
         if (qpcFreqMs == 0) return FALSE; // safety: not initialized
 
-        // Build a 64-bit key.
-        // Layout: [ pid(32) | eventType(16) | pathHash(16) ]
+        // Build a 64-bit key from PID and full 32-bit path hash.
+        // Layout: [ pid(32) | pathHash(32) ]
         const UINT64 key =
-            (static_cast<UINT64>(pid)       << 32) |
-            (static_cast<UINT64>(eventType) << 16) |
-            (static_cast<UINT64>(pathHash & 0xFFFF));
+            (static_cast<UINT64>(pid) << 32) |
+            static_cast<UINT64>(pathHash);
 
-        if (key == DEDUP_INVALID_KEY) return FALSE;
+        if (key == DEDUP_INVALID_KEY && eventType == 0) return FALSE;
 
         const UINT64 nowTick = static_cast<UINT64>(
             KeQueryPerformanceCounter(nullptr).QuadPart);
 
-        const UINT32 slot = BucketFor(key);
+        const UINT32 slot = BucketFor(key, eventType);
 
         KIRQL irql;
         KeAcquireSpinLock(&m_lock, &irql);
 
         DedupEntry& entry = m_buckets[slot];
 
-        if (entry.key == key)
+        if (entry.key == key && entry.eventType == eventType)
         {
             // Same key — check if still within the window.
             const UINT64 elapsedMs = (nowTick - entry.lastSeenTick) / qpcFreqMs;
@@ -112,6 +116,7 @@ public:
 
         // Admit: update the bucket (evicts any previous occupant).
         entry.key          = key;
+        entry.eventType    = eventType;
         entry.lastSeenTick = nowTick;
 
         KeReleaseSpinLock(&m_lock, irql);
@@ -119,10 +124,11 @@ public:
     }
 
 private:
-    static UINT32 BucketFor(UINT64 key)
+    static UINT32 BucketFor(UINT64 key, UINT16 eventType)
     {
-        // FNV-1a mix of the key to spread bits.
-        UINT64 h = key ^ (key >> 33);
+        // Mix key and eventType together for bucket selection.
+        UINT64 h = key ^ (static_cast<UINT64>(eventType) << 48);
+        h ^= (h >> 33);
         h *= 0xff51afd7ed558ccdULL;
         h ^= (h >> 33);
         return static_cast<UINT32>(h) & (DEDUP_BUCKET_COUNT - 1u);
@@ -131,3 +137,4 @@ private:
     KSPIN_LOCK  m_lock{};
     DedupEntry  m_buckets[DEDUP_BUCKET_COUNT]{};
 };
+

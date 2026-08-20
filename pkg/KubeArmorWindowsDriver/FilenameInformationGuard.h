@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Authors of KubeArmor
+
+
 #pragma once
 // RAII-style guard for managing PFLT_FILE_NAME_INFORMATION resources.
 // This class ensures that the FltReleaseFileNameInformation function is automatically called

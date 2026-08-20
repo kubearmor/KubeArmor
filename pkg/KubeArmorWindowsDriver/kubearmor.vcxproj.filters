@@ -59,9 +59,6 @@
     <ClInclude Include="DeviceIOCTL.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="HashTable.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="Rule.h">
       <Filter>Header Files</Filter>
     </ClInclude>

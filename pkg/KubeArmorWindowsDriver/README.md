@@ -1,5 +1,3 @@
-# kawin
-
 ## Build
 
 ### Prerequisites

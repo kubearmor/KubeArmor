@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Authors of KubeArmor
+
 //go:build windows
 // +build windows
 
@@ -17,11 +20,12 @@ import (
 // appLockerTemplate is the full AppLocker XML policy we apply.
 //
 // Five %s placeholders in order:
-//   [0] = Exe rules
-//   [1] = Appx rules
-//   [2] = Dll rules
-//   [3] = Script rules
-//   [4] = Msi rules
+//
+//	[0] = Exe rules
+//	[1] = Appx rules
+//	[2] = Dll rules
+//	[3] = Script rules
+//	[4] = Msi rules
 const appLockerTemplate = `
 <AppLockerPolicy Version="1">
   <RuleCollection Type="Exe" EnforcementMode="Enabled">

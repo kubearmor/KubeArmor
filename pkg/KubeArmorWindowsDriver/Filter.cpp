@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Authors of KubeArmor
+
+
 #include "Filter.h"
 #include "Context.h"
 #include "Buffer.h"
@@ -61,17 +65,6 @@ const FLT_REGISTRATION g_filterRegistration =
     NULL,                               //  GenerateDestinationFileName
     NULL                                //  NormalizeNameComponent
 };
-
-VOID DbgPrintHex(_In_reads_bytes_(Length) PUCHAR Buffer, _In_ SIZE_T Length)
-{
-    for (SIZE_T i = 0; i < Length; i++)
-    {
-        DbgPrint("%02X ", Buffer[i]);
-        if ((i + 1) % 16 == 0) DbgPrint(" ");
-    }
-    DbgPrint("\n");
-}
-
 // ==========================
 // ==== Filter Callbacks ====
 // ==========================
@@ -136,17 +129,33 @@ FLT_PREOP_CALLBACK_STATUS PreCreateCallback(
         // Look up file rule by normalized NT path
         PRULE_ENTRY rule = g_State.LookupFileRule(&fileNameInfo->Name);
 
-        if (rule && rule->Action == RuleAction::Block) {
+        if (rule) {
+            // ReadOnly flag: block write access regardless of whether the
+            // base action is Block or Allow. A readOnly:true policy means
+            // "allow reads, block writes" — this applies to both action:Block
+            // and action:Allow rules that carry RULE_FLAG_READONLY.
             if (rule->Flags & RULE_FLAG_READONLY) {
-                // ReadOnly: only block writes/deletes, allow read-only access
                 ACCESS_MASK desiredAccess =
                     Data->Iopb->Parameters.Create.SecurityContext->DesiredAccess;
                 ULONG createOptions =
                     Data->Iopb->Parameters.Create.Options & 0x00FFFFFF;
 
-                if ((desiredAccess & (FILE_WRITE_DATA | FILE_APPEND_DATA | DELETE)) ||
+                // Write-specific access flags. MAXIMUM_ALLOWED is intentionally
+                // excluded — it means "give me the maximum permitted access" and
+                // is used by read-only openers such as Explorer. Blocking it
+                // would deny reads, which defeats the purpose of readOnly.
+                constexpr ACCESS_MASK WRITE_ACCESS_MASK =
+                    FILE_WRITE_DATA   |  // write file content
+                    FILE_APPEND_DATA  |  // append to file
+                    FILE_WRITE_EA     |  // write extended attributes
+                    FILE_WRITE_ATTRIBUTES | // write timestamps/attribs
+                    DELETE |             // delete the file
+                    GENERIC_WRITE |      // generic write (maps to the above)
+                    GENERIC_ALL;         // all-access (includes writes)
+
+                if ((desiredAccess & WRITE_ACCESS_MASK) ||
                     (createOptions & FILE_DELETE_ON_CLOSE)) {
-                    KdPrint(("Karmor: BLOCKED write access to: %wZ\n", &fileNameInfo->Name));
+                    KdPrint(("[kubearmor] Karmor: BLOCKED write access (readOnly) to: %wZ\n", &fileNameInfo->Name));
                     g_AsyncDispatcher.EnqueueBlockedFileEvent(
                         &fileNameInfo->Name,
                         HandleToULong(PsGetCurrentProcessId()));
@@ -155,10 +164,10 @@ FLT_PREOP_CALLBACK_STATUS PreCreateCallback(
                     FltReleaseFileNameInformation(fileNameInfo);
                     return FLT_PREOP_COMPLETE;
                 }
-                // Read-only access is allowed through
-            } else {
+                // Read-only access is allowed through — fall to bottom
+            } else if (rule->Action == RuleAction::Block) {
                 // Full block: deny all access
-                KdPrint(("Karmor: BLOCKED access to: %wZ\n", &fileNameInfo->Name));
+                KdPrint(("[kubearmor] Karmor: BLOCKED access to: %wZ\n", &fileNameInfo->Name));
                 g_AsyncDispatcher.EnqueueBlockedFileEvent(
                     &fileNameInfo->Name,
                     HandleToULong(PsGetCurrentProcessId()));
@@ -167,6 +176,7 @@ FLT_PREOP_CALLBACK_STATUS PreCreateCallback(
                 FltReleaseFileNameInformation(fileNameInfo);
                 return FLT_PREOP_COMPLETE;
             }
+            // Action == Allow (without ReadOnly) or Action == Audit: pass through
         }
         // Audit rules: allow access, event will be reported in PostCreate
 
@@ -293,11 +303,11 @@ FLT_PREOP_CALLBACK_STATUS PreWriteCallback(
     // === File enforcement: defense-in-depth readOnly write blocking ===
     // Even if PreCreateCallback allowed the handle (read-only open),
     // block any actual write I/O to files with readOnly rules.
+    // This applies to BOTH Block+ReadOnly and Allow+ReadOnly semantics.
     if (pStrHandleCtx->filePath.Length > 0) {
         PRULE_ENTRY rule = g_State.LookupFileRule(&pStrHandleCtx->filePath);
-        if (rule && rule->Action == RuleAction::Block &&
-            (rule->Flags & RULE_FLAG_READONLY)) {
-            KdPrint(("Karmor: BLOCKED write I/O to readOnly file: %wZ\n",
+        if (rule && (rule->Flags & RULE_FLAG_READONLY)) {
+            KdPrint(("[kubearmor] Karmor: BLOCKED write I/O to readOnly file: %wZ\n",
                 &pStrHandleCtx->filePath));
             FltReleaseContext(pStrHandleCtx);
             data->IoStatus.Status = STATUS_ACCESS_DENIED;
@@ -374,7 +384,7 @@ FLT_PREOP_CALLBACK_STATUS PreSetInformationCallback(
         if (rule && rule->Action == RuleAction::Block) {
             // Full block: deny both rename and delete
             // ReadOnly block: also deny rename and delete (they are write operations)
-            KdPrint(("Karmor: BLOCKED %s on protected file: %wZ\n",
+            KdPrint(("[kubearmor] Karmor: BLOCKED %s on protected file: %wZ\n",
                 isDelete ? "delete" : "rename", &pStrHandleCtx->filePath));
             g_AsyncDispatcher.EnqueueBlockedFileEvent(
                 &pStrHandleCtx->filePath,
@@ -542,7 +552,7 @@ NTSTATUS ScannerPortConnect(
     // Dispatcher gets its own copy; FltCloseClientPort stays in Disconnect.
     g_AsyncDispatcher.OnClientConnected(ClientPort);
 
-    KdPrint(("[Karmor] filter port connected=0x%p\n", ClientPort));
+    KdPrint(("[kubearmor] filter port connected=0x%p\n", ClientPort));
     return STATUS_SUCCESS;
 }
 
@@ -551,7 +561,7 @@ VOID ScannerPortDisconnect(_In_opt_ PVOID ConnectionCookie)
     UNREFERENCED_PARAMETER(ConnectionCookie);
     PAGED_CODE();
 
-    KdPrint(("[Karmor] filter port disconnected\n"));
+    KdPrint(("[kubearmor] filter port disconnected\n"));
 
     // Clear dispatcher's port reference BEFORE closing the handle so the
     // worker cannot call FltSendMessage on a handle that is about to be freed.
@@ -614,7 +624,7 @@ NTSTATUS InstanceSetupCallback(
     UNREFERENCED_PARAMETER(volumeDeviceType);
     UNREFERENCED_PARAMETER(volumeFilesystemType);
 
-    KdPrint(("[Karmor] InstanceSetupCallback\n"));
+    KdPrint(("[kubearmor] InstanceSetupCallback\n"));
 
     InstanceContext* pCtx = nullptr;
     NTSTATUS         status = STATUS_SUCCESS;
@@ -677,10 +687,8 @@ VOID StreamHandleContextCleanup(_In_ PFLT_CONTEXT pContext, _In_ FLT_CONTEXT_TYP
 //  RegisterFilter
 // ============================================================================
 
-extern void WriteLogFile(PCSTR format, ...);
 NTSTATUS RegisterFilter(_In_ PDRIVER_OBJECT DriverObject)
 {
-    WriteLogFile("  -> RegisterFilter started");
     PSECURITY_DESCRIPTOR sd;
     OBJECT_ATTRIBUTES    oa;
     UNICODE_STRING       uniString;
@@ -688,11 +696,10 @@ NTSTATUS RegisterFilter(_In_ PDRIVER_OBJECT DriverObject)
 
     RtlInitUnicodeString(&uniString, L"\\ScannerPort");
 
-    WriteLogFile("  -> Calling FltRegisterFilter");
     status = FltRegisterFilter(DriverObject, &g_filterRegistration, &g_ScannerData.Filter);
     if (!NT_SUCCESS(status)) return status;
 
-    KdPrint(("KdPrint:fsminifilter driver loaded"));
+    KdPrint(("[kubearmor] KdPrint:fsminifilter driver loaded"));
 
     status = FltBuildDefaultSecurityDescriptor(&sd, FLT_PORT_ALL_ACCESS);
     if (!NT_SUCCESS(status)) { FltUnregisterFilter(g_ScannerData.Filter); return status; }
@@ -709,19 +716,16 @@ NTSTATUS RegisterFilter(_In_ PDRIVER_OBJECT DriverObject)
 
     if (!NT_SUCCESS(status)) { FltUnregisterFilter(g_ScannerData.Filter); return status; }
 
-    WriteLogFile("  -> Calling AsyncDispatcher.Initialize");
     status = g_AsyncDispatcher.Initialize(g_ScannerData.Filter);
     if (!NT_SUCCESS(status))
     {
-        KdPrint(("[Filter] AsyncDispatcher init failed: %08X\n", status));
+        KdPrint(("[kubearmor] AsyncDispatcher init failed: %08X\n", status));
         FltCloseCommunicationPort(g_ScannerData.ServerPort);
         FltUnregisterFilter(g_ScannerData.Filter);
         return status;
     }
 
-    WriteLogFile("  -> Calling FltStartFiltering");
     status = FltStartFiltering(g_ScannerData.Filter);
-    WriteLogFile("  -> FltStartFiltering returned 0x%08X", status);
     if (!NT_SUCCESS(status))
     {
         g_AsyncDispatcher.Uninitialize(); // stop worker before closing port

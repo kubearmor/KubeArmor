@@ -127,28 +127,24 @@ func (re *RuntimeEnforcerWin) UpdateHostSecurityPolicies(secPolicies []tp.HostSe
 
 	// skip if driver device is not open
 	if re.deviceHandle == windows.InvalidHandle {
-		debugLog("UpdateHostSecurityPolicies: deviceHandle is InvalidHandle, returning early")
 		return
 	}
-	debugLog("UpdateHostSecurityPolicies: deviceHandle is %v", re.deviceHandle)
 	re.Logger.Printf("Device Handle: %+v \n", re.deviceHandle)
 
 	re.mu.Lock()
 	defer re.mu.Unlock()
 
 	// Step 1: Clear all existing rules in the driver
-	debugLog("UpdateHostSecurityPolicies: Clearing rules in driver via IOCTL...")
 	if err := sendIoctl(re.deviceHandle, ioctlClearRules, nil); err != nil {
-		debugLog("UpdateHostSecurityPolicies: Failed to clear rules in driver: %v", err)
 		re.Logger.Errf("Failed to clear rules in driver: %v", err)
 		return
 	}
-	debugLog("UpdateHostSecurityPolicies: Rules cleared successfully")
+
+	// Clear the Go-side policy name registry in sync with the driver clear
+	mon.GetPolicyNameRegistry().Clear()
 
 	// Apply AppLocker policies for process enforcement
-	debugLog("UpdateHostSecurityPolicies: Applying AppLocker policy...")
 	errAppLocker := applyAppLockerPolicy(secPolicies)
-	debugLog("UpdateHostSecurityPolicies: applyAppLockerPolicy returned %v", errAppLocker)
 	if errAppLocker == nil {
 		re.Logger.Printf("AppLocker policy applied successfully for process enforcement")
 	} else {
@@ -162,12 +158,6 @@ func (re *RuntimeEnforcerWin) UpdateHostSecurityPolicies(secPolicies []tp.HostSe
 	// Step 2: Send new rules from each policy
 	for _, policy := range secPolicies {
 		defaultAction := mapActionString(policy.Spec.Action)
-
-		debugLog("UpdateHostSecurityPolicies: Policy %s - File.MatchPaths: %d, File.MatchDirectories: %d, Process.MatchPaths: %d",
-			policy.Metadata["name"],
-			len(policy.Spec.File.MatchPaths),
-			len(policy.Spec.File.MatchDirectories),
-			len(policy.Spec.Process.MatchPaths))
 
 		// === File matchPaths ===
 		for _, fp := range policy.Spec.File.MatchPaths {
@@ -194,6 +184,7 @@ func (re *RuntimeEnforcerWin) UpdateHostSecurityPolicies(secPolicies []tp.HostSe
 				continue
 			}
 
+			mon.GetPolicyNameRegistry().Register(ntPath, "path", policy.Metadata["name"])
 			fileRuleCount++
 		}
 
@@ -230,7 +221,51 @@ func (re *RuntimeEnforcerWin) UpdateHostSecurityPolicies(secPolicies []tp.HostSe
 				continue
 			}
 
+			mon.GetPolicyNameRegistry().Register(ntPath, "directory", policy.Metadata["name"])
 			dirRuleCount++
+		}
+
+		// === File matchPatterns ===
+		for _, pp := range policy.Spec.File.MatchPatterns {
+			action := resolveAction(pp.Action, defaultAction)
+			flags := uint16(0)
+			if pp.ReadOnly {
+				flags |= ruleFlagReadOnly
+			}
+
+			// Normalize forward slashes to backslashes.
+			pattern := strings.ReplaceAll(pp.Pattern, "/", "\\")
+
+			// The minifilter always sees full NT device paths, e.g.:
+			//   \Device\HarddiskVolume3\Windows\Temp\debug.log
+			//
+			// A relative pattern like \Windows\Temp\*.log will NEVER match
+			// because it doesn't cover the \Device\HarddiskVolumeN prefix.
+			//
+			// Fix: if the pattern does not already start with \Device\ (an
+			// absolute NT path) or with ** (an explicit any-depth wildcard),
+			// prepend **\ so the pattern becomes **\Windows\Temp\*.log.
+			// The driver's GlobMatch treats ** as "match any chars including
+			// path separators", so it will find the suffix anywhere in the
+			// full NT path.
+			if !strings.HasPrefix(pattern, "\\Device\\") && !strings.HasPrefix(pattern, "**") {
+				pattern = "**" + pattern
+			}
+
+			req, err := buildRuleRequest(ruleTypeFile, matchPattern, action, flags, pattern)
+			if err != nil {
+				re.Logger.Errf("Failed to build pattern rule request for %s: %v", pp.Pattern, err)
+				continue
+			}
+
+			if err := sendIoctl(re.deviceHandle, ioctlAddRule, req); err != nil {
+				re.Logger.Errf("Failed to send pattern rule for %s: %v", pp.Pattern, err)
+				continue
+			}
+
+			mon.GetPolicyNameRegistry().Register(pattern, "pattern", policy.Metadata["name"])
+			re.Logger.Printf("Pattern rule sent: %s -> %s (action=%d, flags=0x%04X)", pp.Pattern, pattern, action, flags)
+			fileRuleCount++
 		}
 
 		// === Process matchPaths ===
@@ -246,7 +281,6 @@ func (re *RuntimeEnforcerWin) UpdateHostSecurityPolicies(secPolicies []tp.HostSe
 
 			switch ext {
 			case ".dll", ".ocx", ".ps1", ".bat", ".cmd", ".vbs", ".vbe", ".js", ".jse", ".wsf", ".wsh":
-				debugLog("UpdateHostSecurityPolicies: Process matchPaths processing Script/DLL %s", pathStr)
 				// DLLs and Scripts cannot be blocked by driver Process rules (PsSetCreateProcessNotifyRoutineEx)
 				// because they are interpreted/loaded by a host process (powershell.exe, etc.).
 				// To provide driver fallback if AppLocker is disabled, we translate these into
@@ -256,12 +290,10 @@ func (re *RuntimeEnforcerWin) UpdateHostSecurityPolicies(secPolicies []tp.HostSe
 				// Driver File rules expect NT paths.
 				ntPath, err := convertToNTPath(pathStr)
 				if err != nil {
-					debugLog("UpdateHostSecurityPolicies: Path conversion failed for script/dll fallback %s: %v", pathStr, err)
 					re.Logger.Warnf("Path conversion failed for script/dll fallback %s: %v", pathStr, err)
 					continue
 				}
 				targetName = ntPath
-				debugLog("UpdateHostSecurityPolicies: targetName set to %s", targetName)
 			default:
 				// Traditional EXEs (or Appx) are handled by driver Process rules.
 				rType = ruleTypeProcess
@@ -282,14 +314,12 @@ func (re *RuntimeEnforcerWin) UpdateHostSecurityPolicies(secPolicies []tp.HostSe
 			}
 
 			if err := sendIoctl(re.deviceHandle, ioctlAddRule, req); err != nil {
-				debugLog("UpdateHostSecurityPolicies: Failed to send process rule for %s: %v", pathStr, err)
 				re.Logger.Errf("Failed to send process rule for %s: %v", pathStr, err)
 				continue
 			}
-			debugLog("UpdateHostSecurityPolicies: Sent IOCTL successfully for %s", pathStr)
 
 			if rType == ruleTypeFile {
-				debugLog("UpdateHostSecurityPolicies: Process rule (Script/DLL fallback) sent as File rule: %s -> %s (action=%d)", pathStr, targetName, action)
+				mon.GetPolicyNameRegistry().Register(targetName, "path", policy.Metadata["name"])
 				re.Logger.Printf("Process rule (Script/DLL fallback) sent as File rule: %s -> %s (action=%d)", pathStr, targetName, action)
 				fileRuleCount++
 			} else {

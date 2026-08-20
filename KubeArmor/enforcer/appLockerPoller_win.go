@@ -44,9 +44,9 @@ import (
 
 const (
 	// AppLocker log channels
-	appLockerExeDllChannel       = "Microsoft-Windows-AppLocker/EXE and DLL"
-	appLockerMsiScriptChannel    = "Microsoft-Windows-AppLocker/MSI and Script"
-	appLockerPackagedChannel     = "Microsoft-Windows-AppLocker/Packaged app-Execution"
+	appLockerExeDllChannel    = "Microsoft-Windows-AppLocker/EXE and DLL"
+	appLockerMsiScriptChannel = "Microsoft-Windows-AppLocker/MSI and Script"
+	appLockerPackagedChannel  = "Microsoft-Windows-AppLocker/Packaged app-Execution"
 
 	evtQueryChannelPath = uintptr(0x1)
 )
@@ -441,7 +441,8 @@ func (p *AppLockerPoller) pushAlert(ev appLockerEvent, channel string) {
 // ── XML parsing helpers ────────────────────────────────────────────────────
 
 // parseSimpleTag extracts the text content of a plain XML tag, e.g.
-//   <EventRecordID>22</EventRecordID> → 22
+//
+//	<EventRecordID>22</EventRecordID> → 22
 func parseSimpleTagStr(xml, tag string) string {
 	open := "<" + tag + ">"
 	close := "</" + tag + ">"
