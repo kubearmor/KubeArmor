@@ -156,9 +156,9 @@ FLT_PREOP_CALLBACK_STATUS PreCreateCallback(
                 if ((desiredAccess & WRITE_ACCESS_MASK) ||
                     (createOptions & FILE_DELETE_ON_CLOSE)) {
                     KdPrint(("[kubearmor] Karmor: BLOCKED write access (readOnly) to: %wZ\n", &fileNameInfo->Name));
-                    g_AsyncDispatcher.EnqueueBlockedFileEvent(
+                    g_AsyncDispatcher.EnqueueFileEvent(
                         &fileNameInfo->Name,
-                        HandleToULong(PsGetCurrentProcessId()));
+                        HandleToULong(PsGetCurrentProcessId()), TRUE);
                     Data->IoStatus.Status = STATUS_ACCESS_DENIED;
                     Data->IoStatus.Information = 0;
                     FltReleaseFileNameInformation(fileNameInfo);
@@ -168,17 +168,22 @@ FLT_PREOP_CALLBACK_STATUS PreCreateCallback(
             } else if (rule->Action == RuleAction::Block) {
                 // Full block: deny all access
                 KdPrint(("[kubearmor] Karmor: BLOCKED access to: %wZ\n", &fileNameInfo->Name));
-                g_AsyncDispatcher.EnqueueBlockedFileEvent(
+                g_AsyncDispatcher.EnqueueFileEvent(
                     &fileNameInfo->Name,
-                    HandleToULong(PsGetCurrentProcessId()));
+                    HandleToULong(PsGetCurrentProcessId()), TRUE);
                 Data->IoStatus.Status = STATUS_ACCESS_DENIED;
                 Data->IoStatus.Information = 0;
                 FltReleaseFileNameInformation(fileNameInfo);
                 return FLT_PREOP_COMPLETE;
+            } else if (rule->Action == RuleAction::Audit) {
+                // Audit mode: allow access, but queue a MatchHostPolicy event
+                KdPrint(("[kubearmor] Karmor: AUDIT access to: %wZ\n", &fileNameInfo->Name));
+                g_AsyncDispatcher.EnqueueFileEvent(
+                    &fileNameInfo->Name,
+                    HandleToULong(PsGetCurrentProcessId()), FALSE);
             }
-            // Action == Allow (without ReadOnly) or Action == Audit: pass through
+            // Action == Allow (without ReadOnly): pass through
         }
-        // Audit rules: allow access, event will be reported in PostCreate
 
         FltReleaseFileNameInformation(fileNameInfo);
     }
@@ -381,18 +386,26 @@ FLT_PREOP_CALLBACK_STATUS PreSetInformationCallback(
     // === File enforcement: block rename/delete on protected files ===
     if (pStrHandleCtx->filePath.Length > 0) {
         PRULE_ENTRY rule = g_State.LookupFileRule(&pStrHandleCtx->filePath);
-        if (rule && rule->Action == RuleAction::Block) {
-            // Full block: deny both rename and delete
-            // ReadOnly block: also deny rename and delete (they are write operations)
-            KdPrint(("[kubearmor] Karmor: BLOCKED %s on protected file: %wZ\n",
-                isDelete ? "delete" : "rename", &pStrHandleCtx->filePath));
-            g_AsyncDispatcher.EnqueueBlockedFileEvent(
-                &pStrHandleCtx->filePath,
-                HandleToULong(PsGetCurrentProcessId()));
-            FltReleaseContext(pStrHandleCtx);
-            data->IoStatus.Status = STATUS_ACCESS_DENIED;
-            data->IoStatus.Information = 0;
-            return FLT_PREOP_COMPLETE;
+        if (rule) {
+            if (rule->Action == RuleAction::Block) {
+                // Full block: deny both rename and delete
+                // ReadOnly block: also deny rename and delete (they are write operations)
+                KdPrint(("[kubearmor] Karmor: BLOCKED %s on protected file: %wZ\n",
+                    isDelete ? "delete" : "rename", &pStrHandleCtx->filePath));
+                g_AsyncDispatcher.EnqueueFileEvent(
+                    &pStrHandleCtx->filePath,
+                    HandleToULong(PsGetCurrentProcessId()), TRUE);
+                FltReleaseContext(pStrHandleCtx);
+                data->IoStatus.Status = STATUS_ACCESS_DENIED;
+                data->IoStatus.Information = 0;
+                return FLT_PREOP_COMPLETE;
+            } else if (rule->Action == RuleAction::Audit) {
+                KdPrint(("[kubearmor] Karmor: AUDIT %s on protected file: %wZ\n",
+                    isDelete ? "delete" : "rename", &pStrHandleCtx->filePath));
+                g_AsyncDispatcher.EnqueueFileEvent(
+                    &pStrHandleCtx->filePath,
+                    HandleToULong(PsGetCurrentProcessId()), FALSE);
+            }
         }
     }
 

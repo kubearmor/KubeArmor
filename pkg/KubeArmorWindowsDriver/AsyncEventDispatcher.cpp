@@ -169,9 +169,10 @@ NTSTATUS AsyncEventDispatcher::Enqueue(
         event.GetCurrentSize());
 }
 
-NTSTATUS AsyncEventDispatcher::EnqueueBlockedFileEvent(
+NTSTATUS AsyncEventDispatcher::EnqueueFileEvent(
     PUNICODE_STRING FilePath,
-    ULONG ProcessId)
+    ULONG ProcessId,
+    BOOLEAN IsBlocked)
 {
     if (InterlockedCompareExchange(&m_active, 1, 1) == 0)
         return STATUS_UNSUCCESSFUL;
@@ -190,9 +191,9 @@ NTSTATUS AsyncEventDispatcher::EnqueueBlockedFileEvent(
 
     EVENT ev = { 0 };
     ev.timestamp = timestamp.QuadPart;
-    ev.type = EventType_MatchHostPolicy;
+    ev.type = EventType_MatchHostPolicy; // Both block and audit are policy matches
     ev.operation = EventOperation_File;
-    ev.blocked = TRUE;
+    ev.blocked = IsBlocked;
 
     FILE_EVENT fe = { 0 };
     fe.Operation = 0;  // Create operation

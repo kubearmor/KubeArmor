@@ -1,0 +1,14 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorHostPolicy
+metadata:
+  name: hsp-block-hosts-file
+spec:
+  nodeSelector:
+    matchLabels:
+      kubearmor.io/hostname: "*"
+  file:
+    matchPaths:
+      - path: C:/Windows/System32/drivers/etc/hosts
+  action: Block
+  severity: 5
+  message: "hosts file access blocked by KubeArmor"

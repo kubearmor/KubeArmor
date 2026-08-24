@@ -184,7 +184,7 @@ func (re *RuntimeEnforcerWin) UpdateHostSecurityPolicies(secPolicies []tp.HostSe
 				continue
 			}
 
-			mon.GetPolicyNameRegistry().Register(ntPath, "path", policy.Metadata["name"])
+			mon.GetPolicyNameRegistry().Register(ntPath, "path", policy.Metadata["policyName"])
 			fileRuleCount++
 		}
 
@@ -221,7 +221,7 @@ func (re *RuntimeEnforcerWin) UpdateHostSecurityPolicies(secPolicies []tp.HostSe
 				continue
 			}
 
-			mon.GetPolicyNameRegistry().Register(ntPath, "directory", policy.Metadata["name"])
+			mon.GetPolicyNameRegistry().Register(ntPath, "directory", policy.Metadata["policyName"])
 			dirRuleCount++
 		}
 
@@ -236,18 +236,15 @@ func (re *RuntimeEnforcerWin) UpdateHostSecurityPolicies(secPolicies []tp.HostSe
 			// Normalize forward slashes to backslashes.
 			pattern := strings.ReplaceAll(pp.Pattern, "/", "\\")
 
-			// The minifilter always sees full NT device paths, e.g.:
-			//   \Device\HarddiskVolume3\Windows\Temp\debug.log
-			//
-			// A relative pattern like \Windows\Temp\*.log will NEVER match
-			// because it doesn't cover the \Device\HarddiskVolumeN prefix.
-			//
-			// Fix: if the pattern does not already start with \Device\ (an
-			// absolute NT path) or with ** (an explicit any-depth wildcard),
-			// prepend **\ so the pattern becomes **\Windows\Temp\*.log.
-			// The driver's GlobMatch treats ** as "match any chars including
-			// path separators", so it will find the suffix anywhere in the
-			// full NT path.
+			// If the pattern starts with a Drive letter (like C:\), resolve it to
+			// the NT device prefix so it matches the driver's paths.
+			if len(pattern) >= 2 && pattern[1] == ':' {
+				if ntPrefix, err := queryDosDevice(pattern[:2]); err == nil {
+					pattern = ntPrefix + pattern[2:]
+				}
+			}
+
+			// If it STILL does not start with \Device\ and doesn't start with **, prepend **.
 			if !strings.HasPrefix(pattern, "\\Device\\") && !strings.HasPrefix(pattern, "**") {
 				pattern = "**" + pattern
 			}
@@ -263,7 +260,7 @@ func (re *RuntimeEnforcerWin) UpdateHostSecurityPolicies(secPolicies []tp.HostSe
 				continue
 			}
 
-			mon.GetPolicyNameRegistry().Register(pattern, "pattern", policy.Metadata["name"])
+			mon.GetPolicyNameRegistry().Register(pattern, "pattern", policy.Metadata["policyName"])
 			re.Logger.Printf("Pattern rule sent: %s -> %s (action=%d, flags=0x%04X)", pp.Pattern, pattern, action, flags)
 			fileRuleCount++
 		}
@@ -319,10 +316,13 @@ func (re *RuntimeEnforcerWin) UpdateHostSecurityPolicies(secPolicies []tp.HostSe
 			}
 
 			if rType == ruleTypeFile {
-				mon.GetPolicyNameRegistry().Register(targetName, "path", policy.Metadata["name"])
+				mon.GetPolicyNameRegistry().Register(targetName, "path", policy.Metadata["policyName"])
 				re.Logger.Printf("Process rule (Script/DLL fallback) sent as File rule: %s -> %s (action=%d)", pathStr, targetName, action)
 				fileRuleCount++
 			} else {
+				// Register EXE process rules by their basename so the monitor can resolve
+				// the policy name from the process path using suffix matching.
+				mon.GetPolicyNameRegistry().Register(strings.ToLower(targetName), "suffix", policy.Metadata["policyName"])
 				re.Logger.Printf("Process rule sent: %s -> %s (action=%d)", pathStr, targetName, action)
 				processRuleCount++
 			}

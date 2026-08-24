@@ -53,7 +53,8 @@ public:
         _In_ PEPROCESS Process,
         _In_ HANDLE ProcessId,
         _In_ PPS_CREATE_NOTIFY_INFO CreateInfo,
-        _In_ BOOLEAN IsBlocked = FALSE)
+        _In_ BOOLEAN IsBlocked = FALSE,
+        _In_ BOOLEAN IsPolicyMatch = FALSE)
     {
         UNREFERENCED_PARAMETER(eventType);
         UNREFERENCED_PARAMETER(Process);
@@ -67,7 +68,7 @@ public:
 
         EVENT ev = { 0 };
         ev.timestamp = timestamp.QuadPart;
-        ev.type = IsBlocked ? EventType_MatchHostPolicy : EventType_HostLog;
+        ev.type = (IsBlocked || IsPolicyMatch) ? EventType_MatchHostPolicy : EventType_HostLog;
         ev.operation = EventOperation_Process;
         ev.blocked = IsBlocked;
 
