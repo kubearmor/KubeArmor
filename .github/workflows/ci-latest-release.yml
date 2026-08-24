@@ -68,10 +68,10 @@ jobs:
         with:
           go-version-file: "KubeArmor/go.mod"
       - name: Install the latest LLVM toolchain
-        run: ./.github/workflows/install-llvm.sh
+        run: ./.github/scripts/linux/install-llvm.sh
 
       - name: Compile libbpf
-        run: ./.github/workflows/install-libbpf.sh
+        run: ./.github/scripts/linux/install-libbpf.sh
 
       - name: Get release tag
         id: vars

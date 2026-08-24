@@ -38,15 +38,15 @@ jobs:
               - 'pkg/KubeArmorController/**'
 
       - name: Setup a Kubernetes environment
-        run: ./.github/workflows/install-k3s.sh
+        run: ./.github/scripts/linux/install-k3s.sh
 
       - name: Install the latest LLVM toolchain
         if: steps.filter.outputs.kubearmor == 'true'
-        run: ./.github/workflows/install-llvm.sh
+        run: ./.github/scripts/linux/install-llvm.sh
 
       - name: Compile libbpf
         if: steps.filter.outputs.kubearmor == 'true'
-        run: ./.github/workflows/install-libbpf.sh
+        run: ./.github/scripts/linux/install-libbpf.sh
 
       - name: Generate KubeArmor artifacts
         if: steps.filter.outputs.kubearmor == 'true'

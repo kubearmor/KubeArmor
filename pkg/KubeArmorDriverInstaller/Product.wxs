@@ -43,7 +43,7 @@
 			</Component>
 			
 			<Component Id="kubearmor_svc_exe" Guid="0b9b5fcf-e83c-41c3-8f0a-a1b9e289c09c" Win64="yes">
-				<File Id="KubeArmor.exe" Name="KubeArmor.exe" Source="..\..\KubeArmor\KubeArmor.exe" KeyPath="yes" />
+				<File Id="KubeArmor.exe" Name="KubeArmor.exe" Source="$(var.ProjectDir)KubeArmor.exe" KeyPath="yes" />
 				<ServiceInstall
 					Id="InstallKubeArmorSvc"
 					Name="KubeArmorSvc"
