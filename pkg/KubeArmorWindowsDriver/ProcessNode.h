@@ -104,10 +104,17 @@ public:
     // Lookup without adding reference (for quick checks)
     BOOLEAN IsProcessCached(_In_ HANDLE processId);
 
-    // Release a reference obtained via GetProcessContext
+    // Release a reference obtained via GetProcessContext.
+    // If this is the last reference (ref-count drops to 0), the entry is
+    // freed here. This can happen when RemoveProcess races with a reader:
+    // RemoveProcess unlinks the entry and decrements the ref, but leaves
+    // it unfree if another thread holds a reference. That thread then frees
+    // the entry via this path when it finishes.
     void ReleaseProcessContext(_In_ ProcessEntry* context) {
         if (!context) return;
-        InterlockedDecrement(&context->referenceCount);
+        if (InterlockedDecrement(&context->referenceCount) == 0) {
+            FreeProcessContext(context);
+        }
     }
 
     // Get process context, populating the cache on miss by querying the kernel.

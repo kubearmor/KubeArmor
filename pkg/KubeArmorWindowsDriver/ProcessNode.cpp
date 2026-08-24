@@ -1,4 +1,4 @@
-﻿// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: Apache-2.0
 // Copyright 2026 Authors of KubeArmor
 
 #include "ProcessNode.h"
@@ -84,6 +84,7 @@ NTSTATUS ProcessCache::AddProcess(
 
 NTSTATUS ProcessCache::RemoveProcess(_In_ HANDLE processID) {
 	ProcessEntry* ctx = nullptr;
+	bool shouldFree = false;
 
 	{
 		Locker<PushLock> locker(tableLock_);
@@ -100,9 +101,21 @@ NTSTATUS ProcessCache::RemoveProcess(_In_ HANDLE processID) {
 		RemoveEntryList(&ctx->ListEntry);
 
 		InterlockedDecrement64(&activeProcesses_);
+
+		// Drop the initial reference that AddProcess placed on the entry.
+		// If another thread already acquired a reference via GetProcessContext
+		// (incrementing referenceCount before we took the exclusive lock), the
+		// count will not reach zero here and that thread becomes responsible for
+		// freeing the entry when it calls ReleaseProcessContext.
+		// This prevents the use-after-free where we used to release the lock
+		// and then call FreeProcessContext, leaving a window for a concurrent
+		// reader to dereference the entry after it had been freed.
+		shouldFree = (InterlockedDecrement(&ctx->referenceCount) == 0);
 	}
 
-	FreeProcessContext(ctx);
+	if (shouldFree) {
+		FreeProcessContext(ctx);
+	}
 
 	return STATUS_SUCCESS;
 }
