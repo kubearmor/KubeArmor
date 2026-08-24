@@ -24,7 +24,12 @@ ADD deployments deployments
 ADD KubeArmor KubeArmor
 ADD pkg/KubeArmorController pkg/KubeArmorController
 
-RUN cd /KubeArmor/KubeArmor/utils/bpflsmprobe && go generate ./...
+RUN if [ ! -f /KubeArmor/KubeArmor/BPF/vmlinux.h ]; then \
+        if [ -f /sys/kernel/btf/vmlinux ]; then \
+            bpftool btf dump file /sys/kernel/btf/vmlinux format c > /KubeArmor/KubeArmor/BPF/vmlinux.h || true; \
+        fi \
+    fi && \
+    cd /KubeArmor/KubeArmor/utils/bpflsmprobe && go generate ./...
 
 # KubeArmorOperator directory
 ARG OPERATOR_DIR=pkg/KubeArmorOperator
