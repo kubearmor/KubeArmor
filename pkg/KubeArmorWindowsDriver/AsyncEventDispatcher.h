@@ -106,13 +106,14 @@ public:
             _In_ StreamHandleContext* pStrHandleCtx,
             _In_ InstanceContext* pInstCtx);
 
-    // Enqueue a blocked file event directly (no StreamHandleContext needed).
-    // Used by PreCreateCallback when blocking access before PostCreate runs.
+    // Enqueue a policy-matched file event directly (no StreamHandleContext needed).
+    // Can be called at DISPATCH_LEVEL.
     _IRQL_requires_max_(DISPATCH_LEVEL)
         _Must_inspect_result_
-        NTSTATUS EnqueueBlockedFileEvent(
+        NTSTATUS EnqueueFileEvent(
             _In_ PUNICODE_STRING FilePath,
-            _In_ ULONG ProcessId);
+            _In_ ULONG ProcessId,
+            _In_ BOOLEAN IsBlocked = FALSE);
 
     LONG64 EnqueuedEvents()  const { return m_enqueued; }
     LONG64 DroppedEvents()   const { return m_dropped; }

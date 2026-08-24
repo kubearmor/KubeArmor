@@ -1,8 +1,5 @@
 name: ci-windows-release
 
-# Trigger: same semantics as ci-systemd-release
-#   - Any tag push
-#   - Manual dispatch with required tag
 on:
   workflow_dispatch:
     inputs:
@@ -26,7 +23,6 @@ jobs:
       contents: write
 
     steps:
-      # ── Validate semver tag ────────────────────────────────────────────────
       - name: Validate version
         id: validate
         uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea
@@ -47,52 +43,39 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Prepare tag and checkout ref
+      - name: Prepare release tag
         id: tag
         shell: pwsh
         run: |
           $tag = "${{ steps.validate.outputs.release_tag }}"
-          Write-Host "Release tag: $tag"
           "tag=$tag" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
           if ("${{ github.event_name }}" -eq "workflow_dispatch") {
             git checkout $tag
           }
 
-      # ── Go toolchain ───────────────────────────────────────────────────────
       - name: Set up Go
         uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
           go-version-file: "KubeArmor/go.mod"
 
-      # ── Install dependencies ───────────────────────────────────────────────
-      # Verifies MSBuild, WiX v3 targets, and mc.exe are available, then
-      # compiles KarmorLogs.man → MSG00001.bin in the driver source directory.
       - name: Install dependencies
         shell: pwsh
         run: |
-          .github\scripts\windows\Install-Dependencies.ps1 `
-            -RepoRoot "${{ github.workspace }}"
+          .github\scripts\windows\Install-Dependencies.ps1 -RepoRoot "${{ github.workspace }}"
 
-      # ── Build all Windows artifacts ────────────────────────────────────────
-      # 1. Kernel driver   (MSBuild, Release|x64)
-      # 2. Go service binary (GOOS=windows GOARCH=amd64)
-      # 3. WiX MSI installer (MSBuild, Release|x86) → dist\
-      - name: Build Windows artifacts (driver + exe + MSI)
+      - name: Build Windows artifacts
         shell: pwsh
         run: |
           .github\scripts\windows\Build-WindowsArtifacts.ps1 `
-            -Version  "${{ steps.tag.outputs.tag }}" `
+            -Version "${{ steps.tag.outputs.tag }}" `
             -RepoRoot "${{ github.workspace }}"
 
-      # ── Package + publish ──────────────────────────────────────────────────
-      # Creates the release ZIP + SHA-256 checksums, waits for the goreleaser
-      # Linux job to publish the GitHub release, then uploads all assets.
       - name: Publish release assets
         shell: pwsh
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           .github\scripts\windows\Publish-Release.ps1 `
-            -Version  "${{ steps.tag.outputs.tag }}" `
-            -Repo     "${{ github.repository }}" `
+            -Version "${{ steps.tag.outputs.tag }}" `
+            -Repo "${{ github.repository }}" `
             -RepoRoot "${{ github.workspace }}"

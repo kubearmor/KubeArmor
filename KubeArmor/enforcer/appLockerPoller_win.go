@@ -408,7 +408,17 @@ func (p *AppLockerPoller) pushAlert(ev appLockerEvent, channel string) {
 	processName := ev.processPath
 	policyName := "AppLocker-Process-Block"
 	if ev.ruleName != "" {
-		policyName = ev.ruleName
+		const kaTag = "[kaPolicy:"
+		if idx := strings.Index(ev.ruleName, kaTag); idx >= 0 {
+			rest := ev.ruleName[idx+len(kaTag):]
+			if end := strings.Index(rest, "]"); end >= 0 {
+				policyName = rest[:end]
+			} else {
+				policyName = ev.ruleName
+			}
+		} else {
+			policyName = ev.ruleName
+		}
 	}
 
 	log := tp.Log{

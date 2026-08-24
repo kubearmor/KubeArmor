@@ -1406,6 +1406,10 @@ func handleFileEvent(buf []byte, log_ *tp.Log) {
 	log_.Action = getAction(blocked)
 	log_.Result = getResult(!blocked)
 
+	if blocked {
+		log_.Type = "MatchedHostPolicy"
+	}
+
 	log_.Enforcer = "Minifilter"
 
 	fileOp := binary.LittleEndian.Uint32(buf[17:21])
@@ -1571,13 +1575,24 @@ func handleProcessEvent(buf []byte, log_ *tp.Log) {
 		log_.Data = "Event=Terminate"
 	}
 
-	// Route as a policy-match alert when the driver blocked the process,
-	// otherwise emit a plain telemetry log.
-	if evType == 2 || blocked {
+	// Route as a policy-match alert when the driver matched a rule (evType==2),
+	// distinguishing Block (enforcement) from Audit (telemetry-only).
+	if evType == 2 {
+		// Both Block and Audit rule matches surface as MatchedHostPolicy.
+		// The Action and Result fields distinguish them.
 		log_.Type = "MatchedHostPolicy"
-		log_.Action = "Block"
-		log_.Result = "Permission denied"
-		log_.PolicyName = "KubeArmor-Process-Block"
+		log_.Action = getAction(blocked)
+		log_.Result = getResult(!blocked)
+		// Resolve policy name from the registry using the process image path.
+		if log_.Resource != "" {
+			if name := GetPolicyNameRegistry().Lookup(log_.Resource); name != "" {
+				log_.PolicyName = name
+			} else {
+				log_.PolicyName = "KubeArmor-Process-Block"
+			}
+		} else {
+			log_.PolicyName = "KubeArmor-Process-Block"
+		}
 	} else {
 		log_.Type = "HostLog"
 		log_.Action = "Audit"

@@ -147,18 +147,21 @@ func applyAppLockerPolicy(secPolicies []tp.HostSecurityPolicy) error {
 
 			routing := classifyForAppLocker(path)
 
-			// Build a standard FilePathRule string
+			// Build a standard FilePathRule string.
+			// The rule Name encodes the KubeArmor policy metadata name in a
+			// tagged suffix so the AppLocker poller can recover it from the
+			// event log and set PolicyName correctly in the gRPC alert.
 			buildRule := func(namePrefix string, overridePath string) string {
 				targetPath := path
 				if overridePath != "" {
 					targetPath = overridePath
 				}
 				return fmt.Sprintf(`
-    <FilePathRule Id="%s" Name="KubeArmor Block %s %s" Description="KubeArmor Enforced" UserOrGroupSid="S-1-1-0" Action="Deny">
+    <FilePathRule Id="%s" Name="KubeArmor Block %s %s [kaPolicy:%s]" Description="KubeArmor Enforced" UserOrGroupSid="S-1-1-0" Action="Deny">
       <Conditions>
         <FilePathCondition Path="%s" />
       </Conditions>
-    </FilePathRule>`, uuid.New().String(), namePrefix, baseName, targetPath)
+    </FilePathRule>`, uuid.New().String(), namePrefix, baseName, policy.Metadata["policyName"], targetPath)
 			}
 
 			if routing.Exe {

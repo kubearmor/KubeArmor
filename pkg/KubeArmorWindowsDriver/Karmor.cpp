@@ -1,4 +1,4 @@
-﻿// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: Apache-2.0
 // Copyright 2026 Authors of KubeArmor
 
 #include "Filter.h"
@@ -321,6 +321,7 @@ void OnProcessNotify(PEPROCESS Process, HANDLE ProcessId, PPS_CREATE_NOTIFY_INFO
     protocol::EVENT_TYPE eType;
 
     BOOLEAN isBlocked = FALSE;
+    BOOLEAN isPolicyMatch = FALSE;
 
     if (CreateInfo != nullptr) {
         eType = EVENT_TYPE_PROCESS_CREATE;
@@ -347,7 +348,10 @@ void OnProcessNotify(PEPROCESS Process, HANDLE ProcessId, PPS_CREATE_NOTIFY_INFO
                 if (action == RuleAction::Block) {
                     CreateInfo->CreationStatus = STATUS_ACCESS_DENIED;
                     isBlocked = TRUE;
+                    isPolicyMatch = TRUE;
                     DbgPrint("[kubearmor] Blocking execution of %wZ\n", CreateInfo->ImageFileName);
+                } else if (action == RuleAction::Audit) {
+                    isPolicyMatch = TRUE;
                 }
             }
 
@@ -358,7 +362,7 @@ void OnProcessNotify(PEPROCESS Process, HANDLE ProcessId, PPS_CREATE_NOTIFY_INFO
         eType = EVENT_TYPE_PROCESS_TERMINATE;
     }
 
-    NTSTATUS status = ProcessEventSerializer::SerializeProcessEvent(event, eType, Process, ProcessId, CreateInfo, isBlocked);
+    NTSTATUS status = ProcessEventSerializer::SerializeProcessEvent(event, eType, Process, ProcessId, CreateInfo, isBlocked, isPolicyMatch);
     if (!NT_SUCCESS(status)) {
         return;
     }

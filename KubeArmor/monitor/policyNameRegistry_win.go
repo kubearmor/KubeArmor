@@ -14,7 +14,14 @@ import (
 // PolicyNameRegistry maps NT device paths (and pattern/directory prefixes)
 // to the KubeArmor policy name that caused the rule. The enforcer populates
 // this when sending rules to the driver, and the monitor queries it when
-// processing blocked-file events to resolve the correct policy name.
+// processing blocked-file or blocked-process events to resolve the correct
+// policy name.
+//
+// Supported match types:
+//   - "path"      — exact NT path (file rules)
+//   - "directory" — NT path prefix (directory rules)
+//   - "pattern"   — glob pattern prefix (matchPatterns rules)
+//   - "suffix"    — filename suffix (process rules; driver uses suffix matching)
 //
 // This lives in the monitor package because the enforcer already imports
 // monitor (no circular dependency).
@@ -24,9 +31,9 @@ type PolicyNameRegistry struct {
 }
 
 type policyNameEntry struct {
-	// path is the NT path, directory prefix, or pattern sent to the driver.
+	// path is the NT path, directory prefix, pattern, or filename suffix sent to the driver.
 	path string
-	// matchType: "path" (exact), "directory" (prefix), "pattern" (glob — not matched here, just stored)
+	// matchType: "path", "directory", "pattern", or "suffix".
 	matchType string
 	// policyName is the KubeArmor policy metadata name.
 	policyName string
@@ -47,7 +54,7 @@ func (r *PolicyNameRegistry) Clear() {
 }
 
 // Register adds a path → policyName mapping.
-// matchType should be "path", "directory", or "pattern".
+// matchType should be "path", "directory", "pattern", or "suffix".
 func (r *PolicyNameRegistry) Register(ntPath, matchType, policyName string) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -89,6 +96,15 @@ func (r *PolicyNameRegistry) Lookup(resourcePath string) string {
 			if prefix != "" && strings.HasPrefix(lowerResource, prefix) && len(prefix) > bestLen {
 				bestMatch = e.policyName
 				bestLen = len(prefix)
+			}
+		case "suffix":
+			// The driver matches process rules by filename suffix (e.g. "notepad.exe").
+			// We do the same: check if the resource path ends with the registered suffix.
+			if strings.HasSuffix(lowerResource, "\\"+e.path) || lowerResource == e.path {
+				if len(e.path) > bestLen {
+					bestMatch = e.policyName
+					bestLen = len(e.path)
+				}
 			}
 		}
 	}
