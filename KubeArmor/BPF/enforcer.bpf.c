@@ -18,6 +18,8 @@ int BPF_PROG(enforce_proc, struct linux_binprm *bprm, int ret)
   unsigned int num_of_args = BPF_CORE_READ(bprm, argc);
   bool argmatch = false;
 
+  u32 oid = 0;
+
   bool match = false;
 
   struct outer_key okey;
@@ -303,15 +305,36 @@ decision:
     {
       if (is_pts(t))
       {
-        retval = -EPERM;
+        setRetval(val->processmask, &retval);
       }
     }
     if (val && (val->processmask & RULE_OWNER))
     {
-      if (!is_owner(bprm->file))
+      if (!is_owner(bprm->file, &oid))
       {
         // not owner
-        retval = -EPERM;
+        if (val->processmask & RULE_DENY)
+        {
+          retval = BLOCK;
+        }
+        else if (val->processmask & RULE_AUDIT)
+        {
+          retval = AUDIT;
+        }
+        else
+        {
+          // check for matched owner only allow policies
+          bpf_map_update_elem(&bufk, &two, z, BPF_ANY);
+          pk->path[0] = dproc;
+          struct data_t *allow = bpf_map_lookup_elem(inner, pk);
+          if (allow)
+          {
+            if (allow->processmask == BLOCK_POSTURE)
+            {
+              retval = BLOCK;
+            }
+          }
+        }
       }
       else
       {
@@ -326,7 +349,7 @@ decision:
           else
           {
             // !argumentmatch
-            retval = -EPERM;
+            setRetval(val->processmask, &retval);
           }
         }
         else
@@ -343,17 +366,16 @@ decision:
         return 0;
       }
     }
-    if (val && ((val->processmask & RULE_DENY) && !(val->processmask & RULE_PTS)))
+    if (val && !(val->processmask & RULE_PTS))
     {
-      retval = -EPERM;
+      setRetval(val->processmask, &retval);
     }
   }
 
-  if (retval == -EPERM)
+  if (retval == BLOCK || retval == AUDIT)
   {
     goto ringbuf;
   }
-
   bpf_map_update_elem(&bufk, &two, z, BPF_ANY);
   pk->path[0] = dproc;
   struct data_t *allow = bpf_map_lookup_elem(inner, pk);
@@ -364,7 +386,7 @@ decision:
     {
       if (allow->processmask == BLOCK_POSTURE)
       {
-        retval = -EPERM;
+        retval = BLOCK;
       }
       goto ringbuf;
     }
@@ -374,12 +396,15 @@ decision:
       {
         if (is_pts(t))
         {
-          retval = -EPERM;
+          setRetval(val->processmask, &retval);
         }
       }
       else
       {
-        retval = -EPERM;
+        if (val)
+        {
+          setRetval(val->processmask, &retval);
+        }
       }
     }
   }
@@ -387,6 +412,13 @@ decision:
   return ret;
 
 ringbuf:
+  if (retval == BLOCK)
+  {
+    retval = -EPERM;
+  }
+  else
+    retval = ret;
+
   if (get_kubearmor_config(_ALERT_THROTTLING) && should_drop_alerts_per_container(okey))
   {
     return retval;
@@ -406,6 +438,7 @@ ringbuf:
   init_context(task_info);
   bpf_probe_read_str(&task_info->data.path, MAX_STRING_SIZE, store->path);
   bpf_probe_read_str(&task_info->data.source, MAX_STRING_SIZE, store->source);
+  task_info->oid = oid;
   task_info->event_id = _SECURITY_BPRM_CHECK;
   task_info->retval = retval;
   bpf_ringbuf_submit(task_info, 0);
@@ -569,19 +602,19 @@ decision:
   bpf_probe_read_str(store->path, MAX_STRING_SIZE, p->path);
   if (match)
   {
-    if (val && (val->processmask & RULE_DENY))
+    if (val)
     {
       if (val && (val->processmask & RULE_PTS))
       {
         if (is_pts(t))
         {
-          retval = -EPERM;
+          setRetval(val->processmask, &retval);
           goto ringbuf;
         }
       }
       else
       {
-        retval = -EPERM;
+        setRetval(val->processmask, &retval);
         goto ringbuf;
       }
     }
@@ -598,7 +631,7 @@ decision:
     {
       if (allow->processmask == BLOCK_POSTURE)
       {
-        retval = -EPERM;
+        retval = BLOCK;
       }
       goto ringbuf;
     }
@@ -610,7 +643,7 @@ decision:
         {
           if (is_pts(t))
           {
-            retval = -EPERM;
+            setRetval(val->processmask, &retval);
           }
         }
         goto ringbuf;
@@ -621,6 +654,15 @@ decision:
   return 0;
 
 ringbuf:
+  if (retval == BLOCK)
+  {
+    retval = -EPERM;
+  }
+  else
+  {
+    retval = 0;
+  }
+
   if (get_kubearmor_config(_ALERT_THROTTLING) && should_drop_alerts_per_container(okey))
   {
     return retval;
@@ -639,7 +681,6 @@ ringbuf:
   init_context(task_info);
   bpf_probe_read_str(&task_info->data.path, MAX_STRING_SIZE, store->path);
   bpf_probe_read_str(&task_info->data.source, MAX_STRING_SIZE, store->source);
-
   task_info->event_id = eventID;
 
   task_info->retval = retval;
@@ -782,11 +823,12 @@ decision:
   bpf_probe_read_str(store->path, MAX_STRING_SIZE, p->path);
   if (match)
   {
-    if (val && (val->processmask & RULE_DENY))
+
+    if (val)
     {
-      retval = -EPERM;
-      goto ringbuf;
+      setRetval(val->processmask, &retval);
     }
+    goto ringbuf;
   }
 
   bpf_map_update_elem(&bufk, &one, z, BPF_ANY);
@@ -808,6 +850,16 @@ decision:
   return 0;
 
 ringbuf:
+
+  if (retval == BLOCK)
+  {
+    retval = -EPERM;
+  }
+  else
+  {
+    retval = 0;
+  }
+
   if (get_kubearmor_config(_ALERT_THROTTLING) && should_drop_alerts_per_container(okey))
   {
     return retval;
@@ -826,64 +878,11 @@ ringbuf:
   init_context(task_info);
   bpf_probe_read_str(&task_info->data.path, MAX_STRING_SIZE, store->path);
   bpf_probe_read_str(&task_info->data.source, MAX_STRING_SIZE, store->source);
-
   task_info->event_id = _CAPABLE;
 
   task_info->retval = retval;
   bpf_ringbuf_submit(task_info, 0);
   return retval;
-}
-
-static __noinline struct data_t *match_domain_subdomain(u32 *inner, bufs_k *p, bufs_k *z, bufs_k *scratch_pad)
-{
-  struct data_t *val = NULL;
-  u8 nested = 0, idx = 0;
-  bpf_probe_read_str(scratch_pad->path, MAX_STRING_SIZE, p->path);
-
-  val = bpf_map_lookup_elem(inner, p);
-  if (val)
-  {
-    return val;
-  }
-
-#pragma unroll 20
-  for (; nested < MAX_NESTED_DNS_LABELS; nested++)
-  {
-    if (idx < 0 || idx >= MAX_DNS_LABEL_LEN)
-      goto match;
-    for (; idx < MAX_DNS_LABEL_LEN - 2 && scratch_pad->path[idx] != '.' && scratch_pad->path[idx] != '\0'; idx++)
-    {
-    }
-    if (scratch_pad->path[idx] == '\0')
-    {
-      goto match;
-    }
-    idx++;
-    // p->path needs to be zeroed before each map lookup because bpf_probe_read_str
-    // only writes the string + null terminator, leaving remaining bytes untouched.
-    // A longer string from a prior iteration poisons the key:
-    //   iter 1: src="example.com" -> p->path=['e','x','a','m','p','l','e','.','c','o','m','\0',...]
-    //   iter 2: src="com"         -> p->path=['c','o','m','\0','l','e','.','c','o','m','\0',...]
-    //                                                         ^--- stale bytes cause false miss
-
-    bpf_probe_read(p->path, MAX_STRING_SIZE, z->path);
-    bpf_probe_read_str(p->path, MAX_STRING_SIZE, scratch_pad->path + idx);
-
-    val = bpf_map_lookup_elem(inner, p);
-    if (val)
-    {
-      goto match;
-    }
-  }
-
-match:
-
-  // Resetting the value of p->path
-  // len(scratch_pad) >= len(p->path) always, thus no need to zero before copy
-  bpf_probe_read_str(p->path, MAX_STRING_SIZE, scratch_pad->path);
-  // Cleans up the scratch pad
-  bpf_probe_read(scratch_pad->path, MAX_STRING_SIZE, z->path);
-  return val;
 }
 
 static inline int match_dns_rules(char *dns_name, u32 eventID)
@@ -978,9 +977,9 @@ decision:
 
   if (match)
   {
-    if (val && (val->processmask & RULE_DENY))
+    if (val)
     {
-      retval = -EPERM;
+      setRetval(val->processmask, &retval);
       goto ringbuf;
     }
   }
@@ -993,7 +992,7 @@ decision:
   {
     if (!match && allow->processmask == BLOCK_POSTURE)
     {
-      retval = -EPERM;
+      retval = BLOCK;
     }
     goto ringbuf;
   }
@@ -1001,6 +1000,15 @@ decision:
   return 0;
 
 ringbuf:
+  if (retval == BLOCK)
+  {
+    retval = -EPERM;
+  }
+  else
+  {
+    retval = 0;
+  }
+
   if (get_kubearmor_config(_ALERT_THROTTLING) && should_drop_alerts_per_container(okey))
     return retval;
 

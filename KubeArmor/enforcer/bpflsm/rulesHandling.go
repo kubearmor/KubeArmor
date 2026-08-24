@@ -25,6 +25,7 @@ const (
 	DENY      uint16 = 1 << 7
 	ARGSET    uint16 = 1 << 8
 	PTS       uint16 = 1 << 9
+	AUDIT     uint16 = 1 << 10
 )
 
 // Data Index for rules
@@ -111,6 +112,19 @@ func (r *RuleList) Init() {
 	r.ArgumentsList = make(map[ArgListKey][]string)
 }
 
+// insertRule adds a rule to the map, respecting action precedence (Block/Allow > Audit)
+func insertRule(idx int, m map[InnerKey][2]uint16, key InnerKey, val [2]uint16) {
+	if (val[idx] & AUDIT) != 0 {
+		if existingVal, exists := m[key]; exists {
+			// If existing rule is Block or Allow (i.e. AUDIT bit not set), do not overwrite
+			if (existingVal[idx] & AUDIT) == 0 {
+				return
+			}
+		}
+	}
+	m[key] = val
+}
+
 // UpdateContainerRules updates individual container map with new rules and resolves conflicting rules
 func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.SecurityPolicy, defaultPosture tp.DefaultPosture) {
 
@@ -144,10 +158,21 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 				}
 				if path.Action == "Allow" {
 					newrules.ProcWhiteListPosture = true
-					newrules.ProcessRuleList[key] = val
+					insertRule(PROCESS, newrules.ProcessRuleList, key, val)
 				} else if path.Action == "Block" {
 					val[PROCESS] = val[PROCESS] | DENY
-					newrules.ProcessRuleList[key] = val
+					insertRule(PROCESS, newrules.ProcessRuleList, key, val)
+				} else if path.Action == "Audit" {
+					val[PROCESS] = val[PROCESS] | AUDIT
+					insertRule(PROCESS, newrules.ProcessRuleList, key, val)
+				}
+				if len(path.AllowedArgs) > 0 {
+					var argList []string
+					argKey.InnerKey = key
+					argKey.MntNS = be.ContainerMap[id].Key.MntNS
+					argKey.PidNS = be.ContainerMap[id].Key.PidNS
+					argList = append(argList, path.AllowedArgs...)
+					newrules.ArgumentsList[argKey] = argList
 				}
 				if len(path.AllowedArgs) > 0 {
 					var argList []string
@@ -168,10 +193,13 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 					copy(key.Source[:], []byte(src.Path))
 					if path.Action == "Allow" {
 						newrules.ProcWhiteListPosture = true
-						newrules.ProcessRuleList[key] = val
+						insertRule(PROCESS, newrules.ProcessRuleList, key, val)
 					} else if path.Action == "Block" {
 						val[PROCESS] = val[PROCESS] | DENY
-						newrules.ProcessRuleList[key] = val
+						insertRule(PROCESS, newrules.ProcessRuleList, key, val)
+					} else if path.Action == "Audit" {
+						val[PROCESS] = val[PROCESS] | AUDIT
+						insertRule(PROCESS, newrules.ProcessRuleList, key, val)
 					}
 					var argList []string
 					argKey.InnerKey = key
@@ -204,6 +232,9 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 				} else if dir.Action == "Block" {
 					val[PROCESS] = val[PROCESS] | DENY
 					dirtoMap(PROCESS, dir.Directory, "", newrules.ProcessRuleList, val)
+				} else if dir.Action == "Audit" {
+					val[PROCESS] = val[PROCESS] | AUDIT
+					dirtoMap(PROCESS, dir.Directory, "", newrules.ProcessRuleList, val)
 				}
 			} else {
 				for _, src := range dir.FromSource {
@@ -213,6 +244,9 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 
 					} else if dir.Action == "Block" {
 						val[PROCESS] = val[PROCESS] | DENY
+						dirtoMap(PROCESS, dir.Directory, src.Path, newrules.ProcessRuleList, val)
+					} else if dir.Action == "Audit" {
+						val[PROCESS] = val[PROCESS] | AUDIT
 						dirtoMap(PROCESS, dir.Directory, src.Path, newrules.ProcessRuleList, val)
 					}
 				}
@@ -236,11 +270,14 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 				copy(key.Path[:], []byte(path.Path))
 				if path.Action == "Allow" {
 					newrules.FileWhiteListPosture = true
-					newrules.FileRuleList[key] = val
+					insertRule(FILE, newrules.FileRuleList, key, val)
 
 				} else if path.Action == "Block" {
 					val[FILE] = val[FILE] | DENY
-					newrules.FileRuleList[key] = val
+					insertRule(FILE, newrules.FileRuleList, key, val)
+				} else if path.Action == "Audit" {
+					val[FILE] = val[FILE] | AUDIT
+					insertRule(FILE, newrules.FileRuleList, key, val)
 				}
 			} else {
 				for _, src := range path.FromSource {
@@ -249,11 +286,14 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 					copy(key.Source[:], []byte(src.Path))
 					if path.Action == "Allow" {
 						newrules.FileWhiteListPosture = true
-						newrules.FileRuleList[key] = val
+						insertRule(FILE, newrules.FileRuleList, key, val)
 
 					} else if path.Action == "Block" {
 						val[FILE] = val[FILE] | DENY
-						newrules.FileRuleList[key] = val
+						insertRule(FILE, newrules.FileRuleList, key, val)
+					} else if path.Action == "Audit" {
+						val[FILE] = val[FILE] | AUDIT
+						insertRule(FILE, newrules.FileRuleList, key, val)
 					}
 				}
 			}
@@ -282,6 +322,9 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 				} else if dir.Action == "Block" {
 					val[FILE] = val[FILE] | DENY
 					dirtoMap(FILE, dir.Directory, "", newrules.FileRuleList, val)
+				} else if dir.Action == "Audit" {
+					val[FILE] = val[FILE] | AUDIT
+					dirtoMap(FILE, dir.Directory, "", newrules.FileRuleList, val)
 				}
 			} else {
 				for _, src := range dir.FromSource {
@@ -291,6 +334,9 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 
 					} else if dir.Action == "Block" {
 						val[FILE] = val[FILE] | DENY
+						dirtoMap(FILE, dir.Directory, src.Path, newrules.FileRuleList, val)
+					} else if dir.Action == "Audit" {
+						val[FILE] = val[FILE] | AUDIT
 						dirtoMap(FILE, dir.Directory, src.Path, newrules.FileRuleList, val)
 					}
 				}
@@ -318,11 +364,14 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 			if len(net.FromSource) == 0 {
 				if net.Action == "Allow" {
 					newrules.NetWhiteListPosture = true
-					newrules.NetworkRuleList[key] = val
+					insertRule(NETWORK, newrules.NetworkRuleList, key, val)
 
 				} else if net.Action == "Block" {
 					val[NETWORK] = val[NETWORK] | DENY
-					newrules.NetworkRuleList[key] = val
+					insertRule(NETWORK, newrules.NetworkRuleList, key, val)
+				} else if net.Action == "Audit" {
+					val[NETWORK] = val[NETWORK] | AUDIT
+					insertRule(NETWORK, newrules.NetworkRuleList, key, val)
 				}
 			} else {
 				for _, src := range net.FromSource {
@@ -331,13 +380,15 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 					key.Source = source
 					if net.Action == "Allow" {
 						newrules.NetWhiteListPosture = true
-						newrules.NetworkRuleList[key] = val
+						insertRule(NETWORK, newrules.NetworkRuleList, key, val)
 
 					} else if net.Action == "Block" {
 						val[NETWORK] = val[NETWORK] | DENY
-						newrules.NetworkRuleList[key] = val
+						insertRule(NETWORK, newrules.NetworkRuleList, key, val)
+					} else if net.Action == "Audit" {
+						val[NETWORK] = val[NETWORK] | AUDIT
+						insertRule(NETWORK, newrules.NetworkRuleList, key, val)
 					}
-
 				}
 			}
 		}
@@ -384,11 +435,11 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 			if len(capab.FromSource) == 0 {
 				if capab.Action == "Allow" {
 					newrules.CapWhiteListPosture = true
-					newrules.CapabilitiesRuleList[key] = val
+					insertRule(CAPABILITIES, newrules.CapabilitiesRuleList, key, val)
 
 				} else if capab.Action == "Block" {
 					val[CAPABILITIES] = val[CAPABILITIES] | DENY
-					newrules.CapabilitiesRuleList[key] = val
+					insertRule(CAPABILITIES, newrules.CapabilitiesRuleList, key, val)
 				}
 			} else {
 				for _, src := range capab.FromSource {
@@ -397,11 +448,14 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 					key.Source = source
 					if capab.Action == "Allow" {
 						newrules.CapWhiteListPosture = true
-						newrules.CapabilitiesRuleList[key] = val
+						insertRule(CAPABILITIES, newrules.CapabilitiesRuleList, key, val)
 
 					} else if capab.Action == "Block" {
 						val[CAPABILITIES] = val[CAPABILITIES] | DENY
-						newrules.CapabilitiesRuleList[key] = val
+						insertRule(CAPABILITIES, newrules.CapabilitiesRuleList, key, val)
+					} else if capab.Action == "Audit" {
+						val[CAPABILITIES] = val[CAPABILITIES] | AUDIT
+						insertRule(CAPABILITIES, newrules.CapabilitiesRuleList, key, val)
 					}
 
 				}
@@ -649,7 +703,7 @@ func dirtoMap(idx int, p, src string, m map[InnerKey][2]uint16, val [2]uint16) {
 	var pth [200]byte
 	copy(pth[:], []byte(strings.Join(paths[0:len(paths)-1], "/")))
 	key.Path = pth
-	m[key] = val
+	insertRule(idx, m, key, val)
 
 	// Add directory for sub file matching
 	copy(key.Path[:], []byte(p))
@@ -660,7 +714,7 @@ func dirtoMap(idx int, p, src string, m map[InnerKey][2]uint16, val [2]uint16) {
 			val[idx] = val[idx] | HINT
 		}
 	}
-	m[key] = val
+	insertRule(idx, m, key, val)
 
 	for i := 1; i < len(paths)-1; i++ {
 		var key InnerKey
@@ -676,7 +730,7 @@ func dirtoMap(idx int, p, src string, m map[InnerKey][2]uint16, val [2]uint16) {
 				val[idx] = oldval[idx] | HINT
 			}
 		}
-		m[key] = val
+		insertRule(idx, m, key, val)
 	}
 }
 
@@ -699,6 +753,6 @@ func domaintoMap(idx int, domain, src, namespace string, m map[InnerKey][2]uint1
 		if src != "" {
 			copy(key.Source[:], []byte(src))
 		}
-		m[key] = val
+		insertRule(idx, m, key, val)
 	}
 }
