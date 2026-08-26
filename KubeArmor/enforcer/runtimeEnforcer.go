@@ -176,14 +176,14 @@ probeBPFLSM:
 }
 
 // RegisterContainer registers container identifiers to BPFEnforcer Map
-func (re *RuntimeEnforcer) RegisterContainer(containerID string, pidns, mntns uint32) {
+func (re *RuntimeEnforcer) RegisterContainer(containerID string, pidns, mntns, cgroupns uint32) {
 	// skip if runtime enforcer is not active
 	if re == nil {
 		return
 	}
 
 	if re.EnforcerType == "BPFLSM" {
-		re.bpfEnforcer.AddContainerIDToMap(containerID, pidns, mntns)
+		re.bpfEnforcer.AddContainerIDToMap(containerID, pidns, mntns, cgroupns)
 	}
 }
 

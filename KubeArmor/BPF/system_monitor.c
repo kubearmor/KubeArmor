@@ -2569,27 +2569,23 @@ int kprobe__udp_send_skb(struct pt_regs *ctx){
     bpf_probe_read(&trans_off, sizeof(trans_off), &skb->transport_header);
     void *data = head + trans_off + UDPHDR_LEN;
 
-    sys_context_t context = {};
-    args_t args = {};
-    u64 types = 0;
-    init_context(&context);
-    context.argnum = 3;
-    context.retval = 0;
-    context.event_id = _UDP_SEND_SKB;
-
-    if (context.retval >= 0 && drop_syscall(_DNS_PROBE))
+    if (drop_syscall(_DNS_PROBE))
         return 0;
 
-     if (context.retval < 0 && !get_kubearmor_config(_ENFORCER_BPFLSM) &&
-        get_kubearmor_config(_ALERT_THROTTLING) &&
-        should_drop_alerts_per_container(&context, ctx, types, &args))
-        return 0;
-    
     set_buffer_offset(DNS_BUF_TYPE, sizeof(sys_context_t));
     bufs_t *bufs_p = get_buffer(DNS_BUF_TYPE);
     if (bufs_p == NULL)
         return 0;
-    save_context_to_buffer(bufs_p, (void *)&context);
+
+    sys_context_t *context = (sys_context_t *)bufs_p->buf;
+    if (context == NULL)
+        return 0;
+
+    __builtin_memset(context, 0, sizeof(sys_context_t));
+    init_context(context);
+    context->argnum = 3;
+    context->retval = 0;
+    context->event_id = _UDP_SEND_SKB;
 
 
     struct sock_common conn = READ_KERN(sk->__sk_common);
@@ -2642,21 +2638,7 @@ int kprobe__udp_sendmsg(struct pt_regs *ctx)
     if (len > 512) // MAX_DNS_SIZE
         return 0;
 
-    sys_context_t context = {};
-    args_t args = {};
-    u64 types = 0;
-    init_context(&context);
-    context.argnum = 3;
-    // Presuming the success event
-    context.retval = 0;
-    context.event_id = _UDP_SENDMSG;
-
-    if (context.retval >= 0 && drop_syscall(_DNS_PROBE))
-    {
-        return 0;
-    }
-
-    if (context.retval < 0 && !get_kubearmor_config(_ENFORCER_BPFLSM) && get_kubearmor_config(_ALERT_THROTTLING) && should_drop_alerts_per_container(&context, ctx, types, &args))
+    if (drop_syscall(_DNS_PROBE))
     {
         return 0;
     }
@@ -2665,7 +2647,17 @@ int kprobe__udp_sendmsg(struct pt_regs *ctx)
     bufs_t *bufs_p = get_buffer(DNS_BUF_TYPE);
     if (bufs_p == NULL)
         return 0;
-    save_context_to_buffer(bufs_p, (void *)&context);
+
+    sys_context_t *context = (sys_context_t *)bufs_p->buf;
+    if (context == NULL)
+        return 0;
+
+    __builtin_memset(context, 0, sizeof(sys_context_t));
+    init_context(context);
+    context->argnum = 3;
+    // Presuming the success event
+    context->retval = 0;
+    context->event_id = _UDP_SENDMSG;
 
     // get socket info
     struct sock_common conn = READ_KERN(sk->__sk_common);

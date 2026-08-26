@@ -113,7 +113,7 @@ func (dm *KubeArmorDaemon) handleK8sConn(conn net.Conn, ready *atomic.Bool) {
 func (dm *KubeArmorDaemon) handleContainerCreate(container types.Container) {
 	endpoint := types.EndPoint{}
 
-	dm.Logger.Printf("Detected a container (added/%.12s/pidns=%d/mntns=%d)", container.ContainerID, container.PidNS, container.MntNS)
+	dm.Logger.Printf("Detected a container (added/%.12s/pidns=%d/mntns=%d/cgroupns=%d)", container.ContainerID, container.PidNS, container.MntNS, container.CgroupNS)
 
 	dm.ContainersLock.Lock()
 	defer dm.ContainersLock.Unlock()
@@ -123,6 +123,7 @@ func (dm *KubeArmorDaemon) handleContainerCreate(container types.Container) {
 		c := dm.Containers[container.ContainerID]
 		c.MntNS = container.MntNS
 		c.PidNS = container.PidNS
+		c.CgroupNS = container.CgroupNS
 		c.AppArmorProfile = container.AppArmorProfile
 		dm.Containers[c.ContainerID] = c
 
@@ -160,8 +161,12 @@ func (dm *KubeArmorDaemon) handleContainerCreate(container types.Container) {
 	}
 
 	if dm.SystemMonitor != nil && cfg.GlobalCfg.Policy {
-		dm.SystemMonitor.AddContainerIDToNsMap(container.ContainerID, container.NamespaceName, container.PidNS, container.MntNS)
-		dm.RuntimeEnforcer.RegisterContainer(container.ContainerID, container.PidNS, container.MntNS)
+		dm.SystemMonitor.AddContainerIDToNsMap(container.ContainerID, container.NamespaceName, container.PidNS, container.MntNS, container.CgroupNS)
+		dm.RuntimeEnforcer.RegisterContainer(container.ContainerID, container.PidNS, container.MntNS, container.CgroupNS)
+
+		if dm.Presets != nil {
+			dm.Presets.RegisterContainer(container.ContainerID, container.PidNS, container.MntNS, container.CgroupNS)
+		}
 
 		if len(endpoint.SecurityPolicies) > 0 { // struct can be empty or no policies registered for the endpoint yet
 			dm.Logger.UpdateSecurityPolicies("ADDED", endpoint)
@@ -202,7 +207,7 @@ func (dm *KubeArmorDaemon) handleContainerDelete(containerID string) {
 
 	if dm.SystemMonitor != nil && cfg.GlobalCfg.Policy {
 		// update NsMap
-		dm.SystemMonitor.DeleteContainerIDFromNsMap(containerID, container.NamespaceName, container.PidNS, container.MntNS)
+		dm.SystemMonitor.DeleteContainerIDFromNsMap(containerID, container.NamespaceName, container.PidNS, container.MntNS, container.CgroupNS)
 		dm.RuntimeEnforcer.UnregisterContainer(containerID)
 	}
 

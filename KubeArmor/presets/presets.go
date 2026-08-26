@@ -60,9 +60,9 @@ func (p *Preset) RegisterPresets() {
 }
 
 // RegisterContainer registers container identifiers
-func (p *Preset) RegisterContainer(containerID string, pidns, mntns uint32) {
+func (p *Preset) RegisterContainer(containerID string, pidns, mntns, cgroupns uint32) {
 	for _, v := range p.List {
-		v.RegisterContainer(containerID, pidns, mntns)
+		v.RegisterContainer(containerID, pidns, mntns, cgroupns)
 	}
 }
 

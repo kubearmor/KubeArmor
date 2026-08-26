@@ -16,9 +16,10 @@ import (
 type protectenvArgBufsK struct {
 	_    structs.HostLayout
 	Okey struct {
-		_     structs.HostLayout
-		PidNs uint32
-		MntNs uint32
+		_        structs.HostLayout
+		PidNs    uint32
+		MntNs    uint32
+		CgroupNs uint32
 	}
 	Store protectenvBufsK
 	Arg   [104]int8

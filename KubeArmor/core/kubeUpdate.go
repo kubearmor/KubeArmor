@@ -590,11 +590,11 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 
 // HandleUnknownNamespaceNsMap Function
 func (dm *KubeArmorDaemon) HandleUnknownNamespaceNsMap(container *tp.Container) {
-	dm.SystemMonitor.AddContainerIDToNsMap(container.ContainerID, container.NamespaceName, container.PidNS, container.MntNS)
+	dm.SystemMonitor.AddContainerIDToNsMap(container.ContainerID, container.NamespaceName, container.PidNS, container.MntNS, container.CgroupNS)
 	dm.SystemMonitor.NsMapLock.Lock()
 	if val, ok := dm.SystemMonitor.NamespacePidsMap["Unknown"]; ok {
 		for i := range val.NsKeys {
-			if val.NsKeys[i].MntNS == container.MntNS && val.NsKeys[i].PidNS == container.PidNS {
+			if val.NsKeys[i].MntNS == container.MntNS && val.NsKeys[i].PidNS == container.PidNS && val.NsKeys[i].CgroupNS == container.CgroupNS {
 				val.NsKeys = append(val.NsKeys[:i], val.NsKeys[i+1:]...)
 				break
 			}

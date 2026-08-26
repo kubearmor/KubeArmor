@@ -33,8 +33,9 @@ import (
 
 // OuterKey struct
 type OuterKey struct {
-	PidNs uint32
-	MntNs uint32
+	PidNs    uint32
+	MntNs    uint32
+	CgroupNs uint32
 }
 
 // ============ //

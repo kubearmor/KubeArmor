@@ -182,13 +182,14 @@ func (dm *KubeArmorDaemon) UpdateContainer(containerID string, container tp.Cont
 		if dm.SystemMonitor != nil && cfg.GlobalCfg.Policy {
 			// for throttling
 			dm.SystemMonitor.Logger.ContainerNsKey[containerID] = common.OuterKey{
-				MntNs: container.MntNS,
-				PidNs: container.PidNS,
+				MntNs:    container.MntNS,
+				PidNs:    container.PidNS,
+				CgroupNs: container.CgroupNS,
 			}
 
 			// update NsMap
-			dm.SystemMonitor.AddContainerIDToNsMap(containerID, container.NamespaceName, container.PidNS, container.MntNS)
-			dm.RuntimeEnforcer.RegisterContainer(containerID, container.PidNS, container.MntNS)
+			dm.SystemMonitor.AddContainerIDToNsMap(containerID, container.NamespaceName, container.PidNS, container.MntNS, container.CgroupNS)
+			dm.RuntimeEnforcer.RegisterContainer(containerID, container.PidNS, container.MntNS, container.CgroupNS)
 
 			if len(endPoint.SecurityPolicies) > 0 { // struct can be empty or no policies registered for the endPoint yet
 				dm.Logger.UpdateSecurityPolicies("ADDED", endPoint)
@@ -205,7 +206,7 @@ func (dm *KubeArmorDaemon) UpdateContainer(containerID string, container tp.Cont
 			go dm.StateAgent.PushContainerEvent(container, state.EventAdded)
 		}
 
-		dm.Logger.Printf("Detected a container (added/%.12s/pidns=%d/mntns=%d)", containerID, container.PidNS, container.MntNS)
+		dm.Logger.Printf("Detected a container (added/%.12s/pidns=%d/mntns=%d/cgroupns=%d)", containerID, container.PidNS, container.MntNS, container.CgroupNS)
 
 	} else if action == "destroy" {
 		dm.ContainersLock.Lock()
@@ -256,7 +257,7 @@ func (dm *KubeArmorDaemon) UpdateContainer(containerID string, container tp.Cont
 			dm.Logger.DeleteAlertMapKey(outkey)
 			delete(dm.SystemMonitor.Logger.ContainerNsKey, containerID)
 			// update NsMap
-			dm.SystemMonitor.DeleteContainerIDFromNsMap(containerID, container.NamespaceName, container.PidNS, container.MntNS)
+			dm.SystemMonitor.DeleteContainerIDFromNsMap(containerID, container.NamespaceName, container.PidNS, container.MntNS, container.CgroupNS)
 			dm.RuntimeEnforcer.UnregisterContainer(containerID)
 		}
 
@@ -265,7 +266,7 @@ func (dm *KubeArmorDaemon) UpdateContainer(containerID string, container tp.Cont
 			go dm.StateAgent.PushContainerEvent(container, state.EventDeleted)
 		}
 
-		dm.Logger.Printf("Detected a container (removed/%.12s/pidns=%d/mntns=%d)", containerID, container.PidNS, container.MntNS)
+		dm.Logger.Printf("Detected a container (removed/%.12s/pidns=%d/mntns=%d/cgroupns=%d)", containerID, container.PidNS, container.MntNS, container.CgroupNS)
 	}
 
 	return nil

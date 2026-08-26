@@ -87,7 +87,7 @@ func NewBPFEnforcer(node tp.Node, pinpath string, logger *fd.Feeder, monitor *mo
 
 	be.BPFContainerMap, err = ebpf.NewMapWithOptions(&ebpf.MapSpec{
 		Type:       ebpf.HashOfMaps,
-		KeySize:    8,
+		KeySize:    12,
 		ValueSize:  4,
 		MaxEntries: 256,
 		Pinning:    ebpf.PinByName,
@@ -103,7 +103,7 @@ func NewBPFEnforcer(node tp.Node, pinpath string, logger *fd.Feeder, monitor *mo
 
 	be.BPFContainerThrottleMap, err = ebpf.NewMapWithOptions(&ebpf.MapSpec{
 		Type:       ebpf.Hash,
-		KeySize:    8,
+		KeySize:    12,
 		ValueSize:  24,
 		MaxEntries: 256,
 		Pinning:    ebpf.PinByName,

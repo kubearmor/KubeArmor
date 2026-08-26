@@ -491,6 +491,20 @@ static __always_inline u32 get_task_mnt_ns_id(struct task_struct *task)
   return inum;
 }
 
+static __always_inline u32 get_task_cgroup_ns_id(struct task_struct *task)
+{
+  struct cgroup_namespace *cgroup_ns;
+  u32 inum = 0;
+
+  cgroup_ns = BPF_CORE_READ(task, nsproxy, cgroup_ns);
+  if (!cgroup_ns)
+    return 0;
+
+  bpf_core_read(&inum, sizeof(inum), &cgroup_ns->ns.inum);
+
+  return inum;
+}
+
 static __always_inline u32 get_task_pid_vnr(struct task_struct *task)
 {
   struct pid *pid = BPF_CORE_READ(task, thread_pid);
@@ -525,13 +539,12 @@ static inline void get_outer_key(struct outer_key *pokey,
 {
   pokey->pid_ns = get_task_pid_ns_id(t);
   pokey->mnt_ns = get_task_mnt_ns_id(t);
-  // TODO: Use cgroup ns as well for host process identification to support enforcement on deployments using hostpidns
-  // u32 cg_ns = BPF_CORE_READ(t, nsproxy, cgroup_ns, ns).inum;
-  // if (pokey->pid_ns == PROC_PID_INIT_INO && cg_ns == PROC_CGROUP_INIT_INO) {
-  if (pokey->pid_ns == PROC_PID_INIT_INO)
+  pokey->cgroup_ns = get_task_cgroup_ns_id(t);
+  if (pokey->pid_ns == PROC_PID_INIT_INO && pokey->cgroup_ns == PROC_CGROUP_INIT_INO)
   {
     pokey->pid_ns = 0;
     pokey->mnt_ns = 0;
+    pokey->cgroup_ns = 0;
   }
 }
 

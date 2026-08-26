@@ -19,9 +19,10 @@ type ima_hashImaHashT struct {
 }
 
 type ima_hashOuterKey struct {
-	_     structs.HostLayout
-	PidNs uint32
-	MntNs uint32
+	_        structs.HostLayout
+	PidNs    uint32
+	MntNs    uint32
+	CgroupNs uint32
 }
 
 // loadIma_hash returns the embedded CollectionSpec for ima_hash.
