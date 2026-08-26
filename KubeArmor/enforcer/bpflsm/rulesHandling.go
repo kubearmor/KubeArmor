@@ -5,6 +5,7 @@ package bpflsm
 
 import (
 	"errors"
+	"net"
 	"os"
 	"strings"
 
@@ -576,6 +577,7 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 			be.Logger.Errf("error adding rule to map for container %s: %s", id, err)
 		}
 	}
+	be.UpdateNetworkRules(id, securityPolicies)
 }
 
 func fuseProcAndFileRules(procList, fileList map[InnerKey][2]uint16) {
@@ -700,5 +702,112 @@ func domaintoMap(idx int, domain, src, namespace string, m map[InnerKey][2]uint1
 			copy(key.Source[:], []byte(src))
 		}
 		m[key] = val
+	}
+}
+
+// UpdateNetworkRules updates network CIDR/port rules for containers in kubearmor_net_rules BPF map
+func (be *BPFEnforcer) UpdateNetworkRules(id string, securityPolicies []tp.SecurityPolicy) {
+	container, ok := be.ContainerMap[id]
+	if !ok || be.obj.KubearmorNetRules == nil {
+		return
+	}
+
+	index := uint32(0)
+	for _, secPolicy := range securityPolicies {
+		for _, rule := range secPolicy.Spec.Network.MatchRules {
+			if index >= 64 {
+				break
+			}
+
+			key := enforcerNetRuleKey{
+				Index: index,
+			}
+			key.Okey.PidNs = container.Key.PidNS
+			key.Okey.MntNs = container.Key.MntNS
+
+			val := enforcerNetRuleValue{}
+
+			// Parse Direction
+			if strings.EqualFold(rule.Direction, "ingress") {
+				val.Direction = 1
+			} else {
+				val.Direction = 0 // egress default
+			}
+
+			// Parse Action
+			if strings.EqualFold(rule.Action, "Allow") || strings.EqualFold(rule.Action, "Audit") {
+				val.Action = 1 // AUDIT
+			} else {
+				val.Action = 0 // BLOCK
+			}
+
+			// Parse Protocol
+			protoUpper := strings.ToUpper(rule.Protocol)
+			if p, ok := protocols[protoUpper]; ok {
+				val.Proto = uint8(p)
+			}
+
+			// Parse Port
+			val.Port = rule.Port
+
+			// Parse CIDR / IP
+			if rule.IP != "" {
+				ip, ipNet, err := net.ParseCIDR(rule.IP)
+				if err != nil {
+					// try parsing as single IP
+					parsedIP := net.ParseIP(rule.IP)
+					if parsedIP != nil {
+						if ip4 := parsedIP.To4(); ip4 != nil {
+							copy(val.Ip[:4], ip4)
+							copy(val.Mask[:4], []byte{0xff, 0xff, 0xff, 0xff})
+							val.Family = 2 // AF_INET
+						} else if ip6 := parsedIP.To16(); ip6 != nil {
+							copy(val.Ip[:], ip6)
+							for i := 0; i < 16; i++ {
+								val.Mask[i] = 0xff
+							}
+							val.Family = 10 // AF_INET6
+						}
+					}
+				} else {
+					if ip4 := ip.To4(); ip4 != nil {
+						copy(val.Ip[:4], ip4)
+						copy(val.Mask[:4], ipNet.Mask)
+						val.Family = 2 // AF_INET
+					} else if ip6 := ip.To16(); ip6 != nil {
+						copy(val.Ip[:], ip6)
+						copy(val.Mask[:], ipNet.Mask)
+						val.Family = 10 // AF_INET6
+					}
+				}
+			}
+
+			// Parse Source
+			if len(rule.FromSource) > 0 {
+				srcPath := rule.FromSource[0].Path
+				for i, b := range []byte(srcPath) {
+					if i < len(val.Source) {
+						val.Source[i] = int8(b)
+					}
+				}
+			}
+
+			if err := be.obj.KubearmorNetRules.Put(key, val); err != nil {
+				be.Logger.Errf("error updating net rule for container %s: %s", id, err)
+			}
+			index++
+		}
+	}
+	for i := index; i < 64; i++ {
+		oldKey := enforcerNetRuleKey{
+			Index: i,
+		}
+		oldKey.Okey.PidNs = container.Key.PidNS
+		oldKey.Okey.MntNs = container.Key.MntNS
+		if err := be.obj.KubearmorNetRules.Delete(oldKey); err != nil {
+			if !errors.Is(err, os.ErrNotExist) {
+				be.Logger.Errf("error deleting old net rule for container %s: %s", id, err)
+			}
+		}
 	}
 }

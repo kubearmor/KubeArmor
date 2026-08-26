@@ -57,6 +57,9 @@ var _ = Describe("Network Tests", func() {
 				err := K8sApplyFile("res/ksp-ubuntu-1-audit-net-icmp.yaml")
 				Expect(err).To(BeNil())
 
+				// Wait for policy to propagate to the enforcer
+				time.Sleep(3 * time.Second)
+
 				// Start KubeArmor Logs
 				err = KarmorLogStart("policy", "multiubuntu", "Network", ub1)
 				Expect(err).To(BeNil())
@@ -89,6 +92,9 @@ var _ = Describe("Network Tests", func() {
 				// Apply Policy
 				err := K8sApplyFile("res/ksp-ubuntu-1-block-net-raw-cap.yaml")
 				Expect(err).To(BeNil())
+
+				// Wait for policy to propagate to the enforcer
+				time.Sleep(3 * time.Second)
 
 				// Start KubeArmor Logs
 				err = KarmorLogStart("policy", "", "Capabilities", ub1)
@@ -166,6 +172,9 @@ var _ = Describe("Network Tests", func() {
 				err := K8sApplyFile("res/ksp-ubuntu-1-audit-net-raw.yaml")
 				Expect(err).To(BeNil())
 
+				// Wait for policy to propagate to the enforcer
+				time.Sleep(3 * time.Second)
+
 				// Start KubeArmor Logs
 				err = KarmorLogStart("policy", "multiubuntu", "Network", ub1)
 				Expect(err).To(BeNil())
@@ -194,6 +203,9 @@ var _ = Describe("Network Tests", func() {
 				err := K8sApplyFile("res/ksp-ubuntu-1-block-net-raw.yaml")
 				Expect(err).To(BeNil())
 
+				// Wait for policy to propagate to the enforcer
+				time.Sleep(3 * time.Second)
+
 				// Start KubeArmor Logs
 				err = KarmorLogStart("policy", "multiubuntu", "Network", ub1)
 				Expect(err).To(BeNil())
@@ -218,6 +230,9 @@ var _ = Describe("Network Tests", func() {
 				// Apply Policy
 				err := K8sApplyFile("res/ksp-ubuntu-1-block-net-all.yaml")
 				Expect(err).To(BeNil())
+
+				// Wait for policy to propagate to the enforcer
+				time.Sleep(3 * time.Second)
 
 				// Start KubeArmor Logs
 				err = KarmorLogStart("policy", "multiubuntu", "Network", ub1)
@@ -247,6 +262,9 @@ var _ = Describe("Network Tests", func() {
 				// Apply Policy
 				err := K8sApplyFile("res/ksp-ubuntu-1-block-dns.yaml")
 				Expect(err).To(BeNil())
+
+				// Wait for policy to propagate to the enforcer
+				time.Sleep(3 * time.Second)
 
 				// Start KubeArmor Logs
 				err = KarmorLogStart("policy", "multiubuntu", "Network", ub1)
@@ -283,6 +301,9 @@ var _ = Describe("Network Tests", func() {
 				// Apply Policy
 				err := K8sApplyFile("res/ksp-ubuntu-1-block-dns.yaml")
 				Expect(err).To(BeNil())
+
+				// Wait for policy to propagate to the enforcer
+				time.Sleep(3 * time.Second)
 
 				// Start KubeArmor Logs
 				err = KarmorLogStart("policy", "multiubuntu", "Network", ub1)

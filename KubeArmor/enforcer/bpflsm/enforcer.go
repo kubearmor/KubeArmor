@@ -26,8 +26,8 @@ import (
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 )
 
-//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -cc clang enforcer ../../BPF/enforcer.bpf.c -- -I/usr/include/ -O2 -g -fno-stack-protector -Wno-missing-declarations
-//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -cc clang enforcer_path ../../BPF/enforcer_path.bpf.c -- -I/usr/include/ -O2 -g -fno-stack-protector -Wno-missing-declarations
+//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -cc clang enforcer ../../BPF/enforcer.bpf.c -- -I/usr/include/ -I../../BPF/libbpf/src -O2 -g -fno-stack-protector -Wno-missing-declarations
+//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -cc clang enforcer_path ../../BPF/enforcer_path.bpf.c -- -I/usr/include/ -I../../BPF/libbpf/src -O2 -g -fno-stack-protector -Wno-missing-declarations
 
 // ===================== //
 // == BPFLSM Enforcer == //
@@ -172,6 +172,12 @@ func NewBPFEnforcer(node tp.Node, pinpath string, logger *fd.Feeder, monitor *mo
 	be.Probes[be.obj.EnforceNetConnect.String()], err = link.AttachLSM(link.LSMOptions{Program: be.obj.EnforceNetConnect})
 	if err != nil {
 		be.Logger.Errf("opening lsm %s: %s", be.obj.EnforceNetConnect.String(), err)
+		return be, err
+	}
+
+	be.Probes[be.obj.EnforceNetBind.String()], err = link.AttachLSM(link.LSMOptions{Program: be.obj.EnforceNetBind})
+	if err != nil {
+		be.Logger.Errf("opening lsm %s: %s", be.obj.EnforceNetBind.String(), err)
 		return be, err
 	}
 
@@ -388,13 +394,14 @@ func (be *BPFEnforcer) TraceEvents() {
 			log.Resource = string(bytes.Trim(event.Data.Path[:], "\x00"))
 			log.Data = "lsm=" + mon.GetSyscallName(int32(event.EventID))
 
-		case mon.SocketCreate, mon.SocketConnect, mon.SocketAccept:
-			var sockProtocol int32
-			sockProtocol = int32(event.Data.Path[1])
+		case mon.SocketCreate, mon.SocketConnect, mon.SocketAccept, mon.SocketBind:
 			log.Operation = "Network"
-			if event.Data.Path[0] == 2 {
+			if event.Data.Path[0] == 'e' || event.Data.Path[0] == 'i' {
+				log.Resource = string(bytes.Trim(event.Data.Path[:], "\x00"))
+			} else if event.Data.Path[0] == 2 {
 				log.Resource = fd.GetProtocolFromType(int32(event.Data.Path[1]))
 			} else if event.Data.Path[0] == 3 {
+				var sockProtocol int32 = int32(event.Data.Path[1])
 				log.Resource = fd.GetProtocolFromName(mon.GetProtocol(sockProtocol))
 			}
 			log.Data = "lsm=" + mon.GetSyscallName(int32(event.EventID)) + " " + log.Resource
@@ -480,6 +487,13 @@ func (be *BPFEnforcer) DestroyBPFEnforcer() error {
 		return nil
 	}
 	var errBPFCleanUp error
+
+	if be.obj.KubearmorNetRules != nil {
+		if err := be.obj.KubearmorNetRules.Unpin(); err != nil {
+			be.Logger.Err(err.Error())
+			errBPFCleanUp = errors.Join(errBPFCleanUp, err)
+		}
+	}
 
 	if err := be.obj.Close(); err != nil {
 		be.Logger.Err(err.Error())

@@ -46,6 +46,28 @@ type enforcerCmdArgsKey struct {
 	Ind  uint64
 }
 
+type enforcerNetRuleKey struct {
+	_    structs.HostLayout
+	Okey struct {
+		_     structs.HostLayout
+		PidNs uint32
+		MntNs uint32
+	}
+	Index uint32
+}
+
+type enforcerNetRuleValue struct {
+	_         structs.HostLayout
+	Ip        [16]uint8
+	Mask      [16]uint8
+	Port      uint16
+	Proto     uint8
+	Action    uint8
+	Family    uint8
+	Direction uint8
+	Source    [200]int8
+}
+
 // loadEnforcer returns the embedded CollectionSpec for enforcer.
 func loadEnforcer() (*ebpf.CollectionSpec, error) {
 	reader := bytes.NewReader(_EnforcerBytes)
@@ -93,6 +115,7 @@ type enforcerProgramSpecs struct {
 	EnforceFile       *ebpf.ProgramSpec `ebpf:"enforce_file"`
 	EnforceFilePerm   *ebpf.ProgramSpec `ebpf:"enforce_file_perm"`
 	EnforceNetAccept  *ebpf.ProgramSpec `ebpf:"enforce_net_accept"`
+	EnforceNetBind    *ebpf.ProgramSpec `ebpf:"enforce_net_bind"`
 	EnforceNetConnect *ebpf.ProgramSpec `ebpf:"enforce_net_connect"`
 	EnforceNetCreate  *ebpf.ProgramSpec `ebpf:"enforce_net_create"`
 	EnforceProc       *ebpf.ProgramSpec `ebpf:"enforce_proc"`
@@ -114,6 +137,7 @@ type enforcerMapSpecs struct {
 	KubearmorContainers    *ebpf.MapSpec `ebpf:"kubearmor_containers"`
 	KubearmorEvents        *ebpf.MapSpec `ebpf:"kubearmor_events"`
 	KubearmorExecPids      *ebpf.MapSpec `ebpf:"kubearmor_exec_pids"`
+	KubearmorNetRules      *ebpf.MapSpec `ebpf:"kubearmor_net_rules"`
 }
 
 // enforcerVariableSpecs contains global variables before they are loaded into the kernel.
@@ -154,6 +178,7 @@ type enforcerMaps struct {
 	KubearmorContainers    *ebpf.Map `ebpf:"kubearmor_containers"`
 	KubearmorEvents        *ebpf.Map `ebpf:"kubearmor_events"`
 	KubearmorExecPids      *ebpf.Map `ebpf:"kubearmor_exec_pids"`
+	KubearmorNetRules      *ebpf.Map `ebpf:"kubearmor_net_rules"`
 }
 
 func (m *enforcerMaps) Close() error {
@@ -170,6 +195,7 @@ func (m *enforcerMaps) Close() error {
 		m.KubearmorContainers,
 		m.KubearmorEvents,
 		m.KubearmorExecPids,
+		m.KubearmorNetRules,
 	)
 }
 
@@ -188,6 +214,7 @@ type enforcerPrograms struct {
 	EnforceFile       *ebpf.Program `ebpf:"enforce_file"`
 	EnforceFilePerm   *ebpf.Program `ebpf:"enforce_file_perm"`
 	EnforceNetAccept  *ebpf.Program `ebpf:"enforce_net_accept"`
+	EnforceNetBind    *ebpf.Program `ebpf:"enforce_net_bind"`
 	EnforceNetConnect *ebpf.Program `ebpf:"enforce_net_connect"`
 	EnforceNetCreate  *ebpf.Program `ebpf:"enforce_net_create"`
 	EnforceProc       *ebpf.Program `ebpf:"enforce_proc"`
@@ -200,6 +227,7 @@ func (p *enforcerPrograms) Close() error {
 		p.EnforceFile,
 		p.EnforceFilePerm,
 		p.EnforceNetAccept,
+		p.EnforceNetBind,
 		p.EnforceNetConnect,
 		p.EnforceNetCreate,
 		p.EnforceProc,
