@@ -1,16 +1,35 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright 2026 Authors of KubeArmor
 
-FROM docker.io/golang:1.26@sha256:ab563819a16cfe5faff0f96a8bb598fbb0e400ab2ac751996e60abcb23b106a3 AS builder
+FROM docker.io/golang:1.26@sha256:45a5f7a810238aabcbad211d70b9ae082022d96f7c7259e94041ad1b933575ac AS builder
 ARG GOARCH
 ARG GOOS
 
 WORKDIR /KubeArmor
 
+RUN apt-get update && apt-get install -y clang llvm make gcc curl libelf-dev libbpf-dev
+
+RUN arch=$(uname -m) bpftool_version=v7.3.0 && \
+    if [ "$arch" = "aarch64" ]; then \
+        arch=arm64; \
+    elif [ "$arch" = "x86_64" ]; then \
+        arch=amd64; \
+    fi && \
+    curl -LO https://github.com/libbpf/bpftool/releases/download/$bpftool_version/bpftool-$bpftool_version-$arch.tar.gz && \
+    tar -xzf bpftool-$bpftool_version-$arch.tar.gz -C /usr/local/bin && \
+    chmod +x /usr/local/bin/bpftool
+
 # relative deps required by the operator
 ADD deployments deployments
 ADD KubeArmor KubeArmor
 ADD pkg/KubeArmorController pkg/KubeArmorController
+
+RUN if [ ! -f /KubeArmor/KubeArmor/BPF/vmlinux.h ]; then \
+        if [ -f /sys/kernel/btf/vmlinux ]; then \
+            bpftool btf dump file /sys/kernel/btf/vmlinux format c > /KubeArmor/KubeArmor/BPF/vmlinux.h || true; \
+        fi \
+    fi && \
+    cd /KubeArmor/KubeArmor/utils/bpflsmprobe && go generate ./...
 
 # KubeArmorOperator directory
 ARG OPERATOR_DIR=pkg/KubeArmorOperator

@@ -27,11 +27,9 @@ ifneq (, $(shell which bpftool))
 ifneq (, $(wildcard /sys/kernel/btf/vmlinux))
 	cd $(CURDIR); bpftool btf dump file /sys/kernel/btf/vmlinux format c > BPF/vmlinux.h || true
 endif
-ifneq (, $(shell which llvm-strip))
-	if grep -q bpf '/sys/kernel/security/lsm'; then \
-		cd $(CURDIR); go generate ./... || true; \
-	fi
 endif
+ifneq (, $(shell which clang))
+	cd $(CURDIR); go generate ./...
 endif
 	cd $(CURDIR); CGO_ENABLED=0 go build -ldflags "$(GIT_INFO)" -o kubearmor main.go
 
@@ -75,6 +73,9 @@ test:
 .PHONY: testall
 testall:
 	cd $(CURDIR); sudo rm -f /tmp/kubearmor.log
+ifneq (, $(shell which clang))
+	cd $(CURDIR); go generate ./...
+endif
 	cd $(CURDIR)/feeder; go mod tidy
 	cd $(CURDIR)/feeder; sudo -E $(GO_EXEC) clean -testcache .; sudo -E $(GO_EXEC) test -v -coverprofile=.coverprofile .
 	cd $(CURDIR)/enforcer; go mod tidy

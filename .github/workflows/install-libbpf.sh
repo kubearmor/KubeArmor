@@ -4,3 +4,4 @@
 
 cd KubeArmor/BPF
 make -C libbpf/src
+sudo make -C libbpf/src install_headers PREFIX=/usr
