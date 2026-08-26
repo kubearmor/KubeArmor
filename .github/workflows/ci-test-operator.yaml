@@ -1,21 +1,7 @@
 name: ci-test-operator
 
 on:
-  push:
-    branches:
-      - "main"
-    paths:
-      - "pkg/**"
-      - "deployments/get/**"
-      - "KubeArmor/utils/**"
-  pull_request:
-    branches:
-      - "main"
-    paths:
-      # test on dep or helm changes
-      - "pkg/**"
-      - "deployments/**"
-      - "KubeArmor/utils/**"
+  workflow_call:
 
 # Declare default permissions as read only.
 permissions: read-all
@@ -35,6 +21,26 @@ jobs:
         with:
           # working-directory only takes effect for "run"
           go-version-file: 'KubeArmor/go.mod'
+
+      - name: Install LLVM/Clang
+        run: ./.github/workflows/install-llvm.sh
+        working-directory: .
+
+      - name: Install libbpf headers
+        run: sudo apt-get update && sudo apt-get install -y libbpf-dev
+        working-directory: .
+
+      - name: Install bpftool
+        run: ./.github/workflows/install-bpftool.sh
+        working-directory: .
+
+      - name: Generate vmlinux.h
+        run: make -C BPF kernel_headers
+        working-directory: KubeArmor
+
+      - name: Generate BPF files
+        run: go generate ./...
+        working-directory: KubeArmor
 
       - name: Build kubearmor operator
         run: make docker-build TAG=latest
