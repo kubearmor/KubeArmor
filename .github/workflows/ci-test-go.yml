@@ -2,7 +2,6 @@ name: ci-test-go
 
 on:
   workflow_call:
-    
 # Declare default permissions as read only.
 permissions: read-all
 
@@ -117,6 +116,23 @@ jobs:
       - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
           go-version-file: "KubeArmor/go.mod"
+
+      - name: Install LLVM/Clang
+        run: ./.github/workflows/install-llvm.sh
+
+      - name: Install libbpf headers
+        run: sudo apt-get update && sudo apt-get install -y libbpf-dev
+
+      - name: Install bpftool
+        run: ./.github/workflows/install-bpftool.sh
+
+      - name: Generate vmlinux.h
+        run: make -C BPF kernel_headers
+        working-directory: KubeArmor
+
+      - name: Generate BPF files
+        run: go generate ./...
+        working-directory: KubeArmor
 
       - name: Run go test on the KubeArmor/KubeArmor directory
         run: go test -coverprofile=coverage.txt -covermode=atomic ./...
