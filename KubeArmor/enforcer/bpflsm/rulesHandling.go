@@ -70,6 +70,27 @@ var netType = map[string]uint8{
 	"PACKET":    10,
 }
 
+// Address Family Identifiers for Network Rules (see address_families(7))
+var addressFamilies = map[string]uint8{
+	"AF_UNIX":      1,
+	"AF_LOCAL":     1,
+	"AF_INET":      2,
+	"AF_AX25":      3,
+	"AF_IPX":       4,
+	"AF_APPLETALK": 5,
+	"AF_NETROM":    6,
+	"AF_BRIDGE":    7,
+	"AF_ATMPVC":    8,
+	"AF_X25":       9,
+	"AF_INET6":     10,
+	"AF_NETLINK":   16,
+	"AF_PACKET":    17,
+	"AF_RDS":       21,
+	"AF_BLUETOOTH": 31,
+	"AF_VSOCK":     40,
+	"AF_XDP":       44,
+}
+
 // Array Keys for Network Rule Keys
 const (
 	FAMILY   uint16 = 1
@@ -308,6 +329,9 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 				key.Path[1] = byte(val)
 			} else if val, ok := netType[strings.ToUpper(net.Protocol)]; ok {
 				key.Path[0] = byte(TYPE)
+				key.Path[1] = byte(val)
+			} else if val, ok := addressFamilies[strings.ToUpper(net.Protocol)]; ok {
+				key.Path[0] = byte(FAMILY)
 				key.Path[1] = byte(val)
 			}
 

@@ -59,9 +59,10 @@ enum deny_by_default
 }; // check if the list is whitelist/blacklist
 enum network_check_type
 {
+  sock_family = 1,
   sock_type = 2,
   sock_proto
-}; // configure to check for network protocol or socket type
+}; // configure to check for network address family, protocol or socket type
 
 typedef struct buffers
 {

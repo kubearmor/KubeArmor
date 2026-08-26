@@ -239,6 +239,38 @@ var _ = Describe("Network Tests", func() {
 
 			})
 
+			It("it can block socket creation for a specific address family such as AF_RDS", func() {
+				// CVE-2026-43494 (PinTheft) mitigation: block AF_RDS socket creation
+				if !strings.Contains(K8sRuntimeEnforcer(), "bpf") {
+					Skip("Skipping due to policy only supported by bpflsm enforcer")
+				}
+
+				// Apply Policy
+				err := K8sApplyFile("res/ksp-ubuntu-1-block-net-af-rds.yaml")
+				Expect(err).To(BeNil())
+
+				// Start KubeArmor Logs
+				err = KarmorLogStart("policy", "multiubuntu", "Network", ub1)
+				Expect(err).To(BeNil())
+
+				// Creating an AF_RDS (family 21) socket must be denied at socket_create
+				AssertCommand(ub1, "multiubuntu", []string{"bash", "-c", "python3 -c 'import socket; socket.socket(21, socket.SOCK_SEQPACKET)'"},
+					MatchRegexp("Operation not permitted"), true,
+				)
+
+				expect := protobuf.Alert{
+					PolicyName: "ksp-ubuntu-1-block-net-af-rds",
+					Severity:   "8",
+					Action:     "Block",
+					Result:     "Permission denied",
+				}
+
+				res, err := KarmorGetTargetAlert(5*time.Second, &expect)
+				Expect(err).To(BeNil())
+				Expect(res.Found).To(BeTrue())
+
+			})
+
 			It("it can block network traffic based on dns queries", func() {
 				if !strings.Contains(K8sRuntimeEnforcer(), "bpf") {
 					Skip("Skipping due to policy only supported by bpflsm enforcer")
