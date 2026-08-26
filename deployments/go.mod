@@ -1,6 +1,6 @@
 module github.com/kubearmor/KubeArmor/deployments
 
-go 1.26.5
+go 1.26.6
 
 replace (
 	github.com/kubearmor/KubeArmor => ../

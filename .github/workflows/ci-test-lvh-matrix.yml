@@ -1,0 +1,113 @@
+name: ci-test-lvh-matrix
+
+on:
+  workflow_call:
+    
+# Declare default permissions as read only.
+permissions: read-all
+
+jobs:
+  run-lvh-tests:
+    name: "LVH Matrix Tests"
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false # Prevents one failing VM from cancelling the other
+      matrix:
+        # Grouping the configurations ensures we only test the specific pairs you requested
+        vm_config:
+          - test_name: 'Kernel v4.18 (RHEL 8.10) / Debian 12 / Clang 14'
+            image: 'base-bookworm'
+            image_version: 'latest'
+            image_repo: 'docker.io/kubearmor'
+            kernel_version: 'rhel8.10-main'
+          - test_name: 'Kernel v5.4 / Debian 12 / Clang 14'
+            image: 'base-bookworm'
+            image_version: 'latest'
+            image_repo: 'docker.io/kubearmor'
+            kernel_version: '5.4-main'
+          - test_name: 'Kernel v6.0 / Debian 13 / Clang 19'
+            image: 'base-trixie'
+            image_version: 'latest'
+            image_repo: 'docker.io/kubearmor'
+            kernel_version: '6.0-main'
+          - test_name: 'Kernel v6.18 / Debian 13 / Clang 19'
+            image: 'base-trixie'
+            image_version: 'latest'
+            image_repo: 'docker.io/kubearmor'
+            kernel_version: '6.18-main'
+          - test_name: 'Kernel v7.2 / Debian 13 / Clang 19'
+            image: 'base-trixie'
+            image_version: 'latest'
+            image_repo: 'docker.io/kubearmor'
+            kernel_version: 'bpf-next-main'
+
+    steps:
+      - name: Checkout KubeArmor repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version-file: 'KubeArmor/go.mod'
+
+      - name: Build system monitor loader binary
+        working-directory: KubeArmor/monitor
+        run: go build ci_load.go
+
+      - name: Build enforcer loader binary
+        working-directory: KubeArmor/enforcer/bpflsm/ci_loader
+        run: go build -o ci_load main.go
+
+      - name: Spin up VM and Run Tests
+        uses: cilium/little-vm-helper@5ae749011735fd77f30f38add52f1a53a5568671 # v0.0.30
+        with:
+          # Create a dynamic, unique name for the test run based on the matrix
+          test-name: ${{ matrix.vm_config.test_name }}
+          
+          # Pass the matrix variables into the action
+          image: ${{ matrix.vm_config.image }}
+          image-repo: ${{ matrix.vm_config.image_repo }}
+          image-version: ${{ matrix.vm_config.image_version }}
+          
+          # Providing this triggers lvh to pull the specific kernel dynamically
+          kernel-version: ${{ matrix.vm_config.kernel_version }}
+          
+          # Mandatory for setting up QEMU on GitHub-hosted runners
+          install-dependencies: 'true'
+          
+          # Mount the checked-out KubeArmor code into the VM at /host
+          host-mount: ${{ github.workspace }}
+          
+          # The commands to run inside the VM over SSH
+          cmd: |
+            # Remount root filesystem as read-write
+            mount -o remount,rw /
+
+            # Mount KubeArmor dir
+            mkdir -p /tmp/KubeArmor
+            mount -t 9p -o trans=virtio,version=9p2000.L host_mount /tmp/KubeArmor
+
+            # Set the KubeArmor directory as a safe directory for Git
+            git config --global --add safe.directory /tmp/KubeArmor
+
+            # Set DNS to a public resolver to avoid DNS resolution issues in the VM
+            rm /etc/resolv.conf
+            echo "nameserver 1.1.1.1" > /etc/resolv.conf
+
+            # Compile system monitor eBPF bytecode
+            cd /tmp/KubeArmor/KubeArmor/BPF
+            make
+            
+            # Load system monitor eBPF bytecode
+            echo "Testing system monitor eBPF bytecode load..."
+            cd ../monitor/
+            ./ci_load
+
+            # Load enforcer eBPF bytecode if BPF-LSM is enabled
+            if grep -q "bpf" /sys/kernel/security/lsm; then
+              echo "Testing enforcer eBPF bytecode load..."
+              cd ../enforcer/bpflsm/ci_loader
+              ./ci_load
+            else
+              echo "BPF-LSM not enabled, skipping enforcer eBPF bytecode load"
+            fi
