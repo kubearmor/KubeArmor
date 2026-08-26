@@ -1,21 +1,7 @@
 name: ci-test-operator
 
 on:
-  push:
-    branches:
-      - "main"
-    paths:
-      - "pkg/**"
-      - "deployments/get/**"
-      - "KubeArmor/utils/**"
-  pull_request:
-    branches:
-      - "main"
-    paths:
-      # test on dep or helm changes
-      - "pkg/**"
-      - "deployments/**"
-      - "KubeArmor/utils/**"
+  workflow_call:
 
 # Declare default permissions as read only.
 permissions: read-all
