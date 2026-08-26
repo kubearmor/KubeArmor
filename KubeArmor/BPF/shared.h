@@ -670,6 +670,79 @@ static __always_inline bool should_drop_alerts_per_container(struct outer_key ok
   return false;
 }
 
+static __always_inline bool should_drop_capable_alerts(struct outer_key okey, u32 cap)
+{
+  u64 current_timestamp = bpf_ktime_get_ns();
+
+  struct cap_throttle_key key;
+  __builtin_memset(&key, 0, sizeof(key));
+  key.okey.pid_ns = okey.pid_ns;
+  key.okey.mnt_ns = okey.mnt_ns;
+  key.cap = cap;
+
+  struct alert_throttle_state *state = bpf_map_lookup_elem(&kubearmor_capable_throttle, &key);
+
+  if (!state)
+  {
+    struct alert_throttle_state new_state = {
+        .first_event_timestamp = current_timestamp,
+        .event_count = 1,
+        .throttle = 0};
+
+    bpf_map_update_elem(&kubearmor_capable_throttle, &key, &new_state, BPF_ANY);
+    return false;
+  }
+
+  u64 throttle_sec = (u64)get_kubearmor_config(_THROTTLE_SEC);
+  u64 throttle_nsec = throttle_sec * 1000000000L;
+  u64 maxAlert = (u64)get_kubearmor_config(_MAX_ALERT_PER_SEC);
+
+  if (state->throttle)
+  {
+    u64 time_difference = current_timestamp - state->first_event_timestamp;
+    if (time_difference < throttle_nsec)
+    {
+      return true;
+    }
+  }
+
+  u64 time_difference = current_timestamp - state->first_event_timestamp;
+
+  if (time_difference >= 1000000000L)
+  { // 1 second
+    state->first_event_timestamp = current_timestamp;
+    state->event_count = 1;
+    state->throttle = 0;
+  }
+  else
+  {
+    state->event_count++;
+  }
+
+  if (state->event_count > maxAlert)
+  {
+    state->event_count = 0;
+    state->throttle = 1;
+    bpf_map_update_elem(&kubearmor_capable_throttle, &key, state, BPF_ANY);
+
+    // Generating Throttling Alert
+    event *event_data = bpf_ringbuf_reserve(&kubearmor_events, sizeof(event), 0);
+    if (!event_data)
+    {
+      return true;
+    }
+    init_context(event_data);
+    event_data->event_id = _DROPPING_ALERT;
+    event_data->retval = 0;
+    bpf_ringbuf_submit(event_data, 0);
+
+    return true;
+  }
+
+  bpf_map_update_elem(&kubearmor_capable_throttle, &key, state, BPF_ANY);
+  return false;
+}
+
 static bool is_pts(struct task_struct *task)
 {
   struct signal_struct *signal;

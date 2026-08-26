@@ -71,24 +71,31 @@ jobs:
         run: |
           docker save kubearmor/kubearmor-init-ubi:latest | sudo podman load
           sudo podman tag docker.io/kubearmor/kubearmor-init-ubi:latest kubearmor/kubearmor-init-ubi:latest
+          sudo podman tag docker.io/kubearmor/kubearmor-init-ubi:latest docker.io/kubearmor/kubearmor-init-ubi:latest
 
           docker save kubearmor/kubearmor-ubi:latest | sudo podman load
           sudo podman tag docker.io/kubearmor/kubearmor-ubi:latest kubearmor/kubearmor-ubi:latest
+          sudo podman tag docker.io/kubearmor/kubearmor-ubi:latest docker.io/kubearmor/kubearmor-ubi:latest
 
           docker save kubearmor/kubearmor-operator-ubi:latest | sudo podman load
           sudo podman tag docker.io/kubearmor/kubearmor-operator-ubi:latest kubearmor/kubearmor-operator-ubi:latest
+          sudo podman tag docker.io/kubearmor/kubearmor-operator-ubi:latest docker.io/kubearmor/kubearmor-operator-ubi:latest
 
           docker save kubearmor/kubearmor-snitch-ubi:latest | sudo podman load
           sudo podman tag docker.io/kubearmor/kubearmor-snitch-ubi:latest kubearmor/kubearmor-snitch-ubi:latest
+          sudo podman tag docker.io/kubearmor/kubearmor-snitch-ubi:latest docker.io/kubearmor/kubearmor-snitch-ubi:latest
 
           if [ ${{ steps.filter.outputs.controller }} == 'true' ]; then
             docker save kubearmor/kubearmor-controller-ubi:latest | sudo podman load
             sudo podman tag docker.io/kubearmor/kubearmor-controller-ubi:latest kubearmor/kubearmor-controller-ubi:latest
+            sudo podman tag docker.io/kubearmor/kubearmor-controller-ubi:latest docker.io/kubearmor/kubearmor-controller-ubi:latest
           fi
           if [[ ${{ steps.filter.outputs.multiubuntu }} == 'true' ]]; then
             docker save kubearmor/ubuntu-w-utils:latest | sudo podman load
             sudo podman tag docker.io/kubearmor/ubuntu-w-utils:latest kubearmor/ubuntu-w-utils:latest
+            sudo podman tag docker.io/kubearmor/ubuntu-w-utils:latest docker.io/kubearmor/ubuntu-w-utils:latest
           fi
+
 
           docker system prune -a -f 
           docker buildx prune -a -f

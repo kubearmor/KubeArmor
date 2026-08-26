@@ -26,8 +26,8 @@ import (
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 )
 
-//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -cc clang enforcer ../../BPF/enforcer.bpf.c -- -I/usr/include/ -O2 -g -fno-stack-protector -Wno-missing-declarations
-//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -cc clang enforcer_path ../../BPF/enforcer_path.bpf.c -- -I/usr/include/ -O2 -g -fno-stack-protector -Wno-missing-declarations
+//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -cc clang enforcer ../../BPF/enforcer.bpf.c -- -I/usr/include/ -I../../BPF/libbpf/src -I../../BPF -O2 -g -fno-stack-protector -Wno-missing-declarations
+//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -cc clang enforcer_path ../../BPF/enforcer_path.bpf.c -- -I/usr/include/ -I../../BPF/libbpf/src -I../../BPF -O2 -g -fno-stack-protector -Wno-missing-declarations
 
 // ===================== //
 // == BPFLSM Enforcer == //
@@ -41,6 +41,7 @@ type BPFEnforcer struct {
 	// InnerMapSpec            *ebpf.MapSpec
 	BPFContainerMap         *ebpf.Map
 	BPFContainerThrottleMap *ebpf.Map
+	BPFCapableThrottleMap   *ebpf.Map
 	BPFArgumentsMap         *ebpf.Map
 
 	// events
@@ -113,6 +114,21 @@ func NewBPFEnforcer(node tp.Node, pinpath string, logger *fd.Feeder, monitor *mo
 	})
 	if err != nil {
 		be.Logger.Errf("error creating kubearmor_alert_throttle map: %s", err)
+		return be, err
+	}
+
+	be.BPFCapableThrottleMap, err = ebpf.NewMapWithOptions(&ebpf.MapSpec{
+		Type:       ebpf.Hash,
+		KeySize:    12,
+		ValueSize:  24,
+		MaxEntries: 10240,
+		Pinning:    ebpf.PinByName,
+		Name:       "kubearmor_capable_throttle",
+	}, ebpf.MapOptions{
+		PinPath: pinpath,
+	})
+	if err != nil {
+		be.Logger.Errf("error creating kubearmor_capable_throttle map: %s", err)
 		return be, err
 	}
 	be.BPFArgumentsMap, err = ebpf.NewMapWithOptions(&ebpf.MapSpec{
@@ -516,6 +532,17 @@ func (be *BPFEnforcer) DestroyBPFEnforcer() error {
 			errBPFCleanUp = errors.Join(errBPFCleanUp, err)
 		}
 		if err := be.BPFContainerThrottleMap.Close(); err != nil {
+			be.Logger.Err(err.Error())
+			errBPFCleanUp = errors.Join(errBPFCleanUp, err)
+		}
+	}
+
+	if be.BPFCapableThrottleMap != nil {
+		if err := be.BPFCapableThrottleMap.Unpin(); err != nil {
+			be.Logger.Err(err.Error())
+			errBPFCleanUp = errors.Join(errBPFCleanUp, err)
+		}
+		if err := be.BPFCapableThrottleMap.Close(); err != nil {
 			be.Logger.Err(err.Error())
 			errBPFCleanUp = errors.Join(errBPFCleanUp, err)
 		}
