@@ -1,0 +1,38 @@
+name: osv-scan
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  schedule:
+    - cron: "0 6 * * 1"
+
+permissions: read-all
+
+jobs:
+  osv-scan-pr:
+    if: ${{ github.event_name == 'pull_request' }}
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+    uses: "google/osv-scanner-action/.github/workflows/osv-scanner-reusable-pr.yml@v2.5.0"
+    with:
+      scan-args: |-
+        --recursive
+        --skip-git
+        ./KubeArmor
+
+  osv-scan:
+    if: ${{ github.event_name != 'pull_request' }}
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+    uses: "google/osv-scanner-action/.github/workflows/osv-scanner-reusable.yml@v2.5.0"
+    with:
+      scan-args: |-
+        --recursive
+        --skip-git
+        ./KubeArmor
