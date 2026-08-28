@@ -21,7 +21,6 @@ jobs:
     with:
       scan-args: |-
         --recursive
-        --skip-git
         ./KubeArmor
 
   osv-scan:
@@ -34,5 +33,4 @@ jobs:
     with:
       scan-args: |-
         --recursive
-        --skip-git
         ./KubeArmor
