@@ -23,6 +23,7 @@ jobs:
       scan-args: |-
         --recursive
         .
+      fail-on-vuln: true
 
   osv-scan:
     if: ${{ github.event_name != 'pull_request' }}
@@ -35,3 +36,4 @@ jobs:
       scan-args: |-
         --recursive
         .
+      fail-on-vuln: true
