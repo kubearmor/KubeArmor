@@ -24,8 +24,9 @@ WORKDIR /usr/src/KubeArmor/KubeArmor
 
 RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.11
 RUN go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.6.1
+RUN go install github.com/ahmetb/govvv@v0.3.0
 
-RUN GOPROXY=off make
+RUN make
 
 WORKDIR /usr/src/KubeArmor/BPF
 
