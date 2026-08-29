@@ -324,3 +324,106 @@ func TestConcurrentEndpointAccess(t *testing.T) {
 	wg.Wait()
 	t.Logf("Concurrent access test completed. Final endpoint count: %d", len(dm.EndPoints))
 }
+
+func TestNoDeadlockOnConcurrentPostureUpdates(t *testing.T) {
+	dm := &KubeArmorDaemon{
+		EndPoints:           []tp.EndPoint{},
+		EndPointsLock:       &sync.RWMutex{},
+		DefaultPostures:     map[string]tp.DefaultPosture{},
+		DefaultPosturesLock: &sync.Mutex{},
+		RuntimeEnforcer:     nil,
+	}
+
+	dm.Logger = nil
+
+	dm.EndPointsLock.Lock()
+	for i := 0; i < 10; i++ {
+		dm.EndPoints = append(dm.EndPoints, tp.EndPoint{
+			EndPointName:  fmt.Sprintf("ep-ns-a-%d", i),
+			NamespaceName: "ns-a",
+			ContainerName: fmt.Sprintf("container-a-%d", i),
+		})
+		dm.EndPoints = append(dm.EndPoints, tp.EndPoint{
+			EndPointName:  fmt.Sprintf("ep-ns-b-%d", i),
+			NamespaceName: "ns-b",
+			ContainerName: fmt.Sprintf("container-b-%d", i),
+		})
+	}
+	dm.EndPointsLock.Unlock()
+
+	nsPosture := tp.DefaultPosture{
+		FileAction:         "block",
+		NetworkAction:      "audit",
+		CapabilitiesAction: "audit",
+	}
+	globalPosture := tp.DefaultPosture{
+		FileAction:         "audit",
+		NetworkAction:      "block",
+		CapabilitiesAction: "block",
+	}
+
+	done := make(chan struct{})
+	var wg sync.WaitGroup
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for i := 0; i < 100; i++ {
+			dm.EndPointsLock.Lock()
+			dm.DefaultPosturesLock.Lock()
+
+			dm.DefaultPostures["ns-a"] = nsPosture
+
+			dm.DefaultPosturesLock.Unlock()
+			dm.EndPointsLock.Unlock()
+
+			time.Sleep(time.Microsecond)
+		}
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for i := 0; i < 100; i++ {
+			dm.EndPointsLock.Lock()
+			dm.DefaultPosturesLock.Lock()
+
+			_ = len(dm.EndPoints)
+			_ = dm.DefaultPostures["ns-b"]
+
+			dm.DefaultPosturesLock.Unlock()
+			dm.EndPointsLock.Unlock()
+
+			time.Sleep(time.Microsecond)
+		}
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for i := 0; i < 100; i++ {
+			dm.EndPointsLock.Lock()
+			dm.DefaultPosturesLock.Lock()
+
+			dm.DefaultPostures["ns-b"] = globalPosture
+			_ = len(dm.EndPoints)
+
+			dm.DefaultPosturesLock.Unlock()
+			dm.EndPointsLock.Unlock()
+
+			time.Sleep(time.Microsecond)
+		}
+	}()
+
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		t.Log("Concurrent lock operations completed without deadlock")
+	case <-time.After(10 * time.Second):
+		t.Fatal("Concurrent lock operations did not complete")
+	}
+}
