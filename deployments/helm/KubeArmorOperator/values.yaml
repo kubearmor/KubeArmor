@@ -1,3 +1,10 @@
+# When true (default), the KubeArmorConfig CRD is installed and kept up-to-date
+# via pre-install and pre-upgrade Helm hooks, so schema changes are applied on
+# every upgrade. Set to false only if you manage CRDs separately (e.g. GitOps
+# workflows where a cluster-admin owns CRD lifecycle).
+crds:
+  install: true
+
 autoDeploy: false
 # operator will deploy pinned images for each application
 imagePinning: false
