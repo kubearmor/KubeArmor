@@ -1,5 +1,11 @@
 # Security Enhancements for KubeArmor
 
+KubeArmor infrastructure can be hardened at multiple layers:
+
+1. **Seccomp** (syscall restriction) — below
+2. **TLS/mTLS** (gRPC communication) — below
+3. **Runtime self-protection policies** — [zero-trust KubeArmorPolicy examples](../examples/kubearmor-self-protection/README.md) for daemon, relay, controller, and operator (#2066). Requires self-protection opt-in via `selfProtection.enabled` (Helm) or `selfProtectionEnabled` (`KubeArmorConfig`).
+
 ## 1. Secure Kubearmor with Seccomp
 
 To further enhance the security of KubeArmor itself, it is crucial to protect it using seccomp (secure computing mode), a Linux kernel feature that restricts the system calls (syscalls) a process can make, thereby reducing the attack surface.

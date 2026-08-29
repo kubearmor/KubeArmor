@@ -10,6 +10,8 @@ Additionally, KubeArmor presents these hardening policies in the context of your
 
 Overall, KubeArmor is a powerful tool for securing your Kubernetes workloads, and its out-of-the-box hardening policies based on industry-leading compliance and attack frameworks make it easy to get started and ensure that your system is as secure as possible.
 
+For hardening **KubeArmor's own infrastructure pods**, see [self-protection policy examples](../examples/kubearmor-self-protection/README.md) (issue #2066).
+
 ## What is the source of these hardening policies?
 
 Hardening policies are derived from industry leading compliance standards and attack frameworks such as CIS, MITRE, NIST, STIGs, and several others.
