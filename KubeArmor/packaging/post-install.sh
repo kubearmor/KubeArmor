@@ -26,3 +26,7 @@ fi
 # start kubearmor.service
 /bin/systemctl daemon-reload
 /bin/systemctl start kubearmor.service
+
+# Set default GRPC listening port for kubearmor as environment variable
+echo "KUBEARMOR_SERVICE=:32767" >> /etc/environment
+echo "Please restart shell session to complete installation"
