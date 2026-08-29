@@ -96,6 +96,7 @@ var (
 	ConfigEnableNRI                   string = "enableNRI"
 	ConfigDropResourceFromProcessLogs string = "dropResourceFromProcessLogs"
 	ConfigArgMatching                 string = "matchArgs"
+	ConfigDropPaths                   string = "dropPaths"
 
 	GlobalImagePullSecrets []corev1.LocalObjectReference = []corev1.LocalObjectReference{}
 	GlobalTolerations      []corev1.Toleration           = []corev1.Toleration{}
@@ -225,6 +226,7 @@ var ConfigMapData = map[string]string{
 	ConfigMaxAlertPerSec:              "10",
 	ConfigThrottleSec:                 "30",
 	ConfigArgMatching:                 "true",
+	ConfigDropPaths:                   "",
 }
 
 var ConfigDefaultSeccompEnabled = "false"
