@@ -506,6 +506,12 @@ func deploySnitch(nodename string, runtime string) *batchv1.Job {
 			},
 		},
 	}
+
+	// The snitch runs as a Job pinned to a node via NodeName; apply the globally
+	// configured tolerations (globalTolerations) so it can still be scheduled onto
+	// tainted nodes, matching the daemonset, relay, and controller deployments.
+	utils.UpdateTolerationFromGlobal(common.GlobalTolerations, &job.Spec.Template.Spec.Tolerations)
+
 	return &job
 }
 
