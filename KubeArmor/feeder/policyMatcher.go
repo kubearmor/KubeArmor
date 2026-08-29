@@ -1448,9 +1448,9 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 					existUSBDeviceAllowPolicy = true
 				} else if secPolicy.Operation == "NetworkFirewall" {
 					existNetworkFirewallAllowPolicy = true
-				}
+		}
 
-				if fd.DefaultPostures[log.NamespaceName].FileAction == "allow" {
+				if posture, ok := fd.DefaultPostures[log.NamespaceName]; ok && posture.FileAction == "allow" {
 					continue
 				}
 			}
@@ -1650,11 +1650,13 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 
 						log.Enforcer = "eBPF Monitor"
 
-						if fd.DefaultPostures[log.NamespaceName].FileAction == "block" {
+					if posture, ok := fd.DefaultPostures[log.NamespaceName]; ok {
+						if posture.FileAction == "block" {
 							log.Action = "Audit (Block)"
-						} else { // fd.DefaultPostures[log.NamespaceName].FileAction == "audit"
+						} else { // posture.FileAction == "audit"
 							log.Action = "Audit"
 						}
+					}
 
 						continue
 					}
@@ -1662,7 +1664,7 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 
 				// apply the default postures when log.type isn't yet known
 
-				if fd.DefaultPostures[log.NamespaceName].FileAction == "block" && secPolicy.Action == "Audit (Allow)" && log.Result == "Passed" && log.Type == "" {
+				if posture, ok := fd.DefaultPostures[log.NamespaceName]; ok && posture.FileAction == "block" && secPolicy.Action == "Audit (Allow)" && log.Result == "Passed" && log.Type == "" {
 					// defaultPosture = block + audit mode
 					log.Type = "MatchedPolicy"
 
@@ -1677,7 +1679,7 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 					log.Action = "Audit (Block)"
 				}
 
-				if fd.DefaultPostures[log.NamespaceName].FileAction == "audit" && (secPolicy.Action == "Allow" || secPolicy.Action == "Audit (Allow)") && log.Result == "Passed" && log.Type == "" {
+				if posture, ok := fd.DefaultPostures[log.NamespaceName]; ok && posture.FileAction == "audit" && (secPolicy.Action == "Allow" || secPolicy.Action == "Audit (Allow)") && log.Result == "Passed" && log.Type == "" {
 					// defaultPosture = audit
 					log.Type = "MatchedPolicy"
 
@@ -1875,17 +1877,19 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 
 						log.Enforcer = "eBPF Monitor"
 
-						if fd.DefaultPostures[log.NamespaceName].NetworkAction == "block" {
+					if posture, ok := fd.DefaultPostures[log.NamespaceName]; ok {
+						if posture.NetworkAction == "block" {
 							log.Action = "Audit (Block)"
-						} else { // fd.DefaultPostures[log.NamespaceName].NetworkAction == "audit"
+						} else { // posture.NetworkAction == "audit"
 							log.Action = "Audit"
 						}
+					}
 
 						continue
 					}
 				}
 
-				if fd.DefaultPostures[log.NamespaceName].NetworkAction == "block" && secPolicy.Action == "Audit (Allow)" && log.Result == "Passed" {
+				if posture, ok := fd.DefaultPostures[log.NamespaceName]; ok && posture.NetworkAction == "block" && secPolicy.Action == "Audit (Allow)" && log.Result == "Passed" {
 					// defaultPosture = block + audit mode
 
 					log.Type = "MatchedPolicy"
@@ -1900,7 +1904,7 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 					log.Action = "Audit (Block)"
 				}
 
-				if fd.DefaultPostures[log.NamespaceName].NetworkAction == "audit" && (secPolicy.Action == "Allow" || secPolicy.Action == "Audit (Allow)") && log.Result == "Passed" {
+				if posture, ok := fd.DefaultPostures[log.NamespaceName]; ok && posture.NetworkAction == "audit" && (secPolicy.Action == "Allow" || secPolicy.Action == "Audit (Allow)") && log.Result == "Passed" {
 					// defaultPosture = audit
 
 					log.Type = "MatchedPolicy"
@@ -2191,17 +2195,19 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 
 						log.Enforcer = "eBPF Monitor"
 
-						if fd.DefaultPostures[log.NamespaceName].CapabilitiesAction == "block" {
+					if posture, ok := fd.DefaultPostures[log.NamespaceName]; ok {
+						if posture.CapabilitiesAction == "block" {
 							log.Action = "Audit (Block)"
-						} else { // fd.DefaultPostures[log.NamespaceName].CapabilitiesAction == "audit"
+						} else { // posture.CapabilitiesAction == "audit"
 							log.Action = "Audit"
 						}
+					}
 
 						continue
 					}
 				}
 
-				if fd.DefaultPostures[log.NamespaceName].CapabilitiesAction == "block" && secPolicy.Action == "Audit (Allow)" && log.Result == "Passed" {
+				if posture, ok := fd.DefaultPostures[log.NamespaceName]; ok && posture.CapabilitiesAction == "block" && secPolicy.Action == "Audit (Allow)" && log.Result == "Passed" {
 					// defaultPosture = block + audit mode
 
 					log.Type = "MatchedPolicy"
@@ -2216,7 +2222,7 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 					log.Action = "Audit (Block)"
 				}
 
-				if fd.DefaultPostures[log.NamespaceName].CapabilitiesAction == "audit" && (secPolicy.Action == "Allow" || secPolicy.Action == "Audit (Allow)") && log.Result == "Passed" {
+				if posture, ok := fd.DefaultPostures[log.NamespaceName]; ok && posture.CapabilitiesAction == "audit" && (secPolicy.Action == "Allow" || secPolicy.Action == "Audit (Allow)") && log.Result == "Passed" {
 					// defaultPosture = audit
 
 					log.Type = "MatchedPolicy"
