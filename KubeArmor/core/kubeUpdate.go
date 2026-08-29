@@ -2610,6 +2610,11 @@ func (dm *KubeArmorDaemon) UpdateHostSecurityPolicies() {
 		}
 	}
 
+	// Fingerprint the effective host policy state (observability only). This is
+	// computed even when host enforcement is disabled, so the hash can confirm
+	// what a node actually resolved while debugging "applied but not enforced".
+	dm.updateHostPolicyHash(secPolicies)
+
 	if cfg.GlobalCfg.HostPolicy {
 		// update host security policies
 		dm.Logger.UpdateHostSecurityPolicies("UPDATED", secPolicies)
@@ -2627,6 +2632,34 @@ func (dm *KubeArmorDaemon) UpdateHostSecurityPolicies() {
 				dm.USBDeviceHandler.UpdateHostSecurityPolicies(secPolicies)
 			}
 		}
+	}
+}
+
+// updateHostPolicyHash computes a deterministic SHA-256 fingerprint of the
+// node's effective host security policies and stores it for observability
+// (exposed via logs and karmor probe). Policies are sorted by name so that
+// ordering does not affect the hash. This never influences enforcement.
+func (dm *KubeArmorDaemon) updateHostPolicyHash(secPolicies []tp.HostSecurityPolicy) {
+	sorted := make([]tp.HostSecurityPolicy, len(secPolicies))
+	copy(sorted, secPolicies)
+	slices.SortStableFunc(sorted, func(a, b tp.HostSecurityPolicy) int {
+		return strings.Compare(a.Metadata["policyName"], b.Metadata["policyName"])
+	})
+
+	hash, err := kl.ComputeHash(sorted)
+	if err != nil {
+		kg.Warnf("Failed to compute host policy hash: %s", err.Error())
+		return
+	}
+
+	dm.HostPolicyHashLock.Lock()
+	changed := dm.HostPolicyHash != hash
+	dm.HostPolicyHash = hash
+	dm.HostPolicyHashLock.Unlock()
+
+	// Log only on change to keep steady-state reconciles quiet.
+	if changed {
+		kg.Printf("Effective host policy hash updated: count=%d hash=%s", len(secPolicies), hash)
 	}
 }
 
