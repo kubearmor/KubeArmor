@@ -2,7 +2,6 @@ name: ci-test-go
 
 on:
   workflow_call:
-    
 # Declare default permissions as read only.
 permissions: read-all
 
@@ -118,6 +117,39 @@ jobs:
         with:
           go-version-file: "KubeArmor/go.mod"
 
+      - name: Install LLVM/Clang
+        run: ./.github/workflows/install-llvm.sh
+
+      - name: Install libbpf headers
+        run: sudo apt-get update && sudo apt-get install -y libbpf-dev
+
+      - name: Install bpftool
+        run: ./.github/workflows/install-bpftool.sh
+
+      - name: Generate vmlinux.h
+        run: make -C BPF kernel_headers
+        working-directory: KubeArmor
+
+      - name: Generate BPF files
+        run: go generate ./...
+        working-directory: KubeArmor
+
+      - name: Run go test on the KubeArmor/KubeArmor directory
+        run: go test -coverprofile=coverage.txt -covermode=atomic ./...
+        working-directory: KubeArmor
+
+      - name: Upload code coverage to Codecov
+        uses: codecov/codecov-action@b9fd7d16f6d7d1b5d2bec1a2887e65ceed900238 # v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: KubeArmor/coverage.txt
+          flags: unittests
+          fail_ci_if_error: false
+
+  license:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
       - name: Install LLVM/Clang
         run: ./.github/workflows/install-llvm.sh
 

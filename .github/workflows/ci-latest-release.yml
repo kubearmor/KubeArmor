@@ -52,7 +52,13 @@ jobs:
     runs-on: oracle-vm-16cpu-64gb-x86-64
     permissions:
       id-token: write
+      contents: write
     timeout-minutes: 150
+    outputs:
+      imagedigest: ${{ steps.digest.outputs.imagedigest }}
+      initdigest: ${{ steps.digest.outputs.initdigest }}
+      tag: ${{ steps.vars.outputs.tag }}
+      hashes: ${{ steps.digest.outputs.hashes }}
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
@@ -151,13 +157,29 @@ jobs:
       - name: Get Image Digest
         id: digest
         run: |
-          echo "imagedigest=$(jq -r '.["containerimage.digest"]' kubearmor.json)" >> $GITHUB_OUTPUT
-          echo "initdigest=$(jq -r '.["containerimage.digest"]' kubearmor-init.json)" >> $GITHUB_OUTPUT
+          IMAGEDIGEST=$(jq -r '.["containerimage.digest"]' kubearmor.json)
+          INITDIGEST=$(jq -r '.["containerimage.digest"]' kubearmor-init.json)
+          echo "imagedigest=${IMAGEDIGEST}" >> $GITHUB_OUTPUT
+          echo "initdigest=${INITDIGEST}" >> $GITHUB_OUTPUT
+          echo "hashes=$(echo "${IMAGEDIGEST} kubearmor" | base64 -w0)" >> $GITHUB_OUTPUT
 
       - name: Sign the Container Images
         run: |
           cosign sign -r kubearmor/kubearmor@${{ steps.digest.outputs.imagedigest }} --yes
           cosign sign -r kubearmor/kubearmor-init@${{ steps.digest.outputs.initdigest }} --yes
+
+  provenance:
+    needs: [build]
+    if: github.repository == 'kubearmor/kubearmor' && needs.build.outputs.hashes != ''
+    permissions:
+      actions: read
+      id-token: write
+      contents: write
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.0.0
+    with:
+      base64-subjects: "${{ needs.build.outputs.hashes }}"
+      upload-assets: true
+      upload-tag-name: ${{ needs.build.outputs.tag }}
 
   push-stable-version:
     name: Create KubeArmor stable release

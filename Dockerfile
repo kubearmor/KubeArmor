@@ -10,8 +10,27 @@ RUN apk add --no-cache git clang llvm make gcc protobuf protobuf-dev curl elfuti
 
 WORKDIR /usr/src/KubeArmor
 
+COPY KubeArmor/go.mod KubeArmor/go.sum ./KubeArmor/
+COPY pkg/ ./pkg/
+COPY protobuf/ ./protobuf/
+WORKDIR /usr/src/KubeArmor/KubeArmor
+RUN go mod download && go mod verify
+
+WORKDIR /usr/src/KubeArmor
+
 COPY . .
 
+WORKDIR /usr/src/KubeArmor/KubeArmor
+
+RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.11
+RUN go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.6.1
+RUN go install github.com/ahmetb/govvv@v0.3.0
+
+RUN make
+
+WORKDIR /usr/src/KubeArmor/BPF
+
+# install bpftool  
 RUN arch=$(uname -m) bpftool_version=v7.3.0 && \
     if [[ "$arch" == "aarch64" ]]; then \
         arch=arm64; \

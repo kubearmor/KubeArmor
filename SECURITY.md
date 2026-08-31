@@ -76,6 +76,13 @@ KubeArmor continuously monitors and audits code quality and security:
 - **Dependency Updates:** Automated dependency updates and digest pinning via Renovate.
 - **Scorecard:** OpenSSF Scorecard supply-chain security monitoring ([`scorecard.yml`](.github/workflows/scorecard.yml)).
 
+## Input Validation and Secure Design
+
+KubeArmor enforces strict input validation across all entry points:
+- **API & gRPC Validation:** All gRPC request payloads are validated against strict Protobuf definitions prior to execution.
+- **Kubernetes CRDs:** Custom Resource Definitions (`KubeArmorPolicy`, `KubeArmorClusterPolicy`, `KubeArmorHostPolicy`) enforce strict OpenAPI v3 validation schemas and field allowlists.
+- **Path & Parameter Sanitization:** System paths, container IDs, eBPF map parameters, and LSM security profile definitions are sanitized to prevent injection or privilege escalation vulnerabilities.
+
 ## Supported Versions
 KubeArmor versions follow [Semantic Versioning](https://semver.org/) terminology (`x.y.z`):
 - Security fixes are backported to the **latest two minor releases**.
