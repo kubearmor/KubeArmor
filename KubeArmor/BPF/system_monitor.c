@@ -126,10 +126,12 @@
 #define PT_REGS_PARM6(x) ((x)->regs[5])
 #endif
 
+#ifndef ntohs
 #if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
 #define ntohs(x) __builtin_bswap16(x)
 #else
 #define ntohs(x) (x)
+#endif
 #endif
 
 #define UNDEFINED_SYSCALL 1000
@@ -2530,11 +2532,11 @@ int kretprobe__inet_csk_accept(struct pt_regs *ctx)
     return 0;
 }
 
-
 #define UDPHDR_LEN 8
 
 SEC("kprobe/udp_send_skb")
-int kprobe__udp_send_skb(struct pt_regs *ctx){
+int kprobe__udp_send_skb(struct pt_regs *ctx)
+{
 
     if (skip_syscall())
         return 0;
@@ -2543,7 +2545,7 @@ int kprobe__udp_send_skb(struct pt_regs *ctx){
         return 0;
 
     struct sk_buff *skb = (struct sk_buff *)PT_REGS_PARM1(ctx);
-    struct flowi4  *fl4 = (struct flowi4 *)PT_REGS_PARM2(ctx);
+    struct flowi4 *fl4 = (struct flowi4 *)PT_REGS_PARM2(ctx);
     if (skb == NULL || fl4 == NULL)
         return 0;
 
@@ -2551,7 +2553,7 @@ int kprobe__udp_send_skb(struct pt_regs *ctx){
     bpf_probe_read(&sk, sizeof(sk), &skb->sk);
     if (sk == NULL)
         return 0;
-    
+
     __u16 dport = 0;
     bpf_probe_read(&dport, sizeof(dport), &fl4->uli.ports.dport);
     dport = ntohs(dport);
@@ -2580,17 +2582,16 @@ int kprobe__udp_send_skb(struct pt_regs *ctx){
     if (context.retval >= 0 && drop_syscall(_DNS_PROBE))
         return 0;
 
-     if (context.retval < 0 && !get_kubearmor_config(_ENFORCER_BPFLSM) &&
+    if (context.retval < 0 && !get_kubearmor_config(_ENFORCER_BPFLSM) &&
         get_kubearmor_config(_ALERT_THROTTLING) &&
         should_drop_alerts_per_container(&context, ctx, types, &args))
         return 0;
-    
+
     set_buffer_offset(DNS_BUF_TYPE, sizeof(sys_context_t));
     bufs_t *bufs_p = get_buffer(DNS_BUF_TYPE);
     if (bufs_p == NULL)
         return 0;
     save_context_to_buffer(bufs_p, (void *)&context);
-
 
     struct sock_common conn = READ_KERN(sk->__sk_common);
     struct sockaddr_in sockv4 = {};
