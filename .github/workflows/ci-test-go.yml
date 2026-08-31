@@ -2,7 +2,7 @@ name: ci-test-go
 
 on:
   workflow_call:
-    
+
 # Declare default permissions as read only.
 permissions: read-all
 
