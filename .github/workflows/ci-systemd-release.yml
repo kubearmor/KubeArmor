@@ -93,7 +93,7 @@ jobs:
       - name: Build KubeArmor object files
         run: |
           make
-          cd ../KubeArmor
+          cd ..
           go generate ./...
         working-directory: KubeArmor/BPF
 
