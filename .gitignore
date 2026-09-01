@@ -1,5 +1,8 @@
 # KubeArmor
-kubearmor
+# NOTE: anchored to the build-output path. An unanchored "kubearmor" also matches
+# the KubeArmor/ source directory on case-insensitive filesystems (macOS), which
+# would ignore every untracked file under it.
+/KubeArmor/kubearmor
 karmor
 snitch
 kubearmor-operator

@@ -26,6 +26,10 @@ func isKubeArmorBpfMap(name string) bool {
 
 func cleanupBpfMaps(bpfMapsDir string, removeFn func(string) error) error {
 	entries, err := os.ReadDir(bpfMapsDir)
+	if os.IsNotExist(err) {
+		// no BPF maps directory (e.g. bpffs not mounted, or non-Linux) => nothing to clean up
+		return nil
+	}
 	if err != nil {
 		return err
 	}
