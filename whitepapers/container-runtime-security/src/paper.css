@@ -1,0 +1,675 @@
+/* ==========================================================================
+   Container Runtime Security: Comparative Insights
+   KubeArmor technical paper, print stylesheet (A4)
+
+   Palette is derived from the KubeArmor brand tokens published at
+   kubearmor.io: primary #082c74, primary-light #5297fe, surface #f9fbff,
+   sub-text #3f4e64, code surface #181e25. Values below restate those in
+   OKLCH so lightness steps stay perceptually even.
+   ========================================================================== */
+
+:root {
+  --navy:      oklch(0.316 0.132 265);
+  --navy-deep: oklch(0.228 0.098 265);
+  --navy-mid:  oklch(0.380 0.128 263);
+  --blue:      oklch(0.673 0.153 259);
+  --blue-soft: oklch(0.905 0.048 259);
+  --blue-wash: oklch(0.966 0.017 259);
+
+  --paper:  oklch(0.995 0.003 265);
+  --ink:    oklch(0.240 0.014 265);
+  --ink-2:  oklch(0.442 0.028 258);
+  --ink-3:  oklch(0.605 0.020 258);
+  --rule:   oklch(0.880 0.012 262);
+  --rule-2: oklch(0.935 0.008 262);
+  --tint:   oklch(0.972 0.008 262);
+
+  --code-bg:   oklch(0.222 0.012 250);
+  --code-ink:  oklch(0.905 0.010 250);
+
+  --yes:  oklch(0.520 0.105 158);
+  --part: oklch(0.620 0.115 72);
+  --no:   oklch(0.545 0.140 25);
+
+  --sans:  "Poppins", "Segoe UI", system-ui, sans-serif;
+  --serif: "Source Serif 4", Georgia, "Times New Roman", serif;
+  --mono:  "Source Code Pro", "Cascadia Mono", Consolas, monospace;
+
+  /* One column, even margins. 150mm at 12pt Source Serif is roughly 75
+     characters a line. Wide tables bleed 6mm into each margin. */
+  --gutter-col: 0mm;
+  --text-col:   150mm;
+  --full-col:   150mm;
+}
+
+/* --------------------------------------------------------------- page setup */
+
+@page {
+  size: A4;
+  margin: 22mm 30mm 24mm 30mm;
+}
+
+@page plate {
+  size: A4;
+  margin: 0;
+}
+
+html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--serif);
+  font-size: 12pt;
+  line-height: 1.46;
+  font-variant-numeric: oldstyle-nums proportional-nums;
+  text-rendering: geometricPrecision;
+}
+
+/* --------------------------------------------------------------- full-bleed */
+
+.plate {
+  page: plate;
+  break-after: page;
+  position: relative;
+  width: 210mm;
+  height: 297mm;
+  overflow: hidden;
+  background: var(--navy);
+  color: oklch(0.985 0.004 262);
+}
+
+.plate::after {
+  /* Very low contrast field wash. Not a decorative blur, it keeps the large
+     flat navy from banding when the PDF is printed. */
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(120% 80% at 88% 6%, oklch(0.400 0.135 262 / 0.85), transparent 62%),
+    linear-gradient(168deg, var(--navy) 0%, var(--navy-deep) 100%);
+  z-index: 0;
+}
+
+.plate .cover-inner,
+.plate .back-inner { z-index: 2; }
+
+.plate-mark {
+  position: absolute;
+  z-index: 1;
+  right: -46mm;
+  bottom: -40mm;
+  width: 178mm;
+  opacity: 0.10;
+}
+
+/* --------------------------------------------------------------- cover */
+
+.cover-inner {
+  position: absolute;
+  inset: 22mm 20mm 20mm 20mm;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.cover-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.cover-logo { width: 52mm; }
+
+.cover-org {
+  font-family: var(--sans);
+  font-size: 7.2pt;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  text-align: right;
+  color: oklch(0.820 0.045 259);
+  line-height: 1.7;
+}
+
+.cover-mid { flex: 0 0 auto; }
+
+.eyebrow {
+  display: inline-block;
+  font-family: var(--sans);
+  font-size: 7.6pt;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: oklch(0.860 0.070 259);
+  border: 0.4pt solid oklch(0.560 0.080 259);
+  border-radius: 2mm;
+  padding: 1.6mm 4mm;
+}
+
+.cover-title {
+  font-family: var(--sans);
+  font-weight: 700;
+  font-size: 38pt;
+  line-height: 1.04;
+  letter-spacing: -0.022em;
+  margin: 9mm 0 0;
+  max-width: 150mm;
+}
+
+.cover-title em {
+  display: block;
+  font-style: normal;
+  font-weight: 500;
+  color: oklch(0.780 0.125 259);
+}
+
+.cover-rule {
+  width: 34mm;
+  height: 1.2pt;
+  background: var(--blue);
+  margin: 9mm 0 7mm;
+}
+
+.cover-deck {
+  font-family: var(--serif);
+  font-size: 11.4pt;
+  line-height: 1.5;
+  color: oklch(0.885 0.020 259);
+  max-width: 128mm;
+  margin: 0;
+}
+
+.cover-bottom {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 10mm;
+  border-top: 0.4pt solid oklch(0.470 0.070 262);
+  padding-top: 6mm;
+}
+
+.byline-label {
+  font-family: var(--sans);
+  font-size: 7pt;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: oklch(0.720 0.050 259);
+  margin: 0 0 2mm;
+}
+
+.byline-name {
+  font-family: var(--sans);
+  font-size: 13pt;
+  font-weight: 600;
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+
+.byline-roles {
+  font-family: var(--sans);
+  font-size: 8.4pt;
+  font-weight: 300;
+  line-height: 1.55;
+  color: oklch(0.845 0.028 259);
+  margin: 1.2mm 0 0;
+}
+
+.cover-edition {
+  font-family: var(--sans);
+  font-size: 8.4pt;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-align: right;
+  color: oklch(0.800 0.040 259);
+  white-space: nowrap;
+}
+
+/* --------------------------------------------------------------- body flow */
+
+main { display: block; }
+
+.col {
+  margin-left: var(--gutter-col);
+  width: var(--text-col);
+}
+
+.bleed {
+  margin-left: 0;
+  width: var(--full-col);
+}
+
+p { margin: 0 0 3.1mm; orphans: 3; widows: 3; }
+p + p { text-indent: 0; }
+
+a { color: var(--navy); text-decoration: none; border-bottom: 0.4pt solid var(--blue-soft); }
+
+strong { font-weight: 700; }
+em { font-style: italic; }
+
+code, .mono {
+  font-family: var(--mono);
+  font-size: 0.885em;
+  color: oklch(0.330 0.060 262);
+  background: var(--blue-wash);
+  padding: 0.3mm 1.1mm;
+  border-radius: 0.8mm;
+  white-space: nowrap;
+}
+
+/* --------------------------------------------------------------- headings */
+
+main h1, main h2, main h3 {
+  font-family: var(--sans);
+  color: var(--navy);
+  break-after: avoid;
+  break-inside: avoid;
+}
+
+main h1 {
+  font-size: 23pt;
+  font-weight: 600;
+  letter-spacing: -0.018em;
+  line-height: 1.12;
+  margin: 14mm 0 5mm;
+  padding-top: 3.5mm;
+  border-top: 1.4pt solid var(--navy);
+  break-after: avoid;
+}
+
+main h1.flow { margin-top: 0; }
+
+main h1 .num {
+  font-weight: 400;
+  color: var(--blue);
+  letter-spacing: 0;
+  font-variant-numeric: lining-nums;
+  margin-right: 3.5mm;
+}
+
+main h2 {
+  font-size: 15pt;
+  font-weight: 600;
+  letter-spacing: -0.012em;
+  line-height: 1.22;
+  margin: 7mm 0 2.6mm;
+}
+
+main h2 .num {
+  font-weight: 400;
+  color: var(--blue);
+  letter-spacing: 0;
+  font-variant-numeric: lining-nums;
+  margin-right: 3mm;
+}
+
+main h3 {
+  font-size: 12.6pt;
+  font-weight: 600;
+  color: var(--ink);
+  margin: 5mm 0 2mm;
+}
+
+/* --------------------------------------------------------------- lists */
+
+ul, ol { margin: 0 0 3.1mm; padding-left: 5.5mm; }
+li { margin-bottom: 1.3mm; padding-left: 0.8mm; }
+li::marker { color: var(--blue); font-weight: 600; }
+ul ul, ol ol, ul ol, ol ul { margin: 1.6mm 0 0; }
+
+/* --------------------------------------------------------------- figures */
+
+figure {
+  margin: 5mm 0 5.5mm;
+  break-inside: avoid;
+}
+
+figure img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: 0.4pt solid var(--rule-2);
+  border-radius: 1mm;
+}
+
+figcaption {
+  font-family: var(--sans);
+  font-size: 8.8pt;
+  font-weight: 300;
+  line-height: 1.45;
+  color: var(--ink-2);
+  margin-top: 2.6mm;
+  padding-top: 2mm;
+  border-top: 0.4pt solid var(--rule);
+  position: relative;
+}
+
+figcaption b, caption b { font-weight: 600; color: var(--navy); }
+
+figure.narrow img { width: 74%; margin: 0 auto; }
+
+/* Portrait diagrams need a much smaller box, or they claim a whole page. */
+figure.tall img { width: 44%; margin: 0 auto; }
+
+/* --------------------------------------------------------------- notes */
+
+.note {
+  background: var(--tint);
+  border: 0.4pt solid var(--rule);
+  border-radius: 1.4mm;
+  padding: 4mm 4.5mm 3mm;
+  margin: 5mm 0 5mm;
+  break-inside: avoid;
+}
+
+.note-label {
+  font-family: var(--sans);
+  font-size: 7pt;
+  font-weight: 600;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--blue);
+  margin: 0 0 1.8mm;
+}
+
+.note p:last-child { margin-bottom: 0; }
+
+blockquote {
+  margin: 5mm 0;
+  padding: 0 0 0 6mm;
+  border-left: 0.6pt solid var(--blue);
+  font-style: italic;
+  color: var(--ink-2);
+}
+
+blockquote p:last-child { margin-bottom: 0; }
+
+/* --------------------------------------------------------------- tables */
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--sans);
+  font-size: 9pt;
+  font-weight: 300;
+  line-height: 1.42;
+  margin: 5mm 0 6mm;
+  font-variant-numeric: lining-nums tabular-nums;
+  break-inside: avoid;
+}
+
+caption {
+  caption-side: bottom;
+  position: relative;
+  text-align: left;
+  font-family: var(--sans);
+  font-size: 8.6pt;
+  font-weight: 300;
+  color: var(--ink-2);
+  padding-top: 2.4mm;
+  margin-top: 2mm;
+  border-top: 0.4pt solid var(--rule);
+}
+
+caption b { font-weight: 600; color: var(--navy); }
+
+thead th {
+  font-weight: 600;
+  font-size: 8pt;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--navy);
+  text-align: left;
+  vertical-align: bottom;
+  padding: 0 3mm 2mm 0;
+  border-bottom: 1pt solid var(--navy);
+}
+
+tbody td, tbody th {
+  padding: 2.2mm 3mm 2.2mm 0;
+  border-bottom: 0.4pt solid var(--rule-2);
+  vertical-align: top;
+  text-align: left;
+}
+
+tbody th {
+  font-weight: 600;
+  color: var(--ink);
+  padding-right: 4mm;
+}
+
+tbody tr:last-child td, tbody tr:last-child th { border-bottom: 0.6pt solid var(--rule); }
+
+table code { background: none; padding: 0; font-size: 0.92em; }
+
+/* Matrix: the comparison grid on the summary page */
+
+.matrix { font-size: 7.2pt; table-layout: fixed; }
+.matrix thead th { font-size: 6.5pt; padding-right: 1.5mm; letter-spacing: 0.05em; }
+.matrix tbody th { font-size: 7.3pt; padding-right: 2mm; }
+.matrix tbody td { padding: 2.4mm 1.5mm 2.4mm 0; text-align: center; }
+.matrix thead th:not(:first-child) { text-align: center; padding-right: 0; }
+.matrix col.first { width: 25mm; }
+.matrix .ka { background: var(--blue-wash); }
+
+.matrix caption b:first-child {
+  position: static;
+  width: auto;
+  padding-right: 0;
+  text-align: left;
+}
+.matrix thead th.ka { color: var(--navy); font-weight: 700; }
+
+.mark { font-weight: 600; }
+.mark.y { color: var(--yes); }
+.mark.p { color: var(--part); }
+.mark.n { color: var(--no); }
+
+/* --------------------------------------------------------------- contents */
+
+.toc { width: var(--text-col); }
+
+.toc ol { list-style: none; margin: 0; padding: 0; }
+
+.toc > ol > li { margin: 0 0 1.4mm; }
+
+.toc-row {
+  display: flex;
+  align-items: baseline;
+  gap: 2mm;
+  font-family: var(--sans);
+  font-size: 10.2pt;
+  font-weight: 500;
+  color: var(--navy);
+  padding-top: 2.2mm;
+  border-top: 0.4pt solid var(--rule-2);
+}
+
+.toc > ol > li > .toc-row { border-top: 0.7pt solid var(--rule); }
+
+.toc-row .n { width: 9mm; color: var(--blue); font-weight: 400; flex: none; }
+.toc-row .t { flex: 1 1 auto; }
+.toc-row .p { color: var(--ink-3); font-weight: 400; font-variant-numeric: lining-nums; }
+
+.toc ol ol { margin: 0 0 0 9mm; }
+.toc ol ol .toc-row {
+  font-size: 9.4pt;
+  font-weight: 300;
+  color: var(--ink-2);
+  border-top: none;
+  padding-top: 0.9mm;
+}
+.toc ol ol .toc-row .n { width: 11mm; color: var(--ink-3); }
+
+/* --------------------------------------------------------------- colophon */
+
+.colophon-grid {
+  display: grid;
+  grid-template-columns: 34mm 1fr;
+  gap: 3mm 6mm;
+  font-family: var(--sans);
+  font-size: 9.4pt;
+  font-weight: 300;
+  line-height: 1.5;
+  margin: 6mm 0 0;
+  padding-top: 4mm;
+  border-top: 0.7pt solid var(--rule);
+}
+
+.colophon-grid dt {
+  font-weight: 600;
+  font-size: 7.2pt;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--blue);
+  padding-top: 0.6mm;
+}
+
+.colophon-grid dd { margin: 0; color: var(--ink-2); }
+
+.abstract {
+  font-size: 12.4pt;
+  line-height: 1.5;
+  color: var(--ink);
+}
+
+/* Index of figures and tables, set below the contents */
+
+.index-list {
+  break-inside: avoid;
+  width: var(--text-col);
+  margin-top: 10mm;
+}
+
+.index-list h2 {
+  font-size: 9pt;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--blue);
+  margin: 0 0 2.4mm;
+  padding-bottom: 1.6mm;
+  border-bottom: 0.7pt solid var(--rule);
+}
+
+.index-list ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  column-count: 2;
+  column-gap: 9mm;
+}
+
+.index-list li {
+  display: flex;
+  gap: 3mm;
+  font-family: var(--sans);
+  font-size: 8.6pt;
+  font-weight: 300;
+  line-height: 1.35;
+  color: var(--ink-2);
+  padding: 0.85mm 0;
+  border-bottom: 0.4pt solid var(--rule-2);
+  margin: 0;
+  break-inside: avoid;
+}
+
+.index-list li b {
+  flex: none;
+  width: 16mm;
+  font-weight: 500;
+  color: var(--navy);
+}
+
+
+/* --------------------------------------------------------------- back cover */
+
+.back-inner {
+  position: absolute;
+  inset: 26mm 20mm 22mm 20mm;
+  display: flex;
+  flex-direction: column;
+}
+
+.back-logo { width: 56mm; margin-bottom: 12mm; }
+
+.back-h {
+  font-family: var(--sans);
+  font-size: 22pt;
+  font-weight: 600;
+  letter-spacing: -0.018em;
+  margin: 0 0 5mm;
+  color: oklch(0.985 0.004 262);
+}
+
+.back-lede {
+  font-size: 11pt;
+  line-height: 1.52;
+  color: oklch(0.880 0.022 259);
+  max-width: 132mm;
+  margin: 0 0 10mm;
+}
+
+.back-links {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+  border-top: 0.4pt solid oklch(0.470 0.070 262);
+  font-family: var(--sans);
+}
+
+.back-links > div {
+  padding: 4mm 6mm 4mm 0;
+  border-bottom: 0.4pt solid oklch(0.420 0.060 262);
+}
+
+.back-links dt {
+  font-size: 7pt;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: oklch(0.760 0.090 259);
+  margin: 0 0 1.4mm;
+}
+
+.back-links dd {
+  margin: 0;
+  font-size: 9pt;
+  font-weight: 400;
+  color: oklch(0.960 0.010 259);
+  word-break: break-word;
+}
+
+.back-links a { color: inherit; border-bottom: none; }
+
+.back-foot {
+  margin-top: auto;
+  padding-top: 8mm;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 8mm;
+}
+
+.back-foot img { width: 44mm; background: oklch(0.985 0.004 262); padding: 2.5mm 3mm; border-radius: 1.4mm; }
+
+.back-foot p {
+  font-family: var(--sans);
+  font-size: 7.6pt;
+  font-weight: 300;
+  line-height: 1.6;
+  color: oklch(0.780 0.040 259);
+  margin: 0;
+  max-width: 106mm;
+  text-align: right;
+}
+
+/* --------------------------------------------------------------- utility */
+
+.lead { font-size: 12pt; line-height: 1.5; color: var(--ink-2); }
+
+.break-before { break-before: page; }
+.no-break { break-inside: avoid; }
+.tight { margin-top: -2mm; }
