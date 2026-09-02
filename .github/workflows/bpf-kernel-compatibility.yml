@@ -1,0 +1,105 @@
+# Build-on-target eBPF kernel-compatibility lane for KubeArmor's system_monitor.
+#
+# KubeArmor compiles its BPF per-node against the running kernel's BTF (its
+# Makefile builds with CO-RE access-index preservation off), so a portable
+# single-artifact check would not reflect how it actually loads. This lane
+# mirrors that model: in each kernel VM it installs the toolchain, builds
+# system_monitor.bpf.o against THAT guest's own /sys/kernel/btf/vmlinux, then
+# loads it (with the kubearmor_visibility HASH_OF_MAPS inner-map installed as the
+# loader would) and reports the per-kernel verdict.
+#
+# Non-blocking, schedule + manual only. Complementary to an lvh-based functional
+# suite, not a replacement: this narrowly answers "does system_monitor still
+# build and load on these vendor kernels?" and produces a classified report.
+#
+# Caveat: the load uses bpfcompat's libbpf-based validator, while KubeArmor's
+# runtime loader is cilium/ebpf; a libbpf load-pass is a strong signal but not
+# identical to a cilium/ebpf load. A future step could swap in a small
+# KubeArmor-owned cilium/ebpf self-test via the same command mode.
+name: bpf-kernel-compatibility
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 6 * * 1"
+
+permissions:
+  contents: read
+
+jobs:
+  build-on-target:
+    name: build system_monitor on each kernel and load it
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Install VM dependencies
+        run: |
+          sudo apt-get update
+          # cloud-image-utils provides cloud-localds: RHEL-family guests need a
+          # genuine cloud-init seed ISO.
+          sudo apt-get install -y --no-install-recommends \
+            qemu-system-x86 qemu-utils cloud-image-utils jq
+
+      - name: Enable KVM on the hosted runner
+        run: |
+          if [[ -e /dev/kvm ]]; then sudo chmod 0666 /dev/kvm || true; ls -l /dev/kvm; fi
+
+      - name: Build KubeArmor BPF on each kernel and load it
+        uses: Kernel-Guard/bpfcompat@fff95a4837198898ff194bf597ca3b546cb7d565 # v0.3.4
+        with:
+          # Command mode: verdict = exit code. Build system_monitor.bpf.o inside
+          # each guest against that kernel's own BTF, then load it.
+          command: |
+            set -e
+            . /etc/os-release
+            echo "=== $ID $VERSION_ID on $(uname -r) ==="
+            case "$ID" in
+              ubuntu)
+                export DEBIAN_FRONTEND=noninteractive; apt-get update -qq
+                apt-get install -y -qq --no-install-recommends clang llvm libelf-dev make git ca-certificates curl linux-tools-$(uname -r) \
+                  || apt-get install -y -qq --no-install-recommends clang llvm libelf-dev make git ca-certificates curl linux-tools-generic
+                apt-get clean; rm -rf /var/lib/apt/lists/* ;;
+              debian)
+                export DEBIAN_FRONTEND=noninteractive; apt-get update -qq
+                apt-get install -y -qq --no-install-recommends clang llvm libelf-dev make git ca-certificates curl bpftool
+                apt-get clean; rm -rf /var/lib/apt/lists/* ;;
+              almalinux|rocky|centos|rhel|ol|amzn)
+                dnf install -y -q clang llvm bpftool elfutils-libelf-devel zlib-devel make git curl ;;
+              opensuse-leap|sles)
+                zypper -n --gpg-auto-import-keys install -y clang llvm bpftool libelf-devel zlib-devel make git curl ;;
+              *) echo "unsupported distro: $ID"; exit 91 ;;
+            esac
+            command -v bpftool >/dev/null || { echo "no bpftool on PATH"; exit 90; }
+            cd /root
+            git clone --depth 1 -q https://github.com/kubearmor/KubeArmor
+            cd KubeArmor/KubeArmor/BPF
+            git submodule update --init --depth 1 libbpf
+            make kernel_headers >/dev/null
+            make system_monitor.bpf.o >/dev/null 2>&1
+            echo "built system_monitor.bpf.o against $(uname -r)"
+            V=v0.3.4
+            base="https://github.com/Kernel-Guard/bpfcompat/releases/download/$V"
+            curl -fsSLO "$base/bpfcompat-validator-static-linux-amd64"
+            curl -fsSLO "$base/SHA256SUMS"
+            grep 'bpfcompat-validator-static-linux-amd64' SHA256SUMS | sha256sum -c -
+            chmod +x bpfcompat-validator-static-linux-amd64
+            ./bpfcompat-validator-static-linux-amd64 \
+              --artifact system_monitor.bpf.o \
+              --set-map-inner-map kubearmor_visibility=hash:4:4:64 \
+              --out /tmp/kubearmor-load.json
+          matrix: .github/bpfcompat/kernel-matrix.yaml
+          disk-resize: "4"
+          out: reports/kubearmor-compat.json
+          markdown: reports/kubearmor-compat.md
+          timeout: 25m
+          concurrency: "2"
+
+      - name: Upload compatibility report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: kubearmor-kernel-compatibility
+          path: reports/
+          if-no-files-found: warn
