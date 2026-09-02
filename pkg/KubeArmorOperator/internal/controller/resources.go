@@ -609,6 +609,11 @@ func (clusterWatcher *ClusterWatcher) deployControllerDeployment(deployment *app
 		deployment.Spec.Template.Spec.NodeSelector = make(map[string]string)
 	}
 
+	// apply hostNetwork and dnsPolicy for overlay CNI environments (e.g. EKS with Cilium/Calico VXLAN)
+	// where pod IPs are not VPC-routable and the API server cannot reach webhook pod IPs directly
+	deployment.Spec.Template.Spec.HostNetwork = common.KubeArmorControllerHostNetwork
+	deployment.Spec.Template.Spec.DNSPolicy = corev1.DNSPolicy(common.KubeArmorControllerDNSPolicy)
+
 	// update envs from kubearmorconfig
 	AddOrUpdateEnv(&deployment.Spec.Template.Spec.Containers[0].Env, common.GlobalEnv)
 	AddOrUpdateEnv(&deployment.Spec.Template.Spec.Containers[0].Env, common.KubeArmorControllerEnv)
