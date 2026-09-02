@@ -6,6 +6,7 @@ package enforcer
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	probe "github.com/kubearmor/KubeArmor/KubeArmor/utils/bpflsmprobe"
@@ -62,7 +63,7 @@ func DetectEnforcer(lsmOrder []string, PathPrefix string, log zap.SugaredLogger)
 	supportedLsms = strings.Split(string(lsm), ",")
 
 probeLSM:
-	if !slice.ContainsString(supportedLsms, "bpf", nil) {
+	if !slices.Contains(supportedLsms, "bpf") {
 		err := probe.CheckBPFLSMSupport()
 		if err == nil {
 			supportedLsms = append(supportedLsms, "bpf")
@@ -74,7 +75,7 @@ probeLSM:
 	// Check if the AppArmor module is enabled on the system.
 	// Refer to Kubernetes documentation for more details:
 	// https://kubernetes.io/docs/tutorials/security/apparmor/#before-you-begin
-	if !slice.ContainsString(supportedLsms, "apparmor", nil) {
+	if !slices.Contains(supportedLsms, "apparmor") {
 		apparmorModule := PathPrefix + "/sys/module/apparmor/parameters/enabled"
 		if _, err := os.Stat(filepath.Clean(apparmorModule)); err == nil {
 			data, err := os.ReadFile(apparmorModule)
