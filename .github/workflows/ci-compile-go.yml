@@ -1,0 +1,123 @@
+name: check_commit_compile
+
+on: 
+  pull_request:
+    branches:
+      - 'main'
+    paths:
+      - 'KubeArmor/**'
+      - "pkg/**"
+  push:
+    branches:
+      - 'main'
+    paths:
+      - 'KubeArmor/**'
+      - "pkg/**"
+
+jobs:
+  check_controller_change:
+    name: Check what controllers were updated
+    if: github.repository == 'kubearmor/kubearmor'
+    runs-on: ubuntu-20.04
+    timeout-minutes: 5
+    outputs:
+      annotation: ${{ steps.filter.outputs.annotation }}
+      hostpolicy: ${{ steps.filter.outputs.hostpolicy }}
+      policy: ${{ steps.filter.outputs.policy }}
+    steps:
+    - uses: actions/checkout@v2
+    - uses: dorny/paths-filter@v2
+      id: filter
+      with:
+        filters: |
+          annotation:
+            - 'pkg/KubeArmorAnnotation/**'
+          hostpolicy:
+            - 'pkg/KubeArmorHostPolicy/**'
+          policy:
+            - 'pkg/KubeArmorPolicy/**'  
+
+  check_controller_compile:
+    needs: check_controller_change
+    strategy:
+      matrix:
+        include:
+          - controllers: needs.check_controller_change.outputs.annotation
+            module_path: ${{ 'pkg/KubeArmorAnnotation/' }}
+          - controllers: needs.check_controller_change.outputs.hostpolicy
+            module_path: ${{ 'pkg/KubeArmorHostPolicy/' }}
+          - controllers: needs.check_controller_change.outputs.policy
+            module_path: ${{ 'pkg/KubeArmorPolicy/' }}
+    name: Checks ${{ matrix.module_path }} Compilation
+    if: ${{ matrix.controllers }} == 'true'
+    runs-on: ubuntu-20.04
+    defaults:
+      run:
+        working-directory: ./${{ matrix.module_path }}
+    steps:
+      - name: Configure git
+        run: |
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "github-actions@users.noreply.github.com"
+      - name: Install Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: 1.18     
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+      - name: Check if build works for every commit
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          run: |
+            for commit in $(git rev-list ${{ github.event.before}}..${{ github.sha}}); do
+                git checkout $commit
+                go build
+                if [ $? -eq 0 ]; then
+                  echo "Commit $commit - ${{ matrix.module_path }} compiled"
+                else
+                  echo "Failed to compile $commit - ${{ matrix.module_path }} compiled"
+                  exit 1
+                fi
+              done
+
+
+  check_commit_compile:
+    name: Check if kubearmor compiles for every commit
+    if: github.repository == 'kubearmor/kubearmor'
+    runs-on: ubuntu-20.04
+    timeout-minutes: 60
+    steps:
+      - name: Configure git
+        run: |
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "github-actions@users.noreply.github.com"
+      - name: Install Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: 1.18     
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+      - name: Check if build works for every commit
+        uses: actions/checkout@v3
+        with:
+          # checkout full tree
+          fetch-depth: 0
+          run: |
+            for commit in $(git rev-list ${{ github.event.before}}..${{ github.sha}}); do
+                git checkout $commit
+                cd KubeArmor
+                make build
+                if [ $? -eq 0 ]; then
+                  echo "commit $commit compiled"
+                else
+                  echo "failed to compile $commit"
+                  exit 1
+                fi
+              done
