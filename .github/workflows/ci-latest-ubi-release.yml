@@ -35,7 +35,7 @@ jobs:
       kubearmor: ${{ steps.filter.outputs.kubearmor}}
       controller: ${{ steps.filter.outputs.controller }}
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - uses: dorny/paths-filter@4512585405083f25c027a35db413c2b3b9006d50 # v2
         id: filter
         with:
@@ -54,7 +54,7 @@ jobs:
       id-token: write
     timeout-minutes: 150
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           submodules: true
 
@@ -146,7 +146,7 @@ jobs:
       #     regctl image copy kubearmor/kubearmor-init-ubi:${{ steps.vars.outputs.tag }} public.ecr.aws/k9v9d5v2/kubearmor/kubearmor-init-ubi:${{ steps.vars.outputs.tag }} --digest-tags
 
       - name: Install Cosign
-        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # main
+        uses: sigstore/cosign-installer@874852de93c66509b01dc7cd80f7a5385182d017 # main
 
       - name: Get Image Digest
         id: digest
@@ -168,7 +168,7 @@ jobs:
       id-token: write
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           ref: main
 
@@ -241,7 +241,7 @@ jobs:
       id-token: write
     timeout-minutes: 150
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Install regctl
         env:
@@ -323,7 +323,7 @@ jobs:
       #     regctl image copy kubearmor/kubearmor-controller-ubi:${{ steps.tag.outputs.tag }} public.ecr.aws/k9v9d5v2/kubearmor/kubearmor-controller-ubi:${{ steps.tag.outputs.tag }}--digest-tags
 
       - name: Install Cosign
-        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # main
+        uses: sigstore/cosign-installer@874852de93c66509b01dc7cd80f7a5385182d017 # main
 
       - name: Get Image Digest
         id: digest

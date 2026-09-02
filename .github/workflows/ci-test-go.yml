@@ -9,7 +9,7 @@ jobs:
   go-fmt:
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
@@ -22,35 +22,35 @@ jobs:
   go-lint:
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
           go-version-file: "KubeArmor/go.mod"
 
       - name: Run Revive Action on KubeArmor
-        uses: morphy2k/revive-action@7b25e715309495d5c3cdef7caccb65ad9fa74ba3 # v2
+        uses: morphy2k/revive-action@bd8016177e3722fe0aad85e22507805641be5bb1 # v2
         with:
           path: "./KubeArmor/..."
 
   go-lint-tests:
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
           go-version-file: "KubeArmor/go.mod"
 
       - name: Run Revive Action on KubeArmor tests
-        uses: morphy2k/revive-action@7b25e715309495d5c3cdef7caccb65ad9fa74ba3 # v2
+        uses: morphy2k/revive-action@bd8016177e3722fe0aad85e22507805641be5bb1 # v2
         with:
           path: "./tests/..."
 
   go-sec:
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
@@ -81,7 +81,7 @@ jobs:
   go-vuln:
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
@@ -111,7 +111,7 @@ jobs:
   go-test:
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
@@ -149,7 +149,7 @@ jobs:
   license:
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Install LLVM/Clang
         run: ./.github/workflows/install-llvm.sh
 
