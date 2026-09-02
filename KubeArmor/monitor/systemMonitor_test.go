@@ -16,6 +16,8 @@ import (
 )
 
 func TestSystemMonitor(t *testing.T) {
+	StopChan = make(chan struct{})
+
 	// Set up Test Data
 
 	// containers
@@ -90,6 +92,8 @@ func TestSystemMonitor(t *testing.T) {
 }
 
 func TestTraceSyscallWithPod(t *testing.T) {
+	StopChan = make(chan struct{})
+
 	// Set up Test Data
 
 	// containers
@@ -191,6 +195,8 @@ func TestTraceSyscallWithPod(t *testing.T) {
 }
 
 func TestTraceSyscallWithHost(t *testing.T) {
+	StopChan = make(chan struct{})
+
 	// Set up Test Data
 
 	// containers
@@ -289,4 +295,77 @@ func TestTraceSyscallWithHost(t *testing.T) {
 		return
 	}
 	t.Log("[PASS] Destroyed logger")
+}
+
+func TestWgMonitorEnsuresWorkersFinishBeforeWait(t *testing.T) {
+	StopChan = make(chan struct{})
+
+	var mon SystemMonitor
+	const numWorkers = 3
+	workerSignaled := make(chan struct{}, numWorkers)
+
+	mon.WgMonitor.Add(numWorkers)
+	for range numWorkers {
+		go func() {
+			defer mon.WgMonitor.Done()
+			<-StopChan
+			workerSignaled <- struct{}{}
+		}()
+	}
+
+	waitReturned := make(chan struct{})
+	go func() {
+		mon.WgMonitor.Wait()
+		close(waitReturned)
+	}()
+
+	select {
+	case <-waitReturned:
+		t.Fatal("WgMonitor.Wait() returned before stop signal")
+	case <-time.After(50 * time.Millisecond):
+	}
+
+	close(StopChan)
+
+	select {
+	case <-waitReturned:
+	case <-time.After(time.Second):
+		t.Fatal("WgMonitor.Wait() did not return after stop signal")
+	}
+
+	if len(workerSignaled) != numWorkers {
+		t.Fatalf("expected %d workers to finish before Wait returned, got %d", numWorkers, len(workerSignaled))
+	}
+}
+
+func TestWgMonitorUpdateLogsTracked(t *testing.T) {
+	StopChan = make(chan struct{})
+
+	var mon SystemMonitor
+
+	mon.WgMonitor.Add(1)
+	go func() {
+		defer mon.WgMonitor.Done()
+		mon.UpdateLogs()
+	}()
+
+	waitReturned := make(chan struct{})
+	go func() {
+		mon.WgMonitor.Wait()
+		close(waitReturned)
+	}()
+
+	select {
+	case <-waitReturned:
+		t.Fatal("WgMonitor.Wait() returned before stop signal")
+	case <-time.After(50 * time.Millisecond):
+	}
+
+	close(StopChan)
+
+	select {
+	case <-waitReturned:
+	case <-time.After(time.Second):
+		t.Fatal("WgMonitor.Wait() did not return after stop signal")
+	}
 }
