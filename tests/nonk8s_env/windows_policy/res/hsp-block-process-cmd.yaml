@@ -1,0 +1,14 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorHostPolicy
+metadata:
+  name: hsp-block-cmd-exec
+spec:
+  nodeSelector:
+    matchLabels:
+      kubearmor.io/hostname: "*"
+  process:
+    matchPaths:
+      - path: C:/Windows/System32/cmd.exe
+  action: Block
+  severity: 5
+  message: "cmd.exe execution blocked by KubeArmor"

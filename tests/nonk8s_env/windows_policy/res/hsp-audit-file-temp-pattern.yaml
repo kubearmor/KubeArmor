@@ -1,0 +1,17 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorHostPolicy
+metadata:
+  name: hsp-audit-file-temp
+spec:
+  nodeSelector:
+    matchLabels:
+      kubearmor.io/hostname: "*"
+  severity: 5
+  tags:
+    - host
+    - filesystem
+  message: "File access under C:/Temp audited by KubeArmor"
+  action: Audit
+  file:
+    matchPatterns:
+      - pattern: C:/Temp/*

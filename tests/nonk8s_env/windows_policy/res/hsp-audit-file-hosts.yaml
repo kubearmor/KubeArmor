@@ -1,0 +1,17 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorHostPolicy
+metadata:
+  name: hsp-audit-hosts-file
+spec:
+  nodeSelector:
+    matchLabels:
+      kubearmor.io/hostname: "*"
+  severity: 5
+  tags:
+    - host
+    - filesystem
+  message: "Hosts file access audited by KubeArmor"
+  action: Audit
+  file:
+    matchPaths:
+      - path: C:/Windows/System32/drivers/etc/hosts

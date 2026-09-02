@@ -1,0 +1,249 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 Authors of KubeArmor
+name: ci-test-windows
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Declare default permissions as read only.
+permissions: read-all
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+
+  # ── 1. Detect which paths changed ──────────────────────────────────────────
+  detect-changes:
+    name: Detect changed files
+    runs-on: ubuntu-latest
+    outputs:
+      windows: ${{ steps.filter.outputs.windows_any_changed }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Filter repository paths
+        uses: tj-actions/changed-files@9426d40962ed5378910ee2e21d5f8c6fcbf2dd96 # v47.0.6
+        id: filter
+        with:
+          files_yaml: |
+            windows:
+              - 'KubeArmor/**'
+              - 'pkg/KubeArmorWindowsDriver/**'
+              - 'pkg/KubeArmorDriverInstaller/**'
+              - 'tests/nonk8s_env/windows_policy/**'
+              - 'protobuf/**'
+              - '.github/workflows/ci-test-windows.yml'
+              - '.github/scripts/windows/**'
+
+  # ── 2. Build and test (matrix over enforcement mode) ───────────────────────
+  test-windows:
+    name: Test KubeArmor on Windows (${{ matrix.enforcement }})
+    needs: [detect-changes]
+    if: |
+      !cancelled() &&
+      needs.detect-changes.outputs.windows == 'true'
+    runs-on: [Windows]
+    strategy:
+      fail-fast: false
+      matrix:
+        enforcement:
+          - AppLocker + Minifilter enforcement
+
+    steps:
+      # ── 1. Checkout ──────────────────────────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          submodules: true
+
+      # ── 2. Set up Go ─────────────────────────────────────────────────────────
+      - name: Set up Go
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version-file: "KubeArmor/go.mod"
+
+      # ── 3. Generate protobuf stubs ────────────────────────────────────────────
+      - name: Install protoc
+        run: |
+          choco install protoc --yes --no-progress
+          go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.11
+          go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.6.1
+          echo "$(go env GOPATH)\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+        shell: powershell
+
+      - name: Generate protobuf
+        run: |
+          go mod tidy
+          protoc --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative,require_unimplemented_servers=false kubearmor.proto kvm.proto policy.proto state.proto
+          sed -i -e 's/\bPPID,omitempty\b/PPID,/' -e 's/\bUID,omitempty\b/UID,/' kubearmor.pb.go
+        working-directory: protobuf
+        shell: bash
+
+      # ── 4. Build KubeArmor Artifacts (Driver, EXE, MSI) ──────────────────────
+      - name: Build Windows Artifacts
+        run: |
+          .\.github\scripts\windows\ci-build-kubearmor.ps1
+        shell: powershell
+
+      # ── 5. Enable and start the Application Identity service (AppLocker) ─────
+      - name: Enable Application Identity service (required for AppLocker)
+        run: |
+          # Set-Service -StartupType triggers a PowerShell bug that also tries
+          # to update the service description, which fails with "Access is denied"
+          # even for admins. Use sc.exe directly to set only the start type.
+          sc.exe config AppIDSvc start= auto
+          # Exit 1056 = "already running" -- treat as success
+          sc.exe start AppIDSvc; if ($LASTEXITCODE -eq 1056) { $LASTEXITCODE = 0 }
+          $deadline = (Get-Date).AddSeconds(30)
+          while ((Get-Date) -lt $deadline) {
+            $svc = Get-Service -Name AppIDSvc -ErrorAction SilentlyContinue
+            if ($svc -and $svc.Status -eq 'Running') { break }
+            Start-Sleep -Seconds 2
+          }
+          $svc = Get-Service -Name AppIDSvc
+          Write-Host "AppIDSvc status: $($svc.Status)"
+          if ($svc.Status -ne 'Running') {
+            Write-Error "AppIDSvc failed to start"
+            exit 1
+          }
+        shell: powershell
+
+      # ── 6. Enable AppLocker event log channels ─────────────────────────────
+      - name: Enable AppLocker event log channels
+        run: |
+          $channels = @(
+            "Microsoft-Windows-AppLocker/EXE and DLL",
+            "Microsoft-Windows-AppLocker/MSI and Script",
+            "Microsoft-Windows-AppLocker/Packaged app-Execution"
+          )
+          foreach ($ch in $channels) {
+            wevtutil sl $ch /e:true 2>$null
+            Write-Host "Enabled channel: $ch"
+          }
+        shell: powershell
+
+      # ── 7. Install KubeArmor via MSI ──────────────────────────────────────────
+      - name: Install KubeArmor MSI
+        run: |
+          # The MSI's built-in StartDriver custom action (fltmc load kubearmor)
+          # silently fails in non-interactive sessions because setupapi needs a
+          # desktop. Pre-register the INF and load the driver manually first,
+          # exactly as the Vagrant 08-install-kubearmor-service.ps1 does.
+          $driverPkg = "pkg\KubeArmorWindowsDriver\x64\Release\kubearmor"
+          $driverInf = "$driverPkg\kubearmor.inf"
+
+          if (Test-Path $driverInf) {
+            Write-Host "Pre-registering kubearmor minifilter driver via INF..."
+            Push-Location $driverPkg
+            & "$env:SystemRoot\System32\rundll32.exe" setupapi.dll,InstallHinfSection DefaultInstall 128 ".\kubearmor.inf"
+            Pop-Location
+            Start-Sleep -Seconds 3
+          } else {
+            Write-Error "Driver INF not found at $driverInf -- build step must have failed."
+            exit 1
+          }
+
+          Write-Host "Loading kubearmor minifilter into kernel..."
+          fltmc.exe load kubearmor
+          if ($LASTEXITCODE -ne 0) {
+            Write-Error "fltmc load kubearmor failed (exit $LASTEXITCODE) -- check test-signing mode."
+            exit 1
+          }
+          Write-Host "Driver loaded successfully."
+          fltmc.exe filters
+
+          Write-Host "Triggering MSI installation..."
+          $p = Start-Process msiexec.exe -Wait -PassThru -ArgumentList "/i", "dist\KubeArmorDriverInstaller.msi", "/quiet", "/qn", "/norestart", "/l*v", "install.log"
+          if ($p.ExitCode -ne 0) {
+            Write-Host "--- BEGIN install.log (last 50 lines) ---"
+            Get-Content install.log -ErrorAction SilentlyContinue | Select-Object -Last 50
+            Write-Host "--- END install.log ---"
+            Write-Error "MSI installation failed (exit $($p.ExitCode)). See above log."
+            exit 1
+          }
+
+          Write-Host "MSI installed. Waiting up to 30s for KubeArmor service to reach Running state..."
+          $deadline = (Get-Date).AddSeconds(30)
+          while ((Get-Date) -lt $deadline) {
+            $svc = Get-Service -Name KubeArmorSvc -ErrorAction SilentlyContinue
+            if ($svc -and $svc.Status -eq 'Running') { break }
+            Start-Sleep -Seconds 2
+          }
+
+          $svc = Get-Service -Name KubeArmorSvc -ErrorAction SilentlyContinue
+          if ($null -eq $svc -or $svc.Status -ne 'Running') {
+            Write-Error "KubeArmorSvc failed to start. Current status: $($svc.Status)"
+            exit 1
+          }
+          Write-Host "KubeArmor service is running."
+        shell: powershell
+
+      # ── 8. Install Ginkgo CLI ─────────────────────────────────────────────────
+      - name: Install Ginkgo
+        run: go install -mod=mod github.com/onsi/ginkgo/v2/ginkgo@9ff1646a26f77a4c0d33ddba3e6368c42c0e8842
+        shell: powershell
+
+      # ── 9. Run Windows policy tests ───────────────────────────────────────────
+      - name: Run Windows policy Ginkgo tests
+        run: |
+          go mod tidy
+          ginkgo -r --vv --flake-attempts=3 --timeout=20m ./windows_policy/
+        working-directory: tests/nonk8s_env
+        shell: powershell
+        timeout-minutes: 25
+
+      # ── 10. Collect KubeArmor logs on failure ────────────────────────────────
+      - name: Collect KubeArmor service logs (on failure)
+        if: failure()
+        run: |
+          Get-WinEvent -LogName Application -MaxEvents 100 |
+            Where-Object { $_.ProviderName -like "*KubeArmor*" } |
+            Format-List TimeCreated, Message |
+            Out-String -Width 200
+        shell: powershell
+
+      - name: Collect AppLocker block events (on failure)
+        if: failure()
+        run: |
+          try {
+            Get-WinEvent -LogName "Microsoft-Windows-AppLocker/EXE and DLL" -MaxEvents 20 |
+              Format-List TimeCreated, Message |
+              Out-String -Width 200
+          } catch {
+            Write-Host "No AppLocker events found or channel unavailable: $_"
+          }
+        shell: powershell
+
+      # ── 11. Teardown: uninstall KubeArmor MSI ────────────────────────────────
+      - name: Uninstall KubeArmor MSI
+        if: always()
+        run: |
+          msiexec.exe /x dist\KubeArmorDriverInstaller.msi /quiet /qn /norestart
+        shell: powershell
+
+  # ── 3. Composite result gate ──────────────────────────────────────────────
+  windows-composite-result:
+    name: Windows Tests - Composite result
+    if: always()
+    needs: [detect-changes, test-windows]
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          if [[ "${{ needs.detect-changes.outputs.windows }}" != "true" ]]; then
+            echo "No Windows-relevant files changed -- skipping."
+            exit 0
+          fi
+          if [[ "${{ contains(needs.*.result, 'failure') }}" == "true" || "${{ contains(needs.*.result, 'cancelled') }}" == "true" ]]; then
+            echo "One or more Windows tests failed or were cancelled."
+            exit 1
+          else
+            echo "All Windows tests passed."
+            exit 0
+          fi
+        shell: bash

@@ -1,0 +1,81 @@
+name: ci-windows-release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag which has to be updated"
+        type: string
+        required: true
+  push:
+    tags:
+      - "*"
+
+permissions: read-all
+
+jobs:
+  build-and-release:
+    name: Build and release Windows artifacts
+    if: github.repository == 'Aryan-sharma11/kubearmor'
+    runs-on: windows-2022
+    timeout-minutes: 90
+    permissions:
+      contents: write
+
+    steps:
+      - name: Validate version
+        id: validate
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea
+        with:
+          script: |
+            const Regex = /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/;
+            const version = '${{ github.event_name }}' === 'push'
+              ? '${{ github.ref_name }}'
+              : '${{ inputs.tag }}';
+            if (!Regex.test(version)) {
+              core.setFailed(`Invalid version format: ${version}`);
+            } else {
+              core.setOutput('release_tag', version);
+            }
+
+      - name: Checkout repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0
+
+      - name: Prepare release tag
+        id: tag
+        shell: pwsh
+        run: |
+          $tag = "${{ steps.validate.outputs.release_tag }}"
+          "tag=$tag" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          if ("${{ github.event_name }}" -eq "workflow_dispatch") {
+            git checkout $tag
+          }
+
+      - name: Set up Go
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version-file: "KubeArmor/go.mod"
+
+      - name: Install dependencies
+        shell: pwsh
+        run: |
+          .github\scripts\windows\Install-Dependencies.ps1 -RepoRoot "${{ github.workspace }}"
+
+      - name: Build Windows artifacts
+        shell: pwsh
+        run: |
+          .github\scripts\windows\Build-WindowsArtifacts.ps1 `
+            -Version "${{ steps.tag.outputs.tag }}" `
+            -RepoRoot "${{ github.workspace }}"
+
+      - name: Publish release assets
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          .github\scripts\windows\Publish-Release.ps1 `
+            -Version "${{ steps.tag.outputs.tag }}" `
+            -Repo "${{ github.repository }}" `
+            -RepoRoot "${{ github.workspace }}"

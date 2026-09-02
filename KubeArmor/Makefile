@@ -21,7 +21,7 @@ PKG      := $(shell go list ./buildinfo)
 GIT_INFO := $(shell govvv -flags -pkg $(PKG))
 
 .PHONY: build
-build: protobuf
+build: 
 	cd $(CURDIR); go mod tidy
 ifneq (, $(shell which bpftool))
 ifneq (, $(wildcard /sys/kernel/btf/vmlinux))
@@ -31,7 +31,7 @@ endif
 ifneq (, $(shell which clang))
 	cd $(CURDIR); go generate ./...
 endif
-	cd $(CURDIR); CGO_ENABLED=0 go build -ldflags "$(GIT_INFO)" -o kubearmor main.go
+	cd $(CURDIR); CGO_ENABLED=0 go build -ldflags "$(GIT_INFO)" -o kubearmor main_linux.go
 
 .PHONY: protobuf
 protobuf:

@@ -8,11 +8,12 @@ Now that KubeArmor knows _who_ is doing something, it needs to decide if that ac
 
 Think of the Runtime Enforcer as the actual security guard positioned at the gates and doors of your system. It receives the security rules you defined in your Security Policies (KSP, HSP, CSP). But applications and the operating system don't directly understand KubeArmor policy YAML!
 
-The Runtime Enforcer's main task is to translate these high-level KubeArmor rules into instructions that the underlying operating system's built-in security features can understand and enforce. These OS security features are powerful mechanisms within the Linux kernel designed to control what processes can and cannot do. Common examples include:
+The Runtime Enforcer's main task is to translate these high-level KubeArmor rules into instructions that the underlying operating system's built-in security features can understand and enforce. On **Linux**, these are kernel LSM mechanisms. On **Windows**, KubeArmor uses a minifilter kernel driver and AppLocker. Common examples include:
 
 - **AppArmor:** Used by distributions like Ubuntu, Debian, and SLES. It uses security _profiles_ that define access controls for individual programs (processes).
 - **SELinux:** Used by distributions like Fedora, CentOS/RHEL, and Alpine Linux. It uses a system of _labels_ and rules to control interactions between processes and system resources.
 - **BPF-LSM:** A newer mechanism using eBPF programs attached to Linux Security Module (LSM) hooks to enforce security policies directly within the kernel.
+- **Minifilter + AppLocker (Windows):** On Windows, a kernel-mode minifilter driver enforces file/directory rules, and Windows AppLocker enforces process/script rules. See [Windows Support](../getting-started/windows_support.md) for details.
 
 When an application or process on your node or inside a container attempts to do something (like open a file, start a new process, or make a network connection), the Runtime Enforcer (via the configured OS security feature) steps in. It checks the translated rules that apply to the identified workload and tells the operating system whether to **Allow**, **Audit**, or **Block** the action.
 
@@ -290,6 +291,22 @@ func (be *BPFEnforcer) AddContainerIDToMap(containerID string, pidns, mntns uint
 This heavily simplified snippet shows how the BPF enforcer loads BPF programs and attaches them to kernel LSM hooks. It also hints at how container identity (Container/Node Identity) is used (via `pidns`, `mntns`) as a key to organize rules within BPF maps (`BPFContainerMap`), allowing the kernel's BPF program to quickly look up the relevant policy when an event occurs. The `AddContainerIDToMap` function, although simplified, demonstrates how KubeArmor populates these maps.
 
 Each enforcer type requires specific logic within KubeArmor to translate policies and interact with the OS. The Runtime Enforcer component provides this abstraction layer, allowing KubeArmor policies to be enforced regardless of the underlying Linux security module, as long as it's supported.
+
+## Windows Enforcement
+
+On Windows, KubeArmor does not use Linux LSM hooks. Instead, two enforcement mechanisms work in tandem:
+
+1. **Minifilter Kernel Driver** (`kubearmor.inf`): A Windows file system minifilter loaded via `fltmc`. It receives file and process rules from KubeArmor via IOCTL and enforces them at the kernel level using NT namespace path matching. This is the primary enforcer for `file` rules in `KubeArmorHostPolicy`.
+
+2. **AppLocker**: KubeArmor generates and applies an AppLocker XML policy (via `Set-AppLockerPolicy`) for process, script, DLL, and packaged app enforcement. An event-log poller translates AppLocker block events into KubeArmor `MatchedHostPolicy` alerts.
+
+Container enforcement (`KubeArmorPolicy`) is **not** available on Windows — only `KubeArmorHostPolicy` is supported.
+
+For the full architecture description, enforcement model, and policy examples, see:
+- [Windows Support Architecture](../getting-started/windows_support.md)
+- [Windows Policy Field Reference](../getting-started/windows_policy_spec.md)
+- [AppLocker vs Kernel Driver Guide](../getting-started/windows_applocker_kernel_driver.md)
+
 
 ## Policy Actions and the Enforcer
 
