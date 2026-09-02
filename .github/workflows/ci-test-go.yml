@@ -137,6 +137,9 @@ jobs:
       - name: Run go test on the KubeArmor/KubeArmor directory
         run: go test -coverprofile=coverage.txt -covermode=atomic ./...
         working-directory: KubeArmor
+        env:
+          TLSCERTPROVIDER: dev
+          TLSCERTPATH: ${{ runner.temp }}/kubearmor-tls
 
       - name: Upload code coverage to Codecov
         uses: codecov/codecov-action@b9fd7d16f6d7d1b5d2bec1a2887e65ceed900238 # v4

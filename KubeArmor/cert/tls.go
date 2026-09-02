@@ -14,6 +14,7 @@ import (
 const (
 	SelfCertProvider     string = "self"
 	ExternalCertProvider string = "external"
+	DevCertProvider      string = "dev"
 )
 
 type TlsConfig struct {
@@ -32,6 +33,12 @@ type TlsConfig struct {
 	// "self" : Certificates Will be Generated Dynamically
 	// "external": Certificates Are Provided Using File
 	CertProvider string
+	NodeIP       string
+	ServerNames  []string
+	// ServerPrefix is the primary DNS identity for the server cert
+	// (e.g. "kubearmor" for observability, "kubearmor-management" for management).
+	// Only used with DevCertProvider.
+	ServerPrefix string
 }
 
 type TlsCredentialManager struct {
@@ -63,6 +70,17 @@ func NewTlsCredentialManager(cfg *TlsConfig) *TlsCredentialManager {
 		cl := ExternalCertLoader{
 			CaCertPath: cfg.CACertPath,
 			CertPath:   cfg.CertPath,
+		}
+		return &TlsCredentialManager{
+			CertLoader: &cl,
+		}
+	case DevCertProvider:
+		cl := DevCertLoader{
+			CaCertPath:     cfg.CACertPath,
+			ServerCertPath: cfg.CertPath,
+			NodeIP:         cfg.NodeIP,
+			ServerNames:    cfg.ServerNames,
+			ServerPrefix:   cfg.ServerPrefix,
 		}
 		return &TlsCredentialManager{
 			CertLoader: &cl,

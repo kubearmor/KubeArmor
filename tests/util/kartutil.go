@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
+	"net"
 	"os"
 	"os/exec"
 	"regexp"
@@ -18,16 +19,16 @@ import (
 
 	gomegaTypes "github.com/onsi/gomega/types"
 
+	cert "github.com/kubearmor/KubeArmor/KubeArmor/cert"
+	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 	kcV1 "github.com/kubearmor/KubeArmor/pkg/KubeArmorController/api/security.kubearmor.com/v1"
 	kcScheme "github.com/kubearmor/KubeArmor/pkg/KubeArmorController/client/clientset/versioned/scheme"
 	kc "github.com/kubearmor/KubeArmor/pkg/KubeArmorController/client/clientset/versioned/typed/security.kubearmor.com/v1"
 	pb "github.com/kubearmor/KubeArmor/protobuf"
 	kcli "github.com/kubearmor/kubearmor-client/k8s"
-	kclient "github.com/kubearmor/kubearmor-client/vm"
 	. "github.com/onsi/gomega"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/types/known/emptypb"
 	appsV1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -36,6 +37,7 @@ import (
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/tools/remotecommand"
 	"k8s.io/kubectl/pkg/scheme"
+	"sigs.k8s.io/yaml"
 )
 
 var k8sClient *kcli.Client
@@ -575,7 +577,7 @@ func K8sApplyFile(fileName string) error {
 				MatchCapabilities: append([]kcV1.MatchCapabilitiesType{}, ksp.Spec.Capabilities.MatchCapabilities...),
 			}
 			ksp.Spec.Network = kcV1.NetworkType{
-				MatchProtocols: append([]kcV1.MatchNetworkProtocolType{}, ksp.Spec.Network.MatchProtocols...),
+				MatchProtocols:  append([]kcV1.MatchNetworkProtocolType{}, ksp.Spec.Network.MatchProtocols...),
 				MatchDNSQueries: append([]kcV1.MatchDNSQueryType{}, ksp.Spec.Network.MatchDNSQueries...),
 			}
 
@@ -595,7 +597,7 @@ func K8sApplyFile(fileName string) error {
 				MatchCapabilities: append([]kcV1.MatchCapabilitiesType{}, csp.Spec.Capabilities.MatchCapabilities...),
 			}
 			csp.Spec.Network = kcV1.NetworkType{
-				MatchProtocols: append([]kcV1.MatchNetworkProtocolType{}, csp.Spec.Network.MatchProtocols...),
+				MatchProtocols:  append([]kcV1.MatchNetworkProtocolType{}, csp.Spec.Network.MatchProtocols...),
 				MatchDNSQueries: append([]kcV1.MatchDNSQueryType{}, csp.Spec.Network.MatchDNSQueries...),
 			}
 
@@ -650,7 +652,7 @@ func K8sApplyFile(fileName string) error {
 				MatchCapabilities: append([]kcV1.MatchHostCapabilitiesType{}, hsp.Spec.Capabilities.MatchCapabilities...),
 			}
 			hsp.Spec.Network = kcV1.HostNetworkType{
-				MatchProtocols: append([]kcV1.MatchHostNetworkProtocolType{}, hsp.Spec.Network.MatchProtocols...),
+				MatchProtocols:  append([]kcV1.MatchHostNetworkProtocolType{}, hsp.Spec.Network.MatchProtocols...),
 				MatchDNSQueries: append([]kcV1.MatchHostDNSQueryType{}, hsp.Spec.Network.MatchDNSQueries...),
 			}
 
@@ -811,28 +813,151 @@ func RunHostCommand(cmd []string) (string, error) {
 	return outStr, nil
 }
 
-// SendPolicy sends kubearmor policy using grpc client
-func SendPolicy(eventType, path string) error {
-	var policyOptions kclient.PolicyOptions
-	err := kclient.PolicyHandling(eventType, path, policyOptions)
+func managementGRPCAddress() string {
+	if val, ok := os.LookupEnv("KUBEARMOR_MANAGEMENT_SERVICE"); ok {
+		return val
+	}
 
-	return err
+	if val, ok := os.LookupEnv("KUBEARMOR_SERVICE"); ok {
+		host, _, err := net.SplitHostPort(val)
+		if err == nil && host != "" {
+			return net.JoinHostPort(host, "32768")
+		}
+	}
+
+	return "localhost:32768"
+}
+
+func kubearmorTLSPath() string {
+	if val, ok := os.LookupEnv("KUBEARMOR_TLS_CERT_PATH"); ok {
+		return val
+	}
+	if val, ok := os.LookupEnv("TLSCERTPATH"); ok {
+		return val
+	}
+	return "/var/lib/kubearmor/tls"
+}
+
+func kubearmorManagementTLSPath() string {
+	if val, ok := os.LookupEnv("KUBEARMOR_MANAGEMENT_TLS_CERT_PATH"); ok {
+		return val
+	}
+	return kubearmorTLSPath() + "/management"
+}
+
+func newManagementGRPCClient() (*grpc.ClientConn, error) {
+	tlsConfig := cert.TlsConfig{
+		CertProvider: cert.ExternalCertProvider,
+		CACertPath:   cert.GetCACertPath(kubearmorManagementTLSPath()),
+		CertPath:     cert.GetClientCertPath(kubearmorManagementTLSPath()),
+	}
+	creds, err := cert.NewTlsCredentialManager(&tlsConfig).CreateTlsClientCredentials()
+	if err != nil {
+		return nil, err
+	}
+	return grpc.NewClient(managementGRPCAddress(), grpc.WithTransportCredentials(creds))
+}
+
+func policyEventData(eventType, path string) ([]byte, string, error) {
+	policyFile, err := os.ReadFile(path)
+	if err != nil {
+		return nil, "", err
+	}
+
+	policies := strings.Split(string(policyFile), "---")
+	for _, policy := range policies {
+		if regexp.MustCompile(`^\s*$`).MatchString(policy) {
+			continue
+		}
+
+		js, err := yaml.YAMLToJSON([]byte(policy))
+		if err != nil {
+			return nil, "", err
+		}
+
+		var meta struct {
+			Kind string `json:"kind"`
+		}
+		if err := json.Unmarshal(js, &meta); err != nil {
+			return nil, "", err
+		}
+
+		var policyEvent any
+		switch meta.Kind {
+		case "KubeArmorPolicy":
+			var containerPolicy tp.K8sKubeArmorPolicy
+			if err := json.Unmarshal(js, &containerPolicy); err != nil {
+				return nil, "", err
+			}
+			policyEvent = tp.K8sKubeArmorPolicyEvent{Type: eventType, Object: containerPolicy}
+		case "KubeArmorHostPolicy":
+			var hostPolicy tp.K8sKubeArmorHostPolicy
+			if err := json.Unmarshal(js, &hostPolicy); err != nil {
+				return nil, "", err
+			}
+			policyEvent = tp.K8sKubeArmorHostPolicyEvent{Type: eventType, Object: hostPolicy}
+		case "KubeArmorNetworkPolicy":
+			var networkPolicy tp.K8sKubeArmorNetworkPolicy
+			if err := json.Unmarshal(js, &networkPolicy); err != nil {
+				return nil, "", err
+			}
+			policyEvent = tp.K8sKubeArmorNetworkPolicyEvent{Type: eventType, Object: networkPolicy}
+		default:
+			return nil, "", fmt.Errorf("unsupported policy kind %q", meta.Kind)
+		}
+
+		data, err := json.Marshal(policyEvent)
+		if err != nil {
+			return nil, "", err
+		}
+		return data, meta.Kind, nil
+	}
+
+	return nil, "", fmt.Errorf("no policy found in %s", path)
+}
+
+// SendPolicy sends kubearmor policy using management grpc client
+func SendPolicy(eventType, path string) error {
+	data, kind, err := policyEventData(eventType, path)
+	if err != nil {
+		return err
+	}
+
+	conn, err := newManagementGRPCClient()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	client := pb.NewPolicyServiceClient(conn)
+	req := pb.Policy{Policy: data}
+
+	var resp *pb.Response
+	switch kind {
+	case "KubeArmorPolicy":
+		resp, err = client.ContainerPolicy(context.Background(), &req)
+	case "KubeArmorHostPolicy":
+		resp, err = client.HostPolicy(context.Background(), &req)
+	case "KubeArmorNetworkPolicy":
+		resp, err = client.NetworkPolicy(context.Background(), &req)
+	}
+	if err != nil {
+		return err
+	}
+	if resp.Status == pb.PolicyStatus_Failure || resp.Status == pb.PolicyStatus_Invalid || resp.Status == pb.PolicyStatus_NotEnabled {
+		return fmt.Errorf("policy %s returned status %s", path, resp.Status.String())
+	}
+
+	return nil
 }
 
 // ContainerInfo function receives container info from kuberamor in nonk8s mode using grpc client
 func ContainerInfo() (*pb.ProbeResponse, error) {
-	gRPC := ""
-
-	if val, ok := os.LookupEnv("KUBEARMOR_SERVICE"); ok {
-		gRPC = val
-	} else {
-		gRPC = "localhost:32767"
-	}
-
-	conn, err := grpc.NewClient(gRPC, grpc.DialOption(grpc.WithTransportCredentials(insecure.NewCredentials())))
+	conn, err := newManagementGRPCClient()
 	if err != nil {
 		return nil, err
 	}
+	defer conn.Close()
 
 	client := pb.NewProbeServiceClient(conn)
 
