@@ -184,3 +184,49 @@ func TestAddorUpdateNodeSelector(t *testing.T) {
 		})
 	})
 }
+
+func TestRemoveDeletedEntriesForNodeSelector(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    map[string]string
+		expected map[string]string
+	}{
+		{
+			name: "remove single deleted entry",
+			input: map[string]string{
+				"hostname": "worker1",
+				"env":      "-",
+			},
+			expected: map[string]string{
+				"hostname": "worker1",
+			},
+		},
+		{
+			name: "no entries to remove",
+			input: map[string]string{
+				"app": "nginx",
+			},
+			expected: map[string]string{
+				"app": "nginx",
+			},
+		},
+		{
+			name: "remove multiple deleted entries",
+			input: map[string]string{
+				"hostname": "worker1",
+				"env":      "-",
+				"region":   "-",
+			},
+			expected: map[string]string{
+				"hostname": "worker1",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			RemoveDeletedEntriesForNodeSelector(tt.input)
+			assert.Equal(t, tt.expected, tt.input)
+		})
+	}
+}
