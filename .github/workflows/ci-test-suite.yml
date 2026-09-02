@@ -22,7 +22,7 @@ jobs:
       codespell: ${{ steps.filter.outputs.codespell_any_changed }}
     steps:
       - name: Checkout Code
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         
       - name: Filter Repository Paths
         uses: tj-actions/changed-files@9426d40962ed5378910ee2e21d5f8c6fcbf2dd96 # v47.0.6
@@ -66,7 +66,7 @@ jobs:
     needs: [detect-changes]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Check License Header
         uses: apache/skywalking-eyes@ed436a5593c63a25f394ea29da61b0ac3731a9fe
