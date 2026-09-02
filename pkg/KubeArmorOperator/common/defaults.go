@@ -357,6 +357,15 @@ var CommonVolumes = []corev1.Volume{
 			},
 		},
 	},
+	{
+		Name: "machine-id",
+		VolumeSource: corev1.VolumeSource{
+			HostPath: &corev1.HostPathVolumeSource{
+				Path: "/etc/machine-id",
+				Type: &HostPathFile,
+			},
+		},
+	},
 }
 
 var CommonVolumesMount = []corev1.VolumeMount{
@@ -373,6 +382,11 @@ var CommonVolumesMount = []corev1.VolumeMount{
 		Name:      deployments.KubeArmorConfigMapName,
 		MountPath: filepath.Join("/opt/kubearmor", KubeArmorConfigFileName),
 		SubPath:   KubeArmorConfigFileName,
+	},
+	{
+		Name:      "machine-id",
+		MountPath: "/etc/machine-id",
+		ReadOnly:  true,
 	},
 }
 
