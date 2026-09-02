@@ -77,6 +77,8 @@ type KubeArmorConfigSpec struct {
 
 	RecommendedPolicies RecommendedPolicies `json:"recommendedPolicies,omitempty"`
 
+	AnnotateResource bool `json:"annotateResource,omitempty"`
+
 	DefaultFilePosture PostureType `json:"defaultFilePosture,omitempty"`
 
 	DefaultCapabilitiesPosture PostureType `json:"defaultCapabilitiesPosture,omitempty"`

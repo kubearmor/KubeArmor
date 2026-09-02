@@ -467,6 +467,7 @@ func (clusterWatcher *ClusterWatcher) WatchConfigCrd() {
 						common.OperatorConfigCrd = cfg
 						clusterWatcher.Log.Info("kubearmorconfig CR created")
 						UpdateTlsData(&cfg.Spec)
+						UpdateAnnotateResource(&cfg.Spec)
 						UpdateConfigMapData(&cfg.Spec)
 						UpdateImages(&cfg.Spec)
 						UpdatedKubearmorRelayEnv(&cfg.Spec)
@@ -497,10 +498,11 @@ func (clusterWatcher *ClusterWatcher) WatchConfigCrd() {
 						relayEnvUpdated := UpdatedKubearmorRelayEnv(&cfg.Spec)
 						seccompEnabledUpdated := UpdatedSeccomp(&cfg.Spec)
 						tlsUpdated := UpdateTlsData(&cfg.Spec)
+						annotateUpdated := UpdateAnnotateResource(&cfg.Spec)
 						UpdateRecommendedPolicyConfig(&cfg.Spec)
 
 						// return if only status has been updated
-						if !tlsUpdated && !relayEnvUpdated && !configChanged && cfg.Status != oldObj.(*opv1.KubeArmorConfig).Status && len(imageUpdated) < 1 && !controllerPortUpdated {
+						if !annotateUpdated && !tlsUpdated && !relayEnvUpdated && !configChanged && cfg.Status != oldObj.(*opv1.KubeArmorConfig).Status && len(imageUpdated) < 1 && !controllerPortUpdated {
 							return
 						}
 						if tlsUpdated {
@@ -1673,5 +1675,15 @@ func UpdateTlsData(config *opv1.KubeArmorConfigSpec) bool {
 		common.ExtraDnsNames = config.Tls.RelayExtraIpAddresses
 	}
 
+	return updated
+}
+
+func UpdateAnnotateResource(config *opv1.KubeArmorConfigSpec) bool {
+	updated := false
+	if config.AnnotateResource != common.AnnotateResource {
+		fmt.Printf("annotateResource config changed: %v", config.AnnotateResource)
+		common.AnnotateResource = config.AnnotateResource
+		updated = true
+	}
 	return updated
 }
