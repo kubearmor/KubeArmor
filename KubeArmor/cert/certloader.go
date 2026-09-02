@@ -80,7 +80,7 @@ func (loader *ExternalCertLoader) GetCertificateAndCaPool() (*tls.Certificate, *
 
 type K8sCertLoader struct {
 	CertConfig CertConfig
-	K8sClient  *kubernetes.Clientset
+	K8sClient  kubernetes.Interface
 	Namespace  string
 	SecretName string
 }
