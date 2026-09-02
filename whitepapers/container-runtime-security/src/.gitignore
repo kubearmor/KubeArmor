@@ -1,0 +1,7 @@
+.fonts/
+.paper.build.html
+.paper.pass1.pdf
+.body.pdf
+.plates.pdf
+.diag.html
+__pycache__/

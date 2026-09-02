@@ -1,0 +1,1018 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Container Runtime Security: Comparative Insights</title>
+<link rel="stylesheet" href=".fonts/fonts.css">
+<link rel="stylesheet" href="paper.css">
+</head>
+<body>
+
+<!-- ============================================================ COVER -->
+<section class="plate">
+  <svg class="plate-mark" viewBox="0 0 400 400" fill="none" aria-hidden="true">
+    <g stroke="#ffffff" stroke-width="1.1">
+      <path d="M200 18 350 105v190L200 382 50 295V105z"/>
+      <path d="M200 62 312 127v130L200 322 88 257V127z"/>
+      <path d="M200 106 274 149v86l-74 43-74-43v-86z"/>
+    </g>
+    <g stroke="#ffffff" stroke-width="0.5" opacity="0.75">
+      <path d="M50 105h300M50 295h300M200 18v364"/>
+    </g>
+  </svg>
+
+  <div class="cover-inner">
+    <div class="cover-top">
+      <img class="cover-logo" src="brand/kubearmor-dark-bg.svg" alt="KubeArmor">
+      <div class="cover-org">
+        Cloud Native Computing Foundation<br>
+        Sandbox Project
+      </div>
+    </div>
+
+    <div class="cover-mid">
+      <span class="eyebrow">Technical Paper</span>
+      <h1 class="cover-title">Container Runtime<br>Security<em>Comparative Insights</em></h1>
+      <div class="cover-rule"></div>
+      <p class="cover-deck">
+        Evaluating detection, response, and prevention capabilities across
+        Falco, Tetragon, Tracee, NeuVector, gVisor, Prisma, and KubeArmor.
+      </p>
+    </div>
+
+    <div class="cover-bottom">
+      <div>
+        <p class="byline-label">Authored by</p>
+        <p class="byline-name">Rahul Jadhav</p>
+        <p class="byline-roles">
+          Maintainer, KubeArmor<br>
+          SIG Security Chair, Nephio
+        </p>
+      </div>
+      <div class="cover-edition">2025 Edition</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ COLOPHON -->
+<main>
+<div class="col">
+
+  <h1 class="flow" id="sec-about"><span class="num">&nbsp;</span>About this paper</h1>
+
+  <div class="abstract">
+    <p>This paper is a technical analysis of container runtime security tools. It compares
+    their detection, response, and prevention capabilities, and it explains the kernel
+    primitives each one depends on. It covers the architectures behind those primitives,
+    time-of-check to time-of-use weaknesses, event loss under load, sandboxing, and zero
+    trust policy. It is written for security practitioners who have to choose an engine and
+    live with that choice.</p>
+  </div>
+
+  <p class="lead">The scope is container runtime security only. Image scanning, admission
+  control, posture management, and network policy are out of scope, except where a runtime
+  engine depends on them.</p>
+
+  <dl class="colophon-grid">
+    <dt>Published by</dt>
+    <dd>The KubeArmor project, a Sandbox project of the Cloud Native Computing Foundation.</dd>
+
+    <dt>Source</dt>
+    <dd>The typeset source for this paper lives in the KubeArmor repository, under
+    <span class="mono">whitepapers/container-runtime-security</span>. Corrections are welcome as
+    pull requests.</dd>
+
+    <dt>Feedback</dt>
+    <dd>Open a thread in
+    <a href="https://github.com/kubearmor/KubeArmor/discussions">GitHub Discussions</a>, or
+    join <span class="mono">#kubearmor</span> on
+    <a href="https://cloud-native.slack.com/archives/C02R319HVL3">CNCF Slack</a>.</dd>
+
+    <dt>Disclaimer</dt>
+    <dd>The author is one of the maintainers of KubeArmor. The aim of the paper is to examine
+    the specific primitives that different runtime security engines use for enforcement. The
+    research behind it was carried out by the author. If you disagree with any statement here,
+    raise it in Discussions or on Slack, and the paper will be corrected in the open.</dd>
+  </dl>
+
+</div>
+
+<!-- ============================================================ CONTENTS -->
+<div class="col break-before">
+  <h1 class="flow" id="sec-toc"><span class="num">&nbsp;</span>Contents</h1>
+</div>
+
+<div class="toc tight">
+  <ol>
+    <li>
+      <div class="toc-row"><span class="n">1</span><span class="t">Introduction</span><span class="p">__P_sec-1__</span></div>
+    </li>
+    <li>
+      <div class="toc-row"><span class="n">2</span><span class="t">Characteristics of a runtime security solution</span><span class="p">__P_sec-2__</span></div>
+      <ol>
+        <li><div class="toc-row"><span class="n">2.1</span><span class="t">Detection capabilities</span><span class="p">__P_sec-2-1__</span></div></li>
+        <li><div class="toc-row"><span class="n">2.2</span><span class="t">Response capabilities</span><span class="p">__P_sec-2-2__</span></div></li>
+        <li><div class="toc-row"><span class="n">2.3</span><span class="t">Prevention capabilities</span><span class="p">__P_sec-2-3__</span></div></li>
+        <li><div class="toc-row"><span class="n">2.4</span><span class="t">Sandboxing capabilities</span><span class="p">__P_sec-2-4__</span></div></li>
+        <li><div class="toc-row"><span class="n">2.5</span><span class="t">Performance impact</span><span class="p">__P_sec-2-5__</span></div></li>
+        <li><div class="toc-row"><span class="n">2.6</span><span class="t">Ease of deployment on hardened distributions</span><span class="p">__P_sec-2-6__</span></div></li>
+        <li><div class="toc-row"><span class="n">2.7</span><span class="t">Ease of runtime policy enforcement</span><span class="p">__P_sec-2-7__</span></div></li>
+        <li><div class="toc-row"><span class="n">2.8</span><span class="t">Policies adhering to zero trust principles</span><span class="p">__P_sec-2-8__</span></div></li>
+      </ol>
+    </li>
+    <li>
+      <div class="toc-row"><span class="n">3</span><span class="t">Runtime security with detect and respond</span><span class="p">__P_sec-3__</span></div>
+      <ol>
+        <li><div class="toc-row"><span class="n">3.1</span><span class="t">Killing a process is not an effective remediation strategy</span><span class="p">__P_sec-3-1__</span></div></li>
+        <li><div class="toc-row"><span class="n">3.2</span><span class="t">The response depends on a chain of actions</span><span class="p">__P_sec-3-2__</span></div></li>
+      </ol>
+    </li>
+    <li>
+      <div class="toc-row"><span class="n">4</span><span class="t">Engine analysis</span><span class="p">__P_sec-4__</span></div>
+      <ol>
+        <li><div class="toc-row"><span class="n">4.1</span><span class="t">Falco</span><span class="p">__P_sec-4-1__</span></div></li>
+        <li><div class="toc-row"><span class="n">4.2</span><span class="t">Tetragon</span><span class="p">__P_sec-4-2__</span></div></li>
+        <li><div class="toc-row"><span class="n">4.3</span><span class="t">NeuVector</span><span class="p">__P_sec-4-3__</span></div></li>
+        <li><div class="toc-row"><span class="n">4.4</span><span class="t">Palo Alto Prisma and TwistLock</span><span class="p">__P_sec-4-4__</span></div></li>
+        <li><div class="toc-row"><span class="n">4.5</span><span class="t">gVisor</span><span class="p">__P_sec-4-5__</span></div></li>
+        <li><div class="toc-row"><span class="n">4.6</span><span class="t">KubeArmor</span><span class="p">__P_sec-4-6__</span></div></li>
+      </ol>
+    </li>
+    <li>
+      <div class="toc-row"><span class="n">5</span><span class="t">Case study: file integrity monitoring</span><span class="p">__P_sec-5__</span></div>
+    </li>
+    <li>
+      <div class="toc-row"><span class="n">6</span><span class="t">Summary</span><span class="p">__P_sec-6__</span></div>
+    </li>
+  </ol>
+</div>
+
+<div class="index-list">
+  <h2>Figures and tables</h2>
+  <ul>
+    <li><b>Table 1</b>Engines covered here</li>
+    <li><b>Figure 1</b>Detect and respond loop</li>
+    <li><b>Figure 2</b>Attacker dwell time</li>
+    <li><b>Figure 3</b>Event flow to userspace</li>
+    <li><b>Figure 4</b>Falco architecture</li>
+    <li><b>Figure 5</b>NeuVector enforcement</li>
+    <li><b>Figure 6</b>Prisma Defender</li>
+    <li><b>Figure 7</b>TwistLock shim path</li>
+    <li><b>Figure 8</b>gVisor application kernel</li>
+    <li><b>Figure 9</b>KubeArmor architecture</li>
+    <li><b>Table 2</b>Engine capability matrix</li>
+  </ul>
+</div>
+
+<!-- ============================================================ 1 INTRODUCTION -->
+<div class="col">
+  <h1 id="sec-1"><span class="num">1</span>Introduction</h1>
+
+  <p>This technical guide compares and contrasts the fundamental architectures of the
+  different container runtime security tools, such as Falco, KubeArmor, Tetragon, Tracee, and
+  NeuVector, and looks at the primitives each one uses under the hood. Note that the guide
+  focuses only on container runtime security.</p>
+
+  <p>At a broader level, the tools can be categorized into:</p>
+
+  <ol>
+    <li>Detection only.</li>
+    <li>Detect and respond.</li>
+    <li>Preventive engines with inline enforcement. Most inline enforcement tooling also has an
+    observability mode that allows one to trace and log the system events.</li>
+  </ol>
+</div>
+
+<div class="col">
+  <table>
+    <colgroup><col style="width:22%"><col style="width:24%"><col style="width:54%"></colgroup>
+    <thead>
+      <tr><th>Tool</th><th>Type</th><th>Remarks</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <th><a href="https://github.com/falcosecurity/falco">Falco</a></th>
+        <td>Detect and respond</td>
+        <td>Falco is a detection engine. Sysdig open-sourced
+        <a href="https://github.com/falcosecurity/falco-talon">Falco Talon</a>, which provides a
+        response engine on top of Falco. There is no inline mitigation capability.</td>
+      </tr>
+      <tr>
+        <th><a href="https://github.com/cilium/tetragon/">Tetragon</a></th>
+        <td>Detection and enforcement</td>
+        <td>Tetragon provides a detection engine based on eBPF. It also provides enforcement
+        using <code>bpf_send_signal()</code> to kill the process, and
+        <a href="https://man7.org/linux/man-pages/man7/bpf-helpers.7.html"><code>bpf_override_return()</code></a>
+        to handle inline mitigation. Override return is mostly turned off in production
+        environments, and it is neither reliable nor advised.</td>
+      </tr>
+      <tr>
+        <th><a href="https://github.com/aquasecurity/tracee">Tracee</a></th>
+        <td>Detection only</td>
+        <td>Open-source Tracee provides detection only.</td>
+      </tr>
+      <tr>
+        <th><a href="https://kubearmor.io/">KubeArmor</a></th>
+        <td>Detection and inline mitigation</td>
+        <td>KubeArmor provides a detection engine based on eBPF. It uses LSMs, namely LSM-BPF
+        and AppArmor, for inline mitigation.</td>
+      </tr>
+      <tr>
+        <th><a href="https://github.com/neuvector/neuvector">NeuVector</a></th>
+        <td>Detect and respond</td>
+        <td>The only engine that does not use eBPF. It uses
+        <a href="https://github.com/neuvector/neuvector/blob/main/share/fsmon/inotify_linux.go">inotify</a>
+        and
+        <a href="https://github.com/neuvector/neuvector/blob/main/share/fsmon/fanotify_linux.go">fanotify</a>.
+        It provides the ability to kill the process from userspace.</td>
+      </tr>
+      <tr>
+        <th><a href="https://docs.prismacloud.io/en/enterprise-edition/content-collections/runtime-security/install/get-started">Palo Alto TwistLock</a><br><span style="font-weight:300;color:var(--ink-3)">not open source</span></th>
+        <td>Detection and inline enforcement</td>
+        <td>TwistLock Defender
+        <a href="https://docs.prismacloud.io/en/enterprise-edition/content-collections/runtime-security/install/deploy-defender/defender-architecture">replaces the original runC with a runC shim binary</a>
+        to enforce runtime blocking rules. This
+        <a href="https://docs.prismacloud.io/en/enterprise-edition/content-collections/runtime-security/install/system-requirements">causes several issues</a>
+        on hardened distributions such as Bottlerocket and GKE COS.</td>
+      </tr>
+    </tbody>
+    <caption><b>Table 1.</b> Runtime security engines covered in this paper, grouped by
+    enforcement model.</caption>
+  </table>
+</div>
+
+<!-- ============================================================ 2 CHARACTERISTICS -->
+<div class="col">
+  <h1 id="sec-2"><span class="num">2</span>Characteristics of a runtime security solution</h1>
+
+  <h2 id="sec-2-1"><span class="num">2.1</span>Detection capabilities</h2>
+
+  <p>Most runtime solutions depend on eBPF to get runtime visibility across process
+  executions, file system accesses, and network accesses. The most obvious eBPF hooks to
+  target are <a href="https://docs.kernel.org/trace/kprobes.html">kprobes, kretprobes, and
+  tracepoints</a>, which are fairly easy to use. There are a few systems-related challenges,
+  for example getting an absolute path of the file object.
+  <a href="https://www.aquasec.com/blog/linux-vulnerabilitie-tracee/">Some solutions</a> depend
+  on the use of LSM hooks to get the full path, and these mechanisms are pretty well
+  understood now. The other obvious challenge is that all the expected eBPF hook points or
+  capabilities might not be equally applicable across all Linux distributions and across all
+  platforms such as x86 and ARM.</p>
+
+  <p>One more challenge when it comes to detection is the ability to ship all the events. Some
+  operations might cause a burst of system activity, and in a lot of cases it might not be
+  possible to ship all of these raw events to the analysis engine in the cloud. It is
+  relatively simple to
+  <a href="https://blog.itaysk.com/2020/04/20/ebpf-lost-events">overwhelm the event loop</a>
+  that operates on the kernel perf or ring circular buffer, so that events are lost. It is
+  very common to find solutions
+  <a href="https://falco.org/docs/troubleshooting/dropping/">implementing ways to tell users</a>
+  that eBPF events are lost in the circular perf or ring buffer. However, there is no way to
+  prevent the events themselves from getting lost, as
+  <a href="https://blog.trailofbits.com/2023/09/25/pitfalls-of-relying-on-ebpf-for-security-monitoring-and-some-solutions/">Pitfall #5: Event Overload</a>
+  describes. An attach point can be easily overwhelmed with events, because eBPF lacks
+  concurrency primitives and an eBPF probe cannot block the event producer. The kernel will
+  simply
+  <a href="https://grsecurity.net/tetragone_a_lesson_in_security_fundamentals#how-to-bypass-tetragon-">stop calling the kprobes</a>
+  if it finds that it is overwhelmed.</p>
+
+  <p>Another issue with kprobes is that they can be easily disarmed if the attacker is allowed
+  to execute code even for a brief period.</p>
+
+  <h2 id="sec-2-2"><span class="num">2.2</span>Response capabilities</h2>
+
+  <p>The events from the detection engine are sent to a policy decision process, most likely
+  implemented in userspace, that determines the action or response to be taken. Responses
+  involve:</p>
+
+  <ol>
+    <li>Killing a target process.</li>
+    <li>Quarantining a node or pod.</li>
+    <li>Deleting a pod or node.</li>
+  </ol>
+
+  <p>In security parlance, this model is called post-attack mitigation, since the attacker is
+  allowed to execute their code in the target environment and a response is taken after that.
+  In most cases the response will take several milliseconds to several minutes to execute, and
+  so it might prove too late to be effective. For example, consider a ransomware attacker who
+  is moving or deleting sensitive assets. Such an action could complete in a few milliseconds,
+  and a response sent after that would not protect those assets.</p>
+
+  <figure class="narrow">
+    <img src="figures/fig-detect-respond-loop.jpeg" alt="Detect and respond loop. Malicious intent executes in a pod, syscalls and tracepoints in kernel space hook into eBPF, eBPF ships events to an event handler in user space, and the event handler sends a delete or kill back to the pod.">
+    <figcaption><b>Figure 1.</b> The detect and respond loop. The malicious code runs at step 1.
+    The response arrives at step 4, after the fact.</figcaption>
+  </figure>
+
+  <h3>Time-of-check to time-of-use</h3>
+
+  <p>Time-of-check to time-of-use (TOCTOU) is a condition that occurs when a system's behavior
+  depends on the timing between checking a condition and using the result. TOCTOU
+  vulnerabilities can be exploited by attackers to gain unauthorized access to resources,
+  modify data, or elevate privileges.</p>
+
+  <p>When handling certain system events such as <code>connect()</code>, <code>open()</code>,
+  <code>openat()</code>, and <code>creat()</code>, the security engine retrieves some of the
+  arguments by reading userspace buffers on syscall exit. An attacker running a malicious
+  program on a monitored system could use
+  <a href="https://media.defcon.org/DEF%20CON%2029/DEF%20CON%2029%20presentations/Rex%20Guo%20Junyuan%20Zeng%20-%20Phantom%20Attack%20-%20%20Evading%20System%20Call%20Monitoring.pdf">a variety of techniques</a>
+  to deterministically increase the duration of the syscall execution, and modify the arguments
+  in its own address space after the syscall has been invoked and before its execution is
+  complete. The security engine will assume that the modified data is the input argument of
+  the syscall, which may lead to a rule bypass.</p>
+
+  <p>Every detect and respond security engine suffers from this problem, including Falco Talon,
+  Tracee, and NeuVector. Tetragon uses <code>bpf_send_signal()</code> to send a kill signal in
+  kernel space itself. However, this is also a case of post-attack mitigation, since the
+  attacker is allowed to execute code even if only for a brief period. The
+  <a href="https://grsecurity.net/tetragone_a_lesson_in_security_fundamentals">grsecurity
+  analysis of Tetragon</a> puts the objection plainly: advanced kernel features such as eBPF
+  and kprobes are used there not to keep the kernel itself from being exploited, but to stop an
+  exploit that has already succeeded from using what it gained.</p>
+
+  <figure>
+    <img src="figures/fig-dwell-time.jpeg" alt="Three sequence diagrams comparing attacker process dwell time. With KubeArmor the exec is denied at the kernel entry and dwell time is nil. With Falco the exec succeeds, the event travels to a userspace policy engine, and a kill process message returns, so dwell time is high. With Tetragon the exec succeeds and bpf_send_signal fires from the kernel, so dwell time is low but not nil.">
+    <figcaption><b>Figure 2.</b> Attacker process dwell time under three enforcement models.
+    Inline denial at the LSM hook is the only one where the exploit never runs.</figcaption>
+  </figure>
+
+  <h3>Overwhelming the event queue so that events drop</h3>
+
+  <p>Detect and respond systems expect that system events are successfully transmitted to the
+  decision engine in userspace to handle responses. However, under high load conditions it
+  might not be feasible to transmit all the events to userspace, because of eBPF perf and ring
+  buffer limitations. The kernel provides a circular ring buffer to propagate events from
+  kernel space to userspace, and under heavy load the events might be overwritten or lost.
+  There is no way to know the criticality of events, so the system might lose critical events.
+  This may result in no response at all. Attackers might overwhelm the system event queue so
+  that their malicious events never make it to userspace, and so no response is sent.</p>
+
+  <h3>Advantages of the detect and respond model</h3>
+
+  <ol>
+    <li><b>Multi-vector detection.</b> A detection system can consider multiple aspects of
+    detection from different engines and then respond. For example, L7 API telemetry shows the
+    use of a previously unused log4j endpoint, and within the same time interval a process
+    invocation from the <code>/tmp/</code> folder can be considered a critical security event.
+    The response could be to quarantine the corresponding pod.</li>
+    <li><b>Multi-dimensional response.</b> A malicious system process invocation detected by a
+    runtime security engine can trigger a response that deactivates external network access by
+    changing the AWS VPC security group, and kills the malicious process.</li>
+  </ol>
+
+  <h3>Disadvantages of the detect and respond model</h3>
+
+  <ol>
+    <li><b>Post-attack mitigation.</b> The response is sent once the attacker's code has
+    executed in the target environment. An attacker can stop the events from being triggered,
+    either by changing the security knobs or by overwhelming the event loop, and then a
+    response will never be initiated.</li>
+    <li><b>Unable to protect certain actions.</b> Consider a Kubernetes pod that has a volume
+    mount containing sensitive assets. An attacker would delete the asset, and the response
+    would not be able to prevent it, because by the time the response is handled the operation
+    has completed.</li>
+    <li><b>Bigger impact on services.</b> The response might result in a service outage,
+    depending on the response action. For example, quarantining the node or pod might cause an
+    outage, depending on how the application on that node or pod handles resource
+    unavailability.</li>
+  </ol>
+
+  <h2 id="sec-2-3"><span class="num">2.3</span>Prevention capabilities</h2>
+
+  <p>Prevention, or inline enforcement, requires that a system action such as a process exec,
+  file access, or network access is vetted or rejected before the action is executed. Linux
+  primitives such as seccomp and LSMs (Linux Security Modules such as AppArmor and SELinux)
+  provide a systematic way to run such a vetting process and deny the execution or the access
+  to the resource.</p>
+
+  <p>There are userspace techniques such as <code>LD_PRELOAD</code> that can also achieve
+  prevention capabilities. However, there are security issues surrounding userspace techniques,
+  and they can be circumvented even by a script kiddie attacker.</p>
+
+  <h3>eBPF and its role in preventive capabilities</h3>
+
+  <p>It is usually assumed that eBPF provides enforcement capabilities as well. However, this
+  is not true in all cases. The enforcement capabilities of eBPF depend on the hook points
+  used. For example, in the case of network packet handling, one can use traffic control (TC)
+  hook points or XDP (express data path) hook points, where one can redirect or drop a packet
+  and so handle network packet enforcement rules.</p>
+
+  <p>However, the same is not true for kprobes, kretprobes, and tracepoints. These hook points
+  are primarily for observability, and one cannot use them to change system call behavior
+  without major implications.</p>
+
+  <p>Note that <code>bpf_override_return()</code> is often quoted as a BPF helper primitive
+  available for enforcing controls at the kprobes hook point. This helper works by setting the
+  program counter to an override function, which is run in place of the original probed
+  function. This means the probed function is not run at all. The replacement function just
+  returns with the required value.</p>
+
+  <p><a href="https://tetragon.io/docs/concepts/enforcement/#override-return-value">Tetragon
+  quotes this</a> as the primitive it uses. However,
+  <code>bpf_override_return()</code> should not be used for security controls, as per the
+  <a href="https://man7.org/linux/man-pages/man7/bpf-helpers.7.html">BPF helper man page</a>
+  itself, since it has security implications. <code>bpf_override_return()</code> is typically
+  used for error injection and
+  <a href="https://github.com/iovisor/bcc/issues/2485#issuecomment-1179965134">depends on
+  another kernel configuration</a> called <code>CONFIG_FUNCTION_ERROR_INJECTION</code>.
+  Moreover, the system call needs to be explicitly listed as error-injectable on the target
+  distribution for it to work. Given all this, using <code>bpf_override_return()</code> is not
+  worth pursuing in production environments.
+  <a href="https://github.com/nyrahul/linux-kernel-configs#bpf_override_return-support">Based
+  on the author's survey</a>, a small minority of production systems have this enabled. Most of
+  those distributions are used on desktops. The distributions used in Kubernetes and server
+  deployments do not keep these enabled.</p>
+
+  <h3>Prevention capabilities and zero trust</h3>
+
+  <p>Zero trust expects that policies can be specified in the least permissive mode. For
+  example, the user should be able to specify what execution is allowed, and everything else
+  should be denied or audited.</p>
+
+  <div class="note">
+    <p class="note-label">The core constraint</p>
+    <p>A detect and respond system cannot truly provide a zero trust system, because it does
+    not have preventive capabilities.</p>
+  </div>
+
+  <h2 id="sec-2-4"><span class="num">2.4</span>Sandboxing capabilities</h2>
+
+  <p><a href="https://en.wikipedia.org/wiki/Sandbox_(computer_security)">Sandboxing</a>
+  applications during their runtime execution is a practice often followed so that unbounded
+  access is not given to untrusted applications. Unbounded access here means access to the file
+  system, process invocation, network communication, and the use of advanced capabilities. For
+  example, assume there is an Nginx web server running in a Kubernetes deployment. Typically
+  Nginx is the only process that would execute within that pod, and it needs access to
+  sensitive assets such as configuration files in <code>/etc/nginx</code>. Only Nginx and its
+  worker or child processes can perform network communication. A sandboxing rule would make
+  sure that:</p>
+
+  <ul>
+    <li>Only the Nginx process is allowed to be spawned within that pod.</li>
+    <li>Only the Nginx process is allowed access to sensitive file system paths such as
+    <code>/etc/nginx</code>, which contains critical configuration files.</li>
+    <li>Only the Nginx process is allowed to do network communication.</li>
+    <li>No process is allowed to use advanced capabilities such as
+    <code>CAP_SYS_ADMIN</code>.</li>
+  </ul>
+
+  <p>Sandboxing allows deployments to be put in the least permissive mode, which makes them
+  resilient to zero-day attacks and to remote command injection and execution. Other use cases
+  for sandboxing require constraining unrestrained access to process execution. For example,
+  LLM frameworks such as <a href="https://github.com/vllm-project/vllm">vLLM</a> use external
+  plugins, through the
+  <a href="https://discuss.huggingface.co/t/how-to-avoid-trust-remote-code-true-for-my-models/84134"><code>trust_remote_code</code> flag</a>,
+  to achieve certain objectives. The ability to trust arbitrary code is a serious security
+  concern, and so sandboxing such a framework is highly desirable.</p>
+
+  <h3>Sandboxing techniques</h3>
+
+  <p>Sandboxing cannot be achieved using a detect and respond model, because in that model the
+  untrusted code is allowed to execute and a response action is taken later. Sandboxing
+  requires inline mitigation. If an untrustworthy access or execution is attempted, it has to
+  be stopped, blocked, or denied inline.</p>
+
+  <p><b>Gating all the actions.</b> Sandboxing requires that all system actions are gated, that
+  is, they pass through certain checks, and if the checks fail the action is denied.
+  <a href="https://gvisor.dev/">Google gVisor</a> and
+  <a href="https://kubearmor.io">KubeArmor</a> provide sandboxing capabilities.</p>
+
+  <h2 id="sec-2-5"><span class="num">2.5</span>Performance impact</h2>
+
+  <p>Every runtime security engine emits system event telemetry and logs. This can critically
+  affect the user application running on the same cluster or nodes. So it is important to keep
+  the runtime performance of the security engine under control.</p>
+
+  <p>An architectural issue with detect and respond systems is that they have to emit all the
+  system events to the policy decision process in the cloud or on the node, and so they cause a
+  heavy performance impact. Every kernel event shipped to userspace affects performance,
+  because a context switch is required to move the event across the kernel to userspace
+  boundary, and after that there are userspace functions that add further overhead.</p>
+
+  <figure>
+    <img src="figures/fig-exec-kill-flow.jpeg" alt="A process create event reaches a kprobe or tracepoint in kernel space, the event is written to a perf buffer, a policy decision process in user space reads it, and only then can it send a kill process message back to the running execve. A callout notes that every process event has to be sent to userspace before a decision can be taken.">
+    <figcaption><b>Figure 3.</b> In a detect and respond engine, every process event crosses the
+    kernel to userspace boundary before any decision can be taken.</figcaption>
+  </figure>
+
+  <p>In contrast, a runtime security system that supports profiling and allow-listing of known
+  system behavior, and that handles preventive security in the kernel itself, can reduce the
+  overhead significantly. Only unknown or non-allow-listed events are sent to the cloud, which
+  reduces the performance overhead significantly.</p>
+
+  <p>Another approach to reducing the performance impact is in-kernel aggregation of events
+  before sending them to userspace, which reduces kernel context switches. Any aggregation has
+  an impact on the fidelity of the data samples, and so it should be done carefully.</p>
+
+  <h2 id="sec-2-6"><span class="num">2.6</span>Ease of deployment on hardened distributions</h2>
+
+  <p>Enforcing blocking rules requires special primitives. Such primitives might require
+  certain changes at the host or at the container runtime interface layer. For example, Palo
+  Alto TwistLock allows block-based policies by overriding the system default container runC
+  binary with its own runC shim binary. Most hardened distributions, such as Talos Linux,
+  Bottlerocket, and GKE COS, will not allow this.</p>
+
+  <p>Runtime security engines that allow inline or preventive mitigation should be deployable
+  using standard Kubernetes constructs such as Helm, <code>kubectl apply</code>, or a Kubernetes
+  operator, without changing anything at the host or node level.</p>
+
+  <h2 id="sec-2-7"><span class="num">2.7</span>Ease of runtime policy enforcement</h2>
+
+  <p>Representing policies as native Kubernetes resources allows one to enable or disable rules
+  at will, and to manage their lifecycle just as with any other Kubernetes resource. It is
+  important that when a rule is enabled or disabled, it should not require the containers or
+  pods to be restarted.</p>
+
+  <h2 id="sec-2-8"><span class="num">2.8</span>Policies adhering to zero trust principles</h2>
+
+  <p>The user should be allowed to specify a policy that allows a specific action and denies or
+  audits everything else.</p>
+</div>
+
+<!-- ============================================================ 3 DETECT AND RESPOND -->
+<div class="col">
+  <h1 id="sec-3"><span class="num">3</span>Runtime security with detect and respond</h1>
+
+  <p>The primary model with such systems is that all system events are shipped to a userspace
+  policy decision process (PDP) or event handler, as shown in Figure 1. The user-specified
+  policies and rules are matched, and optionally a response is sent that can:</p>
+
+  <ol>
+    <li>Kill the target process.</li>
+    <li>Quarantine the target pod or node.</li>
+    <li>Delete the target pod or node.</li>
+    <li>Change the cloud provider VPC security group setting.</li>
+  </ol>
+
+  <h2 id="sec-3-1"><span class="num">3.1</span>Killing a process is not an effective remediation strategy</h2>
+
+  <p>Handling a remedial action takes from a few seconds to a few minutes. The fundamental
+  notion of a detect and respond system is to analyze execution events and then kill the
+  malicious process. However, once the malicious code is allowed to execute in the target
+  environment, the attacker will most likely turn off the security knobs, or overwhelm the
+  event engine so that it reaches the event threshold and starts dropping events. Consider
+  another scenario, where a ransomware attacker is moving or deleting sensitive files. This
+  typically takes a few milliseconds. A detect and respond model will never be able to thwart
+  such attacks, because by the time the response action is taken the damage is already
+  done.</p>
+
+  <h2 id="sec-3-2"><span class="num">3.2</span>The response depends on a chain of actions</h2>
+
+  <p>The chain of action runs as follows:</p>
+
+  <ol>
+    <li>Event detection in the kernel.</li>
+    <li>Send the event to userspace.</li>
+    <li>Send the event to the policy decision process, in the cloud or on the node.</li>
+    <li>The PDP sends a response action.</li>
+    <li>The response is shipped to the target node.</li>
+  </ol>
+
+  <p>The attacker can impede or prevent a response from being sent by compromising multiple
+  links in this chain.</p>
+</div>
+
+<!-- ============================================================ 4 ENGINE ANALYSIS -->
+<div class="col">
+  <h1 id="sec-4"><span class="num">4</span>Engine analysis</h1>
+
+  <h2 id="sec-4-1"><span class="num">4.1</span>Falco</h2>
+
+  <p><a href="https://github.com/falcosecurity/falco">Falco</a> is a CNCF graduated runtime
+  security tool designed to detect and alert on abnormal behavior and potential security
+  threats in real time. Falco is a detection engine, and
+  <a href="https://github.com/falcosecurity/falco-talon">Falco Talon</a> provides response
+  mechanisms on top of Falco and other events. Falco provides flexible ways to specify rules
+  by which the system events are filtered.</p>
+
+  <figure class="narrow">
+    <img src="figures/fig-falco-arch.jpeg" alt="Falco architecture. A Falco driver, either eBPF or a kernel module, sits in kernel space and feeds the Falco engine in user space. Rules and plugins feed the engine, and the engine emits alerts.">
+    <figcaption><b>Figure 4.</b> Falco architecture. The driver collects in the kernel, and every
+    decision is taken by the engine in userspace.</figcaption>
+  </figure>
+
+  <h3>Policy enforcement</h3>
+
+  <p>Falco does not provide any preventive or inline policy enforcement. For example, one can
+  add rules to detect if particular processes have been executed, but one cannot add rules to
+  deny the execution of those processes. Falco Talon provides an asynchronous response engine
+  that operates on top of Falco, and qualifies as a detect and respond system.</p>
+
+  <h2 id="sec-4-2"><span class="num">4.2</span>Tetragon</h2>
+
+  <p><a href="https://github.com/cilium/tetragon/">Tetragon</a> provides real-time, eBPF-based
+  security observability and runtime enforcement. One of the primary differences compared to
+  Falco, when it comes to filtering the system events, is that most of the filtering happens in
+  the kernel, which saves costly kernel to userspace context switches.</p>
+
+  <p>Tetragon can hook into any function in the Linux kernel and filter on its arguments,
+  return value, and the associated metadata that Tetragon collects about processes such as
+  executable names, files, and other properties. By writing tracing policies, users can solve
+  various security and observability use cases.</p>
+
+  <h3>Policy enforcement mechanics</h3>
+
+  <p>Unlike Falco, Tetragon provides a policy enforcement mechanism as well, where users can
+  specify enforcement policy actions such as:</p>
+
+  <ul>
+    <li><a href="https://tetragon.io/docs/concepts/tracing-policy/selectors/#signal-action"><b>Send
+    signal.</b></a> The signal action, such as SIGKILL, sends a specified signal to the current
+    process.</li>
+    <li><a href="https://tetragon.io/docs/concepts/tracing-policy/selectors/#override-action"><b>Override.</b></a>
+    The override action modifies the return value of the call. While SIGKILL terminates the
+    entire process responsible for making the call, override runs in place of the original
+    kprobed function and returns the value specified in the <code>argError</code> field.</li>
+  </ul>
+
+  <p>While Tetragon allows local in-kernel policy enforcement, its policy enforcement mechanics
+  suffer from certain problems.</p>
+
+  <ul>
+    <li><b>Send signal.</b> Tetragon uses the
+    <a href="https://docs.ebpf.io/linux/helper-function/bpf_send_signal/"><code>bpf_send_signal()</code></a>
+    helper function to send a kill signal to the current process. While the signal is sent from
+    kernel space itself, it still qualifies as a post-attack mitigation primitive, because the
+    malicious process is still allowed to execute.
+    <a href="https://grsecurity.net/tetragone_a_lesson_in_security_fundamentals">This article
+    from grsecurity</a> explains the risks associated with post-attack mitigation in general,
+    and with Tetragon in particular.</li>
+    <li><b>Override return.</b> Tetragon uses the
+    <a href="https://docs.ebpf.io/linux/helper-function/bpf_override_return/"><code>bpf_override_return()</code></a>
+    helper function to return an arbitrary user-specified value to the calling system call.
+    Typically this policy action will not work on most production systems, because:
+      <ul>
+        <li>It depends on multiple kernel configurations that are typically not enabled on
+        production systems.</li>
+        <li>The target system call has to be tagged under the
+        <code>ALLOW_ERROR_INJECTION</code> list for the helper function to work.</li>
+        <li>The <code>bpf_override_return()</code> man page states that the helper has security
+        implications, and so is subject to restrictions.</li>
+      </ul>
+    </li>
+  </ul>
+
+  <h2 id="sec-4-3"><span class="num">4.3</span>NeuVector</h2>
+
+  <p><a href="https://github.com/neuvector/neuvector">NeuVector</a> provides process, file, and
+  network-based container security rules. NeuVector also allows local remediation action to be
+  taken. For example, users can specify deny actions for specific processes.</p>
+
+  <h3>Policy enforcement mechanics</h3>
+
+  <p>Note that there is no online documentation that explains the internal architecture of
+  NeuVector container runtime security. However, the code was
+  <a href="https://github.com/neuvector/neuvector">open sourced</a> after its acquisition by
+  SUSE, and the following is based on an analysis of the code repository itself.</p>
+
+  <figure>
+    <img src="figures/fig-neuvector-enforcer.jpeg" alt="NeuVector enforcement flow. A NvSecurityRule denies /usr/bin/apt. The NeuVector enforcer mounts the host procfs, monitors it with fsmon and inotify, sees a new process entry appear in proc, and sends a kill PID signal.">
+    <figcaption><b>Figure 5.</b> NeuVector policy enforcement, reconstructed from the source
+    repository. The enforcer sees the process after it exists in <span class="mono">/proc</span>.</figcaption>
+  </figure>
+
+  <p>Based on the diagram above:</p>
+
+  <ul>
+    <li>NeuVector mounts the host procfs within the container itself and monitors it using
+    fsmon and inotify.</li>
+    <li>Any execution of a new process event can now be tracked, since it would result in a new
+    folder created in the procfs with the corresponding PID.</li>
+    <li>The NeuVector enforcer then sends the kill signal to the corresponding PID if the
+    process is blocklisted.</li>
+  </ul>
+
+  <p>So NeuVector also deploys post-attack mitigation techniques, such as killing the process,
+  from an enforcement perspective.</p>
+
+  <p>Notably, NeuVector does not employ eBPF-based techniques for detection purposes, and so the
+  overall performance impact would be significantly high, since it would be difficult for any
+  userspace-based technique to scale for such runtime security needs.</p>
+
+  <h2 id="sec-4-4"><span class="num">4.4</span>Palo Alto Prisma and TwistLock</h2>
+
+  <p>Prisma Cloud provides container runtime security as one of its features, and uses its
+  <a href="https://docs.prismacloud.io/en/enterprise-edition/content-collections/runtime-security/install/deploy-defender/defender-architecture">defender
+  architecture</a> to fulfill it. Notably, Prisma Defender also does not use an eBPF-based
+  architecture. Instead it relies on container runtime-based integration.</p>
+
+  <figure class="narrow">
+    <img src="figures/fig-prisma-defender.jpeg" alt="Prisma Defender architecture, showing the defender component sitting alongside the container runtime on the host.">
+    <figcaption><b>Figure 6.</b> Prisma Defender architecture.</figcaption>
+  </figure>
+
+  <p>Prisma Defender is responsible for enforcing vulnerability and compliance blocking rules.
+  When
+  <a href="https://docs.prismacloud.io/en/enterprise-edition/content-collections/runtime-security/install/deploy-defender/defender-architecture#blocking-rules">a
+  blocking rule is created</a>, Defender moves the original runC binary to a new path and
+  inserts a Prisma Cloud runC shim binary in its place.</p>
+
+  <figure class="tall">
+    <img src="figures/fig-twistlock-shim.jpeg" alt="Two container start chains. On the Docker path, Docker client to Docker Engine to containerd to containerd-shim to TwistLock shim, which creates runC, which creates the container. On the Kubernetes path, kubelet to cri-plugin and containerd to TwistLock shim to runC to container.">
+    <figcaption><b>Figure 7.</b> The TwistLock shim inserts itself above <span class="mono">runC</span>
+    on both the Docker and the Kubernetes container start paths.</figcaption>
+  </figure>
+
+  <h3>Policy enforcement mechanics</h3>
+
+  <p>Prisma replaces the system runC with its own runC binary to apply block-based rules. The
+  Prisma runC then becomes the topmost parent process for all container-based execution, and so
+  it can control the execution. When enforcing block-based enforcement rules, there are
+  multiple issues:</p>
+
+  <ol>
+    <li>It is difficult to operate on a hardened distribution such as Bottlerocket, Talos, or
+    COS, since these will not allow insertion of a runC shim. Manual host-specific changes have
+    to be made.</li>
+    <li>Applying block-based rules requires node restarts.</li>
+    <li>The performance impact is significantly higher, since all the decisions are handled in
+    userspace.</li>
+  </ol>
+
+  <h2 id="sec-4-5"><span class="num">4.5</span>gVisor</h2>
+
+  <p><a href="https://gvisor.dev/">gVisor</a> provides a strong layer of isolation between
+  running applications and the host operating system. It is an application kernel that
+  implements a Linux-like interface. gVisor includes an Open Container Initiative (OCI) runtime
+  called <code>runsc</code> that enables it to work with existing container tooling. The
+  <code>runsc</code> runtime integrates with Docker and Kubernetes, which makes it simple to run
+  sandboxed containers.</p>
+
+  <figure class="narrow">
+    <img src="figures/fig-gvisor-arch.jpeg" alt="gVisor layering. The application makes system calls to gVisor, which is an independent kernel. gVisor makes a limited set of system calls to the host kernel, which provides strong isolation, and the host kernel sits on the hardware.">
+    <figcaption><b>Figure 8.</b> gVisor as an intermediate application kernel. Every guest system
+    call passes through it.</figcaption>
+  </figure>
+
+  <p>gVisor intercepts application system calls and acts as the guest kernel, without the need
+  for translation through virtualized hardware. gVisor may be thought of either as a merged
+  guest kernel and VMM, or as seccomp on steroids. This architecture allows it to provide a
+  flexible resource footprint, based on threads and memory mappings rather than fixed guest
+  physical resources, while also lowering the fixed costs of virtualization. However, this
+  comes at the price of reduced application compatibility and higher per-system call
+  overhead.</p>
+
+  <h3>Policy enforcement mechanics</h3>
+
+  <p>Compared to any other security engine, gVisor takes a very different approach. It
+  introduces an intermediate system call layer through which all the calls are made, and the
+  policy logic is implemented at this intermediate layer. gVisor provides a clean sandboxing
+  environment, and extremely powerful and flexible policy enforcement options compared to any
+  other policy engine. However, there are other issues:</p>
+
+  <ul>
+    <li><b>Intrusive deployment process.</b> Replacing runC is difficult, especially on hardened
+    distributions such as Bottlerocket, Talos, and COS.</li>
+    <li><b>Performance impact.</b> Every call has to be directed through the sentry wall
+    introduced by gVisor.</li>
+  </ul>
+
+  <h2 id="sec-4-6"><span class="num">4.6</span>KubeArmor</h2>
+
+  <p>KubeArmor is a cloud-native runtime security enforcement system that restricts the behavior
+  of pods, containers, and nodes (VMs) at the system level. That behavior includes process
+  execution, file access, and networking operations.</p>
+
+  <p>KubeArmor uses Linux security modules (LSMs) such as AppArmor, SELinux, or BPF-LSM to
+  enforce the user-specified policies. KubeArmor generates rich alerts and telemetry events
+  with container, pod, and namespace identities by using eBPF.</p>
+
+  <figure>
+    <img src="figures/fig-kubearmor-arch.png" alt="KubeArmor architecture. A SecurityPolicy YAML and the karmor CLI feed KubeArmor, which runs in userspace on each node and programs AppArmor or BPF-LSM in kernel space. The LSMs allow or deny access to assets, and the KubeArmor monitor sends telemetry and alerts to OpenTelemetry, Slack, Elastic, and Splunk.">
+    <figcaption><b>Figure 9.</b> KubeArmor architecture. Enforcement happens at the LSM hook in
+    kernel space. Telemetry leaves separately.</figcaption>
+  </figure>
+
+  <h3>Policy enforcement mechanics</h3>
+
+  <p>KubeArmor uses eBPF for detection and audit rules. For block-based rules, it uses, in order
+  of priority:</p>
+
+  <ul>
+    <li>LSM-BPF.</li>
+    <li>AppArmor.</li>
+    <li>SELinux, only for host-based rules.</li>
+  </ul>
+
+  <p>KubeArmor is the
+  <a href="https://kubearmor.io/blog/KubeArmor-BPF-LSM-Integration">first engine to use
+  LSM-BPF</a> to enforce block-based rules consistently for process, file, and network. LSM-BPF
+  provides an extremely flexible way to convert user-specified rules, managed by Kubernetes
+  native resources, into eBPF bytecode that is then injected at LSM hooks. LSM hooks make sure
+  that the enforcement does not suffer from post-attack mitigation, TOCTOU, or semantic
+  poisoning issues. Since all the decision-making, including enforcement, happens in kernel
+  space, the impact on performance is limited.</p>
+
+  <p>KubeArmor cannot be operated in environments that do not support LSM-BPF or AppArmor.
+  However, there are no distributions where either of them is unavailable.</p>
+</div>
+
+<!-- ============================================================ 5 CASE STUDY -->
+<div class="col">
+  <h1 id="sec-5"><span class="num">5</span>Case study: file integrity monitoring</h1>
+
+  <p>File integrity monitoring and protection is a good test of the difference between
+  detection, response, and prevention, because the destructive operation is fast and the window
+  for a response is small.</p>
+
+  <h3>FIM using Falco</h3>
+
+  <p>Falco provides open-source
+  <a href="https://artifacthub.io/packages/falco/security-hub/file-integrity-monitoring">file
+  integrity monitoring rules</a> based on eBPF. However, it does not support enforcement of
+  block rules. For example, there is no way to deny changes in system folders using these rules.
+  Using Talon, one can add response actions in post-attack mitigation style, if changes are
+  detected in the system folders.</p>
+
+  <h3>FIM using Tetragon</h3>
+
+  <p>Tetragon provides both file integrity monitoring and
+  <a href="https://github.com/cilium/tetragon/blob/main/examples/quickstart/file_monitoring_enforce.yaml">enforcement
+  and protection</a>. In enforcement mode it sends a kill signal to any process trying to make
+  changes to the system folders. However, we did not find any rule to prevent deletion or
+  unlinking of assets from the same system folders. So we added a security rule using the
+  kprobe <code>security_path_unlink</code> to prevent the unlinks. Even then, Tetragon could not
+  prevent the deletion of the assets, because of post-attack mitigation. The target process was
+  killed after the assets were deleted. The detailed note, with the changes and the observed
+  behavior, is
+  <a href="https://github.com/nyrahul/RuntimeSecurity/tree/main/tetragon-file-monitoring-enforce">captured
+  here</a>.</p>
+
+  <h3>FIM using KubeArmor</h3>
+
+  <p>KubeArmor uses LSMs, specifically LSM-BPF, to prevent changes to sensitive folders. The
+  <a href="https://github.com/kubearmor/KubeArmor/blob/main/getting-started/use-cases/hardening.md#fim-file-integrity-monitoringprotection">sample
+  policy can be found here</a>. KubeArmor does not suffer from TOCTOU issues or from any
+  post-attack mitigation issues.</p>
+</div>
+
+<!-- ============================================================ 6 SUMMARY -->
+<div class="col">
+  <h1 id="sec-6"><span class="num">6</span>Summary</h1>
+
+  <p>There are three categories of runtime security engine:</p>
+
+  <ol>
+    <li>Engines that provide detection capabilities and handle threat analysis in the cloud or
+    control plane, providing remediation and response capabilities. Falco Talon with Sysdig,
+    Tracee, Orca, and Wiz fall in this group.</li>
+    <li>Engines that provide detection capabilities and localized response capabilities.
+    NeuVector and Tetragon fall in this group.</li>
+    <li>Engines that provide detection capabilities, response capabilities from the cloud or
+    control plane, and inline mitigation capabilities. KubeArmor and the
+    <a href="https://github.com/kubernetes-sigs/security-profiles-operator">security profiles
+    operator</a> fall in this group.</li>
+  </ol>
+</div>
+
+<div class="col">
+  <table class="matrix bleed">
+    <colgroup>
+      <col class="first"><col><col><col><col class="ka"><col><col><col>
+    </colgroup>
+    <thead>
+      <tr>
+        <th>Engine &rarr;<br>Feature &darr;</th>
+        <th>Falco<br>+ Talon</th>
+        <th>Tracee</th>
+        <th>Tetragon</th>
+        <th class="ka">KubeArmor</th>
+        <th>NeuVector</th>
+        <th>gVisor</th>
+        <th>Prisma<br>enterprise only</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <th>Detect and respond</th>
+        <td>Yes</td><td>No <span style="color:var(--ink-3)">(ent)</span></td><td>No</td>
+        <td class="ka">No <span style="color:var(--ink-3)">(ent)</span></td>
+        <td>No <span style="color:var(--ink-3)">(ent)</span></td><td>No</td><td>Yes</td>
+      </tr>
+      <tr>
+        <th>Preventive capabilities</th>
+        <td><span class="mark n">No</span></td><td><span class="mark n">No</span></td>
+        <td><span class="mark p">Limited</span></td>
+        <td class="ka"><span class="mark y">Yes</span></td>
+        <td><span class="mark n">No</span></td><td><span class="mark y">Yes</span></td>
+        <td><span class="mark y">Yes</span></td>
+      </tr>
+      <tr>
+        <th>Performance impact</th>
+        <td><span class="mark n">High</span></td><td><span class="mark n">High</span></td>
+        <td><span class="mark y">Low</span></td>
+        <td class="ka"><span class="mark y">Low</span></td>
+        <td><span class="mark n">High</span></td><td><span class="mark n">High</span></td>
+        <td><span class="mark n">High</span></td>
+      </tr>
+      <tr>
+        <th>Zero trust policy</th>
+        <td><span class="mark n">No</span></td><td><span class="mark n">No</span></td>
+        <td><span class="mark y">Yes</span></td>
+        <td class="ka"><span class="mark y">Yes</span></td>
+        <td><span class="mark y">Yes</span></td><td><span class="mark y">Yes</span></td>
+        <td><span class="mark y">Yes</span></td>
+      </tr>
+      <tr>
+        <th>Sandboxing</th>
+        <td><span class="mark n">No</span></td><td><span class="mark n">No</span></td>
+        <td><span class="mark n">No</span></td>
+        <td class="ka"><span class="mark y">Yes</span></td>
+        <td><span class="mark n">No</span></td><td><span class="mark y">Yes</span></td>
+        <td><span class="mark y">Yes</span></td>
+      </tr>
+      <tr>
+        <th>Deployment complexity</th>
+        <td>Low</td><td>Low</td><td>Low</td>
+        <td class="ka">Low</td>
+        <td>Low</td>
+        <td><span class="mark n">High</span><br><span style="color:var(--ink-3)">runC change</span></td>
+        <td><span class="mark n">High</span><br><span style="color:var(--ink-3)">runC change</span></td>
+      </tr>
+      <tr>
+        <th>Implementation language</th>
+        <td>C++</td><td>Go</td><td>Go</td>
+        <td class="ka">Go</td>
+        <td>Go</td><td>Go</td><td>Not known</td>
+      </tr>
+    </tbody>
+    <caption><b>Table 2.</b> Capability matrix across the engines covered in this paper.
+    <b>(ent)</b> marks a capability available only in the vendor's enterprise version. The
+    KubeArmor column is tinted because this paper is published by that project, so a reader can
+    weigh it accordingly. Performance impact is high for every detect and respond engine that
+    does not do local or in-kernel aggregation.</caption>
+  </table>
+</div>
+
+<div class="col">
+  <p>Containerized environments are becoming the backbone of modern application deployment, and
+  they bring both agility and security challenges. This guide compares the top runtime container
+  security tools, and sets out their capabilities, their key architectural tenets, and the
+  trade-offs those tenets create. By aligning the right tools with your security strategy and
+  operational needs, you can strengthen your containerized workloads against evolving threats.
+  Effective runtime security is a process of continuous improvement, not a one-time
+  solution.</p>
+</div>
+</main>
+
+<!-- ============================================================ BACK COVER -->
+<section class="plate">
+  <svg class="plate-mark" viewBox="0 0 400 400" fill="none" aria-hidden="true">
+    <g stroke="#ffffff" stroke-width="1.1">
+      <path d="M200 18 350 105v190L200 382 50 295V105z"/>
+      <path d="M200 62 312 127v130L200 322 88 257V127z"/>
+      <path d="M200 106 274 149v86l-74 43-74-43v-86z"/>
+    </g>
+    <g stroke="#ffffff" stroke-width="0.5" opacity="0.75">
+      <path d="M50 105h300M50 295h300M200 18v364"/>
+    </g>
+  </svg>
+
+  <div class="back-inner">
+    <img class="back-logo" src="brand/kubearmor-dark-bg.svg" alt="KubeArmor">
+
+    <h2 class="back-h">About KubeArmor</h2>
+
+    <p class="back-lede">KubeArmor limits what a workload can do while it runs. It controls which
+    processes a workload can start, which files it can touch, and which network calls it can
+    make. The check sits on a Linux Security Module hook, so a denied operation returns
+    <span class="mono">Permission denied</span> and never runs. It works on pods, containers,
+    VMs, and bare metal.</p>
+
+    <div class="back-links">
+      <div>
+        <dt>Documentation</dt>
+        <dd><a href="https://docs.kubearmor.io/kubearmor/">docs.kubearmor.io</a></dd>
+      </div>
+      <div>
+        <dt>Source</dt>
+        <dd><a href="https://github.com/kubearmor/KubeArmor">github.com/kubearmor/KubeArmor</a></dd>
+      </div>
+      <div>
+        <dt>Community</dt>
+        <dd><span class="mono">#kubearmor</span> on CNCF Slack</dd>
+      </div>
+      <div>
+        <dt>Website</dt>
+        <dd><a href="https://kubearmor.io">kubearmor.io</a></dd>
+      </div>
+      <div>
+        <dt>Ask the codebase</dt>
+        <dd><a href="https://deepwiki.com/kubearmor/KubeArmor">deepwiki.com/kubearmor/KubeArmor</a></dd>
+      </div>
+      <div>
+        <dt>AI Security CTF</dt>
+        <dd><a href="https://ctf.kubearmor.io/">ctf.kubearmor.io</a></dd>
+      </div>
+    </div>
+
+    <div class="back-foot">
+      <img src="brand/cncf-sandbox.png" alt="CNCF Sandbox Project">
+      <p>KubeArmor is a Sandbox project of the Cloud Native Computing Foundation.
+      Copyright &copy; The KubeArmor Authors. Product names, logos, and brands referenced in this
+      paper are the property of their respective owners.</p>
+    </div>
+  </div>
+</section>
+
+</body>
+</html>
