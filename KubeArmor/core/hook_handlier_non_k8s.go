@@ -190,14 +190,7 @@ func (dm *KubeArmorDaemon) UpdateContainer(containerID string, container tp.Cont
 			dm.SystemMonitor.AddContainerIDToNsMap(containerID, container.NamespaceName, container.PidNS, container.MntNS)
 			dm.RuntimeEnforcer.RegisterContainer(containerID, container.PidNS, container.MntNS)
 
-			if len(endPoint.SecurityPolicies) > 0 { // struct can be empty or no policies registered for the endPoint yet
-				dm.Logger.UpdateSecurityPolicies("ADDED", endPoint)
-				if dm.RuntimeEnforcer != nil && endPoint.PolicyEnabled == tp.KubeArmorPolicyEnabled {
-					dm.Logger.Printf("Enforcing security policies for container ID %s", containerID)
-					// enforce security policies
-					dm.RuntimeEnforcer.UpdateSecurityPolicies(endPoint)
-				}
-			}
+			dm.enforceEndpointSecurityPolicies("ADDED", container.NamespaceName, container.EndPointName, containerID)
 		}
 
 		if cfg.GlobalCfg.StateAgent {

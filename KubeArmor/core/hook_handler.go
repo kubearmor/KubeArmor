@@ -111,8 +111,6 @@ func (dm *KubeArmorDaemon) handleK8sConn(conn net.Conn, ready *atomic.Bool) {
 	}
 }
 func (dm *KubeArmorDaemon) handleContainerCreate(container types.Container) {
-	endpoint := types.EndPoint{}
-
 	dm.Logger.Printf("Detected a container (added/%.12s/pidns=%d/mntns=%d)", container.ContainerID, container.PidNS, container.MntNS)
 
 	dm.ContainersLock.Lock()
@@ -145,8 +143,6 @@ func (dm *KubeArmorDaemon) handleContainerCreate(container types.Container) {
 					dm.EndPoints[idx].PrivilegedContainers[container.ContainerName] = struct{}{}
 				}
 
-				endpoint = dm.EndPoints[idx]
-
 				break
 			}
 		}
@@ -163,13 +159,7 @@ func (dm *KubeArmorDaemon) handleContainerCreate(container types.Container) {
 		dm.SystemMonitor.AddContainerIDToNsMap(container.ContainerID, container.NamespaceName, container.PidNS, container.MntNS)
 		dm.RuntimeEnforcer.RegisterContainer(container.ContainerID, container.PidNS, container.MntNS)
 
-		if len(endpoint.SecurityPolicies) > 0 { // struct can be empty or no policies registered for the endpoint yet
-			dm.Logger.UpdateSecurityPolicies("ADDED", endpoint)
-			if dm.RuntimeEnforcer != nil && endpoint.PolicyEnabled == types.KubeArmorPolicyEnabled {
-				// enforce security policies
-				dm.RuntimeEnforcer.UpdateSecurityPolicies(endpoint)
-			}
-		}
+		dm.enforceEndpointSecurityPolicies("ADDED", container.NamespaceName, container.EndPointName, container.ContainerID)
 	}
 }
 func (dm *KubeArmorDaemon) handleContainerDelete(containerID string) {

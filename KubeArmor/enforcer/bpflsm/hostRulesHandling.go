@@ -36,5 +36,5 @@ func (be *BPFEnforcer) UpdateHostRules(securityPolicies []tp.HostSecurityPolicy)
 		CapabilitiesAction: cfg.GlobalCfg.HostDefaultCapabilitiesPosture,
 	}
 
-	be.UpdateContainerRules(id, hostPolicies, dp)
+	be.UpdateContainerRules(id, hostPolicies, dp, 0)
 }
