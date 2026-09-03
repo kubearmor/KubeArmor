@@ -47,6 +47,16 @@ jobs:
       - name: Compile libbpf
         if: steps.filter.outputs.kubearmor == 'true'
         run: ./.github/workflows/install-libbpf.sh
+      - name: Install bpftool
+        run: ./.github/workflows/install-bpftool.sh
+
+      - name: Generate vmlinux.h
+        run: make -C BPF kernel_headers
+        working-directory: KubeArmor
+
+      - name: Generate BPF files
+        run: go generate ./...
+        working-directory: KubeArmor
 
       - name: Generate KubeArmor artifacts
         if: steps.filter.outputs.kubearmor == 'true'
@@ -69,7 +79,7 @@ jobs:
           docker save kubearmor/kubearmor-snitch:latest | sudo k3s ctr images import -
 
           helm upgrade --install kubearmor-operator ./deployments/helm/KubeArmorOperator -n kubearmor --create-namespace --set kubearmorOperator.image.tag=latest
-          
+
           kubectl rollout status --timeout=5m deployment -n kubearmor -l kubearmor-app=kubearmor-operator
 
           kubectl get pods -A
