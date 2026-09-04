@@ -1,0 +1,22 @@
+name: ci-rebase
+
+on:
+  push:
+    branches: [main]
+
+permissions: read-all
+
+jobs:
+  rebase:
+    name: Rebase open PRs onto main
+    if: github.repository == 'kubearmor/KubeArmor'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      pull-requests: read
+    steps:
+      - name: Rebase
+        uses: peter-evans/rebase@e4945786f7ca41fe6e101cead4395f5489593943 # v4.0.0
+        with:
+          base: main
