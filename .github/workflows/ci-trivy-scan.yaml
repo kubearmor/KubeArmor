@@ -26,6 +26,9 @@ jobs:
     permissions:
       id-token: write
     timeout-minutes: 150
+    outputs:
+      vulnerable: ${{ steps.summary.outputs.vulnerable }}
+      failed_components: ${{ steps.summary.outputs.failed_components }}
     steps:
       - name: Checkout code
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
@@ -102,12 +105,16 @@ jobs:
             docker save -o kubearmor-controller.tar kubearmor/kubearmor-controller:latest
           fi
           
+      - name: Prepare Trivy report directory
+        run: mkdir -p trivy-reports
+
       - name: Run Trivy vulnerability scanner on kubearmor-init
         id: scan_init
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           input: kubearmor-init.tar
           format: 'table'
+          output: 'trivy-reports/kubearmor-init.txt'
           exit-code: '1'
           ignore-unfixed: true
           vuln-type: 'os,library'
@@ -120,6 +127,7 @@ jobs:
         with:
           input: kubearmor.tar
           format: 'table'
+          output: 'trivy-reports/kubearmor.txt'
           exit-code: '1'
           ignore-unfixed: true
           vuln-type: 'os,library'
@@ -133,6 +141,7 @@ jobs:
         with:
           input: kubearmor-controller.tar
           format: 'table'
+          output: 'trivy-reports/kubearmor-controller.txt'
           exit-code: '1'
           ignore-unfixed: true
           vuln-type: 'os,library'
@@ -146,6 +155,7 @@ jobs:
         with:
           input: kubearmor-operator.tar
           format: 'table'
+          output: 'trivy-reports/kubearmor-operator.txt'
           exit-code: '1'
           ignore-unfixed: true
           vuln-type: 'os,library'
@@ -153,51 +163,62 @@ jobs:
         continue-on-error: true 
 
 
-      - name: Report Trivy Scan Results
+      - name: Summarize Trivy scan results
+        id: summary
+        env:
+          TRIVY_COMPONENTS: |
+            kubearmor-init|kubearmor/kubearmor-init:latest|${{ steps.scan_init.outcome }}|true
+            kubearmor|kubearmor/kubearmor:latest|${{ steps.scan_main.outcome }}|true
+            kubearmor-controller|kubearmor/kubearmor-controller:latest|${{ steps.scan_controller.outcome }}|${{ steps.filter.outputs.controller }}
+            kubearmor-operator|kubearmor/kubearmor-operator:latest|${{ steps.scan_operator.outcome }}|${{ steps.filter.outputs.operator }}
+        run: ./.github/workflows/trivy-summarize.sh
+
+      - name: Upload Trivy reports
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: trivy-reports
+          path: trivy-reports/
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Fail if vulnerabilities were found
+        if: steps.summary.outputs.vulnerable == 'true'
+        env:
+          FAILED_COMPONENTS: ${{ steps.summary.outputs.failed_components }}
         run: |
-          echo "Trivy Scan Results Summary:"
-          echo "=========================="
-          any_scan_failed=false
+          echo "Trivy reported vulnerabilities in: $FAILED_COMPONENTS"
+          exit 1
 
-          if [[ "${{ steps.scan_init.outcome }}" == "failure" ]]; then
-            echo "❌ kubearmor-init: FAILED (Vulnerabilities found)"
-            any_scan_failed=true
-          else
-            echo "✅ kubearmor-init: PASSED"
-          fi
+  report-vulnerabilities:
+    name: Track Trivy findings
+    needs: build
+    if: |
+      !cancelled() &&
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/main' &&
+      needs.build.outputs.vulnerable == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
-          # Check kubearmor scan result
-          if [[ "${{ steps.scan_main.outcome }}" == "failure" ]]; then
-            echo "❌ kubearmor: FAILED (Vulnerabilities found)"
-            any_scan_failed=true
-          else
-            echo "✅ kubearmor: PASSED"
-          fi
+      - name: Download Trivy reports
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: trivy-reports
+          path: trivy-reports
 
-          # Check kubearmor-controller scan result, if it ran
-          if [[ "${{ steps.filter.outputs.controller }}" == "true" ]]; then
-            if [[ "${{ steps.scan_controller.outcome }}" == "failure" ]]; then
-              echo "❌ kubearmor-controller: FAILED (Vulnerabilities found)"
-              any_scan_failed=true
-            else
-              echo "✅ kubearmor-controller: PASSED"
-            fi
-          fi
-
-          # Check kubearmor-operator scan result, if it ran
-          if [[ "${{ steps.filter.outputs.operator }}" == "true" ]]; then
-            if [[ "${{ steps.scan_operator.outcome }}" == "failure" ]]; then
-              echo "❌ kubearmor-operator: FAILED (Vulnerabilities found)"
-              any_scan_failed=true
-            else
-              echo "✅ kubearmor-operator: PASSED"
-            fi
-          fi
-
-          echo "=========================="
-          if [[ "$any_scan_failed" == "true" ]]; then
-            echo "One or more Trivy scans failed. Check logs above for details."
-            exit 1
-          else
-            echo "All Trivy scans passed."
-          fi
+      - name: Create or update the Trivy tracking issue
+        run: ./.github/workflows/trivy-report-issue.sh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          TRIVY_ISSUE_TITLE: "[Trivy] Vulnerabilities detected in KubeArmor images on main"
+          TRIVY_ARTIFACT_NAME: trivy-reports
+          TRIVY_REPORT_DIR: trivy-reports
+          TRIVY_LABELS: security,trivy
+          TRIVY_SEVERITY: CRITICAL,HIGH
