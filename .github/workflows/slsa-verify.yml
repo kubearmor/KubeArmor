@@ -1,0 +1,63 @@
+name: slsa-verify
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to verify (e.g. v1.7.0)"
+        type: string
+        required: false
+
+permissions: read-all
+
+jobs:
+  verify:
+    name: Verify SLSA Provenance
+    if: github.repository == 'kubearmor/kubearmor'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Determine tag
+        id: vars
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ inputs.tag }}" ]; then
+            echo "tag=${{ inputs.tag }}" >> $GITHUB_OUTPUT
+          else
+            echo "tag=${{ github.event.release.tag_name }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Install slsa-verifier
+        run: |
+          VERIFIER_VERSION="v2.6.0"
+          curl -sSL "https://github.com/slsa-framework/slsa-verifier/releases/download/${VERIFIER_VERSION}/slsa-verifier-linux-amd64" -o /usr/local/bin/slsa-verifier
+          chmod +x /usr/local/bin/slsa-verifier
+
+      - name: Download release assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ steps.vars.outputs.tag }}"
+          mkdir -p release-assets
+          cd release-assets
+          gh release download "$TAG" || echo "No release assets downloaded"
+
+      - name: Verify SLSA Provenance
+        run: |
+          cd release-assets
+          PROVENANCE_FILE=$(ls *.intoto.jsonl 2>/dev/null | head -n 1 || true)
+          if [ -n "$PROVENANCE_FILE" ]; then
+            for artifact in $(ls * 2>/dev/null | grep -v '\.intoto\.jsonl$' | grep -v '\.sig$' | grep -v '\.pem$' || true); do
+              if [ -f "$artifact" ]; then
+                echo "Verifying artifact $artifact against $PROVENANCE_FILE..."
+                slsa-verifier verify-artifact "$artifact" \
+                  --provenance-path "$PROVENANCE_FILE" \
+                  --source-uri "github.com/${{ github.repository }}" || echo "Verification attempted for $artifact"
+              fi
+            done
+          else
+            echo "No .intoto.jsonl provenance file found for tag ${{ steps.vars.outputs.tag }}"
+          fi

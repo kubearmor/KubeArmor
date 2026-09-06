@@ -1,20 +1,7 @@
 name: ci-test-systemd
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - "KubeArmor/**"
-      - "tests/**"
-      - "protobuf/**"
-      - ".github/workflows/ci-test-systemd.yml"
-  pull_request:
-    branches: [main]
-    paths:
-      - "KubeArmor/**"
-      - "tests/**"
-      - "protobuf/**"
-      - ".github/workflows/ci-test-systemd.yml"
+  workflow_call:
 
 # Declare default permissions as read only.
 permissions: read-all
@@ -30,7 +17,7 @@ jobs:
 
       - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
-          go-version-file: 'KubeArmor/go.mod'
+          go-version-file: "KubeArmor/go.mod"
 
       - name: Install the latest LLVM toolchain
         run: ./.github/workflows/install-llvm.sh
@@ -39,7 +26,7 @@ jobs:
         run: ./.github/workflows/install-libbpf.sh
 
       - name: Install GoReleaser
-        uses: goreleaser/goreleaser-action@b953231f81b8dfd023c58e0854a721e35037f28b # v2
+        uses: goreleaser/goreleaser-action@5daf1e915a5f0af01ddbcd89a43b8061ff4f1a89 # v7.2.2
         with:
           install-only: true
           version: v1.25.0
@@ -51,7 +38,7 @@ jobs:
           go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.11
           go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.6.1
           echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
-    
+
       - name: Build Systemd Release
         run: make local-release
         working-directory: KubeArmor
@@ -62,12 +49,10 @@ jobs:
 
       - name: Check journalctl
         run: sudo journalctl -u kubearmor --no-pager
-      
-      - name: Test kubearmor using ginkgo 
+
+      - name: Test kubearmor using ginkgo
         run: |
-          go install -mod=mod github.com/onsi/ginkgo/v2/ginkgo
+          go install -mod=mod github.com/onsi/ginkgo/v2/ginkgo@9ff1646a26f77a4c0d33ddba3e6368c42c0e8842
           make
         working-directory: ./tests/nonk8s_env
         timeout-minutes: 30
-        
-      

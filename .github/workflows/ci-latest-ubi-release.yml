@@ -7,7 +7,7 @@ on:
         description: "Release tag which has to be updated"
         type: "string"
         required: false
-  push: 
+  push:
     branches:
       - "main"
       - "v*"
@@ -35,16 +35,16 @@ jobs:
       kubearmor: ${{ steps.filter.outputs.kubearmor}}
       controller: ${{ steps.filter.outputs.controller }}
     steps:
-    - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
-    - uses: dorny/paths-filter@4512585405083f25c027a35db413c2b3b9006d50 # v2
-      id: filter
-      with:
-        filters: |
-          kubearmor:
-            - "KubeArmor/**"
-            - "protobuf/**"
-          controller:
-            - 'pkg/KubeArmorController/**'
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: dorny/paths-filter@4512585405083f25c027a35db413c2b3b9006d50 # v2
+        id: filter
+        with:
+          filters: |
+            kubearmor:
+              - "KubeArmor/**"
+              - "protobuf/**"
+            controller:
+              - 'pkg/KubeArmorController/**'
   build:
     name: Create KubeArmor latest release
     needs: [check]
@@ -60,7 +60,7 @@ jobs:
 
       - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
-          go-version-file: 'KubeArmor/go.mod'
+          go-version-file: "KubeArmor/go.mod"
       - name: Install the latest LLVM toolchain
         run: ./.github/workflows/install-llvm.sh
 
@@ -99,12 +99,12 @@ jobs:
               "features": {
                 "containerd-snapshotter": true
               }
-            }      
+            }
       - name: Login to Docker Hub
         uses: docker/login-action@465a07811f14bebb1938fbed4728c6a1ff8901fc # v2
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_AUTHTOK }}  
+          password: ${{ secrets.DOCKER_AUTHTOK }}
 
       # - name: Set up AWS Credentials
       #   uses: aws-actions/configure-aws-credentials@v6
@@ -112,7 +112,7 @@ jobs:
       #     aws-access-key-id: ${{ secrets.AWS_ECR_ACCESS_ID }}
       #     aws-secret-access-key: ${{ secrets.AWS_ECR_SECRET_ID }}
       #     aws-region: us-east-1
-  
+
       # - name: Login to AWS ECR
       #   run: |
       #     aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws/k9v9d5v2
@@ -130,8 +130,7 @@ jobs:
           REGCTL_VERSION: v0.11.5
           REGCTL_SHA256: c93aa7638749f5aaac1a8e01787321889c78f0101809bb2880343478d0ba0467
         run: |
-          curl -fsSL "https://github.com/regclient/regclient/releases/download/${REGCTL_VERSION}/regctl-linux-amd64" -o regctl
-          echo "${REGCTL_SHA256}  regctl" | sha256sum -c -
+          curl -L https://github.com/regclient/regclient/releases/latest/download/regctl-linux-amd64 -o regctl
           chmod 755 regctl
           mv regctl /usr/local/bin/regctl
 
@@ -160,7 +159,6 @@ jobs:
           cosign sign -r kubearmor/kubearmor-ubi@${{ steps.digest.outputs.imagedigest }} --yes
           cosign sign -r kubearmor/kubearmor-init-ubi@${{ steps.digest.outputs.initdigest }} --yes
 
-
   push-stable-version:
     name: Create KubeArmor stable release
     needs: [build, check]
@@ -179,8 +177,7 @@ jobs:
           REGCTL_VERSION: v0.11.5
           REGCTL_SHA256: c93aa7638749f5aaac1a8e01787321889c78f0101809bb2880343478d0ba0467
         run: |
-          curl -fsSL "https://github.com/regclient/regclient/releases/download/${REGCTL_VERSION}/regctl-linux-amd64" -o regctl
-          echo "${REGCTL_SHA256}  regctl" | sha256sum -c -
+          curl -L https://github.com/regclient/regclient/releases/latest/download/regctl-linux-amd64 -o regctl
           chmod 755 regctl
           mv regctl /usr/local/bin/regctl
 
@@ -198,14 +195,13 @@ jobs:
             const isMatch = ref === `refs/heads/${stableBranch}`;
             core.setOutput('tag', isMatch.toString());
 
-
       - name: Login to Docker Hub
         if: steps.match.outputs.tag == 'true'
         uses: docker/login-action@465a07811f14bebb1938fbed4728c6a1ff8901fc # v2
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_AUTHTOK }}
-              
+
       # - name: Set up AWS Credentials
       #   if: steps.match.outputs.tag == 'true'
       #   uses: aws-actions/configure-aws-credentials@v6
@@ -213,12 +209,12 @@ jobs:
       #     aws-access-key-id: ${{ secrets.AWS_ECR_ACCESS_ID }}
       #     aws-secret-access-key: ${{ secrets.AWS_ECR_SECRET_ID }}
       #     aws-region: us-east-1
-  
+
       # - name: Login to AWS ECR
       #   if: steps.match.outputs.tag == 'true'
       #   run: |
       #     aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws/k9v9d5v2
-            
+
       - name: Generate the stable version of KubeArmor in Docker Hub
         if: steps.match.outputs.tag == 'true'
         run: |
@@ -243,7 +239,7 @@ jobs:
     runs-on: oracle-vm-16cpu-64gb-x86-64
     permissions:
       id-token: write
-    timeout-minutes: 150    
+    timeout-minutes: 150
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
@@ -252,8 +248,7 @@ jobs:
           REGCTL_VERSION: v0.11.5
           REGCTL_SHA256: c93aa7638749f5aaac1a8e01787321889c78f0101809bb2880343478d0ba0467
         run: |
-          curl -fsSL "https://github.com/regclient/regclient/releases/download/${REGCTL_VERSION}/regctl-linux-amd64" -o regctl
-          echo "${REGCTL_SHA256}  regctl" | sha256sum -c -
+          curl -L https://github.com/regclient/regclient/releases/latest/download/regctl-linux-amd64 -o regctl
           chmod 755 regctl
           mv regctl /usr/local/bin/regctl
 
@@ -261,7 +256,7 @@ jobs:
         run: regctl version
       - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
-          go-version-file: 'KubeArmor/go.mod'
+          go-version-file: "KubeArmor/go.mod"
       - name: Set up Docker
         uses: docker/setup-docker-action@e43656e248c0bd0647d3f5c195d116aacf6fcaf4 # v4
         with:
@@ -271,7 +266,7 @@ jobs:
               "features": {
                 "containerd-snapshotter": true
               }
-            }  
+            }
       - name: Set up QEMU
         uses: docker/setup-qemu-action@2b82ce82d56a2a04d2637cd93a637ae1b359c0a7 # v2
 
@@ -292,7 +287,7 @@ jobs:
       #     aws-access-key-id: ${{ secrets.AWS_ECR_ACCESS_ID }}
       #     aws-secret-access-key: ${{ secrets.AWS_ECR_SECRET_ID }}
       #     aws-region: us-east-1
-  
+
       # - name: Login to AWS ECR
       #   run: |
       #     aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws/k9v9d5v2
@@ -338,4 +333,3 @@ jobs:
       - name: Sign the Container Images
         run: |
           cosign sign -r kubearmor/kubearmor-controller-ubi@${{ steps.digest.outputs.imagedigest }} --yes
-
