@@ -23,6 +23,7 @@ The list is sorted alphabetically.
 | Jaehyun Nam | [@nam-jaehyun](https://github.com/nam-jaehyun) | Dankook University |
 | Rahul Jadhav | [@nyrahul](https://github.com/nyrahul) | AccuKnox |
 | Ramakant Sharma | [@rksharma95](https://github.com/rksharma95) | StepSecurity |
+| Rishabh Soni | [@rootxrishabh](https://github.com/rootxrishabh) | RapidFort |
 | Rudraksh Pareek | [@DelusionalOptimist](https://github.com/DelusionalOptimist) | CERN |
 
 ## Reviewers

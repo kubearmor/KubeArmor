@@ -70,18 +70,8 @@ jobs:
         uses: sigstore/cosign-installer@dc72c7d5c4d10cd6bcb8cf6e3fd625a9e5e537da
 
       - name: Install karmor
-        run: curl -sfL https://raw.githubusercontent.com/kubearmor/kubearmor-client/main/install.sh | sudo sh -s -- -b .
+        run: curl -sfL https://raw.githubusercontent.com/kubearmor/kubearmor-client/main/install.sh -o /tmp/install-karmor.sh && sudo sh /tmp/install-karmor.sh -b .
         working-directory: KubeArmor
-
-      - name: Build KubeArmor object files
-        run: make
-        working-directory: KubeArmor/BPF
-
-      - name: Log in to Docker Hub
-        uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567
-        with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_AUTHTOK }}
 
       - name: Prepare environment from validated tag
         id: vars
@@ -93,6 +83,19 @@ jobs:
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
             git checkout "${RELEASE_TAG}"
           fi
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_AUTHTOK }}
+
+      - name: Build KubeArmor object files
+        run: |
+          make
+          cd ..
+          go generate ./...
+        working-directory: KubeArmor/BPF
 
       - name: Install yq
         run: |
@@ -106,11 +109,11 @@ jobs:
           yq -i '.builds[0].goarch = ["${{ matrix.arch }}"]' /tmp/.goreleaser.yaml
 
       - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@9c156ee8a17a598857849441385a2041ef570552
+        uses: goreleaser/goreleaser-action@5daf1e915a5f0af01ddbcd89a43b8061ff4f1a89 # v7.2.2
         with:
           distribution: goreleaser
           version: v1.25.0
-          args: release --config=/tmp/.goreleaser.yaml
+          args: release --config=/tmp/.goreleaser.yaml --skip-validate --clean
           workdir: KubeArmor
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
