@@ -1,12 +1,7 @@
 name: ci-test-controllers
 
 on:
-  pull_request:
-    branches:
-      - "main"
-    paths:
-      - "pkg/**"
-      - ".github/workflows/ci-test-controllers.yml"
+  workflow_call:
 
 # Declare default permissions as read only.
 permissions: read-all
@@ -116,7 +111,7 @@ jobs:
         if: ${{ failure() }}
         run: |
           kubectl describe pod -n kubearmor -l kubearmor-app=kubearmor
-          curl -sfL http://get.kubearmor.io/ | sudo sh -s -- -b /usr/local/bin
+          curl -sfL http://get.kubearmor.io/ -o /tmp/install-karmor.sh && sudo sh /tmp/install-karmor.sh -b /usr/local/bin
           mkdir -p /tmp/kubearmor/ && cd /tmp/kubearmor && karmor sysdump
 
       - name: Archive log artifacts

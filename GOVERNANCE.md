@@ -26,6 +26,12 @@ To enforce this in practice:
 - **Communication channels.** Project communication (issues, PRs, design docs, Slack, community calls, blog posts on kubearmor.io) must be conducted in public, project-owned channels — not vendor-owned ones.
 - **Branding.** Project websites, talks, and assets must not present any single company as owning, leading, or initiating the project beyond acknowledging the donating organization (AccuKnox) for historical context.
 
+## Access Continuity and Bus Factor
+
+To ensure continuous project operation and maintain a bus factor of 2 or more:
+- **Access Continuity:** Administrative permissions for the GitHub organization, domain DNS, package registries, and security credentials are shared among multiple active Maintainers from diverse organizations. If any individual Maintainer is unavailable or steps down, remaining Maintainers retain full authority and access rights to continue project releases and operations without interruption.
+- **Bus Factor:** KubeArmor is actively maintained by multiple Maintainers and Reviewers from different organizations (listed in [MAINTAINERS.md](./MAINTAINERS.md)), ensuring no single contributor is a sole bottleneck for code reviews, security fixes, or releases.
+
 ## Roles
 
 KubeArmor recognises four contributor roles plus an honorific tier. Roles are described from least to most responsibility.

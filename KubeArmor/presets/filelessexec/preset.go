@@ -28,8 +28,6 @@ import (
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 )
 
-//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -cc clang filelessexec  ../../BPF/filelessexec.bpf.c -type event -no-global-types -- -I/usr/include/ -O2 -g -Wno-missing-declarations
-
 var (
 	_ base.PresetInterface = (*Preset)(nil)
 )
