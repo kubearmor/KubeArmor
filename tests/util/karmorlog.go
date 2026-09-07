@@ -257,7 +257,7 @@ func KarmorHostLogStart(logFilter string, op string) error {
 		eventChan = make(chan klog.EventInfo, maxEvents)
 	}
 
-	nullFile, err := os.OpenFile("/dev/null", os.O_WRONLY, 0)
+	nullFile, err := os.OpenFile(os.DevNull, os.O_WRONLY, 0)
 	if err != nil {
 		return err
 	}

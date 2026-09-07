@@ -1,0 +1,57 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorHostPolicy
+metadata:
+  name: hsp-windows-file-pattern-block
+spec:
+  severity: 5
+  message: "Block file access matching glob patterns"
+  nodeSelector:
+    matchLabels:
+      kubearmor.io/hostname: "*"
+  file:
+    matchPatterns:
+      # =========- Single-star (*): matches within one path component =========-
+
+      # Block all .log files directly under C:\Windows\Temp\
+      # * does NOT cross directory boundaries — subdirectory logs are NOT matched.
+      - pattern: \Windows\Temp\*.log
+
+      # Block any file whose name starts with "secret" and ends with ".txt"
+      # in C:\Users\Public\  (e.g. secretNotes.txt, secret_data.txt)
+      - pattern: \Users\Public\secret*.txt
+
+      # =========- Question-mark (?): matches exactly one non-separator char ===
+
+      # Block temp files like "tmp12345.tmp" (exactly 6 chars before extension)
+      - pattern: \Windows\Temp\tmp?????.tmp
+
+      # =========- Double-star (**): crosses directory boundaries ===============
+
+      # Block ALL .exe files anywhere under C:\Users\ (any user, any depth)
+      # e.g. \Users\Alice\Downloads\malware.exe  (matched)
+      #      \Users\Bob\AppData\Local\Temp\x.exe (matched)
+      - pattern: \Users\**\*.exe
+
+      # Block any file called "shadow" or "passwd" anywhere on the volume
+      # (mirrors the Linux /etc/*hado? test from KubeArmor examples)
+      - pattern: \**\shadow
+      - pattern: \**\passwd
+
+  action: Block
+
+# ============================================================================
+# Manual Test Cases (run from an elevated cmd or PowerShell on the test host)
+# ============================================================================
+#
+# Expect BLOCKED (Access Denied):
+#   type  C:\Windows\Temp\debug.log           # matches \Windows\Temp\*.log
+#   type  C:\Users\Public\secretNotes.txt     # matches \Users\Public\secret*.txt
+#   type  C:\Windows\Temp\tmp12345.tmp        # matches \Windows\Temp\tmp?????.tmp (6 chars)
+#   start C:\Users\Alice\Downloads\tool.exe   # matches \Users\**\*.exe
+#   type  C:\Windows\System32\config\shadow   # matches \**\shadow
+#
+# Expect ALLOWED (no match):
+#   type  C:\Windows\Temp\subdir\debug.log    # single * does not cross dirs
+#   type  C:\Users\Public\notes.txt           # does not start with "secret"
+#   type  C:\Windows\Temp\tmp1234.tmp         # only 5 chars before .tmp, needs 6
+#   type  C:\ProgramData\app.exe              # not under \Users\

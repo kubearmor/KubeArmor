@@ -20,10 +20,10 @@ jobs:
           go-version-file: "KubeArmor/go.mod"
 
       - name: Install the latest LLVM toolchain
-        run: ./.github/workflows/install-llvm.sh
+        run: ./.github/scripts/linux/install-llvm.sh
 
       - name: Compile libbpf
-        run: ./.github/workflows/install-libbpf.sh
+        run: ./.github/scripts/linux/install-libbpf.sh
 
       - name: Install GoReleaser
         uses: goreleaser/goreleaser-action@5daf1e915a5f0af01ddbcd89a43b8061ff4f1a89 # v7.2.2

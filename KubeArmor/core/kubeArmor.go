@@ -45,10 +45,26 @@ import (
 
 // StopChan Channel
 var StopChan chan struct{}
+var Daemon *KubeArmorDaemon
 
 // init Function
 func init() {
 	StopChan = make(chan struct{})
+}
+
+// ensure KubeArmor daemon implements all required interfaces
+var (
+	_ SupportedFeatures = (*KubeArmorDaemon)(nil)
+)
+
+// SupportedFeatures each platform implement this interface to define
+// set of features that are supported
+type SupportedFeatures interface {
+	IsContainerMonitoringSupported() bool
+	IsK8sModeSupported() bool
+	IsKVMAgentSupported() bool
+	IsPresetSupported() bool
+	GetMachineID() (string, error)
 }
 
 // KubeArmorDaemon Structure
@@ -58,7 +74,8 @@ type KubeArmorDaemon struct {
 	NodeLock *sync.RWMutex
 
 	// flag
-	K8sEnabled bool
+	K8sEnabled           bool
+	MonitoringContainers bool
 
 	// K8s pods (from kubernetes)
 	K8sPods     []tp.K8sPod
@@ -103,7 +120,7 @@ type KubeArmorDaemon struct {
 	SystemMonitor *mon.SystemMonitor
 
 	// runtime enforcer
-	RuntimeEnforcer *efc.RuntimeEnforcer
+	RuntimeEnforcer efc.RuntimeEnforcer
 
 	// presets
 	Presets *presets.Preset
@@ -124,7 +141,7 @@ type KubeArmorDaemon struct {
 	GRPCHealthServer *health.Server
 
 	// USB device handler
-	USBDeviceHandler *dvc.USBDeviceHandler
+	USBDeviceHandler dvc.USBDeviceHandler
 
 	// Network Policy Enforcer
 	NetworkPolicyEnforcer *ne.NetworkPolicyEnforcer
@@ -181,7 +198,12 @@ func NewKubeArmorDaemon() *KubeArmorDaemon {
 
 // DestroyKubeArmorDaemon Function
 func (dm *KubeArmorDaemon) DestroyKubeArmorDaemon() {
-	close(StopChan)
+	select {
+	case <-StopChan:
+		// already closed
+	default:
+		close(StopChan) // closes StopChan which unblocks KubeArmor()
+	}
 
 	if dm.SystemMonitor != nil {
 		// close system monitor
@@ -308,7 +330,7 @@ func (dm *KubeArmorDaemon) InitSystemMonitor() error {
 		return fmt.Errorf("failed to create new system monitor")
 	}
 
-	if err := dm.SystemMonitor.InitBPF(); err != nil {
+	if err := dm.SystemMonitor.Monitor.Init(); err != nil {
 		return fmt.Errorf("failed to initialize BPF: %w", err)
 	}
 
@@ -321,7 +343,7 @@ func (dm *KubeArmorDaemon) MonitorSystemEvents() {
 	defer dm.WgDaemon.Done()
 
 	if cfg.GlobalCfg.Policy || cfg.GlobalCfg.HostPolicy {
-		go dm.SystemMonitor.TraceSyscall()
+		go dm.SystemMonitor.TraceEvents()
 		go dm.SystemMonitor.UpdateLogs()
 		go dm.SystemMonitor.CleanUpExitedHostPids()
 	}
@@ -340,8 +362,8 @@ func (dm *KubeArmorDaemon) CloseSystemMonitor() error {
 // ====================== //
 
 // InitRuntimeEnforcer Function
-func (dm *KubeArmorDaemon) InitRuntimeEnforcer(pinpath string) error {
-	dm.RuntimeEnforcer = efc.NewRuntimeEnforcer(dm.Node, pinpath, dm.Logger, dm.SystemMonitor)
+func (dm *KubeArmorDaemon) InitRuntimeEnforcer() error {
+	dm.RuntimeEnforcer = efc.NewRuntimeEnforcer(dm.Node, dm.Logger, dm.SystemMonitor)
 	if dm.RuntimeEnforcer == nil {
 		return fmt.Errorf("failed to create runtime enforcer")
 	}
@@ -403,6 +425,10 @@ func (dm *KubeArmorDaemon) CloseNetworkPolicyEnforcer() error {
 
 // InitPresets Function
 func (dm *KubeArmorDaemon) InitPresets(logger *fd.Feeder, monitor *mon.SystemMonitor) error {
+	if !dm.IsPresetSupported() {
+		dm.Logger.Warn("presets are unsupported on target os")
+		return nil
+	}
 	dm.Presets = presets.NewPreset(dm.Logger, dm.SystemMonitor)
 	if dm.Presets == nil {
 		return fmt.Errorf("failed to create presets")
@@ -424,10 +450,23 @@ func (dm *KubeArmorDaemon) ClosePresets() error {
 
 // InitKVMAgent Function
 func (dm *KubeArmorDaemon) InitKVMAgent() error {
-	dm.KVMAgent = kvm.NewKVMAgent(dm.ParseAndUpdateHostSecurityPolicy)
-	if dm.KVMAgent == nil {
-		return fmt.Errorf("failed to create KVM agent")
+	if !dm.IsKVMAgentSupported() {
+		dm.Logger.Warn("kvm agent unsupported on target os")
+		return nil
 	}
+	if cfg.GlobalCfg.KVMAgent {
+		// initialize kvm agent
+		dm.KVMAgent = kvm.NewKVMAgent(dm.ParseAndUpdateHostSecurityPolicy)
+		if dm.KVMAgent == nil {
+			return fmt.Errorf("failed to initialized KVM Agent")
+		}
+		dm.Logger.Print("Initialized KVM Agent")
+
+		// connect to KVM Service
+		go dm.ConnectToKVMService()
+		dm.Logger.Print("Started to keep the connection to KVM Service")
+	}
+
 	return nil
 }
 
@@ -503,6 +542,8 @@ func (dm *KubeArmorDaemon) SetHealthStatus(serviceName string, healthStatus grpc
 func KubeArmor() {
 	// create a daemon
 	dm := NewKubeArmorDaemon()
+	Daemon = dm
+
 	// Enable KubeArmorHostPolicy for both VM and KVMAgent and in non-k8s env
 	if cfg.GlobalCfg.KVMAgent || (!cfg.GlobalCfg.K8sEnv && cfg.GlobalCfg.HostPolicy) {
 
@@ -702,21 +743,17 @@ func KubeArmor() {
 		dm.Logger.Print("Started to monitor system events")
 
 		// initialize runtime enforcer
-		if cfg.GlobalCfg.LsmOrder[0] == "" || cfg.GlobalCfg.LsmOrder[0] == "none" {
-			dm.Logger.Printf("Disabled KubeArmor Enforcer: No LSM specified")
+		if err := dm.InitRuntimeEnforcer(); err != nil {
+			dm.Logger.Printf("Disabled KubeArmor Enforcer: %s", err.Error())
 		} else {
-			if err := dm.InitRuntimeEnforcer(dm.SystemMonitor.PinPath); err != nil {
-				dm.Logger.Printf("Disabled KubeArmor Enforcer: %s", err.Error())
-			} else {
-				dm.Logger.Print("Initialized KubeArmor Enforcer")
+			dm.Logger.Print("Initialized KubeArmor Enforcer")
 
-				if cfg.GlobalCfg.Policy && !cfg.GlobalCfg.HostPolicy {
-					dm.Logger.Print("Started to protect containers")
-				} else if !cfg.GlobalCfg.Policy && cfg.GlobalCfg.HostPolicy {
-					dm.Logger.Print("Started to protect a host")
-				} else if cfg.GlobalCfg.Policy && cfg.GlobalCfg.HostPolicy {
-					dm.Logger.Print("Started to protect a host and containers")
-				}
+			if cfg.GlobalCfg.Policy && !cfg.GlobalCfg.HostPolicy {
+				dm.Logger.Print("Started to protect containers")
+			} else if !cfg.GlobalCfg.Policy && cfg.GlobalCfg.HostPolicy {
+				dm.Logger.Print("Started to protect a host")
+			} else if cfg.GlobalCfg.Policy && cfg.GlobalCfg.HostPolicy {
+				dm.Logger.Print("Started to protect a host and containers")
 			}
 		}
 

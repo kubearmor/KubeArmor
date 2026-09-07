@@ -43,10 +43,17 @@
 * [Profiling of Kubearmor Logs using karmor](getting-started/profiling_kubearmor_logs.md)
 * [FAQs](getting-started/FAQ.md)
 
+## Windows
+
+* [Windows Support Overview](getting-started/windows_support.md)
+* [Windows Policy Field Reference](getting-started/windows_policy_spec.md)
+* [AppLocker vs Kernel Driver](getting-started/windows_applocker_kernel_driver.md)
+
 ## Contribution
 
 * [Contribution Guide](contribution/contribution_guide.md)
 * [Development Guide](contribution/development_guide.md)
+* [Windows Development Guide](contribution/windows_development_guide.md)
 * [Testing Guide](contribution/testing_guide.md)
 
 ## Release Notes

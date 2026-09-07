@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<instrumentationManifest 
+    xmlns="http://schemas.microsoft.com/win/2004/08/events" 
+    xmlns:win="http://manifests.microsoft.com/win/2004/08/windows/events"
+    xmlns:xs="http://www.w3.org/2001/XMLSchema">
+    
+    <instrumentation>
+        <events>
+            <provider name="KarmorProvider" 
+                      guid="{12345678-1234-1234-1234-123456789012}"
+                      symbol="KarmorProvider"
+                      resourceFileName="C:\Users\VC\source\repos\kubearmor\x64\Debug\kubearmor.sys"
+                      messageFileName="C:\Users\VC\source\repos\kubearmor\x64\Debug\kubearmor.sys">
+                
+                <events>
+                    <event symbol="ProcessBlocked"
+                           value="1"
+                           version="0"
+                           channel="System"
+                           level="win:Warning"
+                           task="ProcessControl"
+                           opcode="Block"
+                           template="ProcessEventTemplate"
+                           message="$(string.ProcessBlocked.EventMessage)"/>
+                           
+                    <event symbol="ProcessAudited"
+                           value="2"
+                           version="0"
+                           channel="System"
+                           level="win:Informational"
+                           task="ProcessControl"
+                           opcode="Audit"
+                           template="ProcessEventTemplate"
+                           message="$(string.ProcessAudited.EventMessage)"/>
+                </events>
+                
+                <levels/>
+                <tasks>
+                    <task name="ProcessControl" symbol="ProcessControlTask" value="1"/>
+                </tasks>
+                <opcodes>
+                    <opcode name="Block" symbol="BlockOpcode" value="10"/>
+                    <opcode name="Audit" symbol="AuditOpcode" value="11"/>
+                </opcodes>
+                
+                <templates>
+                    <template tid="ProcessEventTemplate">
+                        <data name="ProcessId" inType="win:UInt32" outType="win:PID"/>
+                        <data name="ParentProcessId" inType="win:UInt32" outType="win:PID"/>
+                        <data name="ImagePath" inType="win:UnicodeString" outType="xs:string"/>
+                        <data name="CommandLine" inType="win:UnicodeString" outType="xs:string"/>
+                        <data name="UserSid" inType="win:UnicodeString" outType="xs:string"/>
+                        <data name="RuleName" inType="win:UnicodeString" outType="xs:string"/>
+                    </template>
+                </templates>
+            </provider>
+        </events>
+    </instrumentation>
+    
+    <localization>
+        <resources culture="en-US">
+            <stringTable>
+                <string id="ProcessBlocked.EventMessage" 
+                        value="Process blocked: PID=%1, Image=%3, Rule=%6"/>
+                <string id="ProcessAudited.EventMessage" 
+                        value="Process audited: PID=%1, Image=%3, Rule=%6"/>
+            </stringTable>
+        </resources>
+    </localization>
+</instrumentationManifest>

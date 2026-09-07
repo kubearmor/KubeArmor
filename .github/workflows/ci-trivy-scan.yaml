@@ -51,10 +51,10 @@ jobs:
               - 'pkg/KubeArmorOperator/**'
       
       - name: Install the latest LLVM toolchain
-        run: ./.github/workflows/install-llvm.sh
+        run: ./.github/scripts/linux/install-llvm.sh
 
       - name: Compile libbpf
-        run: ./.github/workflows/install-libbpf.sh
+        run: ./.github/scripts/linux/install-libbpf.sh
 
       - name: Install bpftool
         run: ./.github/workflows/install-bpftool.sh

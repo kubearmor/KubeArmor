@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi"><?define kubearmor_TargetDir=$(var.kubearmor.TargetDir)?>
+	<Product Id="*" Name="KubeArmorDriverInstaller" Language="1033" Version="0.0.1" Manufacturer="KubeArmor" UpgradeCode="13f591fd-0592-4d36-8625-07c0a2fcc4b1">
+		<Package InstallerVersion="200" Compressed="yes" InstallScope="perMachine" Platform="x64" />
+
+		<MajorUpgrade DowngradeErrorMessage="A newer version of [ProductName] is already installed." />
+		<MediaTemplate EmbedCab="yes" />
+
+		<Feature Id="ProductFeature" Title="KubeArmor Driver" Level="1">
+			<ComponentGroupRef Id="ProductComponents" />
+		</Feature>
+
+		<!-- Control Panel / Add-Remove Programs Branding -->
+		<Icon Id="AppIcon.ico" SourceFile="Assets\icon.ico" />
+		<Property Id="ARPPRODUCTICON" Value="AppIcon.ico" />
+		<Property Id="ARPURLINFOABOUT" Value="https://kubearmor.io" />
+		<Property Id="ARPCONTACT" Value="KubeArmor Team" />
+		<Property Id="ARPCOMMENTS" Value="Runtime Security Enforcement System for Windows. Workload hardening/sandboxing and implementing least-permissive policies made easy Minifilter and AppLocker." />
+
+		<!-- UI Branding Variables -->
+		<!-- dialog.bmp must be exactly 493 x 312 pixels -->
+		<WixVariable Id="WixUIDialogBmp" Value="Assets\dialog.bmp" />
+		<!-- license.rtf is the EULA text -->
+		<WixVariable Id="WixUILicenseRtf" Value="Assets\license.rtf" />
+
+		<UIRef Id="WixUI_Minimal" />
+	</Product>
+
+	<Fragment>
+		<Directory Id="TARGETDIR" Name="SourceDir">
+			<Directory Id="ProgramFiles64Folder">
+				<Directory Id="INSTALLFOLDER" Name="KubeArmorDriverInstaller" />
+			</Directory>
+		</Directory>
+	</Fragment>
+
+	<Fragment>
+		<ComponentGroup Id="ProductComponents" Directory="INSTALLFOLDER">
+			<Component Id="kubearmor_driver_files" Guid="e24459cb-dfad-4063-9e25-6749d4b6f126" Win64="yes">
+				<File Id="kubearmor.sys" Name="kubearmor.sys" Source="$(var.kubearmor_TargetDir)kubearmor\kubearmor.sys" KeyPath="yes" />
+				<File Id="kubearmor.inf" Name="kubearmor.inf" Source="$(var.kubearmor_TargetDir)kubearmor\kubearmor.inf" />
+				<File Id="kubearmor.cat" Name="kubearmor.cat" Source="$(var.kubearmor_TargetDir)kubearmor\kubearmor.cat" />
+			</Component>
+			
+			<Component Id="kubearmor_svc_exe" Guid="0b9b5fcf-e83c-41c3-8f0a-a1b9e289c09c" Win64="yes">
+				<File Id="KubeArmor.exe" Name="KubeArmor.exe" Source="$(var.ProjectDir)KubeArmor.exe" KeyPath="yes" />
+				<ServiceInstall
+					Id="InstallKubeArmorSvc"
+					Name="KubeArmorSvc"
+					DisplayName="KubeArmor Security Service"
+					Description="Runtime security enforcement engine for Windows using a minifilter driver and process-notify callbacks."
+					Type="ownProcess"
+					Start="auto"
+					ErrorControl="normal"
+					Interactive="no"
+					Arguments="-k8s=false -enableKubeArmorHostPolicy=true">
+					<!-- Ensures the kernel driver starts before the userspace service -->
+					<ServiceDependency Id="kubearmor" />
+				</ServiceInstall>
+				<ServiceControl
+					Id="StartKubeArmorSvc"
+					Name="KubeArmorSvc"
+					Start="install"
+					Stop="both"
+					Remove="uninstall"
+					Wait="yes" />
+			</Component>
+		</ComponentGroup>
+
+		<CustomAction Id="InstallDriver" Directory="INSTALLFOLDER" Execute="deferred" Impersonate="no" ExeCommand="&quot;[System64Folder]rundll32.exe&quot; SETUPAPI.DLL,InstallHinfSection DefaultInstall 132 [!kubearmor.inf]" Return="check" />
+		<CustomAction Id="StartDriver" Directory="INSTALLFOLDER" Execute="deferred" Impersonate="no" ExeCommand="&quot;[System64Folder]fltmc.exe&quot; load kubearmor" Return="ignore" />
+
+		<!-- Stop KubeArmorSvc explicitly before touching the driver.
+		     ServiceControl Stop="both" sends a stop request but does NOT
+		     reliably wait for the service process to exit before continuing.
+		     We use sc.exe stop to trigger shutdown, then poll with a
+		     PowerShell loop (up to 30 s) to wait for STOPPED state. -->
+		<CustomAction Id="StopKubeArmorSvc"
+			Directory="INSTALLFOLDER"
+			Execute="deferred"
+			Impersonate="no"
+			ExeCommand="&quot;[System64Folder]sc.exe&quot; stop KubeArmorSvc"
+			Return="ignore" />
+
+		<CustomAction Id="WaitForKubeArmorSvcStopped"
+			Directory="INSTALLFOLDER"
+			Execute="deferred"
+			Impersonate="no"
+			ExeCommand="&quot;[System64Folder]cmd.exe&quot; /C &quot;FOR /L %i IN (1,1,30) DO (sc query KubeArmorSvc | find &quot;STOPPED&quot; &amp;&amp; EXIT 0 || timeout /t 1 /nobreak &gt;nul)&quot;"
+			Return="ignore" />
+
+		<CustomAction Id="StopDriver" Directory="INSTALLFOLDER" Execute="deferred" Impersonate="no" ExeCommand="&quot;[System64Folder]fltmc.exe&quot; unload kubearmor" Return="ignore" />
+		<CustomAction Id="UninstallDriver" Directory="INSTALLFOLDER" Execute="deferred" Impersonate="no" ExeCommand="&quot;[System64Folder]rundll32.exe&quot; SETUPAPI.DLL,InstallHinfSection DefaultUninstall 132 [!kubearmor.inf]" Return="ignore" />
+
+		<InstallExecuteSequence>
+			<!-- Install: driver must be registered before Windows registers the userspace service -->
+			<Custom Action="InstallDriver" Before="InstallServices">NOT Installed</Custom>
+			<Custom Action="StartDriver" After="InstallDriver">NOT Installed</Custom>
+
+			<!-- Uninstall sequence:
+			     1. StopKubeArmorSvc  — send stop request to KubeArmorSvc
+			     2. WaitForKubeArmorSvcStopped — poll until fully stopped (≤30 s)
+			     3. DeleteServices    — WiX removes the service registration
+			     4. StopDriver        — fltmc unload (safe: userspace client is gone)
+			     5. UninstallDriver   — remove driver INF registration -->
+			<Custom Action="StopKubeArmorSvc" Before="DeleteServices">REMOVE="ALL"</Custom>
+			<Custom Action="WaitForKubeArmorSvcStopped" After="StopKubeArmorSvc">REMOVE="ALL"</Custom>
+			<Custom Action="StopDriver" After="DeleteServices">REMOVE="ALL"</Custom>
+			<Custom Action="UninstallDriver" After="StopDriver">REMOVE="ALL"</Custom>
+		</InstallExecuteSequence>
+
+	</Fragment>
+</Wix>

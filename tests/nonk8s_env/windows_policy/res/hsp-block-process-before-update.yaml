@@ -1,0 +1,14 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorHostPolicy
+metadata:
+  name: hsp-block-win-process
+spec:
+  nodeSelector:
+    matchLabels:
+      kubearmor.io/hostname: "*"
+  process:
+    matchPaths:
+      - path: C:/Windows/System32/notepad.exe
+  action: Block
+  severity: 5
+  message: "notepad.exe blocked (before update)"

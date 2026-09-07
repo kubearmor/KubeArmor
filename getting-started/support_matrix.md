@@ -3,7 +3,8 @@
 KubeArmor supports following types of workloads:
 1. **K8s orchestrated**: Workloads deployed as k8s orchestrated containers. In this case, Kubearmor is deployed as a [k8s daemonset](https://kubernetes.io/docs/concepts/workloads/controllers/daemonset/). Note, KubeArmor supports policy enforcement on both k8s-pods ([KubeArmorPolicy](security_policy_specification.md)) as well as k8s-nodes ([KubeArmorHostPolicy](host_security_policy_specification.md)).
 2. **Containerized**: Workloads that are containerized but not k8s orchestrated are supported. KubeArmor installed in [systemd mode] can be used to protect such workloads.
-3. **VM/Bare-Metals**: Workloads deployed on Virtual Machines or Bare Metal i.e. workloads directly operating as host/system processes. In this case, Kubearmor is deployed in [systemd mode].
+3. **VM/Bare-Metals (Linux)**: Workloads deployed on Virtual Machines or Bare Metal running Linux, operating as host/system processes. KubeArmor is deployed in [systemd mode].
+4. **VM/Bare-Metals (Windows)**: Host process enforcement on Windows VMs or bare-metal nodes. KubeArmor runs as a Windows Service and enforces `KubeArmorHostPolicy` via a [minifilter kernel driver and AppLocker](windows_support.md). Container enforcement is **not** supported on Windows.
 
 [systemd mode]: kubearmor_vm.md
 
@@ -75,7 +76,7 @@ KubeArmor supports following types of workloads:
 [2685]: https://github.com/kubearmor/KubeArmor/issues/2685
 ## Supported Linux Distributions
 
-Following distributions are tested for VM/Bare-metal based installations:
+Following Linux distributions are tested for VM/Bare-metal based installations:
 
 | Provider | Distro | VM / Bare-metal | Kubernetes |
 |----------|--------|---------------|------|
@@ -97,9 +98,24 @@ Following distributions are tested for VM/Bare-metal based installations:
 > Full: Supports both enforcement and observability  
 > Partial: Supports only observability
 
+## Supported Windows Versions
+
+KubeArmor supports **host process and file enforcement** on Windows via a minifilter kernel driver and [AppLocker](windows_applocker_kernel_driver.md). AppLocker Container enforcement is not available on Windows.
+
+| OS | Edition | VM / Bare-metal | Kubernetes | Enforcer |
+|----|---------|:--------------:|:----------:|----------|
+| Windows 10 (1809+) | Enterprise / Education | Host-only | :x: | Minifilter + AppLocker |
+| Windows 11 | Enterprise / Education | Host-only | :x: | Minifilter + AppLocker |
+| Windows Server 2016+ | Standard / Datacenter | Host-only | :x: | Minifilter + AppLocker |
+
+> [!NOTE]
+> AppLocker-based process enforcement requires the **Application Identity** Windows service to be running and an eligible edition (Enterprise, Education, or Windows Server). See [AppLocker OS requirements](https://learn.microsoft.com/en-us/windows/security/application-security/application-control/app-control-for-business/applocker/requirements-to-use-applocker#operating-system-requirements).
+> The minifilter driver works on all editions and provides file/directory enforcement even when AppLocker is unavailable.
+
+See [Windows Support](windows_support.md) for full architecture details and [Windows Policy Spec](windows_policy_spec.md) for policy field reference.
+
 ### Platform I am interested is not listed here! What can I do?
 
 Please approach the Kubearmor community on [slack](https://cloud-native.slack.com/archives/C07EF44HWQM) or [raise](https://github.com/kubearmor/KubeArmor/issues/new/choose) a GitHub issue to express interest in adding the support.
 
 It would be very much appreciated if you can test kubearmor on a platform not listed above and if you have access to. Once tested you can update this document and raise a PR.
-

@@ -1,0 +1,121 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 Authors of KubeArmor
+
+# ─────────────────────────────────────────────────────────────────────────────
+# KubeArmor Windows Development & Test VM
+#
+# Requires on the Linux host:
+#   - VirtualBox ≥ 6.1
+#   - Vagrant ≥ 2.3
+#   - vagrant-reload plugin:  vagrant plugin install vagrant-reload
+#
+# Usage:
+#   vagrant up          # start VM using pre-built box (~5-10 min first boot)
+#   vagrant provision   # rebuild driver + MSI and reinstall (~10-15 min)
+#   vagrant rdp         # open an RDP session (localhost:33389)
+#   vagrant ssh         # WinRM shell
+#   vagrant destroy -f  # tear down completely
+# ─────────────────────────────────────────────────────────────────────────────
+
+Vagrant.require_version ">= 2.3.0"
+
+VM_NAME  = "kubearmor-win-dev"
+VM_CPUS  = (ENV['VM_CPUS'] || "8").to_i
+VM_MEM   = (ENV['VM_MEM']  || "16384").to_i
+
+Vagrant.configure("2") do |config|
+
+  config.vm.box = "gusztavvargadr/windows-server-2022-standard"
+  config.vm.hostname = VM_NAME
+  config.vm.guest    = :windows
+
+  # ── SSH / WinRM connection tuning ─────────────────────────────────────────
+  config.vm.boot_timeout          = 1800
+  config.vm.graceful_halt_timeout = 60
+
+  # ── WinRM settings ────────────────────────────────────────────────────────
+  config.vm.communicator       = :winrm
+  config.winrm.username        = "vagrant"
+  config.winrm.password        = "vagrant"
+  # Allow long-running provisioners (build + MSI install can take >30 min)
+  config.winrm.execution_time_limit = "PT2H"
+
+  # ── VirtualBox provider ───────────────────────────────────────────────────
+  config.vm.provider "virtualbox" do |vb|
+    vb.name   = VM_NAME
+    vb.cpus   = VM_CPUS
+    vb.memory = VM_MEM
+    vb.gui    = false
+
+    vb.customize ["modifyvm", :id, "--nested-hw-virt",  "off"]
+    vb.customize ["modifyvm", :id, "--vram",            "128"]
+    vb.customize ["modifyvm", :id, "--accelerate3d",    "off"]
+    vb.customize ["modifyvm", :id, "--clipboard-mode",  "bidirectional"]
+    vb.customize ["modifyvm", :id, "--natdnshostresolver1", "on"]
+    vb.customize ["guestproperty", "set", :id,
+                  "/VirtualBox/GuestAdd/SyncHostTimeInterval", "10000"]
+  end
+
+  # ── Port forwards ─────────────────────────────────────────────────────────
+  config.vm.network "forwarded_port", guest: 32767, host: 32767, auto_correct: true
+  config.vm.network "forwarded_port", guest: 3389,  host: 33389, auto_correct: true, id: "rdp"
+
+  # ── Shared folder ─────────────────────────────────────────────────────────
+  # Disabled for standalone CI runner image. The CI will clone the repo locally.
+  config.vm.synced_folder ".", "/vagrant", disabled: true
+
+  config.vm.provision "shell", name: "system-prep",
+                      privileged: true,
+                      path: "provision/01-system-prep.ps1"
+
+  config.vm.provision "shell", name: "test-signing",
+                      privileged: true,
+                      path: "provision/02-enable-test-signing.ps1"
+
+  config.vm.provision "shell", name: "install-go",
+                      privileged: true,
+                      path: "provision/03-install-go.ps1"
+
+  config.vm.provision "shell", name: "install-git",
+                      privileged: true,
+                      path: "provision/04-install-git.ps1"
+
+  config.vm.provision "shell", name: "install-ginkgo",
+                      privileged: true,
+                      path: "provision/05-install-ginkgo.ps1"
+
+  config.vm.provision "shell", name: "install-buildtools",
+                      privileged: true,
+                      path: "provision/03b-install-buildtools.ps1"
+
+  config.vm.provision "shell", name: "enable-applocker",
+                      privileged: true,
+                      path: "provision/06-enable-applocker.ps1"
+
+  config.vm.provision :reload
+
+  config.vm.provision "shell", name: "verify-wdk",
+                      privileged: true,
+                      path: "provision/03c-verify-wdk.ps1",
+                      run: "always"
+
+  # ── Post-boot message ──────────────────────────────────────────────────────
+  config.vm.post_up_message = <<~MSG
+    KubeArmor Windows Dev VM is ready!
+
+    RDP      : localhost:33389  (vagrant / vagrant)
+    gRPC     : localhost:32767
+    Driver   : kubearmor.sys (minifilter, test-signed)
+
+    Rebuild and reinstall:
+      vagrant provision
+
+    Run tests (inside VM via vagrant ssh):
+      cd C:\\KubeArmor\\tests\\nonk8s_env
+      ginkgo -r --vv ./windows_policy/
+
+    Verify service and driver:
+      sc.exe query KubeArmorSvc
+      fltmc filters
+  MSG
+end
