@@ -22,7 +22,7 @@ func init() {
 
 	// options (string)
 	gRPCPtr = flag.String("gRPC", "32767", "gRPC port number")
-	managementGRPCPtr = flag.String("managementGRPC", "32768", "management gRPC port number")
+	managementGRPCPtr = flag.String("managementGRPC", "32765", "management gRPC port number")
 	logPathPtr = flag.String("logPath", "none", "log file path")
 	tlsCertPathPtr = flag.String("tlsCertPath", "/var/lib/kubearmor/tls/log", "path to tls certificate files")
 	tlsCertProviderPtr = flag.String("tlsCertProvider", "self", "source of tls certificate {self|external|dev}")
