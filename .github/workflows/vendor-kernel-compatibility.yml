@@ -42,7 +42,13 @@ jobs:
       github.repository == 'kubearmor/KubeArmor' ||
       vars.ENABLE_VENDOR_KERNEL_COMPATIBILITY == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    # bpfcompat's `timeout` input is PER TARGET, so the worst case for one
+    # matrix is ceil(11 profiles / 3 concurrent) * timeout. At 10m that is 40m
+    # per matrix, 80m for both, which fits inside this budget with the build
+    # steps. Targets actually complete in well under a minute; the per-target
+    # timeout only has to bound a hung boot or a stalled image download, and
+    # the job must not be killed mid-matrix or the reports land partial.
+    timeout-minutes: 120
     steps:
       - name: Checkout KubeArmor repository
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
@@ -69,7 +75,11 @@ jobs:
         working-directory: KubeArmor
 
       - name: Build the BPF objects the image ships
-        run: make -C BPF
+        # Only the targets `make kernel_headers` above did not already cover:
+        # BPF/Makefile's default `all` depends on the phony `kernel_headers`, so
+        # a bare `make` would regenerate vmlinux.h a second time. The header has
+        # to exist before `go generate`, hence the separate step earlier.
+        run: make -C BPF libbpf system_monitor.bpf.o
         working-directory: KubeArmor
 
       - name: Build the loader binaries
@@ -122,7 +132,7 @@ jobs:
           out: reports/system-monitor.json
           markdown: reports/system-monitor.md
           disk-resize: "4"
-          timeout: 30m
+          timeout: 10m
           concurrency: "3"
 
       - name: Load the BPF-LSM enforcer on each vendor kernel
@@ -150,7 +160,7 @@ jobs:
           out: reports/bpflsm-enforcer.json
           markdown: reports/bpflsm-enforcer.md
           disk-resize: "4"
-          timeout: 30m
+          timeout: 10m
           concurrency: "3"
 
       - name: Summarise BPF-LSM availability
