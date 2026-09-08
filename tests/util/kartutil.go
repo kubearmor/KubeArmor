@@ -821,11 +821,11 @@ func managementGRPCAddress() string {
 	if val, ok := os.LookupEnv("KUBEARMOR_SERVICE"); ok {
 		host, _, err := net.SplitHostPort(val)
 		if err == nil && host != "" {
-			return net.JoinHostPort(host, "32768")
+			return net.JoinHostPort(host, "32765")
 		}
 	}
 
-	return "localhost:32768"
+	return "localhost:32765"
 }
 
 func kubearmorTLSPath() string {
