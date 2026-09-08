@@ -186,6 +186,8 @@ jobs:
             }
           ]'
 
+          kubectl rollout status --timeout=5m daemonset "$DAEMONSET_NAME" -n kubearmor
+          kubectl wait --timeout=5m --for=condition=ready pod -l kubearmor-app=kubearmor -n kubearmor
           sleep 15
 
       - name: Get KubeArmor POD info
@@ -227,7 +229,7 @@ jobs:
         if: ${{ failure() }}
         run: |
           kubectl describe pod -n kubearmor -l kubearmor-app=kubearmor
-          curl -sfL http://get.kubearmor.io/ -o /tmp/install-karmor.sh && sudo sh /tmp/install-karmor.sh -b /usr/local/bin
+          curl -sfL http://get.kubearmor.io/ | sudo sh -s -- -b /usr/local/bin
           mkdir -p /tmp/kubearmor/ && cd /tmp/kubearmor && karmor sysdump
 
       - name: Archive log artifacts

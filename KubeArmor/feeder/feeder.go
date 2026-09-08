@@ -19,17 +19,14 @@ import (
 
 	"github.com/kubearmor/KubeArmor/KubeArmor/common"
 	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
-	"github.com/kubearmor/KubeArmor/KubeArmor/config"
 	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
+	"github.com/kubearmor/KubeArmor/KubeArmor/grpcutil"
 	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 
 	"github.com/google/uuid"
-	"github.com/kubearmor/KubeArmor/KubeArmor/cert"
 	pb "github.com/kubearmor/KubeArmor/protobuf"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
-	"google.golang.org/grpc/keepalive"
 )
 
 // parseDataString parses a space-separated key=value string into a map
@@ -224,7 +221,7 @@ type BaseFeeder struct {
 
 	// LogServer //
 
-	// port
+	// LogServer gRPC port
 	Port string
 
 	// gRPC listener
@@ -324,10 +321,10 @@ func NewFeeder(node *tp.Node, nodeLock **sync.RWMutex) (feeder *Feeder) {
 
 	// LogServer //
 
-	// gRPC configuration
+	// gRPC configuration for log server
 	fd.Port = fmt.Sprintf(":%s", cfg.GlobalCfg.GRPC)
 
-	// listen to gRPC port
+	// listen to log server gRPC port
 	listener, err := net.Listen("tcp", fd.Port)
 	if err != nil {
 		kg.Errf("Failed to listen a port (%s, %s)", fd.Port, err.Error())
@@ -367,29 +364,13 @@ func NewFeeder(node *tp.Node, nodeLock **sync.RWMutex) (feeder *Feeder) {
 		EventStructs: fd.EventStructs,
 	}
 
-	kaep := keepalive.EnforcementPolicy{
-		PermitWithoutStream: true,
-	}
-	kasp := keepalive.ServerParameters{
-		Time:    1 * time.Second,
-		Timeout: 5 * time.Second,
-	}
-
-	if cfg.GlobalCfg.TLSEnabled {
-		tlsCredentials, err := loadTLSCredentials(node.NodeIP)
-		if err != nil {
-			kg.Errf("cannot load TLS credentials: %s", err)
-			return nil
-		}
-		kg.Print("Server started with tls enabled")
-		// create a log server
-		fd.LogServer = grpc.NewServer(
-			grpc.Creds(tlsCredentials),
-			grpc.KeepaliveEnforcementPolicy(kaep),
-			grpc.KeepaliveParams(kasp),
-		)
-	} else {
-		fd.LogServer = grpc.NewServer(grpc.KeepaliveEnforcementPolicy(kaep), grpc.KeepaliveParams(kasp))
+	fd.LogServer, err = createGRPCServer(
+		node.NodeIP,
+		cfg.GlobalCfg.TLSEnabled,
+	)
+	if err != nil {
+		kg.Errf("cannot create log gRPC server: %s", err)
+		return nil
 	}
 
 	pb.RegisterLogServiceServer(fd.LogServer, logService)
@@ -410,6 +391,31 @@ func NewFeeder(node *tp.Node, nodeLock **sync.RWMutex) (feeder *Feeder) {
 	}
 
 	return fd
+}
+
+// Helper function to create a gRPC server
+func createGRPCServer(nodeIP string, tlsEnabled bool) (*grpc.Server, error) {
+	kaep, kasp := grpcutil.KeepaliveFor(grpcutil.StreamingProfile)
+
+	if tlsEnabled {
+		tlsCredentials, err := grpcutil.LoadServerTLS(nodeIP, cfg.GlobalCfg.TLSCertPath, cfg.GlobalCfg.TLSCertProvider, "kubearmor")
+		if err != nil {
+			return nil, err
+		}
+
+		kg.Print("Server started with TLS enabled")
+
+		return grpc.NewServer(
+			grpc.Creds(tlsCredentials),
+			grpc.KeepaliveEnforcementPolicy(kaep),
+			grpc.KeepaliveParams(kasp),
+		), nil
+	}
+
+	return grpc.NewServer(
+		grpc.KeepaliveEnforcementPolicy(kaep),
+		grpc.KeepaliveParams(kasp),
+	), nil
 }
 
 // DestroyFeeder Function
@@ -934,21 +940,6 @@ func (fd *Feeder) PushLog(log tp.Log) {
 			}
 		}
 	}
-}
-
-func loadTLSCredentials(ip string) (credentials.TransportCredentials, error) {
-	// create certificate configurations
-	serverCertConfig := cert.DefaultKubeArmorServerConfig
-	serverCertConfig.IPs = []string{ip}
-	serverCertConfig.NotAfter = time.Now().Add(365 * 24 * time.Hour) // valid for 1 year
-	// as of now daemonset creates certificates dynamically
-	tlsConfig := cert.TlsConfig{
-		CertCfg:      serverCertConfig,
-		CertProvider: cfg.GlobalCfg.TLSCertProvider,
-		CACertPath:   cert.GetCACertPath(config.GlobalCfg.TLSCertPath),
-	}
-	creds, err := cert.NewTlsCredentialManager(&tlsConfig).CreateTlsServerCredentials()
-	return creds, err
 }
 
 func (fd *Feeder) ShouldDropAlertsPerContainer(pidNs, mntNs uint32) (bool, bool) {
