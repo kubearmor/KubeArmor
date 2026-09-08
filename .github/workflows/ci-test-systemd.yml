@@ -54,6 +54,7 @@ jobs:
           sudo install -d /etc/systemd/system/kubearmor.service.d
           sudo tee /etc/systemd/system/kubearmor.service.d/ci-mtls.conf >/dev/null <<'EOF'
           [Service]
+          ExecStart=
           ExecStart=/opt/kubearmor/kubearmor -tlsCertProvider=dev -tlsCertPath=/var/lib/kubearmor/tls/log
           EOF
           sudo systemctl daemon-reload
