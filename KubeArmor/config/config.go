@@ -156,7 +156,7 @@ func readCmdLineParams() {
 	hostStr := flag.String(ConfigHost, hostname, "host name")
 
 	grpcStr := flag.String(ConfigGRPC, "32767", "gRPC port number")
-	managementGRPCStr := flag.String(ConfigManagementGRPC, "32768", "management gRPC port number")
+	managementGRPCStr := flag.String(ConfigManagementGRPC, "32765", "management gRPC port number")
 	grpcHealthStr := flag.String(ConfigGRPCHealthPort, "32766", "gRPC health check port number")
 	tlsEnabled := flag.Bool(ConfigTLS, true, "enable tls for secure grpc connection")
 	tlsCertsStr := flag.String(ConfigTLSCertPath, "/var/lib/kubearmor/tls", "path to tls ca certificate files ca.crt, ca.crt")
