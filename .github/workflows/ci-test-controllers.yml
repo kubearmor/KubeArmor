@@ -41,12 +41,21 @@ jobs:
         run: ./.github/workflows/install-k3s.sh
 
       - name: Install the latest LLVM toolchain
-        if: steps.filter.outputs.kubearmor == 'true'
         run: ./.github/workflows/install-llvm.sh
 
       - name: Compile libbpf
-        if: steps.filter.outputs.kubearmor == 'true'
         run: ./.github/workflows/install-libbpf.sh
+
+      - name: Install bpftool
+        run: ./.github/workflows/install-bpftool.sh
+
+      - name: Generate vmlinux.h
+        run: make -C BPF kernel_headers
+        working-directory: KubeArmor
+
+      - name: Generate BPF files
+        run: go generate ./...
+        working-directory: KubeArmor
 
       - name: Generate KubeArmor artifacts
         if: steps.filter.outputs.kubearmor == 'true'
