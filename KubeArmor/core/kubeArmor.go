@@ -711,6 +711,14 @@ func KubeArmor() {
 		}
 		dm.Logger.Print("Initialized State Agent Server")
 
+		if dm.ManagementServer == nil {
+			dm.Logger.Errf("Management Server is not initialized, skipping State Agent registration")
+
+			// destroy the daemon
+			dm.DestroyKubeArmorDaemon()
+
+			return
+		}
 		pb.RegisterStateAgentServer(dm.ManagementServer.Server, dm.StateAgent)
 		if err := dm.SetHealthStatus(pb.StateAgent_ServiceDesc.ServiceName, grpc_health_v1.HealthCheckResponse_SERVING); err != nil {
 			dm.Logger.Warnf("Failed to set health status for StateAgent: %v", err)
