@@ -194,6 +194,8 @@ jobs:
                   state = "unknown (see report)"
               rows.append((target["profile_id"], target.get("host", {}).get("kernel", ""), state))
 
+          rows.sort(key=lambda row: row[0])
+
           print("## BPF-LSM availability on vendor kernels\n")
           print("| Profile | Kernel | BPF-LSM |")
           print("|---|---|---|")
