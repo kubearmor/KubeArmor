@@ -17,20 +17,27 @@ import (
 	"google.golang.org/grpc/keepalive"
 )
 
+// ListenerKind selects the transport backing a gRPC listener.
 type ListenerKind int
 
 const (
+	// TCP serves gRPC over a TCP address.
 	TCP ListenerKind = iota
+	// UnixSocket serves gRPC over a Unix domain socket path.
 	UnixSocket
 )
 
+// Profile selects a keepalive tuning preset for a gRPC server.
 type Profile int
 
 const (
+	// StreamingProfile tunes keepalive for long-lived streaming RPCs.
 	StreamingProfile Profile = iota
+	// UnaryProfile tunes keepalive for short-lived unary RPCs.
 	UnaryProfile
 )
 
+// NewListener creates a listener of the given kind bound to addr.
 func NewListener(kind ListenerKind, addr string) (net.Listener, error) {
 	switch kind {
 	case TCP:
@@ -42,6 +49,8 @@ func NewListener(kind ListenerKind, addr string) (net.Listener, error) {
 	}
 }
 
+// LoadServerTLS builds mTLS server credentials for serverName using the CA
+// at certPath, minting an ephemeral server certificate at startup.
 func LoadServerTLS(nodeIP, certPath, certProvider, serverName string) (credentials.TransportCredentials, error) {
 	serverCertConfig := cert.DefaultKubeArmorServerConfig
 	serverCertConfig.DNS, serverCertConfig.IPs = cert.KubeArmorServerSANs(nodeIP, serverName, cfg.GlobalCfg.Host)
@@ -61,6 +70,8 @@ func LoadServerTLS(nodeIP, certPath, certProvider, serverName string) (credentia
 	return manager.CreateTlsServerCredentials()
 }
 
+// KeepaliveFor returns the keepalive enforcement policy and server
+// parameters for the given profile.
 func KeepaliveFor(p Profile) (keepalive.EnforcementPolicy, keepalive.ServerParameters) {
 	switch p {
 	case StreamingProfile:
