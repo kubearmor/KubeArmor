@@ -24,6 +24,7 @@ import (
 // parameter shadows the cfg package import
 var globalCfg = &cfg.GlobalCfg
 
+// Config holds the transport configuration for the Management gRPC server.
 type Config struct {
 	SocketPath   string
 	FallbackAddr string
@@ -31,6 +32,7 @@ type Config struct {
 	NodeIP       string
 }
 
+// ManagementServer owns the Management gRPC server transport.
 type ManagementServer struct {
 	Listener     net.Listener
 	Server       *grpc.Server
@@ -41,6 +43,8 @@ type ManagementServer struct {
 	WgServer     sync.WaitGroup
 }
 
+// NewManagementServer creates the Management gRPC server transport bound to
+// either a Unix domain socket (SocketPath) or a TCP fallback address.
 func NewManagementServer(cfg Config) (*ManagementServer, error) {
 	if cfg.SocketPath == "" && cfg.FallbackAddr == "" {
 		return nil, fmt.Errorf("either SocketPath or FallbackAddr must be set")
@@ -53,12 +57,12 @@ func NewManagementServer(cfg Config) (*ManagementServer, error) {
 		listener, err = grpcutil.NewListener(grpcutil.UnixSocket, cfg.SocketPath)
 		if err != nil {
 			kg.Errf("Failed to listen on Unix socket %s: %s", cfg.SocketPath, err)
-			return nil, fmt.Errorf("cannot create management listener on Unix socket %s: %s", cfg.SocketPath, err)
+			return nil, fmt.Errorf("cannot create management listener on Unix socket %s: %w", cfg.SocketPath, err)
 		}
 	} else {
 		listener, err = grpcutil.NewListener(grpcutil.TCP, cfg.FallbackAddr)
 		if err != nil {
-			return nil, fmt.Errorf("cannot create management listener on %s: %s", cfg.FallbackAddr, err)
+			return nil, fmt.Errorf("cannot create management listener on %s: %w", cfg.FallbackAddr, err)
 		}
 	}
 
@@ -69,7 +73,7 @@ func NewManagementServer(cfg Config) (*ManagementServer, error) {
 		tlsCredentials, err := grpcutil.LoadServerTLS(cfg.NodeIP, globalCfg.ManagementTLSCertPath, globalCfg.ManagementTLSCertProvider, "kubearmor-management")
 		if err != nil {
 			_ = listener.Close()
-			return nil, fmt.Errorf("cannot load management gRPC TLS credentials: %s", err)
+			return nil, fmt.Errorf("cannot load management gRPC TLS credentials: %w", err)
 		}
 
 		kg.Print("Management server started with TLS enabled")
@@ -98,6 +102,7 @@ func NewManagementServer(cfg Config) (*ManagementServer, error) {
 	}, nil
 }
 
+// Serve blocks serving the Management gRPC server on its listener.
 func (ms *ManagementServer) Serve() {
 	ms.WgServer.Add(1)
 	defer ms.WgServer.Done()
@@ -107,6 +112,7 @@ func (ms *ManagementServer) Serve() {
 	}
 }
 
+// GracefulStop gracefully stops the Management gRPC server and closes its listener.
 func (ms *ManagementServer) GracefulStop() {
 	if ms.Server != nil {
 		ms.Server.GracefulStop()
