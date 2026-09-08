@@ -4,19 +4,25 @@ on:
   push:
     branches: [main]
 
+concurrency:
+  group: ci-rebase
+  cancel-in-progress: false
+
 permissions: read-all
 
 jobs:
   rebase:
     name: Rebase open PRs onto main
-    if: github.repository == 'kubearmor/KubeArmor'
-    runs-on: ubuntu-22.04
+    if: github.repository == 'kubearmor/kubearmor'
+    runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
       contents: write
       pull-requests: read
+      workflows: write
     steps:
       - name: Rebase
         uses: peter-evans/rebase@e4945786f7ca41fe6e101cead4395f5489593943 # v4.0.0
         with:
           base: main
+          exclude-drafts: true
