@@ -24,7 +24,7 @@ type TlsConfig struct {
 	ReadCACertFromSecret bool
 	SecretName           string
 	Namespace            string
-	K8sClient            *kubernetes.Clientset
+	K8sClient            kubernetes.Interface
 
 	CACertPath CertPath
 	CertPath   CertPath
