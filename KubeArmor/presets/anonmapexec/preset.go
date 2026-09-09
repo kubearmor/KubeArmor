@@ -285,19 +285,20 @@ func (p *Preset) UpdateSecurityPolicies(endPoint tp.EndPoint) {
 					p.ContainerMapLock.RLock()
 					// Check if Container ID is registered in Map or not
 					ckv, ok := p.ContainerMap[cid]
+					p.ContainerMapLock.RUnlock()
 					if !ok {
 						// It maybe possible that CRI has unregistered the containers but K8s construct still has not sent this update while the policy was being applied,
 						// so the need to check if the container is present in the map before we apply policy.
-						p.ContainerMapLock.RUnlock()
 						return
 					}
 					base.UpdateMatchPolicy(&ckv, &secPolicy)
+					p.ContainerMapLock.Lock()
 					p.ContainerMap[cid] = ckv
 					err := p.AddContainerIDToMap(cid, ckv.NsKey, preset.Action)
 					if err != nil {
 						p.Logger.Warnf("Updating policy for container %s :%s ", cid, err)
 					}
-					p.ContainerMapLock.RUnlock()
+					p.ContainerMapLock.Unlock()
 				}
 			}
 		}
