@@ -1287,7 +1287,9 @@ ringbuf:
 
   if (retval == BLOCK)
   {
-    retval = -EPERM;
+    if (retval == -EPERM)
+      return -EPERM;
+    return 0;
   }
   else
     retval = 0;
@@ -1295,7 +1297,9 @@ ringbuf:
   if (!task_info)
   {
     // Failed to reserve, doing policy enforcement without alert
-    if (retval == -EPERM) return -EPERM; return 0;
+    if (retval == -EPERM)
+      return -EPERM;
+    return 0;
   }
   init_context(task_info);
   // Clearing arrays to avoid garbage values
@@ -1308,7 +1312,9 @@ ringbuf:
   task_info->event_id = eventID;
   task_info->retval = retval;
   bpf_ringbuf_submit(task_info, 0);
-  if (retval == -EPERM) return -EPERM; return 0;
+  if (retval == -EPERM)
+    return -EPERM;
+  return 0;
 }
 static inline bool matchArguments(unsigned int num_of_args, struct outer_key *okey, bufs_k *store, bufs_k *pk)
 {
