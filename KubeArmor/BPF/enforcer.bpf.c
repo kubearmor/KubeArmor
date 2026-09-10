@@ -421,14 +421,18 @@ ringbuf:
 
   if (get_kubearmor_config(_ALERT_THROTTLING) && should_drop_alerts_per_container(okey))
   {
-    if (retval == -EPERM) return -EPERM; return ret;
+    if (retval == -EPERM)
+      return -EPERM;
+    return ret;
   }
 
   task_info = bpf_ringbuf_reserve(&kubearmor_events, sizeof(event), 0);
   if (!task_info)
   {
     // Failed to reserve, doing policy enforcement without alert
-    if (retval == -EPERM) return -EPERM; return ret;
+    if (retval == -EPERM)
+      return -EPERM;
+    return ret;
   }
 
   // Clearing arrays to avoid garbage values
@@ -442,7 +446,9 @@ ringbuf:
   task_info->event_id = _SECURITY_BPRM_CHECK;
   task_info->retval = retval;
   bpf_ringbuf_submit(task_info, 0);
-  if (retval == -EPERM) return -EPERM; return ret;
+  if (retval == -EPERM)
+    return -EPERM;
+  return ret;
 }
 
 static inline int match_net_rules(int type, int protocol, u32 eventID)
@@ -665,13 +671,17 @@ ringbuf:
 
   if (get_kubearmor_config(_ALERT_THROTTLING) && should_drop_alerts_per_container(okey))
   {
-    if (retval == -EPERM) return -EPERM; return 0;
+    if (retval == -EPERM)
+      return -EPERM;
+    return 0;
   }
 
   task_info = bpf_ringbuf_reserve(&kubearmor_events, sizeof(event), 0);
   if (!task_info)
   {
-    if (retval == -EPERM) return -EPERM; return 0;
+    if (retval == -EPERM)
+      return -EPERM;
+    return 0;
   }
 
   // Clearing arrays to avoid garbage values to be parsed
@@ -685,7 +695,9 @@ ringbuf:
 
   task_info->retval = retval;
   bpf_ringbuf_submit(task_info, 0);
-  if (retval == -EPERM) return -EPERM; return 0;
+  if (retval == -EPERM)
+    return -EPERM;
+  return 0;
 }
 
 SEC("lsm/socket_create")
@@ -862,13 +874,17 @@ ringbuf:
 
   if (get_kubearmor_config(_ALERT_THROTTLING) && should_drop_alerts_per_container(okey))
   {
-    if (retval == -EPERM) return -EPERM; return 0;
+    if (retval == -EPERM)
+      return -EPERM;
+    return 0;
   }
 
   task_info = bpf_ringbuf_reserve(&kubearmor_events, sizeof(event), 0);
   if (!task_info)
   {
-    if (retval == -EPERM) return -EPERM; return 0;
+    if (retval == -EPERM)
+      return -EPERM;
+    return 0;
   }
 
   // Clearing arrays to avoid garbage values to be parsed
@@ -882,7 +898,9 @@ ringbuf:
 
   task_info->retval = retval;
   bpf_ringbuf_submit(task_info, 0);
-  if (retval == -EPERM) return -EPERM; return 0;
+  if (retval == -EPERM)
+    return -EPERM;
+  return 0;
 }
 
 static inline int match_dns_rules(char *dns_name, u32 eventID)
@@ -1010,11 +1028,15 @@ ringbuf:
   }
 
   if (get_kubearmor_config(_ALERT_THROTTLING) && should_drop_alerts_per_container(okey))
-    if (retval == -EPERM) return -EPERM; return 0;
+    if (retval == -EPERM)
+      return -EPERM;
+  return 0;
 
   task_info = bpf_ringbuf_reserve(&kubearmor_events, sizeof(event), 0);
   if (!task_info)
-    if (retval == -EPERM) return -EPERM; return 0;
+    if (retval == -EPERM)
+      return -EPERM;
+  return 0;
 
   __builtin_memset(task_info->data.path, 0, sizeof(task_info->data.path));
   __builtin_memset(task_info->data.source, 0, sizeof(task_info->data.source));
@@ -1027,9 +1049,10 @@ ringbuf:
   task_info->retval = retval;
   bpf_ringbuf_submit(task_info, 0);
 
-  if (retval == -EPERM) return -EPERM; return 0;
+  if (retval == -EPERM)
+    return -EPERM;
+  return 0;
 }
-
 SEC("lsm/socket_sendmsg")
 int BPF_PROG(enforce_dns, struct socket *sock, struct msghdr *msg, int size)
 {
