@@ -113,7 +113,7 @@ Contributors who show initiative, strong technical ability, consistent engagemen
 
 If you have any questions or need help while contributing:
 
-- **Slack Community**: Join the KubeArmor [Slack](https://cloud-native.slack.com/archives/C07EF44HWQM) to engage in real-time discussions.
+- **Slack Community**: Join the KubeArmor [Slack Channel](https://cloud-native.slack.com/archives/C07EF44HWQM) on CNCF Slack to engage in real-time discussions. If you need an invitation to join CNCF Slack, sign up using [inviter.co/cncf](https://inviter.co/cncf).
 - **Community Meetings**: Attend our regular meetings listed in our [GitHub README](https://github.com/kubearmor/KubeArmor#community).
 - **GitHub Discussions**: Use [GitHub Discussions](https://github.com/kubearmor/KubeArmor/discussions) for long-form questions and ideas.
 - **Documentation**: Refer to KubeArmor [Docs](https://docs.kubearmor.io/) for in-depth information.
