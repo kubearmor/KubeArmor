@@ -5,12 +5,10 @@ package feeder
 
 import (
 	"math"
-	"os"
 	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
-	"syscall"
 
 	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
@@ -86,18 +84,6 @@ func fetchProtocol(resource string) string {
 		return "packet"
 	}
 	return resource
-}
-
-func getFileProcessUID(path string) string {
-	info, err := os.Stat(path)
-	if err == nil {
-		stat := info.Sys().(*syscall.Stat_t)
-		uid := stat.Uid
-
-		return strconv.Itoa(int(uid))
-	}
-
-	return ""
 }
 
 // getOperationAndCapabilityFromName Function
@@ -1483,7 +1469,12 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 							matchedRegex = fileMatch || procMatch
 						}
 					case "ExecName":
-						matchedRegex = strings.HasSuffix(log.ProcessName, "/"+secPolicy.Resource) // processpath = */execname
+						// match binary against ProcessName, ExecEvent (comm), or Resource (for scripts)
+						firstResource := strings.Split(log.Resource, " ")[0]
+						procMatch := strings.HasSuffix(log.ProcessName, "/"+secPolicy.Resource)
+						resMatch := strings.HasSuffix(firstResource, "/"+secPolicy.Resource)
+						execMatch := log.ExecEvent.ExecutableName == secPolicy.Resource
+						matchedRegex = procMatch || resMatch || execMatch
 					}
 
 					// match resources
