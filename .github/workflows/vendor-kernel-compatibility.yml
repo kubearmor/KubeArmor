@@ -1,0 +1,212 @@
+# Weekly vendor-kernel load check for the eBPF objects KubeArmor ships.
+#
+# KubeArmor's container image compiles its BPF once at image-build time and
+# copies the objects into /opt/kubearmor/BPF/ (see Dockerfile). Nodes then load
+# those prebuilt CO-RE objects on whatever kernel they happen to run. This lane
+# reproduces that: it builds the objects the way the image build does, then
+# loads them with KubeArmor's own cilium/ebpf loaders (KubeArmor/monitor/ci_load
+# and KubeArmor/enforcer/bpflsm/ci_loader -- the same binaries ci-test-lvh-matrix
+# runs) inside disposable QEMU/KVM VMs booting unmodified vendor cloud images.
+#
+# It complements ci-test-lvh-matrix rather than replacing it. That lane boots
+# kernels built from source by the Cilium ci-kernels project and compiles the
+# BPF inside each VM, which is the right shape for catching upstream kernel
+# regressions early. This one answers a different question: does the object we
+# actually ship still load on the enterprise kernels users actually run --
+# RHEL-family 4.18/5.14 backports, Amazon Linux 2, Oracle UEK, SUSE -- where
+# the kernel version number does not predict eBPF feature support. RHEL, for
+# instance, backports the ring buffer to 4.18 while upstream needs >= 5.8.
+#
+# Non-blocking by construction: schedule and manual dispatch only, no PR or
+# push trigger, and skipped on forks unless a fork opts in.
+name: vendor-kernel-compatibility
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 7 * * 1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: vendor-kernel-compatibility
+  cancel-in-progress: false
+
+jobs:
+  shipped-objects:
+    name: load shipped eBPF objects on vendor kernels
+    # Skip on forks by default so a fork does not burn runner minutes; a fork
+    # can opt in with the ENABLE_VENDOR_KERNEL_COMPATIBILITY repo variable.
+    if: >-
+      github.repository == 'kubearmor/KubeArmor' ||
+      vars.ENABLE_VENDOR_KERNEL_COMPATIBILITY == 'true'
+    runs-on: ubuntu-latest
+    # bpfcompat's `timeout` input is PER TARGET, so the worst case for one
+    # matrix is ceil(11 profiles / 3 concurrent) * timeout. At 10m that is 40m
+    # per matrix, 80m for both, which fits inside this budget with the build
+    # steps. Targets actually complete in well under a minute; the per-target
+    # timeout only has to bound a hung boot or a stalled image download, and
+    # the job must not be killed mid-matrix or the reports land partial.
+    timeout-minutes: 120
+    steps:
+      - name: Checkout KubeArmor repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version-file: 'KubeArmor/go.mod'
+
+      - name: Install the latest LLVM toolchain
+        run: ./.github/workflows/install-llvm.sh
+
+      - name: Install libbpf headers
+        run: sudo apt-get update && sudo apt-get install -y libbpf-dev
+
+      - name: Install bpftool
+        run: ./.github/workflows/install-bpftool.sh
+
+      - name: Generate vmlinux.h
+        run: make -C BPF kernel_headers
+        working-directory: KubeArmor
+
+      - name: Generate BPF files
+        run: go generate ./...
+        working-directory: KubeArmor
+
+      - name: Build the BPF objects the image ships
+        # Only the targets `make kernel_headers` above did not already cover:
+        # BPF/Makefile's default `all` depends on the phony `kernel_headers`, so
+        # a bare `make` would regenerate vmlinux.h a second time. The header has
+        # to exist before `go generate`, hence the separate step earlier.
+        run: make -C BPF libbpf system_monitor.bpf.o
+        working-directory: KubeArmor
+
+      - name: Build the loader binaries
+        # Static, because the guests are older than the runner: an amzn2 or
+        # el8 guest cannot run a binary dynamically linked against the runner's
+        # glibc. CGO is already off for these, so -tags/-ldflags are not needed.
+        working-directory: KubeArmor
+        env:
+          CGO_ENABLED: "0"
+        run: |
+          go build -o "${GITHUB_WORKSPACE}/monitor-ci_load" ./monitor/ci_load.go
+          go build -o "${GITHUB_WORKSPACE}/enforcer-ci_load" ./enforcer/bpflsm/ci_loader
+          file "${GITHUB_WORKSPACE}/monitor-ci_load" "${GITHUB_WORKSPACE}/enforcer-ci_load"
+
+      - name: Install VM dependencies
+        run: |
+          sudo apt-get update
+          # cloud-image-utils provides cloud-localds; RHEL-family guests need a
+          # genuine cloud-init seed ISO.
+          sudo apt-get install -y --no-install-recommends \
+            qemu-system-x86 qemu-utils cloud-image-utils jq
+
+      - name: Enable KVM on the hosted runner
+        run: |
+          if [[ -e /dev/kvm ]]; then sudo chmod 0666 /dev/kvm || true; ls -l /dev/kvm; fi
+
+      - name: Load the system monitor object on each vendor kernel
+        # Command mode: the per-kernel verdict is the exit code of KubeArmor's
+        # own loader, so this tests the cilium/ebpf path KubeArmor really uses
+        # rather than a third-party libbpf load.
+        # Pinned by commit SHA; a SHA matching a release resolves to prebuilt,
+        # checksum-verified binaries, so no toolchain is needed for bpfcompat.
+        uses: Kernel-Guard/bpfcompat@179ff612ed2b5d1afb16dd9c282752028d47c415 # v0.3.7
+        with:
+          command: |
+            set -e
+            # Several vendor cloud images do not mount bpffs by default; the
+            # loader pins its maps, so mount it the way the KubeArmor DaemonSet
+            # does before judging the kernel.
+            mkdir -p /sys/fs/bpf
+            mountpoint -q /sys/fs/bpf || mount -t bpf bpf /sys/fs/bpf
+            echo "=== $(uname -r) ==="
+            dir="$(dirname "$BPFCOMPAT_BIN")"
+            mkdir -p "$dir/BPF"
+            cp "$BPFCOMPAT_ARTIFACT" "$dir/BPF/system_monitor.bpf.o"
+            "$BPFCOMPAT_BIN"
+          command-binary: monitor-ci_load
+          artifact: KubeArmor/BPF/system_monitor.bpf.o
+          matrix: quirk-library
+          out: reports/system-monitor.json
+          markdown: reports/system-monitor.md
+          disk-resize: "4"
+          timeout: 10m
+          concurrency: "3"
+
+      - name: Load the BPF-LSM enforcer on each vendor kernel
+        # Advisory. ci-test-lvh-matrix skips the enforcer whenever BPF-LSM is
+        # absent, which is the right call for a gate but means the matrix never
+        # reports WHICH vendor kernels actually offer it. Vendors differ here on
+        # the same kernel line, so run it everywhere and let the report say so.
+        continue-on-error: true
+        uses: Kernel-Guard/bpfcompat@179ff612ed2b5d1afb16dd9c282752028d47c415 # v0.3.7
+        with:
+          command: |
+            set -e
+            mkdir -p /sys/fs/bpf
+            mountpoint -q /sys/fs/bpf || mount -t bpf bpf /sys/fs/bpf
+            echo "=== $(uname -r) ==="
+            if grep -q "bpf" /sys/kernel/security/lsm 2>/dev/null; then
+              echo "BPF-LSM enabled"
+              "$BPFCOMPAT_BIN"
+            else
+              echo "BPF-LSM not enabled on this kernel"
+              exit 0
+            fi
+          command-binary: enforcer-ci_load
+          matrix: quirk-library
+          out: reports/bpflsm-enforcer.json
+          markdown: reports/bpflsm-enforcer.md
+          disk-resize: "4"
+          timeout: 10m
+          concurrency: "3"
+
+      - name: Summarise BPF-LSM availability
+        # The enforcer step exits 0 on a kernel without BPF-LSM, because that is
+        # not a failure -- but it does mean a bare pass/fail column cannot tell
+        # "enforcer loaded" from "nothing to load". Pull the distinction out of
+        # the per-kernel command output and put it in the job summary, since
+        # which vendor kernels ship BPF-LSM is the thing this lane is for.
+        if: always()
+        run: |
+          python3 - <<'PY' >>"$GITHUB_STEP_SUMMARY"
+          import json, pathlib
+
+          report = pathlib.Path("reports/bpflsm-enforcer.json")
+          if not report.is_file():
+              print("BPF-LSM report not produced.")
+              raise SystemExit(0)
+
+          rows = []
+          for target in json.loads(report.read_text()).get("targets", []):
+              output = ""
+              for test in target.get("functional", {}).get("tests", []):
+                  output += (test.get("stdout_tail") or "") + (test.get("stderr_tail") or "")
+              if "Initialized BPF-LSM Enforcer" in output:
+                  state = "yes -- enforcer loaded"
+              elif "BPF-LSM enabled" in output:
+                  state = "yes -- but the enforcer FAILED to load"
+              elif "BPF-LSM not enabled" in output:
+                  state = "no"
+              else:
+                  state = "unknown (see report)"
+              rows.append((target["profile_id"], target.get("host", {}).get("kernel", ""), state))
+
+          rows.sort(key=lambda row: row[0])
+
+          print("## BPF-LSM availability on vendor kernels\n")
+          print("| Profile | Kernel | BPF-LSM |")
+          print("|---|---|---|")
+          for profile, kernel, state in rows:
+              print(f"| `{profile}` | `{kernel}` | {state} |")
+          PY
+
+      - name: Upload compatibility reports
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: vendor-kernel-compatibility
+          path: reports/
+          if-no-files-found: warn
