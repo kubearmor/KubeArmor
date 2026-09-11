@@ -22,8 +22,7 @@ type OperatorOptions struct {
 	ExtClient                          *apiextensionsclientset.Clientset
 	Opv1Client                         *opv1client.Clientset
 	Secv1Client                        *secv1client.Clientset
-	AnnotateResource                   bool
-	AnnotateExisting                   bool
+
 	InitDeploy                         bool
 	LogLevel                           string
 	ProviderHostname, ProviderEndpoint string

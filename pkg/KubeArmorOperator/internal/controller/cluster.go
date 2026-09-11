@@ -52,8 +52,6 @@ var (
 	deployment_name                    string = "kubearmor-operator"
 	PathPrefix                         string
 	initDeploy                         bool
-	annotateResource                   bool
-	annotateExisting                   bool
 	ProviderHostname, ProviderEndpoint string
 	ImagePullSecrets                   []corev1.LocalObjectReference
 	LsmOrder                           string
@@ -102,8 +100,6 @@ func NewClusterWatcher(o *cmd.OperatorOptions) *ClusterWatcher {
 	PathPrefix = o.PathPrefix
 	deployment_name = o.DeploymentName
 	initDeploy = o.InitDeploy
-	annotateResource = o.AnnotateResource
-	annotateExisting = o.AnnotateExisting
 	ProviderHostname = o.ProviderHostname
 	ProviderEndpoint = o.ProviderEndpoint
 	LsmOrder = o.LsmOrder
@@ -1533,6 +1529,11 @@ func UpdateConfigMapData(config *opv1.KubeArmorConfigSpec) bool {
 	DropResourceFromProcessLogs := strconv.FormatBool(config.DropResourceFromProcessLogs)
 	if common.ConfigMapData[common.ConfigDropResourceFromProcessLogs] != DropResourceFromProcessLogs {
 		common.ConfigMapData[common.ConfigDropResourceFromProcessLogs] = DropResourceFromProcessLogs
+		updated = true
+	}
+	AnnotateResources := strconv.FormatBool(config.AnnotateResources)
+	if common.ConfigMapData[common.ConfigAnnotateResources] != AnnotateResources {
+		common.ConfigMapData[common.ConfigAnnotateResources] = AnnotateResources
 		updated = true
 	}
 	if config.DefaultVisibility != "" {
