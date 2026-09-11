@@ -367,7 +367,7 @@ func (dm *KubeArmorDaemon) UpdateContainerdContainer(ctx context.Context, contai
 			dm.ContainersLock.Unlock()
 
 			// create/update endPoint in non-k8s mode
-			if !dm.K8sEnabled {
+			if !dm.K8sEnabled || container.NamespaceName == "container_namespace" {
 				endPointEvent := "ADDED"
 				endPointIdx := -1
 
@@ -488,7 +488,7 @@ func (dm *KubeArmorDaemon) UpdateContainerdContainer(ctx context.Context, contai
 					}
 
 					// add identities and labels if non-k8s
-					if !dm.K8sEnabled {
+					if !dm.K8sEnabled || container.NamespaceName == "container_namespace" {
 						for label := range strings.SplitSeq(container.Labels, ",") {
 							key, value, ok := strings.Cut(label, "=")
 							if !ok {
@@ -552,7 +552,7 @@ func (dm *KubeArmorDaemon) UpdateContainerdContainer(ctx context.Context, contai
 			dm.ContainersLock.Unlock()
 			return fmt.Errorf("container not found for removal: %s", containerID)
 		}
-		if !dm.K8sEnabled {
+		if !dm.K8sEnabled || container.NamespaceName == "container_namespace" {
 			dm.EndPointsLock.Lock()
 			dm.MatchandRemoveContainerFromEndpoint(containerID)
 			dm.EndPointsLock.Unlock()
@@ -561,7 +561,7 @@ func (dm *KubeArmorDaemon) UpdateContainerdContainer(ctx context.Context, contai
 		dm.ContainersLock.Unlock()
 
 		// delete endpoint if no security rules and containers
-		if !dm.K8sEnabled {
+		if !dm.K8sEnabled || container.NamespaceName == "container_namespace" {
 			dm.EndPointsLock.Lock()
 			idx := 0
 			endpointsLength := len(dm.EndPoints)
