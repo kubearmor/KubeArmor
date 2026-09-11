@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright 2026 Authors of KubeArmor
 
-FROM docker.io/golang:1.26@sha256:45a5f7a810238aabcbad211d70b9ae082022d96f7c7259e94041ad1b933575ac AS builder
+FROM docker.io/golang:1.26@sha256:3c3e25a4da13fd0478eed2df1eb35a0e667094a7124d3993a6a1d30f71c17e79 AS builder
 ARG GOARCH
 ARG GOOS
 
@@ -71,7 +71,7 @@ COPY --from=builder /KubeArmor/$OPERATOR_DIR/operator /operator
 ENTRYPOINT ["/operator"]
 
 # Build operator image with ubi as base image
-FROM redhat/ubi10-minimal@sha256:3948fdfe71007909b37faf48c52eda28bfab7c4e440d6f4d4619422d06ceeb4c AS operator-ubi
+FROM redhat/ubi10-minimal@sha256:26dc3089ab24491c1ba01ab92a7d502d181425b6021e362a07484daee696a3aa AS operator-ubi
 
 ARG VERSION=latest
 
@@ -106,7 +106,7 @@ COPY --from=builder /KubeArmor/$OPERATOR_DIR/hook/hook /hook
 ENTRYPOINT ["/snitch"]
 
 # Build snitch with ubi as base image
-FROM redhat/ubi10-minimal@sha256:3948fdfe71007909b37faf48c52eda28bfab7c4e440d6f4d4619422d06ceeb4c AS snitch-ubi
+FROM redhat/ubi10-minimal@sha256:26dc3089ab24491c1ba01ab92a7d502d181425b6021e362a07484daee696a3aa AS snitch-ubi
 
 ARG VERSION=latest
 
