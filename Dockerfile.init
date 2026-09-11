@@ -18,7 +18,7 @@ COPY ./KubeArmor/build/compile.sh /KubeArmor/compile.sh
 ENTRYPOINT ["/KubeArmor/compile.sh"]
 
 ### Make compiler image
-FROM redhat/ubi10-minimal@sha256:3948fdfe71007909b37faf48c52eda28bfab7c4e440d6f4d4619422d06ceeb4c AS kubearmor-init-ubi
+FROM redhat/ubi10-minimal@sha256:26dc3089ab24491c1ba01ab92a7d502d181425b6021e362a07484daee696a3aa AS kubearmor-init-ubi
 
 ARG VERSION=latest
 
