@@ -287,7 +287,7 @@ func (p *Preset) UpdateSecurityPolicies(endPoint tp.EndPoint) {
 						// so the need to check if the container is present in the map before we apply policy.
 						p.Logger.Warnf("container not registered in map: %s", cid)
 
-						return
+						continue
 					}
 					base.UpdateMatchPolicy(&ckv, &secPolicy)
 					p.ContainerMapLock.Lock()
