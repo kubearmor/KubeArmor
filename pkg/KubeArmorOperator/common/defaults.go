@@ -159,6 +159,7 @@ var (
 
 	// tls
 	EnableTls                      bool     = false
+	AnnotateResource               bool     = false
 	ExtraDnsNames                  []string = []string{"localhost"}
 	ExtraIpAddresses               []string = []string{"127.0.0.1"}
 	KubeArmorCaSecretName          string   = "kubearmor-ca"
