@@ -39,6 +39,17 @@ jobs:
           go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.6.1
           echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
 
+      - name: Install bpftool
+        run: ./.github/workflows/install-bpftool.sh
+
+      - name: Generate vmlinux.h
+        run: make -C BPF kernel_headers
+        working-directory: KubeArmor
+
+      - name: Generate BPF files
+        run: go generate ./...
+        working-directory: KubeArmor
+
       - name: Build Systemd Release
         run: make local-release
         working-directory: KubeArmor
