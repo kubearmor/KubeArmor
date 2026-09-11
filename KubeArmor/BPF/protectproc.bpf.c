@@ -93,7 +93,7 @@ int BPF_PROG(enforce_file, struct file *file) {
     __builtin_memset(event_data->data.source, 0, sizeof(event_data->data.source));
 
     bpf_probe_read_str(event_data->data.path, 80, path_store->path);
-    bpf_probe_read_str(event_data->data.source, MAX_STRING_SIZE, source_store->source);
+    bpf_probe_read_str(event_data->data.source, MAX_STRING_SIZE, source_store->path);
     
     init_context(event_data);
     event_data->event_id = PROTECT_PROC;
