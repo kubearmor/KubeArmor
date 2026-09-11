@@ -43,7 +43,7 @@ func (dm *KubeArmorDaemon) SetContainerNSVisibility() {
 	if strings.Contains(cfg.GlobalCfg.Visibility, "ima") {
 		visibility.IMA = true
 	}
-	dm.UpdateVisibility("ADDED", "container_namespace", visibility)
+	dm.UpdateVisibility("ADDED", cfg.GlobalCfg.Host, visibility)
 }
 
 // =================== //
@@ -280,7 +280,7 @@ func (dm *KubeArmorDaemon) ParseAndUpdateContainerSecurityPolicy(event tp.K8sKub
 	secPolicy := tp.SecurityPolicy{}
 
 	secPolicy.Metadata = map[string]string{}
-	secPolicy.Metadata["namespaceName"] = "container_namespace" //event.Object.Metadata.Namespace
+	secPolicy.Metadata["namespaceName"] = cfg.GlobalCfg.Host
 	secPolicy.Metadata["policyName"] = event.Object.Metadata.Name
 
 	if err := kl.Clone(event.Object.Spec, &secPolicy.Spec); err != nil {
