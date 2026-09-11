@@ -2,7 +2,7 @@ name: ci-merge-coverage
 
 on:
   workflow_run:
-    workflows: [ci-test-ginkgo]
+    workflows: ["KubeArmor CI"]
     types:
       - completed
 
@@ -16,57 +16,48 @@ jobs:
     permissions:
       actions: read
       contents: read
+    # Only run when the triggering workflow succeeded.
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     steps:
-      - name: Check if all required workflows completed successfully
-        id: check-workflows
-        run: |
-          workflows=("ci-test-ginkgo")
-          all_completed=true
-
-          commit_sha=$(git rev-parse HEAD)
-
-          for workflow in "${workflows[@]}"; do
-              conclusion=$(gh run list --workflow=$workflow --json conclusion,headSha,event,headBranch | jq -r --arg sha "$commit_sha" --arg event "pull_request" '.[] | select(.headSha == $sha and .event == $event) | .conclusion')
-
-              if [[ -z "$conclusion" ]]; then
-                  conclusion="pending"
-              fi
-
-              if [[ "$conclusion" != "success" ]]; then
-                  all_completed=false
-              fi
-
-              echo "${workflow}_status=$conclusion" >> $GITHUB_ENV
-          done
-
-          if [[ "$all_completed" == "true" ]]; then
-              echo "All workflows completed successfully for commit $commit_sha."
-              echo "all_succeeded=true" >> $GITHUB_ENV
-          else
-              echo "Not all workflows completed successfully for commit $commit_sha."
-              exit 1
-          fi
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - name: Checkout the commit that produced the coverage artifacts
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
-          submodules: true
+          ref: ${{ github.event.workflow_run.head_sha }}
 
-      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
-        with:
-          go-version-file: "KubeArmor/go.mod"
-
-      - name: Download k8s coverage files from ci-test-ginkgo
-        if: ${{ env.ci-test-ginkgo_status == 'success' }}
+      # Download coverage artifacts from the triggering CI run.
+      # No artifacts may exist if matrix-tests was skipped.
+      - name: Download k8s coverage files from the triggering CI run
+        id: download-coverage
         uses: dawidd6/action-download-artifact@bf251b5aa9c2f7eeb574a96ee720e24f801b7c11 # v6
         with:
-          workflow: ci-test-ginkgo.yml
+          run_id: ${{ github.event.workflow_run.id }}
           name: coverage.*
           path: KubeArmor/
           name_is_regexp: true
-          search_artifacts: true
+          if_no_artifact_found: warn
 
-      - uses: codecov/codecov-action@b9fd7d16f6d7d1b5d2bec1a2887e65ceed900238 # v4
+      # Collect coverage profiles recursively (artifacts are unpacked into per-artifact subdirectories).
+      - name: Collect coverage profiles
+        id: coverage-files
+        if: ${{ steps.download-coverage.outputs.found_artifact == 'true' }}
+        run: |
+          files="$(find KubeArmor -type f -name 'coverage*.out' 2>/dev/null | sort | paste -sd, - || true)"
+          if [[ -z "$files" ]]; then
+            echo "::warning::The triggering CI run did not produce any coverage profile, skipping the Codecov upload."
+          else
+            echo "Coverage profiles to upload:"
+            tr ',' '\n' <<< "$files"
+            echo "files=$files" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Upload merged coverage to Codecov
+        if: ${{ steps.coverage-files.outputs.files != '' }}
+        uses: codecov/codecov-action@b9fd7d16f6d7d1b5d2bec1a2887e65ceed900238 # v4
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
+          files: ${{ steps.coverage-files.outputs.files }}
+          # Attribute the report to the commit, branch, and PR that produced the coverage.
+          override_commit: ${{ github.event.workflow_run.head_sha }}
+          override_branch: ${{ github.event.workflow_run.head_branch }}
+          override_pr: ${{ github.event.workflow_run.pull_requests[0].number }}
+          fail_ci_if_error: true
