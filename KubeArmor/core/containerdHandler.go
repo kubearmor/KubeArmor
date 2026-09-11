@@ -197,7 +197,7 @@ func (ch *ContainerdHandler) GetContainerInfo(ctx context.Context, containerID, 
 	} else if val, ok := containerLabels["kubearmor.io/namespace"]; ok {
 		container.NamespaceName = val
 	} else {
-		container.NamespaceName = "container_namespace"
+		container.NamespaceName = cfg.GlobalCfg.Host
 	}
 
 	if len(OwnerInfo) > 0 {
