@@ -32,6 +32,11 @@ func (p *PolicyServer) ContainerPolicy(c context.Context, data *pb.Policy) (*pb.
 		kg.Warn("Container policies are not enabled")
 		return res, nil
 	}
+	if data == nil || len(data.Policy) == 0 {
+		res.Status = pb.PolicyStatus_Invalid
+		kg.Warn("Empty Container Policy Event")
+		return res, nil
+	}
 	policyEvent := tp.K8sKubeArmorPolicyEvent{}
 	err := json.Unmarshal(data.Policy, &policyEvent)
 
@@ -62,6 +67,11 @@ func (p *PolicyServer) HostPolicy(c context.Context, data *pb.Policy) (*pb.Respo
 	if !p.HostPolicyEnabled {
 		res.Status = pb.PolicyStatus_NotEnabled
 		kg.Warn("Host policies are not enabled")
+		return res, nil
+	}
+	if data == nil || len(data.Policy) == 0 {
+		res.Status = pb.PolicyStatus_Invalid
+		kg.Warn("Empty Host Policy Event")
 		return res, nil
 	}
 	policyEvent := tp.K8sKubeArmorHostPolicyEvent{}
@@ -95,6 +105,11 @@ func (p *PolicyServer) NetworkPolicy(c context.Context, data *pb.Policy) (*pb.Re
 	if !p.NetworkPolicyEnabled {
 		res.Status = pb.PolicyStatus_NotEnabled
 		kg.Warn("Network policies are not enabled")
+		return res, nil
+	}
+	if data == nil || len(data.Policy) == 0 {
+		res.Status = pb.PolicyStatus_Invalid
+		kg.Warn("Empty Network Policy Event")
 		return res, nil
 	}
 	policyEvent := tp.K8sKubeArmorNetworkPolicyEvent{}
