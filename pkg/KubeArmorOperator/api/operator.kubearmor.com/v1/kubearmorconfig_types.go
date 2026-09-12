@@ -130,6 +130,13 @@ type KubeArmorConfigSpec struct {
 	DropResourceFromProcessLogs bool `json:"dropResourceFromProcessLogs,omitempty"`
 
 	MatchArgs bool `json:"matchArgs,omitempty"`
+
+	// +kubebuilder:default:=false
+	ControllerHostNetwork bool `json:"controllerHostNetwork,omitempty"`
+
+	// +kubebuilder:validation:Enum=ClusterFirst;ClusterFirstWithHostNet;Default;None
+	// +kubebuilder:default:=ClusterFirst
+	ControllerDNSPolicy string `json:"controllerDNSPolicy,omitempty"`
 }
 
 // KubeArmorConfigStatus defines the observed state of KubeArmorConfig
