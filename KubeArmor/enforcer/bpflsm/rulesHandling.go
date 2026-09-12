@@ -112,7 +112,7 @@ func (r *RuleList) Init() {
 }
 
 // UpdateContainerRules updates individual container map with new rules and resolves conflicting rules
-func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.SecurityPolicy, defaultPosture tp.DefaultPosture) {
+func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.SecurityPolicy, defaultPosture tp.DefaultPosture, revision uint64) {
 
 	var newrules RuleList
 
@@ -421,7 +421,14 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 		return
 	}
 
-	if be.ContainerMap[id].Map == nil && !(len(newrules.FileRuleList) == 0 && len(newrules.ProcessRuleList) == 0 && len(newrules.NetworkRuleList) == 0 && len(newrules.CapabilitiesRuleList) == 0) {
+	kv := be.ContainerMap[id]
+	// Only guard endpoint-originated updates (revision > 0). Host policy passes revision=0.
+	if revision > 0 && revision < kv.AppliedPolicyRevision {
+		be.Logger.Printf("Skipping stale policy update for %s (rev %d < %d)", id, revision, kv.AppliedPolicyRevision)
+		return
+	}
+
+	if kv.Map == nil && !(len(newrules.FileRuleList) == 0 && len(newrules.ProcessRuleList) == 0 && len(newrules.NetworkRuleList) == 0 && len(newrules.CapabilitiesRuleList) == 0) {
 		// We create the inner map only when we have policies specific to that
 		be.Logger.Printf("Creating inner map for %s", id)
 		be.CreateContainerInnerMap(id)
@@ -445,6 +452,9 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 		list.Rules.NetWhiteListPosture = newrules.NetWhiteListPosture
 		list.Rules.DNSNetWhiteListPosture = newrules.DNSNetWhiteListPosture
 		list.Rules.CapWhiteListPosture = newrules.CapWhiteListPosture
+		if revision > 0 {
+			list.AppliedPolicyRevision = revision
+		}
 
 		be.ContainerMap[id] = list
 	}
