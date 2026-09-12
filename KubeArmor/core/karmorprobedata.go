@@ -27,6 +27,7 @@ type KarmorData struct {
 	ContainerDefaultPosture tp.DefaultPosture
 	HostDefaultPosture      tp.DefaultPosture
 	HostVisibility          string
+	HostPolicyHash          string
 }
 
 // Probe provides structure to serve Policy gRPC service
@@ -68,6 +69,11 @@ func (dm *KubeArmorDaemon) SetKarmorData() {
 	}
 	kd.KernelHeaderPresent = true //this is always true since KubeArmor is running
 	kd.HostVisibility = dm.Node.Annotations["kubearmor-visibility"]
+
+	dm.HostPolicyHashLock.RLock()
+	kd.HostPolicyHash = dm.HostPolicyHash
+	dm.HostPolicyHashLock.RUnlock()
+
 	err := kl.WriteToFile(kd, "/tmp/karmorProbeData.cfg")
 	if err != nil {
 		dm.Logger.Errf("Error writing karmor config data (%s)", err.Error())
