@@ -220,7 +220,17 @@ func GetRelayClusterRole() *rbacv1.ClusterRole {
 		Rules: []rbacv1.PolicyRule{
 			{
 				APIGroups: []string{""},
-				Resources: []string{"pods", "services"},
+				Resources: []string{"pods", "services", "namespaces", "nodes", "events"},
+				Verbs:     []string{"list", "watch"},
+			},
+			{
+				APIGroups: []string{"apps"},
+				Resources: []string{"deployments", "replicasets", "daemonsets", "statefulsets"},
+				Verbs:     []string{"list", "watch"},
+			},
+			{
+				APIGroups: []string{"security.kubearmor.com"},
+				Resources: []string{"kubearmorpolicies", "kubearmorclusterpolicies", "kubearmorhostpolicies"},
 				Verbs:     []string{"list", "watch"},
 			},
 		},
