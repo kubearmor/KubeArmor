@@ -257,15 +257,15 @@ func run(state specs.State) error {
 	for k, v := range state.Annotations {
 		labels = append(labels, k+"="+v)
 	}
-	//add labels for policy matching
-	labels = append(labels, "namespaceName="+"container_namespace")
-	labels = append(labels, "containerType="+"podman")
-	labels = append(labels, "kubearmor.io/container.name="+details.Name)
-
 	nodename, nodeErr := os.Hostname()
 	if nodeErr != nil {
 		nodename = ""
 	}
+
+	//add labels for policy matching
+	labels = append(labels, "namespaceName="+nodename)
+	labels = append(labels, "containerType="+"podman")
+	labels = append(labels, "kubearmor.io/container.name="+details.Name)
 
 	container.Labels = strings.Join(labels, ",")
 
@@ -278,7 +278,7 @@ func run(state specs.State) error {
 		ContainerName:   details.Name,
 		ContainerImage:  details.ImageName,
 		AppArmorProfile: appArmorProfile,
-		NamespaceName:   "container_namespace",
+		NamespaceName:   nodename,
 		EndPointName:    details.Name,
 		NodeName:        nodename,
 		Status:          status,
