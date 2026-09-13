@@ -1,7 +1,7 @@
 services:
   kubearmor-init:
     container_name: kubearmor-init
-    image: docker.io/kubearmor/kubearmor-init@sha256:f1704820c0ff4469abc74927e3c4da5dfed28a57cb49effa0deaf936921fca6a
+    image: docker.io/kubearmor/kubearmor-init@sha256:2ae6ce430cd931be4cd9a5c5b33e72a923fe5af60278866b3d7496a068aea330
     pull_policy: "always"
     user: root
     labels:
