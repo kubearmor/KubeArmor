@@ -17,16 +17,27 @@ jobs:
       actions: read
       contents: read
     steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          submodules: true
+
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version-file: "KubeArmor/go.mod"
+
       - name: Check if all required workflows completed successfully
         id: check-workflows
         run: |
           workflows=("ci-test-ginkgo")
           all_completed=true
 
-          commit_sha=$(git rev-parse HEAD)
+          commit_sha="${{ github.event.workflow_run.head_sha }}"
 
           for workflow in "${workflows[@]}"; do
-              conclusion=$(gh run list --workflow=$workflow --json conclusion,headSha,event,headBranch | jq -r --arg sha "$commit_sha" --arg event "pull_request" '.[] | select(.headSha == $sha and .event == $event) | .conclusion')
+              safe_name="${workflow//-/_}"
+              conclusion=$(gh run list --workflow=${workflow}.yml --json conclusion,headSha \
+                | jq -r --arg sha "$commit_sha" \
+                '.[] | select(.headSha == $sha) | .conclusion' | head -1)
 
               if [[ -z "$conclusion" ]]; then
                   conclusion="pending"
@@ -36,7 +47,7 @@ jobs:
                   all_completed=false
               fi
 
-              echo "${workflow}_status=$conclusion" >> $GITHUB_ENV
+              echo "${safe_name}_status=$conclusion" >> $GITHUB_ENV
           done
 
           if [[ "$all_completed" == "true" ]]; then
@@ -47,18 +58,10 @@ jobs:
               exit 1
           fi
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
-        with:
-          submodules: true
-
-      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
-        with:
-          go-version-file: "KubeArmor/go.mod"
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Download k8s coverage files from ci-test-ginkgo
-        if: ${{ env.ci-test-ginkgo_status == 'success' }}
+        if: ${{ env.ci_test_ginkgo_status == 'success' }}
         uses: dawidd6/action-download-artifact@bf251b5aa9c2f7eeb574a96ee720e24f801b7c11 # v6
         with:
           workflow: ci-test-ginkgo.yml
