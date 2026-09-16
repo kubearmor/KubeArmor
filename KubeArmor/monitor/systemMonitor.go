@@ -9,6 +9,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"net"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -150,6 +151,7 @@ type SystemMonitor struct {
 	BpfModule            *cle.Collection
 	BpfConfigMap         *cle.Map
 	BpfNsVisibilityMap   *cle.Map
+	BpfDnsVisibilityMap  *cle.Map
 	BpfVisibilityMapSpec cle.MapSpec
 
 	NsVisibilityMap  map[NsKey]*cle.Map
@@ -281,10 +283,27 @@ func (mon *SystemMonitor) initBPFMaps() error {
 		}
 	}
 
+	dnsVisibilityMap, errDns := cle.NewMapWithOptions(
+		&cle.MapSpec{
+			Name:       "kubearmor_dns_visibility",
+			Type:       cle.Hash,
+			KeySize:    16,
+			ValueSize:  4,
+			MaxEntries: 65535,
+			Pinning:    cle.PinByName,
+		}, cle.MapOptions{
+			PinPath: mon.PinPath,
+		})
+	if errDns != nil {
+		mon.Logger.Errf("Error Creating System Monitor DNS Visibility Map : %s", errDns.Error())
+		return errDns
+	}
+	mon.BpfDnsVisibilityMap = dnsVisibilityMap
+
 	mon.UpdateThrottlingConfig()
 	mon.UpdateMatchArgsConfig()
 
-	return errors.Join(errviz, errconfig)
+	return errors.Join(errviz, errconfig, errDns)
 }
 func (mon *SystemMonitor) UpdateMatchArgsConfig() {
 	if cfg.GlobalCfg.MatchArgs {
@@ -321,6 +340,17 @@ func (mon *SystemMonitor) DestroyBPFMaps() {
 		err = mon.BpfConfigMap.Close()
 		if err != nil {
 			mon.Logger.Warnf("error closing bpf map kubearmor_config %v", err)
+		}
+	}
+
+	if mon.BpfDnsVisibilityMap != nil {
+		err := mon.BpfDnsVisibilityMap.Unpin()
+		if err != nil {
+			mon.Logger.Warnf("error unpinning bpf map kubearmor_dns_visibility %v", err)
+		}
+		err = mon.BpfDnsVisibilityMap.Close()
+		if err != nil {
+			mon.Logger.Warnf("error closing bpf map kubearmor_dns_visibility %v", err)
 		}
 	}
 }
@@ -413,6 +443,26 @@ func (mon *SystemMonitor) UpdateNsKeyMap(action string, nsKey NsKey, visibility 
 			mon.Logger.Warnf("Cannot insert insert visibility map into kernel nskey=%+v, error=%s", nsKey, err)
 		}
 		mon.Logger.Printf("Successfully added visibility map with key=%+v to the kernel", nsKey)
+
+		if mon.BpfDnsVisibilityMap != nil && visibility.DNS {
+			ips := mon.getIPsForNsKey(nsKey)
+			for _, ipStr := range ips {
+				ip := net.ParseIP(ipStr)
+				if ip == nil {
+					continue
+				}
+				ip16 := ip.To16()
+				if ip16 == nil {
+					continue
+				}
+				var key [16]byte
+				copy(key[:], ip16)
+				err = mon.BpfDnsVisibilityMap.Put(key, uint32(1))
+				if err != nil {
+					mon.Logger.Warnf("Cannot insert dns visibility map key into kernel ip=%s, error=%s", ipStr, err)
+				}
+			}
+		}
 	} else if action == "MODIFIED" {
 		visibilityMap := mon.NsVisibilityMap[nsKey]
 		if visibilityMap == nil {
@@ -449,6 +499,42 @@ func (mon *SystemMonitor) UpdateNsKeyMap(action string, nsKey NsKey, visibility 
 		mon.NsMapLock.RLock()
 		mon.Logger.Printf("Updated visibility map with key=%+v for cid %s", nsKey, mon.NsMap[nsKey])
 		mon.NsMapLock.RUnlock()
+
+		if mon.BpfDnsVisibilityMap != nil {
+			ips := mon.getIPsForNsKey(nsKey)
+			if visibility.DNS {
+				for _, ipStr := range ips {
+					ip := net.ParseIP(ipStr)
+					if ip == nil {
+						continue
+					}
+					ip16 := ip.To16()
+					if ip16 == nil {
+						continue
+					}
+					var key [16]byte
+					copy(key[:], ip16)
+					err = mon.BpfDnsVisibilityMap.Put(key, uint32(1))
+					if err != nil {
+						mon.Logger.Warnf("Cannot insert dns visibility map key into kernel ip=%s, error=%s", ipStr, err)
+					}
+				}
+			} else {
+				for _, ipStr := range ips {
+					ip := net.ParseIP(ipStr)
+					if ip == nil {
+						continue
+					}
+					ip16 := ip.To16()
+					if ip16 == nil {
+						continue
+					}
+					var key [16]byte
+					copy(key[:], ip16)
+					_ = mon.BpfDnsVisibilityMap.Delete(key)
+				}
+			}
+		}
 	} else if action == "DELETED" {
 		err := mon.BpfNsVisibilityMap.Delete(nsKey)
 		if err != nil {
@@ -457,7 +543,66 @@ func (mon *SystemMonitor) UpdateNsKeyMap(action string, nsKey NsKey, visibility 
 		}
 		delete(mon.NsVisibilityMap, nsKey)
 		mon.Logger.Printf("Successfully deleted visibility map with key=%+v from the kernel", nsKey)
+
+		if mon.BpfDnsVisibilityMap != nil {
+			ips := mon.getIPsForNsKey(nsKey)
+			for _, ipStr := range ips {
+				ip := net.ParseIP(ipStr)
+				if ip == nil {
+					continue
+				}
+				ip16 := ip.To16()
+				if ip16 == nil {
+					continue
+				}
+				var key [16]byte
+				copy(key[:], ip16)
+				_ = mon.BpfDnsVisibilityMap.Delete(key)
+			}
+		}
 	}
+}
+
+func (mon *SystemMonitor) getIPsForNsKey(nsKey NsKey) []string {
+	var ips []string
+	if nsKey.PidNS == 0 && nsKey.MntNS == 0 {
+		ifaces, err := net.Interfaces()
+		if err == nil {
+			for _, i := range ifaces {
+				addrs, err := i.Addrs()
+				if err != nil {
+					continue
+				}
+				for _, addr := range addrs {
+					var ip net.IP
+					switch v := addr.(type) {
+					case *net.IPNet:
+						ip = v.IP
+					case *net.IPAddr:
+						ip = v.IP
+					}
+					if ip != nil {
+						ips = append(ips, ip.String())
+					}
+				}
+			}
+		}
+		ips = append(ips, "127.0.0.1", "::1")
+		return ips
+	}
+
+	if mon.Containers != nil && mon.ContainersLock != nil {
+		(*mon.ContainersLock).RLock()
+		for _, c := range *mon.Containers {
+			if c.PidNS == nsKey.PidNS && c.MntNS == nsKey.MntNS {
+				if c.ContainerIP != "" && c.ContainerIP != "none" {
+					ips = append(ips, c.ContainerIP)
+				}
+			}
+		}
+		(*mon.ContainersLock).RUnlock()
+	}
+	return ips
 }
 
 // UpdateVisibility Function updates host visibility and global default visibility map based on the global config
