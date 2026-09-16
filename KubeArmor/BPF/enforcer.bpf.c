@@ -1043,15 +1043,19 @@ ringbuf:
   }
 
   if (get_kubearmor_config(_ALERT_THROTTLING) && should_drop_alerts_per_container(okey))
+  {
     if (retval == -EPERM)
       return -EPERM;
-  return 0;
+    return 0;
+  }
 
   task_info = bpf_ringbuf_reserve(&kubearmor_events, sizeof(event), 0);
   if (!task_info)
+  {
     if (retval == -EPERM)
       return -EPERM;
-  return 0;
+    return 0;
+  }
 
   __builtin_memset(task_info->data.path, 0, sizeof(task_info->data.path));
   __builtin_memset(task_info->data.source, 0, sizeof(task_info->data.source));

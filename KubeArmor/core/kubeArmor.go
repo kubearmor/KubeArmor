@@ -695,12 +695,13 @@ func KubeArmor() {
 
 			return
 		}
-		dm.Logger.Print("Initialized KubeArmor Monitor")
-
 		if cfg.GlobalCfg.SystemMonitor {
+			dm.Logger.Print("Initialized KubeArmor Monitor")
 			// monitor system events
 			go dm.MonitorSystemEvents()
 			dm.Logger.Print("Started to monitor system events")
+		} else {
+			dm.Logger.Print("Initialized shared monitor state and BPF maps; system event tracing remains disabled")
 		}
 
 		// initialize runtime enforcer
