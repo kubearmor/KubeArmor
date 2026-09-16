@@ -138,3 +138,54 @@ int BPF_PROG(enforce_mmap_file, struct file *file, unsigned long reqprot,
   }
   return 0;
 }
+
+SEC("lsm/file_mprotect")
+int BPF_PROG(enforce_file_mprotect, struct vm_area_struct *vma,
+	 unsigned long reqprot, unsigned long prot){
+
+  struct task_struct *t = (struct task_struct *)bpf_get_current_task();
+
+  struct outer_key okey;
+  get_outer_key(&okey, t);
+
+  u32 *present = bpf_map_lookup_elem(&kubearmor_anon_map_exec_preset_containers, &okey);
+
+  if (!present) {
+    return 0;
+  }
+
+  struct file *file = READ_KERN(vma->vm_file);
+
+  // only if PROT_EXEC is assigned and the mapping is not backed by a file (anonymous mapping)
+  if ((prot & PROT_EXEC) && file == NULL) {
+    mmap_event *event_data;
+    event_data = bpf_ringbuf_reserve(&events, sizeof(mmap_event), 0);
+
+    if (!event_data) {
+    return 0;
+    }
+
+    init_mmap_context(event_data);
+
+    __builtin_memset(event_data->args, 0, sizeof(event_data->args));
+
+    event_data->args[0] = reqprot;
+    event_data->args[1] = prot;
+
+    event_data->event_id = ANON_MAP_EXEC;
+    if (*present == BLOCK) {
+      event_data->retval = -EPERM;
+    } else {
+      event_data->retval = 0;
+    }
+    bpf_ringbuf_submit(event_data, 0);
+    // mapping not backed by any file with executable permission, denying mapping
+    if (*present == BLOCK) {
+      return -EPERM;
+    } else {
+      return 0;
+    }
+  }
+
+  return 0;
+}
