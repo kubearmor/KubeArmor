@@ -1,0 +1,56 @@
+name: ci-rebase
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-rebase
+  cancel-in-progress: false
+
+permissions: read-all
+
+jobs:
+  discover:
+    name: Find PRs to rebase
+    if: github.repository == 'kubearmor/kubearmor'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      pull-requests: read
+    outputs:
+      heads: ${{ steps.list.outputs.heads }}
+    steps:
+      - name: List PR heads younger than 6 months
+        id: list
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          cutoff=$(date -u -d '-6 months' +%s)
+          heads=$(gh pr list --repo "$REPO" --base main --state open \
+            --json headRefName,headRepositoryOwner,createdAt,isDraft,labels \
+            --jq "[.[] | select(.isDraft == false) | select((.labels | map(.name) | index(\"no-rebase\")) == null) | select((.createdAt | fromdateiso8601) >= $cutoff) | \"\(.headRepositoryOwner.login):\(.headRefName)\"]")
+          echo "heads=$heads" >> "$GITHUB_OUTPUT"
+
+  rebase:
+    name: Rebase open PRs onto main
+    needs: discover
+    if: github.repository == 'kubearmor/kubearmor' && needs.discover.outputs.heads != '[]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      max-parallel: 5
+      matrix:
+        head: ${{ fromJson(needs.discover.outputs.heads) }}
+    permissions:
+      contents: write
+      pull-requests: read
+      workflows: write
+    steps:
+      - name: Rebase
+        uses: peter-evans/rebase@e4945786f7ca41fe6e101cead4395f5489593943 # v4.0.0
+        with:
+          base: main
+          head: ${{ matrix.head }}
