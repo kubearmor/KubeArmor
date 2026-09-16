@@ -553,8 +553,6 @@ func (mon *SystemMonitor) InitBPF() error {
 		}
 	}
 
-	mon.Logger.Print("Initializing eBPF system monitor")
-
 	// Allow the current process to lock memory for eBPF resources.
 	if err := rlimit.RemoveMemlock(); err != nil {
 		return fmt.Errorf("error removing memlock %v", err)
@@ -567,10 +565,11 @@ func (mon *SystemMonitor) InitBPF() error {
 		return err
 	}
 	if !cfg.GlobalCfg.SystemMonitor {
-		mon.Logger.Print("Skipping initializing tracing for the eBPF system monitor as the systemMonitor flag is disabled")
+		mon.Logger.Print("eBPF system event tracing disabled (enableSystemMonitor=false)")
 		return nil
 	}
 
+	mon.Logger.Print("Initializing eBPF system monitor")
 	mon.Logger.Printf("eBPF system monitor object file path: %s", bpfPath)
 	bpfModuleSpec, err := cle.LoadCollectionSpec(bpfPath)
 	if err != nil {
