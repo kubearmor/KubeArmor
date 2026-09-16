@@ -326,6 +326,9 @@ func (mon *SystemMonitor) DestroyBPFMaps() {
 }
 
 func (mon *SystemMonitor) UpdateThrottlingConfig() {
+	if mon.BpfConfigMap == nil {
+		return
+	}
 	if cfg.GlobalCfg.AlertThrottling {
 		if err := mon.BpfConfigMap.Update(uint32(3), uint32(1), cle.UpdateAny); err != nil {
 			mon.Logger.Errf("Error Updating System Monitor Config Map to enable alert throttling : %s", err.Error())
@@ -349,6 +352,10 @@ func (mon *SystemMonitor) UpdateThrottlingConfig() {
 
 // UpdateNsKeyMap Function
 func (mon *SystemMonitor) UpdateNsKeyMap(action string, nsKey NsKey, visibility tp.Visibility) {
+	if mon.BpfNsVisibilityMap == nil {
+		return
+	}
+
 	var err error
 
 	file := cle.MapKV{
@@ -559,6 +566,11 @@ func (mon *SystemMonitor) InitBPF() error {
 	if err != nil {
 		return err
 	}
+	if !cfg.GlobalCfg.SystemMonitor {
+		mon.Logger.Print("Skipping initializing tracing for the eBPF system monitor as the systemMonitor flag is disabled")
+		return nil
+	}
+
 	mon.Logger.Printf("eBPF system monitor object file path: %s", bpfPath)
 	bpfModuleSpec, err := cle.LoadCollectionSpec(bpfPath)
 	if err != nil {

@@ -120,6 +120,7 @@ bpf:
 		if err := monitor.BpfConfigMap.Update(uint32(2), uint32(1), cle.UpdateAny); err != nil {
 			re.Logger.Warnf("Error Updating System Monitor Config Map to notify it about usage of BPF LSM Enforcer : %s", err.Error())
 		}
+
 		logger.UpdateEnforcer(re.EnforcerType)
 		return re
 	}
