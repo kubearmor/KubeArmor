@@ -208,7 +208,8 @@ func GenerateCA(cfg *CertConfig) (*CertBytes, error) {
 	}
 	crtBytes, err := GenerateSelfSignedCert(crtTemp, cfg)
 	if err != nil {
-		return &CertBytes{}, nil
+		klog.Errorf("error generating self-signed ca cert: %s\n", err)
+		return &CertBytes{}, err
 	}
 	return &CertBytes{
 		Crt: crtBytes.Crt,
@@ -246,6 +247,10 @@ func GenerateCert(cfg *CertConfig) (*CertKeyPair, error) {
 
 // GenerateSelfSignedCert func generates cert and key signed by provided CA
 func GenerateSelfSignedCert(ca *CertKeyPair, cfg *CertConfig) (*CertBytes, error) {
+	if ca == nil || ca.Crt == nil || ca.Key == nil {
+		return nil, fmt.Errorf("invalid CA certificate or key")
+	}
+
 	certKeyPair, err := GenerateCert(cfg)
 	if err != nil {
 		return nil, err

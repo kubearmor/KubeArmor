@@ -4,13 +4,14 @@
 package feeder
 
 import (
-	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
-	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 	"math"
 	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
+
+	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
+	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 )
 
 // ======================= //
@@ -1468,7 +1469,12 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 							matchedRegex = fileMatch || procMatch
 						}
 					case "ExecName":
-						matchedRegex = strings.HasSuffix(log.ProcessName, "/"+secPolicy.Resource) // processpath = */execname
+						// match binary against ProcessName, ExecEvent (comm), or Resource (for scripts)
+						firstResource := strings.Split(log.Resource, " ")[0]
+						procMatch := strings.HasSuffix(log.ProcessName, "/"+secPolicy.Resource)
+						resMatch := strings.HasSuffix(firstResource, "/"+secPolicy.Resource)
+						execMatch := log.ExecEvent.ExecutableName == secPolicy.Resource
+						matchedRegex = procMatch || resMatch || execMatch
 					}
 
 					// match resources

@@ -11,7 +11,7 @@ jobs:
     name: Test KubeArmor in Systemd Mode
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           submodules: true
 
@@ -38,6 +38,17 @@ jobs:
           go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.11
           go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.6.1
           echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+
+      - name: Install bpftool
+        run: ./.github/workflows/install-bpftool.sh
+
+      - name: Generate vmlinux.h
+        run: make -C BPF kernel_headers
+        working-directory: KubeArmor
+
+      - name: Generate BPF files
+        run: go generate ./...
+        working-directory: KubeArmor
 
       - name: Build Systemd Release
         run: make local-release

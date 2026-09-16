@@ -123,7 +123,7 @@ func (dh *DockerHandler) GetContainerInfo(containerID, nodeID string, OwnerInfo 
 	} else if val, ok := containerLabels["kubearmor.io/namespace"]; ok {
 		container.NamespaceName = val
 	} else {
-		container.NamespaceName = "container_namespace"
+		container.NamespaceName = cfg.GlobalCfg.Host
 	}
 
 	if len(OwnerInfo) > 0 {
@@ -288,7 +288,7 @@ func (dm *KubeArmorDaemon) SetContainerVisibility(containerID string) {
 	}
 
 	container.EndPointName = container.ContainerName
-	container.NamespaceName = "container_namespace"
+	container.NamespaceName = cfg.GlobalCfg.Host
 
 	dm.Containers[container.ContainerID] = container
 }

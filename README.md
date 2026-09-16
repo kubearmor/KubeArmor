@@ -42,7 +42,7 @@ KubeArmor leverages [Linux security modules \(LSMs\)](https://en.wikipedia.org/w
 
 * :blue_book: [Contribution Guide](contribution/contribution_guide.md)
 * :technologist: [Development Guide](contribution/development_guide.md), [Testing Guide](contribution/testing_guide.md)
-* :raised_hand: [Join KubeArmor Slack](https://cloud-native.slack.com/archives/C02R319HVL3)
+* :raised_hand: [Join KubeArmor Slack](https://cloud-native.slack.com/archives/C02R319HVL3) (If you need an invitation to join CNCF slack, sign up using [inviter.co/cncf](https://inviter.co/cncf))
 * :question: [FAQs](getting-started/FAQ.md)
 
 ### Biweekly Meeting
