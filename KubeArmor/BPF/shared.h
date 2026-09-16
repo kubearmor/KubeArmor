@@ -1287,9 +1287,7 @@ ringbuf:
 
   if (retval == BLOCK)
   {
-    if (retval == -EPERM)
-      return -EPERM;
-    return 0;
+    retval = -EPERM;
   }
   else
     retval = 0;

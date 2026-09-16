@@ -125,8 +125,8 @@ func insertRule(idx int, m map[InnerKey][2]uint16, key InnerKey, val [2]uint16) 
 	m[key] = val
 }
 
-// UpdateContainerRules updates individual container map with new rules and resolves conflicting rules
-func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.SecurityPolicy, defaultPosture tp.DefaultPosture) {
+// buildRuleList compiles policies before they are applied to the BPF maps.
+func (be *BPFEnforcer) buildRuleList(id string, securityPolicies []tp.SecurityPolicy) RuleList {
 
 	var newrules RuleList
 
@@ -405,6 +405,9 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 				} else if dns.Action == "Block" {
 					val[NETWORK] = val[NETWORK] | DENY
 					domaintoMap(NETWORK, dns.Domain, "", ns, newrules.NetworkRuleList, val)
+				} else if dns.Action == "Audit" {
+					val[NETWORK] = val[NETWORK] | AUDIT
+					domaintoMap(NETWORK, dns.Domain, "", ns, newrules.NetworkRuleList, val)
 				}
 			} else {
 				for _, src := range dns.FromSource {
@@ -413,6 +416,9 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 						domaintoMap(NETWORK, dns.Domain, src.Path, ns, newrules.NetworkRuleList, val)
 					} else if dns.Action == "Block" {
 						val[NETWORK] = val[NETWORK] | DENY
+						domaintoMap(NETWORK, dns.Domain, src.Path, ns, newrules.NetworkRuleList, val)
+					} else if dns.Action == "Audit" {
+						val[NETWORK] = val[NETWORK] | AUDIT
 						domaintoMap(NETWORK, dns.Domain, src.Path, ns, newrules.NetworkRuleList, val)
 					}
 				}
@@ -440,6 +446,9 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 				} else if capab.Action == "Block" {
 					val[CAPABILITIES] = val[CAPABILITIES] | DENY
 					insertRule(CAPABILITIES, newrules.CapabilitiesRuleList, key, val)
+				} else if capab.Action == "Audit" {
+					val[CAPABILITIES] = val[CAPABILITIES] | AUDIT
+					insertRule(CAPABILITIES, newrules.CapabilitiesRuleList, key, val)
 				}
 			} else {
 				for _, src := range capab.FromSource {
@@ -464,6 +473,12 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 	}
 
 	fuseProcAndFileRules(newrules.ProcessRuleList, newrules.FileRuleList)
+	return newrules
+}
+
+// UpdateContainerRules updates individual container map with new rules and resolves conflicting rules
+func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.SecurityPolicy, defaultPosture tp.DefaultPosture) {
+	newrules := be.buildRuleList(id, securityPolicies)
 
 	be.ContainerMapLock.Lock()
 	defer be.ContainerMapLock.Unlock()

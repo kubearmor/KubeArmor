@@ -868,7 +868,7 @@ decision:
     {
       if (allow->processmask == BLOCK_POSTURE)
       {
-        retval = -EPERM;
+        retval = BLOCK;
       }
       goto ringbuf;
     }
