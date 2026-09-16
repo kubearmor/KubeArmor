@@ -58,7 +58,7 @@ jobs:
           go-version-file: "KubeArmor/go.mod"
 
       - name: Install LLVM/Clang
-        run: ./.github/workflows/install-llvm.sh
+        run: ./.github/scripts/linux/install-llvm.sh
 
       - name: Install libbpf headers
         run: sudo apt-get update && sudo apt-get install -y libbpf-dev
@@ -89,7 +89,7 @@ jobs:
           go-version-file: "KubeArmor/go.mod"
 
       - name: Install LLVM/Clang
-        run: ./.github/workflows/install-llvm.sh
+        run: ./.github/scripts/linux/install-llvm.sh
 
       - name: Install libbpf headers
         run: sudo apt-get update && sudo apt-get install -y libbpf-dev
@@ -119,7 +119,7 @@ jobs:
           go-version-file: "KubeArmor/go.mod"
 
       - name: Install LLVM/Clang
-        run: ./.github/workflows/install-llvm.sh
+        run: ./.github/scripts/linux/install-llvm.sh
 
       - name: Install libbpf headers
         run: sudo apt-get update && sudo apt-get install -y libbpf-dev
@@ -152,7 +152,7 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Install LLVM/Clang
-        run: ./.github/workflows/install-llvm.sh
+        run: ./.github/scripts/linux/install-llvm.sh
 
       - name: Install libbpf headers
         run: sudo apt-get update && sudo apt-get install -y libbpf-dev
