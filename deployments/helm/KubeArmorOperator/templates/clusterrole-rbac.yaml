@@ -29,6 +29,10 @@ rules:
   - create
   - get
   - update
+  - patch
+  - delete
+  - list
+  - watch
 - apiGroups:
   - operator.kubearmor.com
   resources:

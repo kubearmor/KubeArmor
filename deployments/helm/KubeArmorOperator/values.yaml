@@ -1,9 +1,13 @@
 autoDeploy: false
 # operator will deploy pinned images for each application
 imagePinning: false
-  
+
+# Set to false only if your cluster admin will manage RBAC manually
+rbac:
+  create: true
+
 # To use existing secret updated {registry.secretName} with your secret name.
-registry: 
+registry:
   secretName: ""
 
 # pinned images
@@ -46,7 +50,7 @@ kubearmorOperator:
   args: []
   # https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/
   tolerations: []
-  resources: {} 
+  resources: {}
   podLabels: {}
   podAnnotations: {}
   podSecurityContext: {}
@@ -68,7 +72,7 @@ kubearmorConfig:
   throttleSec: 30
   matchArgs: true
 
-# DO NOT CHANGE THIS VALUES 
+# DO NOT CHANGE THIS VALUES
 # changing these values will require code changes with the operator
 # these secret names should match with the secrets managed by the operator
 tlsSecrets:
