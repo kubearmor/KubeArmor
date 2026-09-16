@@ -130,11 +130,11 @@ func (mon *MonitorImpl) InitBPF() error {
 	}
 
 	bpfPath := homeDir + "/BPF/"
-	if _, err := os.Stat(filepath.Clean(bpfPath)); err != nil {
+	if _, err := os.Stat(filepath.Clean(bpfPath)); err != nil { // #nosec G703 -- trusted
 		// go test
 
 		bpfPath = os.Getenv("PWD") + "/../BPF/"
-		if _, err := os.Stat(filepath.Clean(bpfPath)); err != nil {
+		if _, err := os.Stat(filepath.Clean(bpfPath)); err != nil { // #nosec G703 -- trusted path 
 			// container
 
 			bpfPath = "/opt/kubearmor/BPF/"
