@@ -147,6 +147,7 @@ func (ch *CrioHandler) GetContainerInfo(ctx context.Context, containerID, nodeID
 	}
 	container.Privileged = containerInfo.Privileged
 
+	container.Pid = uint32(containerInfo.Pid)
 	pid := strconv.Itoa(containerInfo.Pid)
 
 	if data, err := os.Readlink(filepath.Join(cfg.GlobalCfg.ProcFsMount, pid, "/ns/pid")); err == nil {
@@ -163,6 +164,14 @@ func (ch *CrioHandler) GetContainerInfo(ctx context.Context, containerID, nodeID
 		}
 	} else {
 		return container, err
+	}
+
+	if !cfg.GlobalCfg.K8sEnv && cfg.GlobalCfg.NetworkPolicyEnforcer {
+		// CRI-O doesn't expose a container's IP through ContainerStatus;
+		// resolve it via the container's network namespace. NetworkPolicyEnforcer
+		// is the only consumer, so don't pay for the namespace switch when it's
+		// disabled.
+		container.ContainerIP = kl.GetContainerIPFromPid(container.Pid)
 	}
 
 	return container, nil
