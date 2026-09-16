@@ -32,6 +32,7 @@ typedef struct {
   s64 retval;
 
   u8 comm[TASK_COMM_LEN];
+  char tty[TTY_LEN];
 
   unsigned long args[6];
 } mmap_event;
@@ -64,6 +65,19 @@ static __always_inline u32 init_mmap_context(mmap_event *event_data) {
   // Clearing array to avoid garbage values
   __builtin_memset(event_data->comm, 0, sizeof(event_data->comm));
   bpf_get_current_comm(&event_data->comm, sizeof(event_data->comm));
+
+  // check if tty is attached
+  struct signal_struct *signal;
+  signal = READ_KERN(task->signal);
+  if (signal != NULL)
+  {
+      struct tty_struct *tty = READ_KERN(signal->tty);
+      if (tty != NULL)
+      {
+          // a tty is attached
+          bpf_probe_read_str(&event_data->tty, TTY_LEN, (void *)tty->name);
+      }
+  }
 
   return 0;
 }
