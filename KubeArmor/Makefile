@@ -5,6 +5,7 @@ CURDIR          := $(shell pwd)
 CRDDIR          := $(realpath $(CURDIR)/../deployments/CRD)
 CONTRIBDIR      := $(realpath $(CURDIR)/../contribution)
 GO_EXEC         := $(shell which go)
+GOOS            := $(shell $(GO_EXEC) env GOOS)
 LOGNAME         := $(shell logname)
 NETNEXT         := 0
 DLV_EXEC         = $(GOPATH)/bin/dlv
@@ -23,6 +24,7 @@ GIT_INFO := $(shell govvv -flags -pkg $(PKG))
 .PHONY: build
 build: protobuf
 	cd $(CURDIR); go mod tidy
+ifeq ($(GOOS),linux)
 ifneq (, $(shell which bpftool))
 ifneq (, $(wildcard /sys/kernel/btf/vmlinux))
 	cd $(CURDIR); bpftool btf dump file /sys/kernel/btf/vmlinux format c > BPF/vmlinux.h || true
@@ -31,6 +33,16 @@ endif
 ifneq (, $(shell which clang))
 	cd $(CURDIR); go generate ./...
 endif
+endif
+	cd $(CURDIR); CGO_ENABLED=0 go build -ldflags "$(GIT_INFO)" -o kubearmor main.go
+
+# build-macos builds the kubearmor binary on non-Linux hosts (e.g. macOS) for
+# development and tooling. The eBPF code is excluded via build constraints, so the
+# resulting binary cannot enforce policies - it is only meant for compilation,
+# vetting and unit-testing the platform-agnostic packages.
+.PHONY: build-macos
+build-macos:
+	cd $(CURDIR); go mod tidy
 	cd $(CURDIR); CGO_ENABLED=0 go build -ldflags "$(GIT_INFO)" -o kubearmor main.go
 
 .PHONY: protobuf
@@ -73,8 +85,10 @@ test:
 .PHONY: testall
 testall:
 	cd $(CURDIR); sudo rm -f /tmp/kubearmor.log
+ifeq ($(GOOS),linux)
 ifneq (, $(shell which clang))
 	cd $(CURDIR); go generate ./...
+endif
 endif
 	cd $(CURDIR)/feeder; go mod tidy
 	cd $(CURDIR)/feeder; sudo -E $(GO_EXEC) clean -testcache .; sudo -E $(GO_EXEC) test -v -coverprofile=.coverprofile .

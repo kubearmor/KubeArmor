@@ -10,7 +10,6 @@ import (
 	"net"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"strings"
 	"sync"
 	"syscall"
@@ -520,15 +519,7 @@ func KubeArmor() {
 		dm.Node.Annotations = map[string]string{}
 		dm.HandleNodeAnnotations(&dm.Node)
 
-		hostInfo := kl.GetCommandOutputWithoutErr("hostnamectl", []string{})
-		for line := range strings.SplitSeq(hostInfo, "\n") {
-			if strings.Contains(line, "Machine ID") {
-				dm.Node.NodeID = strings.Split(line, ": ")[1]
-			}
-			if strings.Contains(line, "Operating System") {
-				dm.Node.OSImage = strings.Split(line, ": ")[1]
-			}
-		}
+		dm.Node.OSImage = kl.GetOSImage()
 
 		dm.Node.LastUpdatedAt = kl.GetBootTime()
 
@@ -590,21 +581,8 @@ func KubeArmor() {
 		}
 	}
 
-	machineIDPaths := []string{
-		cfg.GlobalCfg.MachineIDPath,
-		"/var/lib/dbus/machine-id",
-	}
-
 	if dm.Node.NodeID == "" {
-		for _, path := range machineIDPaths {
-			if id, err := os.ReadFile(filepath.Clean(path)); err == nil {
-				cleanID := strings.TrimSpace(string(id))
-				if cleanID != "" {
-					dm.Node.NodeID = cleanID
-					break
-				}
-			}
-		}
+		dm.Node.NodeID = kl.GetMachineID(cfg.GlobalCfg.MachineIDPath)
 	}
 
 	if dm.Node.NodeID == "" {
