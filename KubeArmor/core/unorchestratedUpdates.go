@@ -100,12 +100,64 @@ func (dm *KubeArmorDaemon) WatchConfigChanges() {
 // == Container Security Policy Update == //
 // ====================================== //
 
+// MatchIdentities matches endpoint selector identities (with regex support) against container labels
+func (dm *KubeArmorDaemon) MatchIdentities(ep tp.EndPoint, containerLabels map[string]string) bool {
+	if len(ep.Identities) == 0 {
+		return false
+	}
+
+	for _, identity := range ep.Identities {
+		k, v, found := strings.Cut(identity, "=")
+		if !found {
+			return false
+		}
+
+		// namespaceName is a special identity and must match exactly
+		if k == "namespaceName" {
+			if containerVal, ok := containerLabels["namespaceName"]; !ok || containerVal != v {
+				return false
+			}
+			continue
+		}
+
+		// For other labels, check if the container has the label
+		containerVal, ok := containerLabels[k]
+		if !ok {
+			return false
+		}
+
+		// Get compiled regex from ep.IdentitiesRegexp if available
+		var rx *regexp.Regexp
+		if ep.IdentitiesRegexp != nil {
+			rx = ep.IdentitiesRegexp[k]
+		}
+
+		if rx == nil {
+			var err error
+			rx, err = regexp.CompilePOSIX(v)
+			if err != nil {
+				dm.Logger.Warnf("Failed to compile regex for label %q value %q: %s", k, v, err.Error())
+				if containerVal != v {
+					return false
+				}
+				continue
+			}
+		}
+
+		if !rx.MatchString(containerVal) {
+			return false
+		}
+	}
+
+	return true
+}
+
 // MatchandUpdateContainerSecurityPolicies finds relevant endpoint for containers and updates the security policies for enforcement
 func (dm *KubeArmorDaemon) MatchandUpdateContainerSecurityPolicies(cid string) {
 	container := dm.Containers[cid]
 	for idx, ep := range dm.EndPoints {
-		_, containerIdentities := kl.GetLabelsFromString(container.Labels)
-		if ep.EndPointName == dm.Containers[cid].ContainerName || kl.MatchIdentities(ep.Identities, containerIdentities) {
+		containerLabels, _ := kl.GetLabelsFromString(container.Labels)
+		if ep.EndPointName == dm.Containers[cid].ContainerName || dm.MatchIdentities(ep, containerLabels) {
 			ep.Containers = append(ep.Containers, cid)
 			dm.EndPoints[idx] = ep
 			ctr := dm.Containers[cid]
@@ -133,8 +185,8 @@ func (dm *KubeArmorDaemon) MatchandUpdateContainerSecurityPolicies(cid string) {
 func (dm *KubeArmorDaemon) MatchandRemoveContainerFromEndpoint(cid string) {
 	container := dm.Containers[cid]
 	for idx, ep := range dm.EndPoints {
-		_, containerIdentities := kl.GetLabelsFromString(container.Labels)
-		if ep.EndPointName == container.ContainerName || kl.MatchIdentities(ep.Identities, containerIdentities) {
+		containerLabels, _ := kl.GetLabelsFromString(container.Labels)
+		if ep.EndPointName == container.ContainerName || dm.MatchIdentities(ep, containerLabels) {
 			for i, c := range ep.Containers {
 				if c != cid {
 					continue
@@ -186,6 +238,7 @@ func (dm *KubeArmorDaemon) handlePolicyEvent(eventType string, createEndPoint bo
 				// Policy already exists so modify
 				eventType = "MODIFIED"
 				newPoint.SecurityPolicies[idx] = secPolicy
+				newPoint.IdentitiesRegexp = secPolicy.Spec.Selector.IdentitiesRegexp
 			}
 		}
 	}
@@ -196,6 +249,7 @@ func (dm *KubeArmorDaemon) handlePolicyEvent(eventType string, createEndPoint bo
 		dm.RuntimeEnforcer.UpdateAppArmorProfiles(containername, "ADDED", appArmorAnnotations, privilegedProfiles)
 
 		newPoint.SecurityPolicies = append(newPoint.SecurityPolicies, secPolicy)
+		newPoint.IdentitiesRegexp = secPolicy.Spec.Selector.IdentitiesRegexp
 		if createEndPoint {
 			// Create new EndPoint - possible scenarios:
 			// policy received before container
@@ -204,6 +258,7 @@ func (dm *KubeArmorDaemon) handlePolicyEvent(eventType string, createEndPoint bo
 			newPoint.ContainerName = containername
 			newPoint.PolicyEnabled = tp.KubeArmorPolicyEnabled
 			newPoint.Identities = secPolicy.Spec.Selector.Identities
+			newPoint.IdentitiesRegexp = secPolicy.Spec.Selector.IdentitiesRegexp
 
 			newPoint.ProcessVisibilityEnabled = true
 			newPoint.FileVisibilityEnabled = true
@@ -320,16 +375,17 @@ func (dm *KubeArmorDaemon) ParseAndUpdateContainerSecurityPolicy(event tp.K8sKub
 	}
 
 	secPolicy.Spec.Selector.Identities = []string{"namespaceName=" + secPolicy.Metadata["namespaceName"]}
+	secPolicy.Spec.Selector.IdentitiesRegexp = make(map[string]*regexp.Regexp)
 	containername := ""
 	for k, v := range secPolicy.Spec.Selector.MatchLabels {
 		secPolicy.Spec.Selector.Identities = append(secPolicy.Spec.Selector.Identities, k+"="+v)
-		// TODO: regex based matching
+		expr, err := regexp.CompilePOSIX(v)
+		if err != nil {
+			dm.Logger.Warnf("Failed to parse expression for selector label %q value %q: %s", k, v, err.Error())
+			return pb.PolicyStatus_Invalid
+		}
+		secPolicy.Spec.Selector.IdentitiesRegexp[k] = expr
 		if k == "kubearmor.io/container.name" {
-			expr, err := regexp.CompilePOSIX(v)
-			if err != nil {
-				dm.Logger.Warnf("Failed to parse expression for \"kubearmor.io/container.name\": %s", err.Error())
-				return pb.PolicyStatus_Invalid
-			}
 			containername = expr.String()
 		}
 	}
