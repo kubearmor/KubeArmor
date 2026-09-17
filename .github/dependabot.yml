@@ -1,0 +1,122 @@
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 0
+    groups:
+      security-updates:
+        applies-to: "security-updates"
+        patterns:
+          - "*"
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 0
+    groups:
+      security-updates:
+        applies-to: "security-updates"
+        patterns:
+          - "*"
+  - package-ecosystem: "docker"
+    directory: "/examples/multiubuntu/build"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 0
+    groups:
+      security-updates:
+        applies-to: "security-updates"
+        patterns:
+          - "*"
+  - package-ecosystem: "docker"
+    directory: "/pkg/KubeArmorController"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 0
+    groups:
+      security-updates:
+        applies-to: "security-updates"
+        patterns:
+          - "*"
+  - package-ecosystem: "docker"
+    directory: "/pkg/KubeArmorOperator"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 0
+    groups:
+      security-updates:
+        applies-to: "security-updates"
+        patterns:
+          - "*"
+  - package-ecosystem: "gomod"
+    directory: "/KubeArmor"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 0
+    groups:
+      security-updates:
+        applies-to: "security-updates"
+        patterns:
+          - "*"
+  - package-ecosystem: "gomod"
+    directory: "/deployments"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 0
+    groups:
+      security-updates:
+        applies-to: "security-updates"
+        patterns:
+          - "*"
+  - package-ecosystem: "gomod"
+    directory: "/deployments/podman"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 0
+    groups:
+      security-updates:
+        applies-to: "security-updates"
+        patterns:
+          - "*"
+  - package-ecosystem: "gomod"
+    directory: "/pkg/KubeArmorController"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 0
+    groups:
+      security-updates:
+        applies-to: "security-updates"
+        patterns:
+          - "*"
+  - package-ecosystem: "gomod"
+    directory: "/pkg/KubeArmorOperator"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 0
+    groups:
+      security-updates:
+        applies-to: "security-updates"
+        patterns:
+          - "*"
+  - package-ecosystem: "gomod"
+    directory: "/protobuf"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 0
+    groups:
+      security-updates:
+        applies-to: "security-updates"
+        patterns:
+          - "*"
+  - package-ecosystem: "gomod"
+    directory: "/tests"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 0
+    groups:
+      security-updates:
+        applies-to: "security-updates"
+        patterns:
+          - "*"
