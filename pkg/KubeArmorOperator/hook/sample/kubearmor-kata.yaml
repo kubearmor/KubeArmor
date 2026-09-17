@@ -1,0 +1,147 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kubearmor
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: kubearmor-kata
+  namespace: kubearmor
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kubearmor-kata
+rules:
+- apiGroups: [""]
+  resources: ["namespaces"]
+  verbs: ["get", "list", "watch", "update"]
+- apiGroups: [""]
+  resources: ["pods", "nodes", "configmaps"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["apps"]
+  resources: ["deployments", "replicasets", "daemonsets", "statefulsets"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["batch"]
+  resources: ["jobs", "cronjobs"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["security.kubearmor.com"]
+  resources: ["kubearmorpolicies", "kubearmorclusterpolicies", "kubearmorhostpolicies", "kubearmornetworkpolicies"]
+  verbs: ["get", "list", "watch", "update", "delete"]
+- nonResourceURLs: ["/apis", "/apis/*"]
+  verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: kubearmor-kata
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: kubearmor-kata
+subjects:
+- kind: ServiceAccount
+  name: kubearmor-kata
+  namespace: kubearmor
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kubearmor-kata
+  namespace: kubearmor
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kubearmor-kata
+  template:
+    metadata:
+      labels:
+        app: kubearmor-kata
+    spec:
+      # Match the RuntimeClass installed on your cluster.
+      runtimeClassName: kata-qemu
+      hostPID: true
+      serviceAccountName: kubearmor-kata
+      terminationGracePeriodSeconds: 60
+      nodeSelector:
+        katacontainers.io/kata-runtime: "true"
+        kubernetes.io/os: linux
+      tolerations:
+      - operator: Exists
+      initContainers:
+      - name: init
+        # Replace with your Kata-compatible KubeArmor init image.
+        image: aryan1126/kubearmor-init:kata
+        imagePullPolicy: Always
+        securityContext:
+          privileged: true
+          runAsUser: 0
+        volumeMounts:
+        - name: bpf
+          mountPath: /opt/kubearmor/BPF
+        - name: lib-modules-path
+          mountPath: /lib/modules
+          readOnly: true
+        - name: sys-fs-bpf-path
+          mountPath: /sys/fs/bpf
+        - name: usr-src-path
+          mountPath: /usr/src
+          readOnly: true
+      containers:
+      - name: nginx
+        image: nginx:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 80
+      # Keep this name: the guest hook uses it to identify KubeArmor.
+      - name: kubearmor
+        # Replace with your KubeArmor image containing Kata hook support.
+        image: aryan1126/kubearmor:kata
+        imagePullPolicy: Always
+        args:
+        - "-untrackedNs="
+        - "-useOCIHooks=true"
+        env:
+        - name: KUBEARMOR_NODENAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        ports:
+        - containerPort: 32767
+          name: grpc
+        - containerPort: 32766
+          name: health
+        securityContext:
+          privileged: true
+          runAsUser: 0
+        volumeMounts:
+        - name: bpf
+          mountPath: /opt/kubearmor/BPF
+        - name: lib-modules-path
+          mountPath: /lib/modules
+          readOnly: true
+        - name: sys-fs-bpf-path
+          mountPath: /sys/fs/bpf
+        - name: sys-kernel-debug-path
+          mountPath: /sys/kernel/debug
+      volumes:
+      - name: bpf
+        emptyDir: {}
+      - name: lib-modules-path
+        hostPath:
+          path: /lib/modules
+          type: DirectoryOrCreate
+      - name: sys-fs-bpf-path
+        hostPath:
+          path: /sys/fs/bpf
+          type: Directory
+      - name: sys-kernel-debug-path
+        hostPath:
+          path: /sys/kernel/debug
+          type: Directory
+      - name: usr-src-path
+        hostPath:
+          path: /usr/src
+          type: DirectoryOrCreate

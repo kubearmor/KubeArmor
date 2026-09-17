@@ -35,9 +35,7 @@ The compiled binary will be placed at `KubeArmor/pkg/KubeArmorOperator/hook/hook
 
 ## Preparing a Kata Containers Machine 
 
-To enable KubeArmor enforcement inside Kata Containers, the compiled OCI hook binary must be injected into the base Kata Containers guest root filesystem image (`kata-containers.img`). 
-
-Follow these step-by-step instructions on your target host machine:
+Install the hook in the Kata guest image and enable it on the host:
 
 ### Step 1: Map the Kata Rootfs Partitions
 Use `kpartx` to create loop device mappings for the partitions inside the Kata image:
@@ -61,10 +59,28 @@ sudo chmod +x /mnt/usr/share/oci/hooks/prestart/hook
 ```
 
 ### Step 4: Unmount and Detach Partitions
-unmount the filesystem, and delete the partition mappings and restart k3s:
+Unmount the filesystem and delete the partition mappings:
 ```bash
 sudo umount /mnt
 sudo kpartx -dv /opt/kata/share/kata-containers/kata-containers.img
+```
+
+### Step 5: Enable Guest Hook Execution
+
+In the active Kata configuration on the host, set `guest_hook_path` under the existing hypervisor section (QEMU example):
+
+```toml
+[hypervisor.qemu]
+guest_hook_path = "/usr/share/oci/hooks"
+```
+
+This enables the hook to send container lifecycle events to KubeArmor.
+
+### Step 6: Apply the Configuration
+
+Restart k3s:
+
+```bash
 sudo systemctl restart k3s.service
 ```
 
@@ -73,3 +89,13 @@ sudo systemctl restart k3s.service
 ## Configuring KubeArmor for Kata Workloads
 
 When deploying KubeArmor in Kubernetes environments utilizing Kata Containers, pass the `-useOCIHooks=true` flag to the KubeArmor daemon (or set `useOCIHooks: true` in your deployment configuration). 
+
+### Sample Deployment
+
+Use [kubearmor-kata.yaml](kubearmor-kata.yaml) to run nginx with a KubeArmor sidecar in a Kata pod. Update the KubeArmor images, `runtimeClassName`, and `nodeSelector` for your cluster.
+
+From the repository root:
+
+```bash
+kubectl apply -f pkg/KubeArmorOperator/hook/sample/kubearmor-kata.yaml
+```
