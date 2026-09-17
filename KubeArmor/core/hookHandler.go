@@ -18,12 +18,23 @@ import (
 func (dm *KubeArmorDaemon) HandleFile(file string) {
 	var f *os.File
 	var err error
+	fileFound := false
 	timeNow := time.Now()
 	for {
 		if time.Since(timeNow) > 300*time.Second {
+			dm.Logger.Errf("Timed out waiting for OCI hook file '%s'", file)
 			return
 		}
 		if _, err := os.Stat(filepath.Clean(file)); errors.Is(err, os.ErrNotExist) {
+			if !fileFound {
+				dm.Logger.Warnf("OCI hook file '%s' not found; retrying", file)
+				fileFound = true
+			}
+			select {
+			case <-StopChan:
+				return
+			case <-time.After(time.Second):
+			}
 			continue
 		}
 		f, err = os.Open(filepath.Clean(file)) // #nosec G304
