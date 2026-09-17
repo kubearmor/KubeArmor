@@ -418,6 +418,11 @@ func (dm *KubeArmorDaemon) MonitorNRIEvents() {
 		}
 
 		dm.Logger.Printf("Detected a container (added/%.12s/pidns=%d/mntns=%d)", container.ContainerID, container.PidNS, container.MntNS)
+
+		// Notify API Observer of new container for namespace filtering.
+		if dm.APIObserver != nil && container.PidNS > 0 {
+			dm.APIObserver.OnContainerAdded(container.ContainerID, container.NamespaceName, container.PidNS)
+		}
 	}
 
 	handleDeletedContainer := func(container tp.Container) {
@@ -448,6 +453,11 @@ func (dm *KubeArmorDaemon) MonitorNRIEvents() {
 		}
 
 		dm.Logger.Printf("Detected a container (removed/%.12s/pidns=%d/mntns=%d)", container.ContainerID, container.PidNS, container.MntNS)
+
+		// Notify API Observer of removed container for namespace filtering.
+		if dm.APIObserver != nil {
+			dm.APIObserver.OnContainerRemoved(container.ContainerID)
+		}
 	}
 
 	NRI = dm.NewNRIHandler(handleDeletedContainer, handleNewContainer)
