@@ -26,7 +26,7 @@ jobs:
           commit_sha="$TRIGGER_SHA"
 
           for workflow in "${workflows[@]}"; do
-              conclusion=$(gh run list --workflow=$workflow --json conclusion,headSha,event,headBranch | jq -r --arg sha "$commit_sha" --arg event "$TRIGGER_EVENT" '.[] | select(.headSha == $sha and .event == $event) | .conclusion')
+              conclusion=$(gh run list --workflow="$workflow" --json conclusion,headSha,event,headBranch | jq -r --arg sha "$commit_sha" --arg event "$TRIGGER_EVENT" '.[] | select(.headSha == $sha and .event == $event) | .conclusion')
 
               if [[ -z "$conclusion" ]]; then
                   conclusion="pending"
@@ -36,12 +36,12 @@ jobs:
                   all_completed=false
               fi
 
-              echo "${workflow}_status=$conclusion" >> $GITHUB_ENV
+              echo "${workflow}_status=$conclusion" >> "$GITHUB_ENV"
           done
 
           if [[ "$all_completed" == "true" ]]; then
               echo "All workflows completed successfully for commit $commit_sha."
-              echo "all_succeeded=true" >> $GITHUB_ENV
+              echo "all_succeeded=true" >> "$GITHUB_ENV"
           else
               echo "Not all workflows completed successfully for commit $commit_sha."
               exit 1
