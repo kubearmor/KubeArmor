@@ -202,32 +202,42 @@ func generateDaemonset(name, enforcer, runtime, socket, nriSocket, btfPresent, a
 	daemonset.Spec.Template.Spec.InitContainers[0].ImagePullPolicy = corev1.PullPolicy(common.KubeArmorInitImagePullPolicy)
 
 	// force socket
-	setCriSocket(socket, &daemonset.Spec.Template.Spec.Containers[0].Args)
+	setCriSocket(runtime, socket, &daemonset.Spec.Template.Spec.Containers[0].Args)
 
 	daemonset = addOwnership(daemonset).(*appsv1.DaemonSet)
 	fmt.Printf("generated daemonset: %v", daemonset)
 	return daemonset
 }
 
-func setCriSocket(socket string, args *[]string) {
-	if args == nil {
-		return
-	}
-	socketPath := strings.ReplaceAll(socket, "_", "/")
-	const CriSocketFlag = "-criSocket="
-	criScoketArg := fmt.Sprintf("%sunix:///%s", CriSocketFlag, socketPath)
-	found := false
-	for idx := range *(args) {
-
-		if strings.HasPrefix((*args)[idx], CriSocketFlag) {
-			found = true
-			(*args)[idx] = criScoketArg
-			break
+// runtimeSocketPath resolves the socket label reported by the snitch back to
+// the socket's real path on the host. Reversing the label with a plain "_" -> "/"
+// replacement would corrupt paths that contain underscores.
+func runtimeSocketPath(runtime, socketLabel string) (string, bool) {
+	for _, socket := range common.ContainerRuntimeSocketMap[runtime] {
+		if strings.ReplaceAll(socket[1:], "/", "_") == socketLabel {
+			return socket, true
 		}
 	}
-	if !found {
-		*args = append(*args, criScoketArg)
+	return "", false
+}
+
+// setCriSocket forces -criSocket to the socket the snitch detected. The socket
+// directory is mounted at the same path inside the container (genRuntimeVolumes),
+// so the host path is valid there.
+func setCriSocket(runtime, socketLabel string, args *[]string) {
+	socket, ok := runtimeSocketPath(runtime, socketLabel)
+	if args == nil || !ok {
+		return
 	}
+	const CriSocketFlag = "-criSocket="
+	criSocketArg := CriSocketFlag + "unix://" + socket
+	for idx := range *args {
+		if strings.HasPrefix((*args)[idx], CriSocketFlag) {
+			(*args)[idx] = criSocketArg
+			return
+		}
+	}
+	*args = append(*args, criSocketArg)
 }
 
 func genEnforcerVolumes(enforcer string) (vol []corev1.Volume, volMnt []corev1.VolumeMount) {
@@ -243,30 +253,27 @@ func genEnforcerVolumes(enforcer string) (vol []corev1.Volume, volMnt []corev1.V
 
 func genRuntimeVolumes(runtime, runtimeSocket, nriSocket string) (vol []corev1.Volume, volMnt []corev1.VolumeMount) {
 	// lookup socket
-	for _, socket := range common.ContainerRuntimeSocketMap[runtime] {
-		if strings.ReplaceAll(socket[1:], "/", "_") == runtimeSocket {
-			// Mount the socket's parent directory instead of the file.
-			// Socket files are recreated on runtime restart (new inode),
-			// so file mounts can become stale, while directory mounts stay valid.
-			socketDir := filepath.Dir(socket)
-			vol = append(vol, corev1.Volume{
-				Name: runtime + "-socket",
-				VolumeSource: corev1.VolumeSource{
-					HostPath: &corev1.HostPathVolumeSource{
-						Path: socketDir,
-						Type: &common.HostPathDirectory,
-					},
+	if socket, ok := runtimeSocketPath(runtime, runtimeSocket); ok {
+		// Mount the socket's parent directory instead of the file.
+		// Socket files are recreated on runtime restart (new inode),
+		// so file mounts can become stale, while directory mounts stay valid.
+		// The directory is mounted at its host path so that the socket path
+		// passed via -criSocket is the same on the host and in the container.
+		socketDir := filepath.Dir(socket)
+		vol = append(vol, corev1.Volume{
+			Name: runtime + "-socket",
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: socketDir,
+					Type: &common.HostPathDirectory,
 				},
-			})
-
-			mountDir := filepath.Dir(common.RuntimeSocketLocation[runtime])
-			volMnt = append(volMnt, corev1.VolumeMount{
-				Name:      runtime + "-socket",
-				MountPath: mountDir,
-				ReadOnly:  true,
-			})
-			break
-		}
+			},
+		})
+		volMnt = append(volMnt, corev1.VolumeMount{
+			Name:      runtime + "-socket",
+			MountPath: socketDir,
+			ReadOnly:  true,
+		})
 	}
 	if nriSocket != "" && common.NRIEnabled {
 		runtime = "nri"
