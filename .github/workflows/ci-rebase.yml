@@ -28,7 +28,7 @@ jobs:
           REPO: ${{ github.repository }}
         run: |
           cutoff=$(date -u -d '-6 months' +%s)
-          heads=$(gh pr list --repo "$REPO" --base main --state open \
+          heads=$(gh pr list --repo "$REPO" --base main --state open --limit 1000 \
             --json headRefName,headRepositoryOwner,createdAt,isDraft,labels \
             --jq "[.[] | select(.isDraft == false) | select((.labels | map(.name) | index(\"no-rebase\")) == null) | select((.createdAt | fromdateiso8601) >= $cutoff) | \"\(.headRepositoryOwner.login):\(.headRefName)\"]")
           echo "heads=$heads" >> "$GITHUB_OUTPUT"
