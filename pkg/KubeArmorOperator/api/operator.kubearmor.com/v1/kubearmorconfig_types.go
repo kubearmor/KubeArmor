@@ -5,7 +5,7 @@
 package v1
 
 import (
-	securityv1 "github.com/kubearmor/KubeArmor/pkg/KubeArmorController/api/security.kubearmor.com/v1"
+	securityv1 "github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/api/security.kubearmor.com/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -99,8 +99,6 @@ type KubeArmorConfigSpec struct {
 
 	KubeArmorRelayImage ImageSpec `json:"kubearmorRelayImage,omitempty"`
 
-	KubeArmorControllerImage ImageSpec `json:"kubearmorControllerImage,omitempty"`
-
 	// +kubebuilder:deprecatedversion:warning="kube-rbac-proxy has been deprecated with controller authz"
 	// Deprecated: This type would be removed in one of the upcoming releases.
 	KubeRbacProxyImage ImageSpec `json:"kubeRbacProxyImage,omitempty"`
@@ -125,7 +123,7 @@ type KubeArmorConfigSpec struct {
 
 	EnableNRI bool `json:"enableNRI,omitempty"`
 
-	ControllerPort int `json:"controllerPort,omitempty"`
+	WebhookPort int `json:"webhookPort,omitempty"`
 
 	DropResourceFromProcessLogs bool `json:"dropResourceFromProcessLogs,omitempty"`
 

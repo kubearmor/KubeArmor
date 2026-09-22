@@ -19,9 +19,6 @@ kubearmor:
     kubearmorRelay:
       image: kubearmor-relay-server
       tag: latest
-    kubearmorController:
-      image: kubearmor-controller
-      tag: latest
     kubearmorSnitch:
       image: kubearmor-snitch
       tag: latest
@@ -75,4 +72,4 @@ tlsSecrets:
   kubearmorCa: kubearmor-ca
   kubearmorClient: kubearmor-client-certs
   relayServer: kubearmor-relay-server-certs
-  controllerWebhook: kubearmor-controller-webhook-server-cert
+  operatorWebhook: kubearmor-operator-webhook-server-cert

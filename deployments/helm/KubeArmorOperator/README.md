@@ -87,11 +87,6 @@ spec:
         image: [image-repo:tag]                                # DEFAULT - kubearmor/kubearmor-relay-server:latest
         imagePullPolicy: [image pull policy]                   # DEFAULT - Always
 
-    # KubeArmor controller image and pull policy
-    kubearmorControllerImage:
-        image: [image-repo:tag]                                # DEFAULT - kubearmor/kubearmor-controller:latest
-        imagePullPolicy: [image pull policy]                   # DEFAULT - Always
-
     # kube-rbac-proxy image and pull policy
     kubeRbacProxyImage:
         image: [image-repo:tag]                                # DEFAULT - gcr.io/kubebuilder/kube-rbac-proxy:v0.15.0
@@ -107,12 +102,11 @@ $ kubectl get all -n kubearmor -l kubearmor-app
 NAME                                        READY   STATUS      RESTARTS   AGE
 pod/kubearmor-operator-66fbff5559-qb7dh     1/1     Running     0          11m
 pod/kubearmor-relay-557dfcc57b-c8t55        1/1     Running     0          2m53s
-pod/kubearmor-controller-7879755b58-t4v8m   2/2     Running     0          2m53s
 pod/kubearmor-snitch-lglbd-z92gb            0/1     Completed   0          31s
 pod/kubearmor-bpf-docker-d4651-r5n7q        1/1     Running     0          30s
 
 NAME                                           TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)     AGE
-service/kubearmor-controller-metrics-service   ClusterIP   10.43.241.84    <none>        8443/TCP    2m53s
+service/kubearmor-operator-metrics-service   ClusterIP   10.43.241.84    <none>        8443/TCP    2m53s
 service/kubearmor                              ClusterIP   10.43.216.156   <none>        32767/TCP   2m53s
 
 NAME                                        DESIRED   CURRENT   READY   UP-TO-DATE   AVAILABLE   NODE SELECTOR                                                                                                                                                                       AGE
@@ -121,12 +115,10 @@ daemonset.apps/kubearmor-bpf-docker-d4651   1         1         1       1       
 NAME                                   READY   UP-TO-DATE   AVAILABLE   AGE
 deployment.apps/kubearmor-operator     1/1     1            1           11m
 deployment.apps/kubearmor-relay        1/1     1            1           2m53s
-deployment.apps/kubearmor-controller   1/1     1            1           2m53s
 
 NAME                                              DESIRED   CURRENT   READY   AGE
 replicaset.apps/kubearmor-operator-66fbff5559     1         1         1       11m
 replicaset.apps/kubearmor-relay-557dfcc57b        1         1         1       2m53s
-replicaset.apps/kubearmor-controller-7879755b58   1         1         1       2m53s
 
 NAME                               COMPLETIONS   DURATION   AGE
 job.batch/kubearmor-snitch-lglbd   1/1           3s         11m

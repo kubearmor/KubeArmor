@@ -45,8 +45,6 @@ jobs:
             kubearmor:
               - "KubeArmor/**"
               - "protobuf/**"
-            controller:
-              - 'pkg/KubeArmorController/**'
             operator:
               - 'pkg/KubeArmorOperator/**'
       
@@ -80,11 +78,6 @@ jobs:
   
       - name: Build KubeArmor images to Docker
         run: GITHUB_SHA=$GITHUB_SHA ./KubeArmor/build/build_kubearmor.sh
-      
-      - name: Build Kubearmor controller 
-        if: steps.filter.outputs.controller == 'true'
-        working-directory: ./pkg/KubeArmorController
-        run: make docker-build
 
       - name: Build Kubearmor operator
         if: steps.filter.outputs.operator == 'true'
@@ -97,9 +90,6 @@ jobs:
           docker save -o kubearmor.tar kubearmor/kubearmor:latest
           if [[ ${{ steps.filter.outputs.operator }} == 'true' ]]; then
             docker save -o kubearmor-operator.tar kubearmor/kubearmor-operator:latest
-          fi
-          if [[ ${{ steps.filter.outputs.controller }} == 'true' ]]; then
-            docker save -o kubearmor-controller.tar kubearmor/kubearmor-controller:latest
           fi
           
       - name: Run Trivy vulnerability scanner on kubearmor-init
@@ -124,20 +114,7 @@ jobs:
           ignore-unfixed: true
           vuln-type: 'os,library'
           severity: 'CRITICAL,HIGH'   
-        continue-on-error: true  
-
-      - name: Run Trivy vulnerability scanner on kubearmor-controller
-        if: steps.filter.outputs.controller == 'true'
-        id: scan_controller
-        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
-        with:
-          input: kubearmor-controller.tar
-          format: 'table'
-          exit-code: '1'
-          ignore-unfixed: true
-          vuln-type: 'os,library'
-          severity: 'CRITICAL,HIGH'   
-        continue-on-error: true 
+        continue-on-error: true
 
       - name: Run Trivy vulnerability scanner on kubearmor-operator
         if: steps.filter.outputs.operator == 'true'
@@ -172,16 +149,6 @@ jobs:
             any_scan_failed=true
           else
             echo "✅ kubearmor: PASSED"
-          fi
-
-          # Check kubearmor-controller scan result, if it ran
-          if [[ "${{ steps.filter.outputs.controller }}" == "true" ]]; then
-            if [[ "${{ steps.scan_controller.outcome }}" == "failure" ]]; then
-              echo "❌ kubearmor-controller: FAILED (Vulnerabilities found)"
-              any_scan_failed=true
-            else
-              echo "✅ kubearmor-controller: PASSED"
-            fi
           fi
 
           # Check kubearmor-operator scan result, if it ran
