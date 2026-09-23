@@ -59,6 +59,7 @@ services:
       - "/sys/kernel/security:/sys/kernel/security"
       - "/sys/kernel/debug:/sys/kernel/debug"
       - "/etc/apparmor.d:/etc/apparmor.d"
+      - "/etc/machine-id:/etc/machine-id:ro"
       - "/usr/share/kubearmor:/usr/share/kubearmor:rw"
       - "/var/run/kubearmor:/var/run/kubearmor:rw"
     restart: always
