@@ -503,8 +503,12 @@ func (dm *KubeArmorDaemon) SetHealthStatus(serviceName string, healthStatus grpc
 func KubeArmor() {
 	// create a daemon
 	dm := NewKubeArmorDaemon()
-	// Enable KubeArmorHostPolicy for both VM and KVMAgent and in non-k8s env
-	if cfg.GlobalCfg.KVMAgent || (!cfg.GlobalCfg.K8sEnv && cfg.GlobalCfg.HostPolicy) {
+	// Enable KubeArmorHostPolicy for both VM and KVMAgent and in non-k8s env.
+	// NetworkPolicyEnforcer also needs these node identities to match
+	// nodeSelector on host-level KubeArmorNetworkPolicy, so it must gate this
+	// block too - otherwise a host nodeSelector policy silently never matches
+	// when HostPolicy is off but NetworkPolicyEnforcer is on.
+	if cfg.GlobalCfg.KVMAgent || (!cfg.GlobalCfg.K8sEnv && (cfg.GlobalCfg.HostPolicy || cfg.GlobalCfg.NetworkPolicyEnforcer)) {
 
 		dm.NodeLock.Lock()
 
