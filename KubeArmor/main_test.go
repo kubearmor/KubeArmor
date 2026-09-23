@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strconv"
+	"strings"
 	"testing"
 )
 
@@ -16,7 +16,14 @@ var clusterPtr, gRPCPtr, logPathPtr *string
 var enableKubeArmorPolicyPtr, enableKubeArmorHostPolicyPtr, enableKubeArmorVMPtr, coverageTestPtr, enableK8sEnv, tlsEnabled *bool
 var defaultFilePosturePtr, defaultCapabilitiesPosturePtr, defaultNetworkPosturePtr, hostDefaultCapabilitiesPosturePtr, hostDefaultNetworkPosturePtr, hostDefaultFilePosturePtr, procFsMountPtr, lsmOrder *string
 
+// libraryFlags holds the flags that imported packages registered on the default
+// FlagSet (e.g. controller-runtime's -kubeconfig). They are not KubeArmor flags
+// and must not be forwarded to main(), whose fresh FlagSet does not define them.
+var libraryFlags = map[string]bool{}
+
 func init() {
+	flag.VisitAll(func(f *flag.Flag) { libraryFlags[f.Name] = true })
+
 	// options (string)
 	clusterPtr = flag.String("cluster", "default", "cluster name")
 
@@ -47,31 +54,55 @@ func init() {
 	coverageTestPtr = flag.Bool("coverageTest", false, "enabling CoverageTest")
 	lsmOrder = flag.String("lsm", "bpf,apparmor,selinux", "LSM order to be set in the system")
 
+	registerPassthroughFlags(os.Args[1:])
+}
+
+// registerPassthroughFlags declares every flag in args that this test binary
+// does not already know about (e.g. -criSocket, -nriSocket, --useOCIHooks).
+// The go test binary parses os.Args itself and exits on undefined flags, and
+// TestMain only forwards flags that are registered, so without this the flags
+// the operator passes to the coverage image are rejected or silently dropped.
+// Flags of the form -name=value are kept as strings, bare -name as booleans.
+func registerPassthroughFlags(args []string) {
+	for _, arg := range args {
+		if !strings.HasPrefix(arg, "-") || arg == "-" || arg == "--" {
+			// flag parsing stops at the first non-flag argument or terminator
+			return
+		}
+		name, _, hasValue := strings.Cut(strings.TrimLeft(arg, "-"), "=")
+		if name == "" || strings.HasPrefix(name, "test.") || flag.Lookup(name) != nil {
+			continue
+		}
+		if hasValue {
+			flag.String(name, "", "passed through to KubeArmor")
+		} else {
+			flag.Bool(name, false, "passed through to KubeArmor")
+		}
+	}
+}
+
+// forwardedArgs returns the command line handed to main(): every flag registered
+// by this file, i.e. the ones declared in init with the coverage defaults plus
+// any extra flags passed on the command line. prog is Args[0], which
+// flag.Parse skips.
+func forwardedArgs(prog string) []string {
+	args := []string{prog}
+	flag.VisitAll(func(f *flag.Flag) {
+		if strings.HasPrefix(f.Name, "test.") || libraryFlags[f.Name] {
+			return
+		}
+		args = append(args, fmt.Sprintf("-%s=%s", f.Name, f.Value.String()))
+	})
+	return args
 }
 
 // TestMain - test to drive external testing coverage
 func TestMain(t *testing.T) {
+	args := forwardedArgs(os.Args[0])
+
 	// Reset Test Flags before executing main
 	flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ExitOnError)
-
-	os.Args = []string{
-		fmt.Sprintf("-cluster=%s", *clusterPtr),
-		fmt.Sprintf("-gRPC=%s", *gRPCPtr),
-		fmt.Sprintf("-logPath=%s", *logPathPtr),
-		fmt.Sprintf("-defaultFilePosture=%s", *defaultFilePosturePtr),
-		fmt.Sprintf("-defaultNetworkPosture=%s", *defaultNetworkPosturePtr),
-		fmt.Sprintf("-defaultCapabilitiesPosture=%s", *defaultCapabilitiesPosturePtr),
-		fmt.Sprintf("-hostDefaultFilePosture=%s", *hostDefaultFilePosturePtr),
-		fmt.Sprintf("-hostDefaultNetworkPosture=%s", *hostDefaultNetworkPosturePtr),
-		fmt.Sprintf("-hostDefaultCapabilitiesPosture=%s", *hostDefaultCapabilitiesPosturePtr),
-		fmt.Sprintf("-k8s=%s", strconv.FormatBool(*enableK8sEnv)),
-		fmt.Sprintf("-enableKubeArmorPolicy=%s", strconv.FormatBool(*enableKubeArmorPolicyPtr)),
-		fmt.Sprintf("-enableKubeArmorHostPolicy=%s", strconv.FormatBool(*enableKubeArmorHostPolicyPtr)),
-		fmt.Sprintf("-coverageTest=%s", strconv.FormatBool(*coverageTestPtr)),
-		fmt.Sprintf("-tlsEnabled=%s", strconv.FormatBool(*tlsEnabled)),
-		fmt.Sprintf("-procfsMount=%s", *procFsMountPtr),
-		fmt.Sprintf("-lsm=%s", *lsmOrder),
-	}
+	os.Args = args
 
 	t.Log("[INFO] Executed KubeArmor")
 	main()
@@ -158,3 +189,52 @@ func TestNonRootWithoutUBI(t *testing.T) {
 	t.Setenv("KUBEARMOR_UBI", "")
 	main()
 }
+
+// func TestPassthroughFlags(t *testing.T) {
+// 	registerPassthroughFlags([]string{
+// 		"-test.coverprofile=/coverage/c.out",
+// 		"-ptCriSocket=unix:///run/containerd/containerd.sock",
+// 		"--ptUseOCIHooks",
+// 		"-lsm=bpf",
+// 		"--",
+// 		"-ptAfterTerminator=x",
+// 	})
+
+// 	// the go test flag parsing would have set these from the command line
+// 	for name, value := range map[string]string{
+// 		"ptCriSocket":   "unix:///run/containerd/containerd.sock",
+// 		"ptUseOCIHooks": "true",
+// 	} {
+// 		if err := flag.Set(name, value); err != nil {
+// 			t.Fatalf("flag %q was not registered: %v", name, err)
+// 		}
+// 	}
+// 	if flag.Lookup("ptAfterTerminator") != nil {
+// 		t.Error("flag after -- must not be registered")
+// 	}
+// 	if flag.Lookup("test.coverprofile") != nil && flag.Lookup("test.coverprofile").Usage == "passed through to KubeArmor" {
+// 		t.Error("test flags must not be registered as passthrough flags")
+// 	}
+
+// 	args := forwardedArgs("prog")
+// 	if args[0] != "prog" {
+// 		t.Errorf("args[0] = %q, want program name", args[0])
+// 	}
+// 	got := map[string]bool{}
+// 	for _, a := range args {
+// 		got[a] = true
+// 		if strings.HasPrefix(a, "-test.") || strings.HasPrefix(a, "-kubeconfig=") {
+// 			t.Errorf("non-KubeArmor flag %q must not be forwarded", a)
+// 		}
+// 	}
+// 	for _, want := range []string{
+// 		"-ptCriSocket=unix:///run/containerd/containerd.sock",
+// 		"-ptUseOCIHooks=true",
+// 		"-lsm=bpf,apparmor,selinux",
+// 		"-cluster=default",
+// 	} {
+// 		if !got[want] {
+// 			t.Errorf("forwarded args %v are missing %q", args, want)
+// 		}
+// 	}
+// }
