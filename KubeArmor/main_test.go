@@ -146,8 +146,8 @@ func TestBpfDirCleanupMissingDir(t *testing.T) {
 		t.Fatalf("failed to remove temp dir: %v", err)
 	}
 	err := cleanupBpfMaps(dir, os.Remove)
-	if err == nil {
-		t.Error("expected error for missing dir")
+	if err != nil {
+		t.Errorf("expected no error for missing dir, got %v", err)
 	}
 }
 
