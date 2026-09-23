@@ -12,7 +12,7 @@ replace (
 
 require (
 	github.com/containerd/containerd/v2 v2.3.5
-	github.com/kubearmor/KubeArmor/KubeArmor v0.0.0-20260406102335-87edc770f8bf
+	github.com/kubearmor/KubeArmor/KubeArmor v0.0.0-20260923072722-6e13207d7dfa
 	github.com/kubearmor/KubeArmor/deployments v0.0.0-20260406102335-87edc770f8bf
 	github.com/kubearmor/KubeArmor/pkg/KubeArmorController v0.0.0-20260406102335-87edc770f8bf
 	github.com/moby/moby/client v0.4.1
