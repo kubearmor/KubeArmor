@@ -1,0 +1,1 @@
+﻿Get-WinEvent -LogName "Microsoft-Windows-AppLocker/Packaged app-Execution" -MaxEvents 5 -ErrorAction SilentlyContinue | Select-Object Id, RecordId, TimeCreated, Message | Format-List

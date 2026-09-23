@@ -8,6 +8,8 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"sync/atomic"
 
@@ -85,10 +87,14 @@ type KubearmorConfig struct {
 // GlobalCfg Global configuration for Kubearmor
 var GlobalCfg KubearmorConfig
 
+// Config var
+var (
+	PolicyDir   string = "/opt/kubearmor/policies/"
+	PIDFilePath string = "/opt/kubearmor/kubearmor.pid"
+)
+
 // Config const
 const (
-	PolicyDir                            string = "/opt/kubearmor/policies/"
-	PIDFilePath                          string = "/opt/kubearmor/kubearmor.pid"
 	ConfigCluster                        string = "cluster"
 	ConfigHost                           string = "host"
 	ConfigGRPC                           string = "gRPC"
@@ -439,6 +445,16 @@ func LoadDynamicConfig() {
 	GlobalCfg.USBDeviceHandler = viper.GetBool(ConfigUSBDeviceHandler)
 
 	GlobalCfg.NetworkPolicyEnforcer = viper.GetBool(ConfigNetworkPolicyEnforcer)
+	if runtime.GOOS == "windows" {
+		GlobalCfg.NetworkPolicyEnforcer = false
+	}
 
 	kg.Printf("Final Configuration [%+v]", GlobalCfg)
+}
+
+func init() {
+	if runtime.GOOS == "windows" {
+		PolicyDir = filepath.Join(os.Getenv("ProgramData"), "KubeArmor", "policies") + string(filepath.Separator)
+		PIDFilePath = filepath.Join(os.Getenv("ProgramData"), "KubeArmor", "kubearmor.pid")
+	}
 }
