@@ -1,0 +1,29 @@
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 0
+    groups:
+      security-updates:
+        applies-to: "security-updates"
+        patterns:
+          - "*"
+  - package-ecosystem: "gomod"
+    directories:
+      - "/KubeArmor"
+      - "/deployments"
+      - "/deployments/podman"
+      - "/pkg/KubeArmorController"
+      - "/pkg/KubeArmorOperator"
+      - "/protobuf"
+      - "/tests"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 0
+    groups:
+      security-updates:
+        applies-to: "security-updates"
+        patterns:
+          - "*"
