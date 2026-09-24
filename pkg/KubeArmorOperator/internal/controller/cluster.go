@@ -259,7 +259,7 @@ func (clusterWatcher *ClusterWatcher) WatchNodes() {
 			if node, ok := obj.(*corev1.Node); ok {
 				runtime := node.Status.NodeInfo.ContainerRuntimeVersion
 				runtime = strings.Split(runtime, ":")[0]
-				if val, ok := node.Labels[common.OsLabel]; ok && val == "linux" {
+				if val, ok := node.Labels[common.OsLabel]; ok && val == "linux" && nodeMatchesGlobalNodeSelector(node.Labels) {
 					log.Infof("Installing snitch on node %s", node.Name)
 					snitchJob, err := clusterWatcher.Client.BatchV1().Jobs(common.Namespace).Create(context.Background(), deploySnitch(node.Name, runtime), v1.CreateOptions{})
 					if err != nil {
@@ -283,7 +283,7 @@ func (clusterWatcher *ClusterWatcher) WatchNodes() {
 						runtime := node.Status.NodeInfo.ContainerRuntimeVersion
 						runtime = strings.Split(runtime, ":")[0]
 						clusterWatcher.Log.Infof("Node might have been restarted, redeploying snitch ")
-						if val, ok := node.Labels[common.OsLabel]; ok && val == "linux" {
+						if val, ok := node.Labels[common.OsLabel]; ok && val == "linux" && nodeMatchesGlobalNodeSelector(node.Labels) {
 							log.Infof("Installing snitch on node %s", node.Name)
 							snitchJob, err := clusterWatcher.Client.BatchV1().Jobs(common.Namespace).Create(context.Background(), deploySnitch(node.Name, runtime), v1.CreateOptions{})
 							if err != nil {
@@ -1011,6 +1011,21 @@ func AddOrUpdateEnv(dst *[]corev1.EnvVar, src []corev1.EnvVar) {
 			return e.Name == val
 		})
 	}
+}
+
+// nodeMatchesGlobalNodeSelector returns true if the node's labels satisfy all
+// entries in common.GlobalNodeSelectors (ignoring entries marked for deletion
+// with value "-").
+func nodeMatchesGlobalNodeSelector(nodeLabels map[string]string) bool {
+	for k, v := range common.GlobalNodeSelectors {
+		if v == "-" {
+			continue
+		}
+		if nodeLabels[k] != v {
+			return false
+		}
+	}
+	return true
 }
 
 func RemoveDeletedEntriesForNodeSelector(ns map[string]string) {
