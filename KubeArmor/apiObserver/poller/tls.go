@@ -19,8 +19,7 @@ import (
 )
 
 // TlsPoller drains the ks_chunks_buffer perf event array and reconstructs
-// TCP streams from TLS plaintext chunks. It mirrors Kubeshark Tracer's
-// pkg/bpf/tls_poller.go, adapted to deliver TlsChunkEvents instead of
+// TCP streams from TLS plaintext chunks. This package is adapted to deliver TlsChunkEvents instead of
 // gopacket.Packet (the dissector layer handles packet construction).
 //
 // Each ks_tls_chunk encodes a slice of plaintext data with:

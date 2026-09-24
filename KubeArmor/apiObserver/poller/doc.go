@@ -4,7 +4,7 @@
 // Package poller provides eBPF event pollers that drain raw BPF output buffers
 // and deliver typed Go structures to the dissection pipeline.
 //
-// Following Kubeshark Tracer's architecture:
+// architecture:
 //   - TlsPoller: drains ks_chunks_buffer (perf array) and reconstructs
 //     TCP streams from TLS plaintext chunks emitted by OpenSSL/Go uprobes.
 //   - PacketsPoller: drains ka_pkts_buffer (perf array) and reassembles

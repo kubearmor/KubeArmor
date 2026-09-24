@@ -80,7 +80,7 @@ func (d *Dissector) processDNS(info streamInfo, payload []byte) {
 	} else {
 		rcode := int32(flags & 0x000F)
 		rcodeName := dnsRCodeToString(rcode)
-		
+
 		var ips []string
 		for i := 0; i < int(ancount) && offset < len(payload); i++ {
 			_, newOffset, err := parseDNSName(payload, offset)

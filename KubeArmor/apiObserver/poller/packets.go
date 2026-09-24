@@ -34,6 +34,7 @@ import (
 //	offset 42: u8  direction   (PKT_DIR_RECEIVED=0, PKT_DIR_SENT=1)
 //	offset 43: u8  _pad
 //	offset 44: u8  buf[4080]
+//
 // pktChunkBufLen is the payload buffer size per chunk (must match PKT_PART_LEN in BPF).
 // pktChunkHdrSize is the sum of all header fields in struct ka_pkt (before buf[]).
 // pktChunkMinSize is the minimum valid record size from the perf buffer.
@@ -43,33 +44,33 @@ import (
 // so that both the exact C size (4128) and any future changes are handled gracefully.
 const (
 	pktChunkBufLen  = 4080
-	pktChunkHdrSize = 44 // 3×u64 + 3×u32 + 3×u16 + 2×u8 = 44 bytes
+	pktChunkHdrSize = 44                               // 3×u64 + 3×u32 + 3×u16 + 2×u8 = 44 bytes
 	pktChunkMinSize = pktChunkHdrSize + pktChunkBufLen // 4124 bytes (raw)
-	pktChunkBPFSize = 4128 // actual sizeof(struct ka_pkt) in C (padded to 8-byte alignment)
+	pktChunkBPFSize = 4128                             // actual sizeof(struct ka_pkt) in C (padded to 8-byte alignment)
 )
 
 type pktChunk struct {
-	Timestamp  uint64
-	CgroupID   uint64
-	ID         uint64
-	Len        uint32
-	TotLen     uint32
-	Counter    uint32
-	Num        uint16
-	Last       uint16
-	IPHdrType  uint16
-	Direction  uint8
-	_pad       uint8 //nolint:structcheck
-	Buf        [pktChunkBufLen]uint8
+	Timestamp uint64
+	CgroupID  uint64
+	ID        uint64
+	Len       uint32
+	TotLen    uint32
+	Counter   uint32
+	Num       uint16
+	Last      uint16
+	IPHdrType uint16
+	Direction uint8
+	_pad      uint8 //nolint:structcheck
+	Buf       [pktChunkBufLen]uint8
 }
 
 // RawPacket is a fully reassembled network packet delivered to the consumer.
 type RawPacket struct {
 	Timestamp time.Time
 	CgroupID  uint64
-	Direction uint8    // PKT_DIR_RECEIVED=0, PKT_DIR_SENT=1
-	IPHdrType uint16   // ETH_P_IP=0x0800, ETH_P_IPV6=0x86DD
-	Data      []byte   // raw IP packet bytes (no ethernet framing)
+	Direction uint8  // PKT_DIR_RECEIVED=0, PKT_DIR_SENT=1
+	IPHdrType uint16 // ETH_P_IP=0x0800, ETH_P_IPV6=0x86DD
+	Data      []byte // raw IP packet bytes (no ethernet framing)
 }
 
 // IsTCPSyn returns true if the TCP SYN flag is set in this packet.
@@ -97,7 +98,6 @@ func (p *RawPacket) IsTCPSyn() bool {
 	return data[tcpStart+13]&tcpSYN != 0
 }
 
-
 // pktBuffer holds partially assembled multi-chunk packets.
 type pktBuffer struct {
 	id        uint64
@@ -119,8 +119,6 @@ var pktBufferPool = sync.Pool{
 // PacketsPoller drains the ka_pkts_buffer perf event array, reassembles
 // chunked raw network packets, and delivers complete RawPackets to a
 // registered handler.
-//
-// Mirrors Kubeshark Tracer's pkg/poller/packets/packets_poller.go.
 //
 // Key design points:
 //   - Per-CPU packet maps avoid lock contention (each CPU has its own
@@ -212,7 +210,7 @@ func (p *PacketsPoller) Stop() error {
 	close(p.stopCleanup)
 	err := p.chunksReader.Close() // Step 1: unblock poll()
 	p.pollWg.Wait()               // Step 2: wait for poll() to fully exit
-	p.stopWorkerPool()             // Step 3: now safe to close worker channel
+	p.stopWorkerPool()            // Step 3: now safe to close worker channel
 	return err
 }
 
@@ -343,6 +341,7 @@ func (p *PacketsPoller) handleChunk(rec *perf.Record) (bool, error) {
 
 	// Zero-copy cast: data is owned by the perf.Record buffer which stays
 	// valid until the next ReadInto call.
+	// #nosec G103
 	chunk := (*pktChunk)(unsafe.Pointer(&data[0]))
 
 	cpu := rec.CPU
@@ -367,12 +366,12 @@ func (p *PacketsPoller) handleChunk(rec *perf.Record) (bool, error) {
 	buf, ok := cpuMap[chunk.ID]
 	if !ok {
 		buf = pktBufferPool.Get().(*pktBuffer)
-		buf.id        = chunk.ID
-		buf.num       = 0
-		buf.len       = 0
+		buf.id = chunk.ID
+		buf.num = 0
+		buf.len = 0
 		buf.ipHdrType = chunk.IPHdrType
 		buf.direction = chunk.Direction
-		buf.cgroupID  = chunk.CgroupID
+		buf.cgroupID = chunk.CgroupID
 		buf.timestamp = chunk.Timestamp
 		buf.firstSeen = time.Now()
 		cpuMap[chunk.ID] = buf

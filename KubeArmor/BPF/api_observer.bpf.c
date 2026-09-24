@@ -5,7 +5,7 @@
 //
 // api_observer.bpf.c — eBPF entry points for the API Observer.
 //
-// Architecture: Kubeshark-style dual-path network capture.
+// Architecture: dual-path network capture.
 //
 //   Path A — Plain traffic:
 //     cgroup_skb/ingress + cgroup_skb/egress → ka_pkts_buffer (perf array)
@@ -48,7 +48,7 @@ struct user_pt_regs {
 #include "apiobserver/cgroup_target.h"
 #include "apiobserver/packet_sniffer.h"
 
-/* Kubeshark SSL capture infrastructure (ks_* probes).
+/* SSL capture infrastructure (ks_* probes).
  * These headers define their own SEC() entries inline. */
 #include "apiobserver/ks_ssl_common.h"
 #include "apiobserver/ks_fd_tracepoints.h"

@@ -97,11 +97,7 @@
  * The dereference chain: tls.Conn → .conn (Go interface {type, data})
  * → data points to net.TCPConn → .fd (netFD) → .pfd.Sysfd (int)
  *
- * Kubeshark uses the `go:itab.*<type>,net.Conn` symbol to identify
- * which concrete type implements the net.Conn interface and finds the
- * FD offset via DWARF or a known default (0x10).
- *
- * We use a simplified approach: read the interface data pointer at
+ * approach: read the interface data pointer at
  * receiver+0x08 (the .conn field in tls.Conn is at offset 0), then
  * dereference to get netFD at offset 0, then read Sysfd at offset 0x10.
  *
