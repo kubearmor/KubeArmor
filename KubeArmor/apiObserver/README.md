@@ -1,6 +1,6 @@
 # API Observer
 
-The `apiObserver` package is the userspace half of KubeArmor's API-level observability pipeline. It utilizes a Kubeshark-style dual-path packet capture architecture. It captures plain network traffic via eBPF `cgroup_skb` hooks and TLS-encrypted traffic via OpenSSL/Go uprobes. These streams are fed into a TCP stream assembler and protocol dissector, which reconstructs HTTP/1.x, HTTP/2, gRPC, and DNS messages, correlates requests with responses, enriches them with Kubernetes metadata, and pushes structured `pb.APIEvent` records to external consumers via gRPC.
+The `apiObserver` package is the userspace half of KubeArmor's API-level observability pipeline. It utilizes a Kubeshark inspired dual-path packet capture architecture. It captures plain network traffic via eBPF `cgroup_skb` hooks and TLS-encrypted traffic via OpenSSL/Go uprobes. These streams are fed into a TCP stream assembler and protocol dissector, which reconstructs HTTP/1.x, HTTP/2, gRPC, and DNS messages, correlates requests with responses, enriches them with Kubernetes metadata, and pushes structured `pb.APIEvent` records to external consumers via gRPC.
 
 ## Architecture Overview
 
@@ -17,7 +17,7 @@ flowchart TD
         PP["PacketsPoller\n(raw traffic via cgroup_skb)"]
         TP["TlsPoller\n(TLS plaintext via uprobes)"]
         
-        subgraph Dissector["Dissector Pipeline\n(Kubeshark Architecture)"]
+        subgraph Dissector["Dissector Pipeline\n(Architecture)"]
             ASM["TCP Stream Assembler\n(gopacket-based)"]
             H1["HTTP/1.x Parser"]
             H2["HTTP/2 Frame Parser"]
@@ -61,7 +61,7 @@ flowchart TD
 
 2. **Pollers** — The `PacketsPoller` and `TlsPoller` drain their respective ring buffers and feed the network events into the dissector.
 
-3. **Dissector Pipeline** — The `dissector` package (ported from Kubeshark) reassembles TCP streams and parses application-layer protocols:
+3. **Dissector Pipeline** — The `dissector` package reassembles TCP streams and parses application-layer protocols:
    - **HTTP/1.x, HTTP/2, gRPC**: Parsed and passed to the Correlator.
    - **DNS**: Supports parsing DNS queries and responses over both UDP and TCP.
 
@@ -80,7 +80,7 @@ apiObserver/
 ├── apiObserver.go              # Core orchestrator: BPF loading, probe attachment, poller initialization
 ├── apiobserver_x86_bpfel.go    # Generated: compiled BPF objects (x86_64)
 ├── apiobserver_arm64_bpfel.go  # Generated: compiled BPF objects (arm64)
-├── dissector/                  # Kubeshark-style TCP stream reassembly and protocol parsing (HTTP, DNS, etc.)
+├── dissector/                  # TCP stream reassembly and protocol parsing (HTTP, DNS, etc.)
 ├── poller/                     # Pollers for draining BPF ring buffers (PacketsPoller, TlsPoller)
 ├── events/                     # Shared types, correlator, and uprobe event decoders
 ├── filter/                     # Event filtering and deduplication logic
@@ -105,7 +105,7 @@ The central orchestrator that initializes the entire observability pipeline. Its
 
 ### Dissector (`dissector/`)
 
-Ported from Kubeshark, this package handles the heavy lifting of network packet processing:
+This package handles the heavy lifting of network packet processing:
 - **TCP Stream Assembler**: Leverages `gopacket` to reconstruct fragmented TCP streams from both raw packets (Path A) and TLS chunks (Path B).
 - **Protocol Parsers**: Dissects the reassembled payloads into HTTP/1.x, HTTP/2, gRPC, and DNS structures. 
 - **DNS Observability**: Processes DNS traffic over UDP and TCP, generating complete `DnsRequest` and `DnsResponse` events within the `APIEvent` wrapper.

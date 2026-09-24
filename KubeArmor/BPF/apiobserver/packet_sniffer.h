@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0
  * Copyright 2026 Authors of KubeArmor
  *
- * packet_sniffer.h — Kubeshark-style cgroup_skb packet capture for API Observer.
+ * packet_sniffer.h — cgroup_skb packet capture for API Observer.
  *
  * Ported from kubeshark/tracer bpf/packet_sniffer.c (GPL-3.0).
  *
@@ -24,7 +24,7 @@
 /* ---- Packet chunk constants ---- */
 /* PKT_PART_LEN must fit in a perf event (≤ 64 KB).
  * We use 4080 bytes: 4096 - 16 bytes for overhead. This gives us
- * 16 full chunks per 64 KB max packet (matches Kubeshark). */
+ * 16 full chunks per 64 KB max packet. */
 #ifndef PKT_PART_LEN
 #define PKT_PART_LEN  4080
 #endif

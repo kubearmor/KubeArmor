@@ -262,9 +262,6 @@ func (dm *KubeArmorDaemon) DestroyKubeArmorDaemon() {
 		}
 	}
 
-	// wait for a while
-	time.Sleep(time.Second * 1)
-
 	if dm.Logger != nil {
 		// close logger
 		if err := dm.CloseLogger(); err != nil {

@@ -13,6 +13,4 @@
 // Both inputs are fed into a shared TCP stream reassembler that reconstructs
 // HTTP/1.x and HTTP/2 sessions, then emits correlated request+response pairs
 // as pb.APIEvent protobufs.
-//
-// Architecture follows Kubeshark Tracer's gopacket-based dissection pipeline.
 package dissector

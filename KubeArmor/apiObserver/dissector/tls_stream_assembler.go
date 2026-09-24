@@ -119,9 +119,9 @@ func (asm *TlsStreamAssembler) Deliver(chunk *events.TlsChunkEvent, info streamI
 		conn.mu.Lock()
 		conn.closed = true
 		conn.mu.Unlock()
-		conn.reqWriter.Close()
-		conn.respWriter.Close()
-		
+		_ = conn.reqWriter.Close()
+		_ = conn.respWriter.Close()
+
 		exists = false
 	}
 
@@ -195,7 +195,7 @@ func (asm *TlsStreamAssembler) newConn(key string, info streamInfo) *asmConn {
 		key, info.srcIP, info.srcPort, info.dstIP, info.dstPort)
 
 	// Start parser goroutines — one per direction.
-	go asm.parseH2Stream(conn, reqReader, true)  // client→server (requests)
+	go asm.parseH2Stream(conn, reqReader, true)   // client→server (requests)
 	go asm.parseH2Stream(conn, respReader, false) // server→client (responses)
 
 	return conn
@@ -214,8 +214,8 @@ func (asm *TlsStreamAssembler) resetConn(key string) {
 		conn.mu.Lock()
 		conn.closed = true
 		conn.mu.Unlock()
-		conn.reqWriter.Close()
-		conn.respWriter.Close()
+		_ = conn.reqWriter.Close()
+		_ = conn.respWriter.Close()
 	}
 }
 
@@ -472,9 +472,9 @@ func (conn *asmConn) getOrCreateStream(sid uint32, info streamInfo) *h2AsmStream
 	s, ok := conn.streams[sid]
 	if !ok {
 		s = &h2AsmStream{
-			ts:       info.timestamp,
-			srcIP:    info.srcIP, dstIP: info.dstIP,
-			srcPort:  info.srcPort, dstPort: info.dstPort,
+			ts:    info.timestamp,
+			srcIP: info.srcIP, dstIP: info.dstIP,
+			srcPort: info.srcPort, dstPort: info.dstPort,
 			cgroupID: info.cgroupID,
 			isSSL:    info.isSSL,
 			reqHdrs:  make(map[string]string),
