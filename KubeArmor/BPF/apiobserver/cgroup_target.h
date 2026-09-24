@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0
  * Copyright 2026 Authors of KubeArmor
  *
- * cgroup_target.h — Kubeshark-style cgroup targeting for the API Observer.
+ * cgroup_target.h — cgroup targeting for the API Observer.
  *
  * Ported from kubeshark/tracer bpf/include/cgroups.h (GPL-3.0).
  *

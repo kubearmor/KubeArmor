@@ -3,10 +3,10 @@
  *
  * structs.h — All shared BPF struct definitions for the API Observer.
  *
- * Architecture: Kubeshark-style dual-path capture.
+ * Architecture: dual-path capture.
  *   Removed: syscall-based stream structs (data_event, conn_info, data_args,
  *            active_data_args, etc.)
- *   Kept:    Kubeshark-style TLS chunk structs, Go uprobe structs, gRPC-C structs.
+ *   Kept:    TLS chunk structs, Go uprobe structs, gRPC-C structs.
  */
 
 #pragma once
@@ -14,7 +14,7 @@
 #include "macros.h"
 
 /* =========================================================================
- * Kubeshark-style SSL / Go TLS capture structures
+ * SSL / Go TLS capture structures
  * ========================================================================= */
 
 /* One minute in nanoseconds — stale ssl_info entries are discarded. */

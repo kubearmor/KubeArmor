@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2026 Authors of KubeArmor
 
-// Package cgroup provides Kubeshark-style cgroup-based pod targeting for the
+// Package cgroup provides cgroup-based pod targeting for the
 // API Observer.
 //
 // When a pod is created or deleted, the controller updates the ka_cgroup_ids
@@ -34,14 +34,13 @@ const (
 	CONFIGURATION_PASS_ALL_CGROUPS = 1 << 1
 )
 
-
 // FindHostCgroupRoot returns the path to the host's cgroup v2 root,
 // bypassing any private cgroup namespace the pod may be running in.
 // Exported so other packages (e.g. apiObserver) can build correct cgroup paths.
 func FindHostCgroupRoot() string {
 	candidates := []string{
 		"/proc/1/root/sys/fs/cgroup", // bypass cgroup namespace via host init
-		cgroupFSRoot,                  // fallback: container's view
+		cgroupFSRoot,                 // fallback: container's view
 	}
 	for _, p := range candidates {
 		if info, err := os.Stat(p); err == nil && info.IsDir() {
@@ -52,11 +51,11 @@ func FindHostCgroupRoot() string {
 }
 
 // searchMountpointFromHost scans /proc/<pid>/mountinfo looking for a cgroup2
-// filesystem mounted from the host root (mountRoot == "/"). This mirrors the
-// Kubeshark tracer approach (pkg/mount/mount.go:SearchMountpointFromHost).
+// filesystem mounted from the host root (mountRoot == "/").
 // Use pid=1 to read from the host init process when hostPID=true.
 func searchMountpointFromHost(mountinfoPath string) string {
-	f, err := os.Open(mountinfoPath)
+	// #nosec G304
+	f, err := os.Open(filepath.Clean(mountinfoPath))
 	if err != nil {
 		return ""
 	}
@@ -155,7 +154,7 @@ func (c *Controller) AttachRoot() (string, error) {
 	defer c.mu.Unlock()
 	if existing, ok := c.cgroupLinks[0]; ok {
 		for _, l := range existing {
-			l.Close()
+			_ = l.Close()
 		}
 	}
 	c.cgroupLinks[0] = links
@@ -227,7 +226,7 @@ func (c *Controller) Close() {
 	defer c.mu.Unlock()
 	for _, links := range c.cgroupLinks {
 		for _, l := range links {
-			l.Close()
+			_ = l.Close()
 		}
 	}
 	c.cgroupLinks = make(map[uint64][]link.Link)
@@ -241,7 +240,8 @@ func (c *Controller) attachToCgroup(cgroupPath string) ([]link.Link, error) {
 		path = filepath.Join(cgroupFSRoot, path)
 	}
 
-	dir, err := os.Open(path)
+	// #nosec G304
+	dir, err := os.Open(filepath.Clean(path))
 	if err != nil {
 		return nil, fmt.Errorf("open cgroup dir %s: %w", path, err)
 	}
@@ -257,8 +257,9 @@ func (c *Controller) attachToCgroup(cgroupPath string) ([]link.Link, error) {
 		})
 		if err != nil {
 			// Close any already-opened links before returning error.
+			// #nosec G602
 			for _, lk := range links {
-				lk.Close()
+				_ = lk.Close()
 			}
 			return nil, fmt.Errorf("attach ingress to %s: %w", path, err)
 		}
@@ -272,8 +273,9 @@ func (c *Controller) attachToCgroup(cgroupPath string) ([]link.Link, error) {
 			Program: c.egressProg,
 		})
 		if err != nil {
+			// #nosec G602
 			for _, lk := range links {
-				lk.Close()
+				_ = lk.Close()
 			}
 			return nil, fmt.Errorf("attach egress to %s: %w", path, err)
 		}

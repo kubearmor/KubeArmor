@@ -108,7 +108,7 @@ Two independent TLS capture pipelines coexist:
 | Pipeline | Target | FD Resolution | Address Resolution | Output |
 |----------|--------|--------------|-------------------|--------|
 | **Syscall kprobes** (`openssl_trace.h`) | OpenSSL `SSL->rbio->num` FD walk | Direct struct traversal | From `conn_info` map | `apiobserver_events` ring buffer |
-| **Kubeshark-style** (`ks_openssl_uprobes.h` + helpers) | OpenSSL, Go crypto/tls | Nested syscall FD capture + fallback caches | `tcp_sendmsg`/`tcp_recvmsg` kprobes reading `struct sock` | `ks_chunks_buffer` perf buffer |
+| **Kubeshark-inspired** (`ks_openssl_uprobes.h` + helpers) | OpenSSL, Go crypto/tls | Nested syscall FD capture + fallback caches | `tcp_sendmsg`/`tcp_recvmsg` kprobes reading `struct sock` | `ks_chunks_buffer` perf buffer |
 
 The kubeshark pipeline is the primary path for production TLS capture. It handles edge cases (Memory BIO, async I/O, Go goroutine scheduling) that the simpler syscall pipeline cannot.
 
@@ -127,7 +127,7 @@ The kubeshark pipeline is the primary path for production TLS capture. It handle
 | **protocol_inference.h** | 113 | In-kernel protocol classification: HTTP/1 prefix matching, HTTP/2 preface + frame validation, gRPC heuristic |
 | **filter_helpers.h** | 79 | `is_http_traffic()`, `is_health_check()`, `should_trace_port()` — early BPF-side traffic filtering |
 | **openssl_trace.h** | 402 | Standalone `SSL_write`/`SSL_read` uprobe handlers with direct `SSL->rbio->num` FD extraction |
-| **ks_ssl_common.h** | 165 | Kubeshark-style SSL helpers: `ks_new_ssl_info()`, `ks_lookup_ssl_info()`, `ks_output_ssl_chunk()`, chunk assembly |
+| **ks_ssl_common.h** | 165 | SSL helpers: `ks_new_ssl_info()`, `ks_lookup_ssl_info()`, `ks_output_ssl_chunk()`, chunk assembly |
 | **ks_openssl_uprobes.h** | 189 | OpenSSL/BoringSSL uprobe entry/return handlers, Memory BIO FD fallback chain, `ssl_read_ex`/`ssl_write_ex` support |
 | **ks_fd_tracepoints.h** | 174 | Syscall tracepoints for SSL FD resolution: captures FD from nested `read`/`write`/`sendto`/`recvfrom`/`sendmsg`/`recvmsg` |
 | **ks_tcp_kprobes.h** | 133 | `tcp_sendmsg`/`tcp_recvmsg` kprobes for SSL address resolution from `struct sock` |
@@ -162,7 +162,7 @@ The kubeshark pipeline is the primary path for production TLS capture. It handle
 
 - `sock/inet_sock_set_state` — tracks TCP state transitions (`TCP_ESTABLISHED` → populate `connections` map; `TCP_CLOSE` → cleanup all maps)
 
-### TLS Probes (Kubeshark Pipeline)
+### TLS Probes (Pipeline)
 
 | Probe | Type | Function | Purpose |
 |-------|------|----------|---------|
@@ -254,7 +254,7 @@ The kubeshark pipeline is the primary path for production TLS capture. It handle
 | `ssl_user_space_call_map` | Hash | `pid_tgid` | `nested_syscall_fd_t` | 64K | Nested syscall FD capture (standalone pipeline) |
 | `ssl_symaddrs` | Hash | `tgid` (u32) | `ssl_symaddrs` | 4K | Per-process OpenSSL struct offsets |
 
-### Kubeshark SSL Maps
+### SSL Maps
 
 | Map | Type | Key | Value | Max Entries | Purpose |
 |-----|------|-----|-------|-------------|---------|
@@ -296,7 +296,7 @@ The kubeshark pipeline is the primary path for production TLS capture. It handle
 
 ---
 
-## Data Flow: TLS Capture (Kubeshark Pipeline)
+## Data Flow: TLS Capture (Pipeline)
 
 The kubeshark-style TLS pipeline involves coordination between 5 independent probe types:
 

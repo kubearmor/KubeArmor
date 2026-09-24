@@ -78,7 +78,7 @@ type APIObserver struct {
 	grpcCAttached map[string]bool
 
 	// =======================================================================
-	// Kubeshark-style dual-path packet capture pipeline
+	// dual-path packet capture pipeline
 	// =======================================================================
 
 	// Path A: plain traffic via cgroup_skb packet sniffer.
@@ -137,13 +137,12 @@ type APIObserver struct {
 	wg     sync.WaitGroup
 
 	// Debug pipeline counters (atomic, logged every 30s).
-	dbgDissectorCalls  int64 // events from dissector handler callback
-	dbgFilterPassed    int64 // events that passed all filters
-	dbgBuffered        int64 // events added to eventBuf
-	dbgFlushed         int64 // events sent to PushAPIEvent
-	dbgTlsChunks       int64 // raw TLS chunks received from BPF perf buffer
+	dbgDissectorCalls int64 // events from dissector handler callback
+	dbgFilterPassed   int64 // events that passed all filters
+	dbgBuffered       int64 // events added to eventBuf
+	dbgFlushed        int64 // events sent to PushAPIEvent
+	dbgTlsChunks      int64 // raw TLS chunks received from BPF perf buffer
 }
-
 
 // PodResolver maps a pod IP address to its Kubernetes namespace and pod name.
 // Returns empty strings when no match is found. Injected by the core daemon.
@@ -214,22 +213,20 @@ func NewAPIObserver(node tp.Node, pinpath string, logger *fd.Feeder, svcResolver
 	dissectCfg := dissector.Config{
 		MaxBodySize: 16384,
 		NodeName:    ao.nodeName,
-		Logger:      ao.Logger,
 	}
 	ao.dissect = dissector.New(func(evt *pb.APIEvent) {
 		atomic.AddInt64(&ao.dbgDissectorCalls, 1)
 		ao.filterAndEmitFromDissector(evt)
-	}, svcResolver, dissectCfg)
+	}, svcResolver, logger, dissectCfg)
 
 	// Initialize the PacketsPoller for plain traffic.
-	// 64MB per-CPU perf buffer (handles 10 Gbps bursts before dropping).
 	var firstPktLogged int32
 	pktsPoller, pErr := poller.NewPacketsPoller(
 		ao.objs.KaPktsBuffer,
 		func(pkt *poller.RawPacket) {
 			// Log the first packet received to confirm the BPF→Go pipeline is live.
 			if atomic.CompareAndSwapInt32(&firstPktLogged, 0, 1) {
-				ao.Logger.Printf("[PIPELINE] First raw packet received! cgroupID=%d direction=%d iphdr=0x%04x len=%d",
+				ao.Logger.Debugf("[PIPELINE] First raw packet received! cgroupID=%d direction=%d iphdr=0x%04x len=%d",
 					pkt.CgroupID, pkt.Direction, pkt.IPHdrType, len(pkt.Data))
 			}
 			ao.dissect.HandleRawPacket(pkt)
@@ -248,16 +245,16 @@ func NewAPIObserver(node tp.Node, pinpath string, logger *fd.Feeder, svcResolver
 			defer t.Stop()
 			for range t.C {
 				s := pktsPoller.Stats()
-				ao.Logger.Printf("[STATS] PacketsPoller: chunks_got=%d chunks_handled=%d chunks_lost=%d packets_got=%d packets_err=%d",
+				ao.Logger.Debugf("[STATS] PacketsPoller: chunks_got=%d chunks_handled=%d chunks_lost=%d packets_got=%d packets_err=%d",
 					s.ChunksGot, s.ChunksHandled, s.ChunksLost, s.PacketsGot, s.PacketsError)
-				ao.Logger.Printf("[STATS] Pipeline: dissector_calls=%d filter_passed=%d buffered=%d flushed=%d",
+				ao.Logger.Debugf("[STATS] Pipeline: dissector_calls=%d filter_passed=%d buffered=%d flushed=%d",
 					atomic.LoadInt64(&ao.dbgDissectorCalls),
 					atomic.LoadInt64(&ao.dbgFilterPassed),
 					atomic.LoadInt64(&ao.dbgBuffered),
 					atomic.LoadInt64(&ao.dbgFlushed))
 				if ao.tlsPoller != nil {
 					ts := ao.tlsPoller.Stats()
-					ao.Logger.Printf("[STATS] TlsPoller: chunks_got=%d chunks_handled=%d chunks_lost=%d (total_tls_chunks_received=%d)",
+					ao.Logger.Debugf("[STATS] TlsPoller: chunks_got=%d chunks_handled=%d chunks_lost=%d (total_tls_chunks_received=%d)",
 						ts.ChunksGot, ts.ChunksHandled, ts.ChunksLost,
 						atomic.LoadInt64(&ao.dbgTlsChunks))
 				}
@@ -304,7 +301,7 @@ func NewAPIObserver(node tp.Node, pinpath string, logger *fd.Feeder, svcResolver
 		func(chunk *events.TlsChunkEvent) {
 			atomic.AddInt64(&ao.dbgTlsChunks, 1)
 			if atomic.CompareAndSwapInt32(&firstTlsChunkLogged, 0, 1) {
-				ao.Logger.Printf("[PIPELINE] First TLS chunk received! pid=%d fd=%d len=%d",
+				ao.Logger.Debugf("[PIPELINE] First TLS chunk received! pid=%d fd=%d len=%d",
 					chunk.PID, chunk.FD, len(chunk.Data))
 			}
 			// Fix 3: If the BPF kprobe chain missed the address (family==0),
@@ -323,12 +320,12 @@ func NewAPIObserver(node tp.Node, pinpath string, logger *fd.Feeder, svcResolver
 					}
 					chunk.SrcPort = addr.SrcPort
 					chunk.DstPort = addr.DstPort
-					ao.Logger.Printf("[PROC] Resolved pid=%d fd=%d → src=%s:%d dst=%s:%d family=%d",
+					ao.Logger.Debugf("[PROC] Resolved pid=%d fd=%d → src=%s:%d dst=%s:%d family=%d",
 						chunk.PID, chunk.FD,
 						addr.SrcIP, addr.SrcPort,
 						addr.DstIP, addr.DstPort, addr.Family)
 				} else {
-					ao.Logger.Printf("[PROC] Unresolvable pid=%d fd=%d — chunk dropped", chunk.PID, chunk.FD)
+					ao.Logger.Debugf("[PROC] Unresolvable pid=%d fd=%d — chunk dropped", chunk.PID, chunk.FD)
 					return
 				}
 			}
@@ -449,10 +446,6 @@ func NewAPIObserver(node tp.Node, pinpath string, logger *fd.Feeder, svcResolver
 	return ao, nil
 }
 
-
-
-
-
 // attachTracepointOrFallback tries to attach a BPF program via tracepoint first
 // (stable kernel ABI), falling back to kprobe if tracefs is unavailable. This
 // handles the common case where /sys/kernel/tracing is not mounted in the container.
@@ -546,7 +539,6 @@ func (ao *APIObserver) attachKsFdTracepoints() error {
 			[]string{"__x64_sys_readv", "ksys_readv", "__arm64_sys_readv"},
 		},
 	}
-
 
 	for _, tp := range fdEntryProbes {
 		if err := ao.attachTracepointOrFallback(tp.group, tp.name, tp.prog, tp.kprobeFallback, false); err != nil {
@@ -662,7 +654,6 @@ func (ao *APIObserver) attachKsFdTracepoints() error {
 // This stub is kept for backwards compatibility with any external callers.
 // DEPRECATED: will be removed in a future cleanup pass.
 
-
 // drainGoGRPCEvents reads from the Go gRPC request events ring buffer
 // and processes completed events into the correlator.
 func (ao *APIObserver) drainGoHeaderEvents() {
@@ -676,7 +667,10 @@ func (ao *APIObserver) drainGoHeaderEvents() {
 	ao.Logger.Debug("Starting Go gRPC events reader")
 
 	// Ring buffer reader goroutine — uses ReadInto to avoid per-event allocs.
+	// Tracked in ao.wg so DestroyAPIObserver's ao.wg.Wait() blocks until it exits.
+	ao.wg.Add(1)
 	go func() {
+		defer ao.wg.Done()
 		var rec ringbuf.Record
 		for {
 			if err := ao.goGRPCEvents.ReadInto(&rec); err != nil {
@@ -838,8 +832,6 @@ func (ao *APIObserver) filterAndEmitFromDissector(evt *pb.APIEvent) {
 	ao.bufferEvent(evt)
 }
 
-
-
 // Emit path
 
 func sanitizeUTF8(s string) string {
@@ -880,7 +872,6 @@ func sanitizeHeaders(m map[string]string) map[string]string {
 // enrichAndEmit — REMOVED.
 // Event enrichment and emission is now handled by filterAndEmitFromDissector,
 // which bridges pb.APIEvent objects from the dissector to the feeder.
-
 
 // maxAPIBodyBytes caps the request/response body size in emitted APIEvents.
 // Bodies exceeding this limit are truncated at the protobuf serialization
@@ -1031,7 +1022,7 @@ func (ao *APIObserver) sslScannerFunc(snap ProcSnapshot) error {
 	cgroupPath := fmt.Sprintf("%s/%d/cgroup", ssl.ProcRoot, pid)
 	data, err := os.ReadFile(cgroupPath) // #nosec G304 -- path is ProcRoot + validated integer PID
 	if err != nil {
-		ao.Logger.Printf("[sslScanner] pid=%d: cgroup read failed (%v) — skipping", pid, err)
+		ao.Logger.Debugf("[sslScanner] pid=%d: cgroup read failed (%v) — skipping", pid, err)
 		return nil // process may have exited
 	}
 	cgroup := string(data)
@@ -1041,17 +1032,17 @@ func (ao *APIObserver) sslScannerFunc(snap ProcSnapshot) error {
 		return nil // not a container PID — skip silently
 	}
 
-	ao.Logger.Printf("[sslScanner] pid=%d: container cgroup detected — scanning for SSL libs", pid)
+	ao.Logger.Debugf("[sslScanner] pid=%d: container cgroup detected — scanning for SSL libs", pid)
 
 	// Discover SSL libraries in this PID's address space.
 	matches := ssl.DiscoverSSLLibsForPID(pid)
 	if len(matches) == 0 {
 		// This is the KEY diagnostic: if nginx is here but has no SSL libs found,
 		// we know the problem is in /proc/<pid>/maps parsing, not in BPF.
-		ao.Logger.Printf("[sslScanner] pid=%d (container) — no SSL libraries found in /proc/%d/maps", pid, pid)
+		ao.Logger.Debugf("[sslScanner] pid=%d (container) — no SSL libraries found in /proc/%d/maps", pid, pid)
 		return nil
 	}
-	ao.Logger.Printf("[SSL] pid=%d — found %d SSL lib(s): %v", pid, len(matches),
+	ao.Logger.Debugf("[SSL] pid=%d — found %d SSL lib(s): %v", pid, len(matches),
 		func() []string {
 			paths := make([]string, len(matches))
 			for i, m := range matches {
@@ -1099,7 +1090,7 @@ func (ao *APIObserver) sslScannerFunc(snap ProcSnapshot) error {
 			if putErr := ao.objs.SslSymaddrs.Put(uint32(pid), bpfOffsets); putErr != nil {
 				ao.Logger.Warnf("SSL: failed to write symaddrs for PID %d: %v", pid, putErr)
 			} else {
-				ao.Logger.Printf("SSL symaddrs populated for PID %d (rbio=0x%x bio_num=0x%x lib=%s)",
+				ao.Logger.Debugf("SSL symaddrs populated for PID %d (rbio=0x%x bio_num=0x%x lib=%s)",
 					pid, symAddrs.SSLRBIOOffset, symAddrs.BIONumOffset, offsetPath)
 			}
 		} else {
@@ -1108,7 +1099,7 @@ func (ao *APIObserver) sslScannerFunc(snap ProcSnapshot) error {
 			// uprobe gracefully falls back to syscall-based FD capture.
 			// Only WARN for dynamic shared libraries where offsets are required.
 			if m.Matcher.SearchType == ssl.MatchExecutable {
-				ao.Logger.Printf("SSL: symaddrs not needed for %s (PID %d, memory-BIO path): %v", offsetPath, pid, symErr)
+				ao.Logger.Debugf("SSL: symaddrs not needed for %s (PID %d, memory-BIO path): %v", offsetPath, pid, symErr)
 			} else {
 				ao.Logger.Warnf("SSL: cannot get offsets for %s (PID %d): %v", offsetPath, pid, symErr)
 			}
@@ -1123,16 +1114,15 @@ func (ao *APIObserver) sslScannerFunc(snap ProcSnapshot) error {
 				ao.appendLinkForInode(inode, l)
 			}
 			// Promoted from Debugf: visible in production logs to confirm uprobe attachment.
-			ao.Logger.Printf("SSL uprobes attached to %s (PID %d, %d probes)",
+			ao.Logger.Debugf("SSL uprobes attached to %s (PID %d, %d probes)",
 				m.LibSSLPath, pid, len(links))
 		} else {
-			ao.Logger.Printf("SSL: %s (PID %d) — library already probed (no new uprobes needed)",
+			ao.Logger.Debugf("SSL: %s (PID %d) — library already probed (no new uprobes needed)",
 				m.LibSSLPath, pid)
 		}
 	}
 	return nil
 }
-
 
 // goHTTP2ScannerFunc is the unified walker callback for Go HTTP/2 uprobe attachment.
 // Called only for genuinely new PIDs (binary inode not seen before).
@@ -1333,8 +1323,6 @@ func (ao *APIObserver) onPIDGone(pid uint32, snap ProcSnapshot) {
 	}
 }
 
-
-
 // attachExecTracepoints attaches the two BPF programs from exec_trace.h:
 //   - raw_tracepoint/sched_process_fork  (ka_sched_process_fork)
 //   - kretprobe/sys_execve               (ka_kretprobe_sys_execve)
@@ -1438,8 +1426,8 @@ func (ao *APIObserver) attachSSLProbesForMatch(m ssl.SSLLibMatch) []link.Link {
 		}
 	}
 
-	// Kubeshark-style probes: clean entry/return pattern with
-	// FD resolution via syscall tracepoints + address via tcp kprobes.
+	// clean entry/return pattern with FD resolution
+	// via syscalltracepoints + address via tcp kprobes.
 	links = append(links, ao.attachSSLProbePair(ex, m.LibSSLPath,
 		"SSL_write", ao.objs.KsSslWrite, ao.objs.KsSslRetWrite, resolveAddr)...)
 	links = append(links, ao.attachSSLProbePair(ex, m.LibSSLPath,
@@ -1514,7 +1502,6 @@ func (ao *APIObserver) attachSSLProbePair(
 	return links
 }
 
-
 // getFileInode returns the inode of a file, or 0 on error.
 func (ao *APIObserver) getFileInode(path string) uint64 {
 	var stat syscall.Stat_t
@@ -1527,7 +1514,6 @@ func (ao *APIObserver) getFileInode(path string) uint64 {
 // attachGoHTTP2Uprobes, attachGRPCCUprobes, and scanAndAttachGRPCC were
 // removed. Their logic is now handled by goHTTP2ScannerFunc and
 // grpcCScannerFunc via the unified UnifiedProcWalker.
-
 
 // attachGoTlsRetProbes attaches uprobe-at-ret probes for Go crypto/tls.
 // For each ret instruction offset found by go_tls_offsets.go, a regular
@@ -1567,7 +1553,7 @@ func (ao *APIObserver) attachGoTlsRetProbes(ex *link.Executable, target goprobe.
 			ao.appendLink(l)
 			readCount++
 		}
-		ao.Logger.Printf("Go TLS read_ex: %d ret probes attached", readCount)
+		ao.Logger.Debugf("Go TLS read_ex: %d ret probes attached", readCount)
 	}
 
 	return probeCount + readCount
@@ -1580,7 +1566,6 @@ func (ao *APIObserver) attachGoTlsRetProbes(ex *link.Executable, target goprobe.
 // TLS chunk processing is now handled by TlsPoller, which is initialized
 // in NewAPIObserver and delivers TlsChunkEvents directly to the Dissector.
 
-
 // drainGRPCCEvents reads the gRPC-C ring buffer and processes path events.
 func (ao *APIObserver) drainGRPCCEvents() {
 	ao.wg.Add(1)
@@ -1590,7 +1575,10 @@ func (ao *APIObserver) drainGRPCCEvents() {
 		return
 	}
 
+	// Ring buffer reader goroutine — tracked in ao.wg.
+	ao.wg.Add(1)
 	go func() {
+		defer ao.wg.Done()
 		var rec ringbuf.Record
 		for {
 			if err := ao.grpccEvents.ReadInto(&rec); err != nil {
@@ -1635,7 +1623,10 @@ func (ao *APIObserver) drainGoH2TransportEvents() {
 
 	ao.Logger.Print("Starting Go HTTP/2 transport events reader")
 
+	// Ring buffer reader goroutine — tracked in ao.wg.
+	ao.wg.Add(1)
 	go func() {
+		defer ao.wg.Done()
 		var rec ringbuf.Record
 		for {
 			if err := ao.goH2TransportEvents.ReadInto(&rec); err != nil {
@@ -1684,7 +1675,10 @@ func (ao *APIObserver) drainGoH2SingleHeaderEvents() {
 
 	ao.Logger.Debug("Starting Go HTTP/2 single-header events reader")
 
+	// Ring buffer reader goroutine — tracked in ao.wg.
+	ao.wg.Add(1)
 	go func() {
+		defer ao.wg.Done()
 		var rec ringbuf.Record
 		for {
 			if err := ao.goH2SingleHeaderEvents.ReadInto(&rec); err != nil {
@@ -1724,7 +1718,6 @@ func (ao *APIObserver) drainGoH2SingleHeaderEvents() {
 		}
 	}
 }
-
 
 // processGRPCCEvent decodes one ring-buffer sample and injects the
 // captured gRPC-C method path into the correlator.
@@ -1938,7 +1931,7 @@ func (ao *APIObserver) OnContainerAdded(containerID, k8sNamespace string, pidNS 
 		if err := ao.cgroupCtrl.TargetCgroup(cgroupID); err != nil {
 			ao.Logger.Warnf("cgroup_skb: failed to target cgroup %d (ns=%s, cid=%.12s): %v", cgroupID, k8sNamespace, containerID, err)
 		} else {
-			ao.Logger.Printf("cgroup_skb: targeting cgroup %d for packet capture (ns=%s, cid=%.12s)", cgroupID, k8sNamespace, containerID)
+			ao.Logger.Debugf("cgroup_skb: targeting cgroup %d for packet capture (ns=%s, cid=%.12s)", cgroupID, k8sNamespace, containerID)
 		}
 	}
 
@@ -1988,7 +1981,6 @@ func (ao *APIObserver) OnContainerRemoved(containerID string) {
 	}
 }
 
-
 // shouldAddToNsBPFMap returns true when the given namespace should have its
 // cgroup ID inserted into the BPF namespace filter map.
 // In allowlist mode: insert when the namespace IS in the allowed list.
@@ -2026,7 +2018,7 @@ func resolveCgroupIDFromPidNS(pidNS uint32, logger *fd.Feeder) (uint64, error) {
 	procRoot := cfg.GlobalCfg.ProcFsMount // e.g. "/host/procfs" or "/proc"
 	target := fmt.Sprintf("pid:[%d]", pidNS)
 
-	logger.Printf("Namespace filter [resolve]: scanning procRoot=%s for target=%s", procRoot, target)
+	logger.Debugf("Namespace filter [resolve]: scanning procRoot=%s for target=%s", procRoot, target)
 
 	// Scan the host procfs for a process in the target PID namespace.
 	entries, err := os.ReadDir(procRoot)
@@ -2059,7 +2051,7 @@ func resolveCgroupIDFromPidNS(pidNS uint32, logger *fd.Feeder) (uint64, error) {
 			continue
 		}
 
-		logger.Printf("Namespace filter [resolve]: MATCH pid=%s nsLink=%s", pid, nsLink)
+		logger.Debugf("Namespace filter [resolve]: MATCH pid=%s nsLink=%s", pid, nsLink)
 
 		// Stat the cgroup root through the process's mount namespace.
 		// /proc/<pid>/root/sys/fs/cgroup enters the process's filesystem view
@@ -2067,17 +2059,15 @@ func resolveCgroupIDFromPidNS(pidNS uint32, logger *fd.Feeder) (uint64, error) {
 		cgroupDir := filepath.Join(procRoot, pid, "root", "sys", "fs", "cgroup")
 		var stat syscall.Stat_t
 		if err := syscall.Stat(cgroupDir, &stat); err != nil {
-			logger.Printf("Namespace filter [resolve]: stat(%s) FAILED: %v", cgroupDir, err)
+			logger.Debugf("Namespace filter [resolve]: stat(%s) FAILED: %v", cgroupDir, err)
 			continue // try next process in the same pidNS
 		}
-		logger.Printf("Namespace filter [resolve]: stat(%s) => inode=%d", cgroupDir, stat.Ino)
+		logger.Debugf("Namespace filter [resolve]: stat(%s) => inode=%d", cgroupDir, stat.Ino)
 		return stat.Ino, nil
 	}
 
 	return 0, fmt.Errorf("no process found in pidNS %d (scanned %s, %d PIDs found, %d checked)", pidNS, procRoot, pidCount, checkedCount)
 }
-
-
 
 // Lifecycle
 func (ao *APIObserver) DestroyAPIObserver() error {
@@ -2129,9 +2119,11 @@ func (ao *APIObserver) DestroyAPIObserver() error {
 	}
 
 	// Since KubeArmor relies on DaemonSet restarts for API Observability toggling,
-	// we do not need to wait for goroutines to drain or manually close every BPF
-	// link (which triggers thousands of slow syscalls). The Linux kernel will
-	// automatically detach the eBPF programs when the process exits.
+	// we do not need to manually close every BPF link (the Linux kernel will
+	// automatically detach eBPF programs when the process exits). We DO need to
+	// wait for all ao.wg goroutines to drain so that they stop accessing feeder
+	// state before DestroyFeeder is called by the caller.
+	ao.wg.Wait()
 
 	return cleanupErr
 }

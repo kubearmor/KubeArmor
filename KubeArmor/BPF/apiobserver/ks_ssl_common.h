@@ -17,7 +17,7 @@
 #include "filter_helpers.h"
 
 /* =========================================================================
- * Core SSL / Go TLS maps (Kubeshark-style — "ks_" prefix)
+ * Core SSL / Go TLS maps 
  * ========================================================================= */
 
 #define KS_MAX_ENTRIES_LRU_HASH (1 << 14) /* 16384 */
