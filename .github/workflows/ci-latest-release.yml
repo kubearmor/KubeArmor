@@ -43,8 +43,6 @@ jobs:
             kubearmor:
               - "KubeArmor/**"
               - "protobuf/**"
-            controller:
-              - 'pkg/KubeArmorController/**'
   build:
     name: Create KubeArmor latest release
     needs: [check]
@@ -107,6 +105,7 @@ jobs:
             }
             core.setOutput('tag', tag);
             console.log(`Creating latest release with tag: ${tag}`);
+
       - name: Set up Docker
         uses: docker/setup-docker-action@e43656e248c0bd0647d3f5c195d116aacf6fcaf4 # v4
         with:
@@ -261,108 +260,3 @@ jobs:
       #     STABLE_VERSION=`cat STABLE-RELEASE`
       #     regctl image copy kubearmor/kubearmor:$STABLE_VERSION public.ecr.aws/k9v9d5v2/kubearmor/kubearmor:stable --digest-tags
       #     regctl image copy kubearmor/kubearmor-init:$STABLE_VERSION public.ecr.aws/k9v9d5v2/kubearmor/kubearmor-init:stable --digest-tags
-
-  kubearmor-controller-release:
-    name: Build & Push KubeArmorController
-    needs: [check]
-    if: github.repository == 'kubearmor/kubearmor' && (needs.check.outputs.controller == 'true' || github.ref != 'refs/heads/main')
-    defaults:
-      run:
-        working-directory: ./pkg/KubeArmorController
-    runs-on: oracle-vm-16cpu-64gb-x86-64
-    permissions:
-      id-token: write
-    timeout-minutes: 150
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-
-      - name: Install regctl
-        env:
-          REGCTL_VERSION: v0.11.5
-          REGCTL_SHA256: c93aa7638749f5aaac1a8e01787321889c78f0101809bb2880343478d0ba0467
-        run: |
-          curl -L https://github.com/regclient/regclient/releases/latest/download/regctl-linux-amd64 -o regctl
-          chmod 755 regctl
-          mv regctl /usr/local/bin/regctl
-
-      - name: Check install
-        run: regctl version
-      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
-        with:
-          go-version-file: "KubeArmor/go.mod"
-      - name: Set up Docker
-        uses: docker/setup-docker-action@e43656e248c0bd0647d3f5c195d116aacf6fcaf4 # v4
-        with:
-          daemon-config: |
-            {
-              "debug": true,
-              "features": {
-                "containerd-snapshotter": true
-              }
-            }
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@2b82ce82d56a2a04d2637cd93a637ae1b359c0a7 # v2
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@885d1462b80bc1c1c7f0b00334ad271f09369c55 # v2
-        with:
-          platforms: linux/amd64,linux/arm64/v8
-
-      - name: Login to Docker Hub
-        uses: docker/login-action@465a07811f14bebb1938fbed4728c6a1ff8901fc # v2
-        with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_AUTHTOK }}
-
-      # - name: Set up AWS Credentials
-      #   uses: aws-actions/configure-aws-credentials@v6
-      #   with:
-      #     aws-access-key-id: ${{ secrets.AWS_ECR_ACCESS_ID }}
-      #     aws-secret-access-key: ${{ secrets.AWS_ECR_SECRET_ID }}
-      #     aws-region: us-east-1
-
-      # - name: Login to AWS ECR
-      #   run: |
-      #     aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws/k9v9d5v2
-
-      - name: Get tag
-        id: tag
-        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
-        with:
-          script: |
-            let tag;
-            if (context.eventName === 'workflow_dispatch') {
-              // Fetch tags from remote
-              tag = context.payload.inputs.tag;
-              if (tag && tag.trim().length > 0) {
-                  await exec.exec('git', ['fetch', '--tags']);
-                  core.info(`Checking out tag: ${tag}`);
-                  await exec.exec('git', ['checkout', tag]);
-              } else {
-                  const ref = context.ref;
-                  tag = ref === "refs/heads/main" ? "latest" : ref.replace(/^refs\/[^/]+\//, "");
-              }
-            } else {
-              const ref = context.ref;
-              tag = ref === "refs/heads/main" ? "latest" : ref.replace(/^refs\/[^/]+\//, "");
-            }
-            core.setOutput('tag', tag);
-
-      - name: Build & Push KubeArmorController
-        run: make docker-buildx TAG=${{ steps.tag.outputs.tag }} BUILD_MODE=--push
-
-      # - name: Push KubeArmor controller to ECR
-      #   run: |
-      #     regctl image copy kubearmor/kubearmor-controller:${{ steps.tag.outputs.tag }} public.ecr.aws/k9v9d5v2/kubearmor/kubearmor-controller:${{ steps.tag.outputs.tag }}--digest-tags
-
-      - name: Install Cosign
-        uses: sigstore/cosign-installer@828df1e55de306ba29db814d6057ddae71883cda # main
-
-      - name: Get Image Digest
-        id: digest
-        run: |
-          echo "imagedigest=$(jq -r '.["containerimage.digest"]' kubearmor-controller.json)" >> $GITHUB_OUTPUT
-
-      - name: Sign the Container Images
-        run: |
-          cosign sign -r kubearmor/kubearmor-controller@${{ steps.digest.outputs.imagedigest }} --yes

@@ -31,6 +31,3 @@ spec:
   kubearmorRelayImage:
     image: kubearmor/kubearmor-relay-server
     imagePullPolicy: Always
-  kubearmorControllerImage:
-    image: kubearmor/kubearmor-controller
-    imagePullPolicy: Always

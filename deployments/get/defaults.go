@@ -13,24 +13,18 @@ var healthPort int32 = 32766
 
 // K8s Object Name Defaults
 var (
-	KubeArmorServiceAccountName                      = kubearmor
-	KubeArmorClusterRoleBindingName                  = "kubearmor-clusterrolebinding"
-	KubeArmorClusterRoleName                         = "kubearmor-clusterrole"
-	RelayServiceName                                 = kubearmor
-	RelayServiceAccountName                          = "kubearmor-relay"
-	RelayClusterRoleName                             = "kubearmor-relay-clusterrole"
-	RelayClusterRoleBindingName                      = "kubearmor-relay-clusterrolebinding"
-	RelayDeploymentName                              = "kubearmor-relay"
-	KubeArmorConfigMapName                           = "kubearmor-config"
-	KubeArmorControllerDeploymentName                = "kubearmor-controller"
-	KubeArmorControllerServiceAccountName            = KubeArmorControllerDeploymentName
-	KubeArmorControllerClusterRoleName               = "kubearmor-controller-clusterrole"
-	KubeArmorControllerClusterRoleBindingName        = "kubearmor-controller-clusterrolebinding"
-	KubeArmorControllerLeaderElectionRoleName        = "kubearmor-controller-leader-election-role"
-	KubeArmorControllerLeaderElectionRoleBindingName = "kubearmor-controller-leader-election-rolebinding"
-	KubeArmorControllerWebhookServiceName            = "kubearmor-controller-webhook-service"
-	KubeArmorControllerSecretName                    = "kubearmor-controller-webhook-server-cert"
-	KubeArmorControllerMutatingWebhookConfiguration  = "kubearmor-controller-mutating-webhook-configuration"
+	KubeArmorServiceAccountName                   = kubearmor
+	KubeArmorClusterRoleBindingName               = "kubearmor-clusterrolebinding"
+	KubeArmorClusterRoleName                      = "kubearmor-clusterrole"
+	RelayServiceName                              = kubearmor
+	RelayServiceAccountName                       = "kubearmor-relay"
+	RelayClusterRoleName                          = "kubearmor-relay-clusterrole"
+	RelayClusterRoleBindingName                   = "kubearmor-relay-clusterrolebinding"
+	RelayDeploymentName                           = "kubearmor-relay"
+	KubeArmorConfigMapName                        = "kubearmor-config"
+	KubeArmorOperatorWebhookServiceName           = "kubearmor-operator-webhook-service"
+	KubeArmorOperatorSecretName                   = "kubearmor-operator-webhook-server-cert"
+	KubeArmorOperatorMutatingWebhookConfiguration = "kubearmor-operator-mutating-webhook-configuration"
 )
 
 // DaemonSetConfig Structure

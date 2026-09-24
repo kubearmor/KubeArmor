@@ -22,7 +22,6 @@ RUN arch=$(uname -m) bpftool_version=v7.3.0 && \
 # relative deps required by the operator
 ADD deployments deployments
 ADD KubeArmor KubeArmor
-ADD pkg/KubeArmorController pkg/KubeArmorController
 
 RUN if [ ! -f /KubeArmor/KubeArmor/BPF/vmlinux.h ]; then \
         if [ -f /sys/kernel/btf/vmlinux ]; then \
@@ -49,11 +48,15 @@ COPY $OPERATOR_DIR/client client
 COPY $OPERATOR_DIR/cmd cmd
 COPY $OPERATOR_DIR/common common
 COPY $OPERATOR_DIR/cert cert
+COPY $OPERATOR_DIR/crd crd
 COPY $OPERATOR_DIR/internal/controller internal/controller
 COPY $OPERATOR_DIR/enforcer enforcer
+COPY $OPERATOR_DIR/handlers handlers
+COPY $OPERATOR_DIR/informer informer
 COPY $OPERATOR_DIR/k8s k8s
 COPY $OPERATOR_DIR/runtime runtime
 COPY $OPERATOR_DIR/seccomp seccomp
+COPY $OPERATOR_DIR/types types
 COPY $OPERATOR_DIR/recommend recommend
 COPY $OPERATOR_DIR/hook hook
 COPY $OPERATOR_DIR/utils utils

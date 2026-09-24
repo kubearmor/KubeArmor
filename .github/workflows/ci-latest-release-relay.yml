@@ -1,0 +1,106 @@
+name: ci-release-relay-server
+
+on:
+  push:
+    branches: [main, v*]
+
+    paths:
+      - "pkg/KubeArmorRelayServer/**"
+      - ".github/workflows/ci-latest-release-relay.yml"
+  
+  create:
+    branches:
+      - "v*"
+      
+jobs:
+  push-docker-img:
+    name: Create and push docker image
+    if: github.repository == 'kubearmor/kubearmor'
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write 
+    timeout-minutes: 20
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@2b82ce82d56a2a04d2637cd93a637ae1b359c0a7 # v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@885d1462b80bc1c1c7f0b00334ad271f09369c55 # v2
+        with:
+          platforms: linux/amd64,linux/arm64/v8
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@465a07811f14bebb1938fbed4728c6a1ff8901fc # v2
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_AUTHTOK }}
+      
+      - name: Push images to Docker
+        run: |
+          if [ ${{ github.ref }} == "refs/heads/main" ]; then
+            TAG=latest
+          else
+            TAG=${GITHUB_REF#refs/*/}
+          fi
+          ./pkg/KubeArmorRelayServer/build/push_img.sh $TAG
+
+      - name: Install Cosign 
+        uses: sigstore/cosign-installer@828df1e55de306ba29db814d6057ddae71883cda # main
+  
+      - name: Get Image Digest
+        id: digest
+        run: | 
+          echo "imagedigest=$(jq -r '.["containerimage.digest"]' kubearmor-relay-server.json)" >> $GITHUB_OUTPUT
+
+      - name: Sign the Container Images
+        run: |
+          cosign sign -r kubearmor/kubearmor-relay-server@${{ steps.digest.outputs.imagedigest }} --yes    
+    
+  push-stable-version:
+    name: Create kubearmor-relay stable release
+    needs: push-docker-img
+    if: github.ref != 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: main
+
+      - name: Install regctl
+        run: |
+          curl -L https://github.com/regclient/regclient/releases/latest/download/regctl-linux-amd64 >regctl
+          chmod 755 regctl
+          mv regctl /usr/local/bin
+
+      - name: Check install
+        run: regctl version
+
+      - name: Get tag
+        id: match
+        run: |
+          value=`cat STABLE-RELEASE`
+          if [ ${{ github.ref }} == "refs/heads/$value" ]; then
+            echo "tag=true" >> $GITHUB_OUTPUT
+          else
+            echo "tag=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Login to Docker Hub
+        if: steps.match.outputs.tag == 'true'
+        uses: docker/login-action@465a07811f14bebb1938fbed4728c6a1ff8901fc # v2
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_AUTHTOK }}
+
+      - name: Generate the stable version of kubearmor-relay in Docker Hub
+        if: steps.match.outputs.tag == 'true'
+        run: |
+          STABLE_VERSION=`cat STABLE-RELEASE`
+          regctl image copy kubearmor/kubearmor-relay-server:$STABLE_VERSION kubearmor/kubearmor-relay-server:stable --digest-tags
+          

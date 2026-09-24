@@ -6,8 +6,7 @@ package k8s
 import (
 	"os"
 
-	secv1client "github.com/kubearmor/KubeArmor/pkg/KubeArmorController/client/clientset/versioned"
-	opv1client "github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/client/clientset/versioned"
+	opclient "github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/client/clientset/versioned"
 	"go.uber.org/zap"
 	apiextensionsclientset "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	"k8s.io/client-go/kubernetes"
@@ -82,7 +81,7 @@ func NewExtClient(log zap.SugaredLogger, kubeconfig string) *apiextensionsclient
 	return client
 }
 
-func NewOpv1Client(log zap.SugaredLogger, kubeconfig string) *opv1client.Clientset {
+func NewOpv1Client(log zap.SugaredLogger, kubeconfig string) *opclient.Clientset {
 	var cfg *rest.Config
 	log.Info("Trying to load InCluster configuration")
 	inClusterConfig, err := rest.InClusterConfig()
@@ -106,20 +105,20 @@ func NewOpv1Client(log zap.SugaredLogger, kubeconfig string) *opv1client.Clients
 		cfg = inClusterConfig
 	}
 
-	client, err := opv1client.NewForConfig(cfg)
+	client, err := opclient.NewForConfig(cfg)
 	if err != nil {
 		log.Errorf("Couldn't create operatorv1 clientset Error=%s", err.Error())
 		os.Exit(1)
 	}
 
 	if client == nil {
-		log.Warn("opv1client is nil")
+		log.Warn("opclient is nil")
 	}
 
 	return client
 }
 
-func NewSecv1Client(log zap.SugaredLogger, kubeconfig string) *secv1client.Clientset {
+func NewSecv1Client(log zap.SugaredLogger, kubeconfig string) *opclient.Clientset {
 	var cfg *rest.Config
 	log.Info("Trying to load InCluster configuration")
 	inClusterConfig, err := rest.InClusterConfig()
@@ -143,14 +142,14 @@ func NewSecv1Client(log zap.SugaredLogger, kubeconfig string) *secv1client.Clien
 		cfg = inClusterConfig
 	}
 
-	client, err := secv1client.NewForConfig(cfg)
+	client, err := opclient.NewForConfig(cfg)
 	if err != nil {
 		log.Errorf("Couldn't create operatorv1 clientset Error=%s", err.Error())
 		os.Exit(1)
 	}
 
 	if client == nil {
-		log.Warn("opv1client is nil")
+		log.Warn("opclient is nil")
 	}
 
 	return client

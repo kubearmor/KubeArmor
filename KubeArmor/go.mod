@@ -17,7 +17,7 @@ replace (
 	github.com/kubearmor/KubeArmor/KubeArmor/policy => ./policy
 	github.com/kubearmor/KubeArmor/KubeArmor/types => ./types
 	github.com/kubearmor/KubeArmor/deployments => ../deployments
-	github.com/kubearmor/KubeArmor/pkg/KubeArmorController => ../pkg/KubeArmorController
+	github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator => ../pkg/KubeArmorOperator
 	github.com/kubearmor/KubeArmor/protobuf => ../protobuf
 	gopkg.in/yaml.v3 => gopkg.in/yaml.v3 v3.0.1
 )
@@ -34,8 +34,8 @@ require (
 	github.com/fsnotify/fsnotify v1.10.1
 	github.com/google/gopacket v1.1.19
 	github.com/google/uuid v1.6.0
-	github.com/kubearmor/KubeArmor/pkg/KubeArmorController v0.0.0-20260406102335-87edc770f8bf
-	github.com/kubearmor/KubeArmor/protobuf v0.0.0-20260406102335-87edc770f8bf
+	github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator v0.0.0-00010101000000-000000000000
+	github.com/kubearmor/KubeArmor/protobuf v0.0.0-20260521154542-6789b83a8cee
 	github.com/mdlayher/netlink v1.11.2
 	github.com/moby/moby/api v1.54.2
 	github.com/moby/moby/client v0.4.1

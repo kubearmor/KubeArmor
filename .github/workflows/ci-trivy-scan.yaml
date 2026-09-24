@@ -45,10 +45,10 @@ jobs:
             kubearmor:
               - "KubeArmor/**"
               - "protobuf/**"
-            controller:
-              - 'pkg/KubeArmorController/**'
             operator:
               - 'pkg/KubeArmorOperator/**'
+            relay:
+              - 'pkg/KubeArmorRelayServer/**'
       
       - name: Install the latest LLVM toolchain
         run: ./.github/workflows/install-llvm.sh
@@ -80,16 +80,16 @@ jobs:
   
       - name: Build KubeArmor images to Docker
         run: GITHUB_SHA=$GITHUB_SHA ./KubeArmor/build/build_kubearmor.sh
-      
-      - name: Build Kubearmor controller 
-        if: steps.filter.outputs.controller == 'true'
-        working-directory: ./pkg/KubeArmorController
-        run: make docker-build
 
       - name: Build Kubearmor operator
         if: steps.filter.outputs.operator == 'true'
         working-directory: ./pkg/KubeArmorOperator
         run: make docker-build
+
+      - name: Build Kubearmor relay server
+        if: steps.filter.outputs.relay == 'true'
+        working-directory: ./pkg/KubeArmorRelayServer
+        run: make build-image
 
       - name: Save images to tar for Trivy Scan
         run: |
@@ -98,8 +98,8 @@ jobs:
           if [[ ${{ steps.filter.outputs.operator }} == 'true' ]]; then
             docker save -o kubearmor-operator.tar kubearmor/kubearmor-operator:latest
           fi
-          if [[ ${{ steps.filter.outputs.controller }} == 'true' ]]; then
-            docker save -o kubearmor-controller.tar kubearmor/kubearmor-controller:latest
+          if [[ ${{ steps.filter.outputs.relay }} == 'true' ]]; then
+            docker save -o kubearmor-relay-server.tar kubearmor/kubearmor-relay-server:latest
           fi
           
       - name: Run Trivy vulnerability scanner on kubearmor-init
@@ -124,20 +124,7 @@ jobs:
           ignore-unfixed: true
           vuln-type: 'os,library'
           severity: 'CRITICAL,HIGH'   
-        continue-on-error: true  
-
-      - name: Run Trivy vulnerability scanner on kubearmor-controller
-        if: steps.filter.outputs.controller == 'true'
-        id: scan_controller
-        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
-        with:
-          input: kubearmor-controller.tar
-          format: 'table'
-          exit-code: '1'
-          ignore-unfixed: true
-          vuln-type: 'os,library'
-          severity: 'CRITICAL,HIGH'   
-        continue-on-error: true 
+        continue-on-error: true
 
       - name: Run Trivy vulnerability scanner on kubearmor-operator
         if: steps.filter.outputs.operator == 'true'
@@ -145,6 +132,19 @@ jobs:
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           input: kubearmor-operator.tar
+          format: 'table'
+          exit-code: '1'
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH'   
+        continue-on-error: true 
+
+      - name: Run Trivy vulnerability scanner on kubearmor-relay-server
+        if: steps.filter.outputs.relay == 'true'
+        id: scan_relay_server
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          input: kubearmor-relay-server.tar
           format: 'table'
           exit-code: '1'
           ignore-unfixed: true
@@ -174,16 +174,6 @@ jobs:
             echo "✅ kubearmor: PASSED"
           fi
 
-          # Check kubearmor-controller scan result, if it ran
-          if [[ "${{ steps.filter.outputs.controller }}" == "true" ]]; then
-            if [[ "${{ steps.scan_controller.outcome }}" == "failure" ]]; then
-              echo "❌ kubearmor-controller: FAILED (Vulnerabilities found)"
-              any_scan_failed=true
-            else
-              echo "✅ kubearmor-controller: PASSED"
-            fi
-          fi
-
           # Check kubearmor-operator scan result, if it ran
           if [[ "${{ steps.filter.outputs.operator }}" == "true" ]]; then
             if [[ "${{ steps.scan_operator.outcome }}" == "failure" ]]; then
@@ -191,6 +181,16 @@ jobs:
               any_scan_failed=true
             else
               echo "✅ kubearmor-operator: PASSED"
+            fi
+          fi
+
+          # Check kubearmor-relay-server scan result, if it ran
+          if [[ "${{ steps.filter.outputs.relay }}" == "true" ]]; then
+            if [[ "${{ steps.scan_relay_server.outcome }}" == "failure" ]]; then
+              echo "❌ kubearmor-relay-server: FAILED (Vulnerabilities found)"
+              any_scan_failed=true
+            else
+              echo "✅ kubearmor-relay-server: PASSED"
             fi
           fi
 

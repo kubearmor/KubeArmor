@@ -10,7 +10,6 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 
@@ -475,260 +474,23 @@ func GenerateDaemonSet(env, namespace string) *appsv1.DaemonSet {
 	}
 }
 
-var KubeArmorControllerLabels = map[string]string{
-	"kubearmor-app": "kubearmor-controller",
+var KubeArmorOperatorLabels = map[string]string{
+	"kubearmor-app": "kubearmor-operator",
 }
 
-var KubeArmorControllerCertVolumeDefaultMode = int32(420)
-
-var KubeArmorControllerCertVolume = corev1.Volume{
-	Name: "cert",
-	VolumeSource: corev1.VolumeSource{
-		Secret: &corev1.SecretVolumeSource{
-			SecretName:  KubeArmorControllerSecretName,
-			DefaultMode: &KubeArmorControllerCertVolumeDefaultMode,
-		},
-	},
-}
-
-var KubeArmorControllerAllowPrivilegeEscalation = false
-
-// GetKubeArmorControllerDeployment Function
-func GetKubeArmorControllerDeployment(namespace string) *appsv1.Deployment {
-	return &appsv1.Deployment{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "Deployment",
-			APIVersion: "apps/v1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      KubeArmorControllerDeploymentName,
-			Labels:    KubeArmorControllerLabels,
-			Namespace: namespace,
-		},
-		Spec: appsv1.DeploymentSpec{
-			Replicas: &replicas,
-			Selector: &metav1.LabelSelector{
-				MatchLabels: KubeArmorControllerLabels,
-			},
-			Template: corev1.PodTemplateSpec{
-				ObjectMeta: metav1.ObjectMeta{
-					Annotations: map[string]string{
-						"kubearmor-policy": "audited",
-						"container.apparmor.security.beta.kubernetes.io/manager": "unconfined",
-					},
-					Labels: KubeArmorControllerLabels,
-				},
-				Spec: corev1.PodSpec{
-					ServiceAccountName: KubeArmorControllerServiceAccountName,
-					Volumes: []corev1.Volume{
-						KubeArmorControllerCertVolume,
-					},
-					Containers: []corev1.Container{
-						{
-							Name:  "manager",
-							Image: "kubearmor/kubearmor-controller:latest",
-							Args: []string{
-								"--leader-elect",
-								"--health-probe-bind-address=:8081",
-								"--annotateExisting=false",
-							},
-							Command: []string{"/manager"},
-							Ports: []corev1.ContainerPort{
-								{
-									ContainerPort: int32(9443),
-									Name:          "webhook-server",
-									Protocol:      corev1.ProtocolTCP,
-								},
-							},
-							VolumeMounts: []corev1.VolumeMount{
-								{
-									Name:      KubeArmorControllerCertVolume.Name,
-									ReadOnly:  true,
-									MountPath: "/tmp/k8s-webhook-server/serving-certs",
-								},
-							},
-							SecurityContext: &corev1.SecurityContext{
-								AllowPrivilegeEscalation: &KubeArmorControllerAllowPrivilegeEscalation,
-							},
-							LivenessProbe: &corev1.Probe{
-								ProbeHandler: corev1.ProbeHandler{
-									HTTPGet: &corev1.HTTPGetAction{
-										Path: "/healthz",
-										Port: intstr.FromInt(8081),
-									},
-								},
-								InitialDelaySeconds: int32(15),
-								PeriodSeconds:       int32(20),
-							},
-							ReadinessProbe: &corev1.Probe{
-								ProbeHandler: corev1.ProbeHandler{
-									HTTPGet: &corev1.HTTPGetAction{
-										Path: "/readyz",
-										Port: intstr.FromInt(8081),
-									},
-								},
-								InitialDelaySeconds: int32(5),
-								PeriodSeconds:       int32(10),
-							},
-							Resources: corev1.ResourceRequirements{
-								Requests: corev1.ResourceList{
-									corev1.ResourceCPU:    resource.MustParse("10m"),
-									corev1.ResourceMemory: resource.MustParse("64Mi"),
-								},
-							},
-						},
-					},
-					TerminationGracePeriodSeconds: &terminationGracePeriodSeconds,
-				},
-			},
-		},
-	}
-}
-
-// GetKubeArmorControllerServiceAccount Function
-func GetKubeArmorControllerServiceAccount(namespace string) *corev1.ServiceAccount {
-	return &corev1.ServiceAccount{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "ServiceAccount",
-			APIVersion: "v1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      KubeArmorControllerServiceAccountName,
-			Namespace: namespace,
-		},
-	}
-}
-
-// GetKubeArmorControllerClusterRole Function
-func GetKubeArmorControllerClusterRole() *rbacv1.ClusterRole {
-	return &rbacv1.ClusterRole{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "ClusterRole",
-			APIVersion: "rbac.authorization.k8s.io/v1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name: KubeArmorControllerClusterRoleName,
-		},
-		Rules: []rbacv1.PolicyRule{
-			{
-				APIGroups: []string{""},
-				Resources: []string{"pods"},
-				Verbs:     []string{"create", "delete", "get", "patch", "list", "watch", "update"},
-			},
-			{
-				APIGroups: []string{""},
-				Resources: []string{"nodes"},
-				Verbs:     []string{"get", "list", "watch"},
-			},
-			{
-				APIGroups: []string{"security.kubearmor.com"},
-				Resources: []string{"kubearmorpolicies", "kubearmorclusterpolicies", "kubearmorhostpolicies"},
-				Verbs:     []string{"create", "delete", "get", "patch", "list", "watch", "update"},
-			},
-			{
-				APIGroups: []string{"security.kubearmor.com"},
-				Resources: []string{"kubearmorpolicies/status", "kubearmorclusterpolicies/status", "kubearmorhostpolicies/status"},
-				Verbs:     []string{"get", "patch", "update"},
-			},
-		},
-	}
-}
-
-// GetKubeArmorControllerClusterRoleBinding Function
-func GetKubeArmorControllerClusterRoleBinding(namespace string) *rbacv1.ClusterRoleBinding {
-	return &rbacv1.ClusterRoleBinding{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "ClusterRoleBinding",
-			APIVersion: "rbac.authorization.k8s.io/v1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name: KubeArmorControllerClusterRoleBindingName,
-		},
-		RoleRef: rbacv1.RoleRef{
-			APIGroup: "rbac.authorization.k8s.io",
-			Kind:     "ClusterRole",
-			Name:     KubeArmorControllerClusterRoleName,
-		},
-		Subjects: []rbacv1.Subject{
-			{
-				Kind:      "ServiceAccount",
-				Name:      KubeArmorControllerServiceAccountName,
-				Namespace: namespace,
-			},
-		},
-	}
-}
-
-// GetKubeArmorControllerLeaderElectionRole Function
-func GetKubeArmorControllerLeaderElectionRole(namespace string) *rbacv1.Role {
-	return &rbacv1.Role{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "Role",
-			APIVersion: "rbac.authorization.k8s.io/v1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      KubeArmorControllerLeaderElectionRoleName,
-			Namespace: namespace,
-		},
-		Rules: []rbacv1.PolicyRule{
-			{
-				APIGroups: []string{""},
-				Resources: []string{"configmaps"},
-				Verbs:     []string{"create", "delete", "get", "patch", "list", "watch", "update"},
-			},
-			{
-				APIGroups: []string{"coordination.k8s.io"},
-				Resources: []string{"leases"},
-				Verbs:     []string{"create", "delete", "get", "patch", "list", "watch", "update"},
-			},
-			{
-				APIGroups: []string{""},
-				Resources: []string{"events"},
-				Verbs:     []string{"create", "patch"},
-			},
-		},
-	}
-}
-
-// GetKubeArmorControllerLeaderElectionRoleBinding Function
-func GetKubeArmorControllerLeaderElectionRoleBinding(namespace string) *rbacv1.RoleBinding {
-	return &rbacv1.RoleBinding{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "RoleBinding",
-			APIVersion: "rbac.authorization.k8s.io/v1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      KubeArmorControllerLeaderElectionRoleBindingName,
-			Namespace: namespace,
-		},
-		RoleRef: rbacv1.RoleRef{
-			APIGroup: "rbac.authorization.k8s.io",
-			Kind:     "Role",
-			Name:     KubeArmorControllerLeaderElectionRoleName,
-		},
-		Subjects: []rbacv1.Subject{
-			{
-				Kind:      "ServiceAccount",
-				Name:      KubeArmorControllerServiceAccountName,
-				Namespace: namespace,
-			},
-		},
-	}
-}
-
-// GetKubeArmorControllerWebhookService Function
-func GetKubeArmorControllerWebhookService(namespace string) *corev1.Service {
+// GetKubeArmorOperatorWebhookService Function
+func GetKubeArmorOperatorWebhookService(namespace string) *corev1.Service {
 	return &corev1.Service{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Service",
 			APIVersion: "v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      KubeArmorControllerWebhookServiceName,
+			Name:      KubeArmorOperatorWebhookServiceName,
 			Namespace: namespace,
 		},
 		Spec: corev1.ServiceSpec{
-			Selector: KubeArmorControllerLabels,
+			Selector: KubeArmorOperatorLabels,
 			Ports: []corev1.ServicePort{
 				{
 					Port:       443,
@@ -740,35 +502,35 @@ func GetKubeArmorControllerWebhookService(namespace string) *corev1.Service {
 	}
 }
 
-var KubeArmorControllerMutationFullName = "annotation.kubearmor.com"
-var KubeArmorControllerPodMutationPath = "/mutate-pods"
-var KubeArmorControllerPodMutationFailurePolicy = admissionregistrationv1.Ignore
-var KubeArmorControllerMutationSideEffect = admissionregistrationv1.SideEffectClassNoneOnDryRun
+var KubeArmorOperatorMutationFullName = "annotation.kubearmor.com"
+var KubeArmorOperatorPodMutationPath = "/mutate-pods"
+var KubeArmorOperatorPodMutationFailurePolicy = admissionregistrationv1.Ignore
+var KubeArmorOperatorMutationSideEffect = admissionregistrationv1.SideEffectClassNoneOnDryRun
 
-// GetKubeArmorControllerMutationAdmissionConfiguration Function
-func GetKubeArmorControllerMutationAdmissionConfiguration(namespace string, caCert []byte) *admissionregistrationv1.MutatingWebhookConfiguration {
+// GetKubeArmorOperatorMutationAdmissionConfiguration Function
+func GetKubeArmorOperatorMutationAdmissionConfiguration(namespace string, caCert []byte) *admissionregistrationv1.MutatingWebhookConfiguration {
 	return &admissionregistrationv1.MutatingWebhookConfiguration{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "MutatingWebhookConfiguration",
 			APIVersion: "admissionregistration.k8s.io/v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      KubeArmorControllerMutatingWebhookConfiguration,
+			Name:      KubeArmorOperatorMutatingWebhookConfiguration,
 			Namespace: namespace,
 		},
 		Webhooks: []admissionregistrationv1.MutatingWebhook{
 			{
-				Name:                    KubeArmorControllerMutationFullName,
+				Name:                    KubeArmorOperatorMutationFullName,
 				AdmissionReviewVersions: []string{"v1"},
 				ClientConfig: admissionregistrationv1.WebhookClientConfig{
 					Service: &admissionregistrationv1.ServiceReference{
 						Namespace: namespace,
-						Name:      KubeArmorControllerWebhookServiceName,
-						Path:      &KubeArmorControllerPodMutationPath,
+						Name:      KubeArmorOperatorWebhookServiceName,
+						Path:      &KubeArmorOperatorPodMutationPath,
 					},
 					CABundle: caCert,
 				},
-				FailurePolicy: &KubeArmorControllerPodMutationFailurePolicy,
+				FailurePolicy: &KubeArmorOperatorPodMutationFailurePolicy,
 				Rules: []admissionregistrationv1.RuleWithOperations{
 					{
 						Rule: admissionregistrationv1.Rule{
@@ -782,7 +544,7 @@ func GetKubeArmorControllerMutationAdmissionConfiguration(namespace string, caCe
 						},
 					},
 				},
-				SideEffects: &KubeArmorControllerMutationSideEffect,
+				SideEffects: &KubeArmorOperatorMutationSideEffect,
 				ObjectSelector: &metav1.LabelSelector{
 					MatchExpressions: []metav1.LabelSelectorRequirement{
 						{
@@ -796,8 +558,8 @@ func GetKubeArmorControllerMutationAdmissionConfiguration(namespace string, caCe
 	}
 }
 
-// GetKubeArmorControllerTLSSecret Functionn
-func GetKubeArmorControllerTLSSecret(namespace string, caCert string, tlsCrt string, tlsKey string) *corev1.Secret {
+// GetKubeArmorOperatorTLSSecret Functionn
+func GetKubeArmorOperatorTLSSecret(namespace string, caCert string, tlsCrt string, tlsKey string) *corev1.Secret {
 	data := make(map[string]string)
 	data["ca.crt"] = caCert
 	data["tls.crt"] = tlsCrt
@@ -809,9 +571,9 @@ func GetKubeArmorControllerTLSSecret(namespace string, caCert string, tlsCrt str
 			APIVersion: "v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      KubeArmorControllerSecretName,
+			Name:      KubeArmorOperatorSecretName,
 			Namespace: namespace,
-			Labels:    KubeArmorControllerLabels,
+			Labels:    KubeArmorOperatorLabels,
 		},
 		StringData: data,
 	}

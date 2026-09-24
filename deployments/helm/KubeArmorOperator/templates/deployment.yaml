@@ -43,6 +43,10 @@ spec:
       {{- end }}
       containers:
       - name: {{ .Values.kubearmorOperator.name }}
+        ports:
+        - name: webhook-server
+          containerPort: 9443
+          protocol: TCP
         env:
         - name: KUBEARMOR_OPERATOR_NS
           valueFrom:

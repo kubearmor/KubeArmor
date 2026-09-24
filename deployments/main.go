@@ -16,7 +16,7 @@ import (
 
 	"sigs.k8s.io/yaml"
 
-	kcrd "github.com/kubearmor/KubeArmor/pkg/KubeArmorController/crd"
+	kcrd "github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/crd"
 )
 
 func main() {
@@ -32,7 +32,6 @@ func main() {
 			// ServiceAccounts
 			dp.GetServiceAccount(namespace),
 			dp.GetRelayServiceAccount(namespace),
-			dp.GetKubeArmorControllerServiceAccount(namespace),
 
 			// Configmap
 			dp.GetKubearmorConfigMap(namespace, dp.KubeArmorConfigMapName),
@@ -46,25 +45,17 @@ func main() {
 			// ClusterRoles
 			dp.GetClusterRole(),
 			dp.GetRelayClusterRole(),
-			dp.GetKubeArmorControllerClusterRole(),
 
 			// ClusterRoleBindings
 			dp.GetClusterRoleBinding(namespace),
 			dp.GetRelayClusterRoleBinding(namespace),
-			dp.GetKubeArmorControllerClusterRoleBinding(namespace),
-
-			// Roles
-			dp.GetKubeArmorControllerLeaderElectionRole(namespace),
-			dp.GetKubeArmorControllerLeaderElectionRoleBinding(namespace),
 
 			// Services
 			dp.GetRelayService(namespace),
-			dp.GetKubeArmorControllerWebhookService(namespace),
 
 			// Apps
 			dp.GenerateDaemonSet(strings.ToLower(env), namespace),
 			dp.GetRelayDeployment(namespace),
-			dp.GetKubeArmorControllerDeployment(namespace),
 		}
 
 		currDir, err := os.Getwd()

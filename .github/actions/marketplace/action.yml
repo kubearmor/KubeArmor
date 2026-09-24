@@ -38,7 +38,6 @@ runs:
         yq -i '.kubearmor.repo = "${{inputs.registry}}" |
               .kubearmor.images.kubearmor.tag = "${{ inputs.version }}" |
               .kubearmor.images.kubearmorInit.tag = "${{ inputs.version }}" |
-              .kubearmor.images.kubearmorController.tag = "${{ inputs.version }}" |
               .kubearmor.images.kubearmorSnitch.tag = "${{ inputs.version }}" |
               .kubearmor.images.kubearmorOperator.tag = "${{ inputs.version }}" |
               .kubearmor.images.kubearmorRelay.tag = "${{ inputs.relay_version }}" |

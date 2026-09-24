@@ -14,7 +14,7 @@ import (
 
 	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
 	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
-	kspclient "github.com/kubearmor/KubeArmor/pkg/KubeArmorController/client/clientset/versioned"
+	kspclient "github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/client/clientset/versioned"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
