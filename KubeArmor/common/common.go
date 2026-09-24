@@ -5,6 +5,8 @@
 package common
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -52,6 +54,21 @@ const (
 func Clone(src, dst any) error {
 	arr, _ := json.Marshal(src)
 	return json.Unmarshal(arr, dst)
+}
+
+// ComputeHash returns a deterministic, hex-encoded SHA-256 digest of the JSON
+// serialization of v. json.Marshal sorts map keys, so callers only need to
+// ensure that any slices inside v are in a stable order before calling.
+//
+// This is for observability only (logs, probe output, debugging). It MUST NOT
+// be used for any enforcement or trust decision.
+func ComputeHash(v any) (string, error) {
+	arr, err := json.Marshal(v)
+	if err != nil {
+		return "", fmt.Errorf("compute hash: %w", err)
+	}
+	sum := sha256.Sum256(arr)
+	return hex.EncodeToString(sum[:]), nil
 }
 
 // RemoveStringElement function
