@@ -324,3 +324,89 @@ func TestConcurrentEndpointAccess(t *testing.T) {
 	wg.Wait()
 	t.Logf("Concurrent access test completed. Final endpoint count: %d", len(dm.EndPoints))
 }
+
+// TestContainerEventAndPolicyUpdateRace exercises concurrent policy updates and fresh endpoint reads.
+func TestContainerEventAndPolicyUpdateRace(t *testing.T) {
+	dm := &KubeArmorDaemon{
+		EndPoints: []tp.EndPoint{{
+			NamespaceName:    "default",
+			EndPointName:     "test-pod",
+			ContainerName:    "app",
+			Containers:       []string{"cid-1"},
+			Identities:       []string{"namespaceName=default"},
+			PolicyEnabled:    tp.KubeArmorPolicyEnabled,
+			SecurityPolicies: []tp.SecurityPolicy{},
+		}},
+		EndPointsLock:            &sync.RWMutex{},
+		SecurityPolicies:         []tp.SecurityPolicy{},
+		SecurityPoliciesLock:     &sync.RWMutex{},
+		DefaultPostures:          map[string]tp.DefaultPosture{},
+		DefaultPosturesLock:      &sync.Mutex{},
+		HostSecurityPolicies:     []tp.HostSecurityPolicy{},
+		HostSecurityPoliciesLock: &sync.RWMutex{},
+	}
+
+	testPolicy := tp.SecurityPolicy{
+		Metadata: map[string]string{
+			"namespaceName": "default",
+			"policyName":    "test-policy",
+		},
+		Spec: tp.SecuritySpec{
+			Selector: tp.SelectorType{
+				Identities: []string{"namespaceName=default"},
+			},
+		},
+	}
+
+	var wg sync.WaitGroup
+	stopCh := make(chan struct{})
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for {
+			select {
+			case <-stopCh:
+				return
+			default:
+				dm.UpdateSecurityPolicy(addEvent, KubeArmorPolicy, testPolicy)
+				dm.UpdateSecurityPolicy(updateEvent, KubeArmorPolicy, testPolicy)
+				time.Sleep(1 * time.Millisecond)
+			}
+		}
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for {
+			select {
+			case <-stopCh:
+				return
+			default:
+				dm.enforceEndpointSecurityPolicies("ADDED", "default", "test-pod", "cid-1")
+				_, _ = dm.getFreshEndPointForContainer("default", "test-pod", "cid-1")
+				time.Sleep(1 * time.Millisecond)
+			}
+		}
+	}()
+
+	time.Sleep(50 * time.Millisecond)
+	close(stopCh)
+	wg.Wait()
+
+	dm.EndPointsLock.RLock()
+	defer dm.EndPointsLock.RUnlock()
+	for _, ep := range dm.EndPoints {
+		if ep.EndPointName != "test-pod" {
+			continue
+		}
+		if ep.PolicyRevision == 0 {
+			t.Errorf("PolicyRevision should be > 0 after policy updates, got %d", ep.PolicyRevision)
+		}
+		fresh, ok := dm.getFreshEndPointForContainer("default", "test-pod", "cid-1")
+		if ok && len(fresh.SecurityPolicies) != len(ep.SecurityPolicies) {
+			t.Errorf("final fresh read policy count %d != canonical %d", len(fresh.SecurityPolicies), len(ep.SecurityPolicies))
+		}
+	}
+}
