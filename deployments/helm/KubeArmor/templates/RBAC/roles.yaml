@@ -72,6 +72,7 @@ rules:
   - pods
   - services
   verbs:
+  - get
   - list
   - watch
 ---
