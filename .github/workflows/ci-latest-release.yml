@@ -105,6 +105,7 @@ jobs:
             }
             core.setOutput('tag', tag);
             console.log(`Creating latest release with tag: ${tag}`);
+
       - name: Set up Docker
         uses: docker/setup-docker-action@e43656e248c0bd0647d3f5c195d116aacf6fcaf4 # v4
         with:

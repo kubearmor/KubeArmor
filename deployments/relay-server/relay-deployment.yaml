@@ -1,0 +1,91 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: kubearmor
+  namespace: kubearmor
+spec:
+  selector:
+    kubearmor-app: kubearmor-relay
+  ports:
+  - port: 32767
+    protocol: TCP
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: kubearmor-relay
+  namespace: kubearmor
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kubearmor-relay-clusterrole
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  - services
+  verbs:
+  - get
+  - list
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: kubearmor-relay-clusterrolebinding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: kubearmor-relay-clusterrole
+subjects:
+- kind: ServiceAccount
+  name: kubearmor-relay
+  namespace: kubearmor
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kubearmor-relay
+  namespace: kubearmor
+  labels:
+    kubearmor-app: kubearmor-relay
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      kubearmor-app: kubearmor-relay
+  template:
+    metadata:
+      labels:
+        kubearmor-app: kubearmor-relay
+      annotations:
+        kubearmor-policy: audited
+    spec:
+      serviceAccountName: kubearmor-relay
+      containers:
+      - name: kubearmor-relay-server
+        image: kubearmor/kubearmor-relay-server:latest
+        env:
+          - name: ENABLE_DASHBOARDS
+            value: "true"
+          - name: ES_URL
+            value: "http://elasticsearch:9200"
+          - name: KUBEARMOR_SERVICE
+            value: ""
+          - name: ENABLE_STDOUT_LOGS
+            value: "false"
+          - name: ENABLE_STDOUT_ALERTS
+            value: "false"
+          - name: ENABLE_STDOUT_MSGS
+            value: "false"
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 32767
+        resources:
+          requests:
+            cpu: 250m
+            memory: 64Mi
+          limits:
+            cpu: 500m
+            memory: 128Mi

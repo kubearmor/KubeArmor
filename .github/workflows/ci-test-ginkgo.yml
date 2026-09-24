@@ -31,6 +31,8 @@ jobs:
         id: filter
         with:
           filters: |
+            relay:
+              - 'pkg/KubeArmorRelayServer/**'
             multiubuntu:
               - 'examples/multiubuntu/build/**'
 
@@ -65,6 +67,12 @@ jobs:
         run: |
           make docker-build
 
+      - name: Build Kubearmor-Relay-Server
+        if: steps.filter.outputs.relay == 'true'
+        working-directory: pkg/KubeArmorRelayServer
+        run: |
+          make build-image
+
       - name: Build multiubuntu docker image
         working-directory: examples/multiubuntu/build
         if: steps.filter.outputs.multiubuntu == 'true'
@@ -91,6 +99,9 @@ jobs:
             docker save kubearmor/kubearmor-operator:latest | sudo k3s ctr images import -
             docker save kubearmor/kubearmor-snitch:latest | sudo k3s ctr images import -
             
+            if [[ ${{ steps.filter.outputs.relay }} == 'true' ]]; then 
+              docker save kubearmor/kubearmor-relay-server:latest | sudo k3s ctr images import -
+            fi
             if [[ ${{ steps.filter.outputs.multiubuntu }} == 'true' ]]; then
               docker save kubearmor/ubuntu-w-utils:latest | sudo k3s ctr images import -
             fi
@@ -108,6 +119,12 @@ jobs:
               docker save kubearmor/kubearmor-snitch:latest | sudo podman load
               sudo podman tag docker.io/kubearmor/kubearmor-snitch:latest kubearmor/kubearmor-snitch:latest
 
+
+              if [ ${{ steps.filter.outputs.relay }} == 'true' ]; then
+                docker save kubearmor/kubearmor-relay-server:latest | sudo podman load
+                sudo podman tag docker.io/kubearmor/kubearmor-relay-server:latest kubearmor/kubearmor-relay-server:latest
+
+              fi
               if [ ${{ steps.filter.outputs.multiubuntu }} == 'true' ]; then
                 docker save kubearmor/ubuntu-w-utils:latest | sudo podman load
                 sudo podman tag docker.io/kubearmor/ubuntu-w-utils:latest kubearmor/ubuntu-w-utils:latest
@@ -125,13 +142,20 @@ jobs:
           
           kubectl get pods -A
 
-          kubectl apply -f pkg/KubeArmorOperator/config/samples/kubearmor-coverage.yaml
+          if [[ ${{ steps.filter.outputs.relay }} == 'true' ]]; then
+            kubectl apply -f pkg/KubeArmorOperator/config/samples/kubearmor-coverage.yaml --dry-run=client -o json | \
+            jq '.spec.kubearmorRelayImage.imagePullPolicy = "Never"' | \
+            kubectl apply -f -
+          else 
+            kubectl apply -f pkg/KubeArmorOperator/config/samples/kubearmor-coverage.yaml
+          fi
 
           kubectl wait -n kubearmor --timeout=5m --for=jsonpath='{.status.phase}'=Running kubearmorconfigs/kubearmorconfig-test
 
           while [ ! "$(kubectl wait --timeout=5s --for=condition=ready pod -l kubearmor-app,kubearmor-app!=kubearmor-snitch -n kubearmor >/dev/null 2>&1; echo $?)" -eq 0 ]; do
-            kubectl rollout status --timeout=5m deployment -n kubearmor -l kubearmor-app -n kubearmor
+            kubectl rollout status --timeout=5m deployment -n kubearmor -l kubearmor-app,kubearmor-app!=kubearmor-relay -n kubearmor
             kubectl rollout status --timeout=5m daemonset -l kubearmor-app=kubearmor -n kubearmor
+            kubectl rollout status --timeout=5m deployment -n kubearmor -l kubearmor-app=kubearmor-relay -n kubearmor
             kubectl get pods -A
           done
 

@@ -49,6 +49,7 @@ jobs:
           regctl image copy kubearmor/kubearmor-operator-ubi:$STABLE_VERSION kubearmor/kubearmor-operator:stable --digest-tags
           regctl image copy kubearmor/kubearmor-snitch:$STABLE_VERSION kubearmor/kubearmor-snitch:stable --digest-tags
           regctl image copy kubearmor/kubearmor-snitch-ubi:$STABLE_VERSION kubearmor/kubearmor-snitch:stable --digest-tags
+          regctl image copy kubearmor/kubearmor-relay-server:$STABLE_VERSION kubearmor/kubearmor-relay-server:stable --digest-tags
 
       - name: Publish Helm chart
         env:
