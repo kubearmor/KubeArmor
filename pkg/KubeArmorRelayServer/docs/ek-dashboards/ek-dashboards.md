@@ -48,15 +48,15 @@ To View the DashBoards
 kubectl port-forward deployment/kibana -n kube-system 5601:5601
 ```
 * Open up a browser and go to [localhost:5601](localhost:5601)
-* Go to sidebar and open ``Mangement`` -> ``Saved Objects`` -> ``Import``
+* Go to sidebar and open ``Management`` -> ``Saved Objects`` -> ``Import``
 
 Drag and drop the file from ```docs/ek-dashboards/export.ndjson```
 
-* Go to ``Dashboard`` section , selct ``KA``
+* Go to ``Dashboard`` section , select ``KA``
 
 * The visalisations should be ready !!
 
-Here are some example visulisation with [multiubuntu](https://github.com/kubearmor/KubeArmor/blob/main/examples/multiubuntu.md) and [wordpress-mysql](https://github.com/kubearmor/KubeArmor/blob/main/examples/wordpress-mysql.md) example
+Here are some example visualisation with [multiubuntu](https://github.com/kubearmor/KubeArmor/blob/main/examples/multiubuntu.md) and [wordpress-mysql](https://github.com/kubearmor/KubeArmor/blob/main/examples/wordpress-mysql.md) example
 
 ![Dash Board 2](./dash-2.png)
 ![Dash Board 1](./dash-1.png)

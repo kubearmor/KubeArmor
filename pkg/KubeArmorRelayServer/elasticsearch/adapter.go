@@ -200,7 +200,7 @@ func (ecl *ElasticsearchClient) PrintBulkStats() {
 		)
 	} else {
 		log.Printf(
-			"Sucessfuly indexed [%s] documents in %s (%s docs/sec)",
+			"Successfuly indexed [%s] documents in %s (%s docs/sec)",
 			humanize.Commaf(float64(biStats.NumFlushed)),
 			dur.Truncate(time.Millisecond),
 			humanize.Commaf(float64(1000.0/float64(dur/time.Millisecond)*float64(biStats.NumFlushed))),

@@ -32,7 +32,7 @@ const (
 func readCmdLineParams() {
 	grpcStr := flag.String(ConfigGRPC, "32767", "gRPC port")
 	livenessPort := flag.String(ConfigLivenessPort, "32766", "liveness probe port")
-	tlsEnabled := flag.Bool(ConfigTLSEnabled, false, "enble tls to connect with kubearmor ssl service")
+	tlsEnabled := flag.Bool(ConfigTLSEnabled, false, "enable tls to connect with kubearmor ssl service")
 	tlsCertPath := flag.String(ConfigTLSCertPath, "/var/lib/kubearmor/tls", "path to tls certs files ca.crt, client.crt, client.key")
 	tlsCertProvider := flag.String(ConfigTLSCertProvider, ExternalCertProvider, "source of certificate {self|external}, self: create certificate dynamically, external: provided by some external entity")
 	flag.Parse()
