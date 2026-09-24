@@ -1,0 +1,14 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: block-env-file-access
+  namespace: default
+spec:
+  selector:
+    matchLabels:
+      app: ubuntu
+  file:
+    matchPaths:
+    - path: /app/.env
+  action:
+    Block
