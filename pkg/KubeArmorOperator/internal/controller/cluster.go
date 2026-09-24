@@ -71,6 +71,7 @@ type ClusterWatcher struct {
 	Secv1Client    *secv1client.Clientset
 	Daemonsets     map[string]int
 	DaemonsetsLock *sync.Mutex
+	snitchInFlight sync.Map
 }
 type Node struct {
 	Name             string
@@ -139,6 +140,7 @@ func extractPathFromMessage(message string) (string, bool) {
 
 func (clusterWatcher *ClusterWatcher) checkJobStatus(job, runtime, nodename string) {
 	defer func() {
+		clusterWatcher.snitchInFlight.Delete(nodename)
 		clusterWatcher.Log.Infof("checkJobStatus completed for job: %s", job)
 	}()
 
@@ -251,6 +253,53 @@ func (clusterWatcher *ClusterWatcher) checkJobStatus(job, runtime, nodename stri
 	}
 }
 
+func nodeMatchesGlobalSelector(node *corev1.Node) bool {
+	for k, v := range common.GlobalNodeSelectors {
+		if v == "-" {
+			// skip deleted entries
+			continue
+		}
+		if nodeVal, ok := node.Labels[k]; !ok || nodeVal != v {
+			return false
+		}
+	}
+	return true
+}
+
+// deploySnichForMatchingNodes lists all cluster nodes and deploys snitch jobs for linux
+// nodes that match the global node selector
+func (clusterWatcher *ClusterWatcher) deploySnichForMatchingNodes() {
+	nodes, err := clusterWatcher.Client.CoreV1().Nodes().List(context.Background(), metav1.ListOptions{})
+	if err != nil {
+		clusterWatcher.Log.Errorf("Cannot list nodes for snitch deployment: %s", err.Error())
+		return
+	}
+	for _, node := range nodes.Items {
+		if val, ok := node.Labels[common.OsLabel]; !ok || val != "linux" {
+			continue
+		}
+		if !nodeMatchesGlobalSelector(&node) {
+			continue
+		}
+		if _, loaded := clusterWatcher.snitchInFlight.LoadOrStore(node.Name, struct{}{}); loaded {
+			clusterWatcher.Log.Infof("Snitch already in progress for node %s, skipping", node.Name)
+			continue
+		}
+		runtime := node.Status.NodeInfo.ContainerRuntimeVersion
+		runtime = strings.Split(runtime, ":")[0]
+		clusterWatcher.Log.Infof("Installing snitch on node %s", node.Name)
+		snitchJob, err := clusterWatcher.Client.BatchV1().Jobs(common.Namespace).Create(
+			context.Background(), deploySnitch(node.Name, runtime), v1.CreateOptions{})
+		if err != nil {
+			clusterWatcher.snitchInFlight.Delete(node.Name)
+			clusterWatcher.Log.Errorf("Cannot run snitch on node %s, error=%s", node.Name, err.Error())
+			continue
+		}
+		clusterWatcher.Log.Infof("Snitch was installed on node %s", node.Name)
+		go clusterWatcher.checkJobStatus(snitchJob.Name, runtime, node.Name)
+	}
+}
+
 func (clusterWatcher *ClusterWatcher) WatchNodes() {
 	log := clusterWatcher.Log
 	nodeInformer := informer.Core().V1().Nodes().Informer()
@@ -259,10 +308,15 @@ func (clusterWatcher *ClusterWatcher) WatchNodes() {
 			if node, ok := obj.(*corev1.Node); ok {
 				runtime := node.Status.NodeInfo.ContainerRuntimeVersion
 				runtime = strings.Split(runtime, ":")[0]
-				if val, ok := node.Labels[common.OsLabel]; ok && val == "linux" {
+				if val, ok := node.Labels[common.OsLabel]; ok && val == "linux" && common.OperatorConfigCrd != nil && nodeMatchesGlobalSelector(node) {
+					if _, loaded := clusterWatcher.snitchInFlight.LoadOrStore(node.Name, struct{}{}); loaded {
+						log.Infof("Snitch already in progress for node %s, skipping", node.Name)
+						return
+					}
 					log.Infof("Installing snitch on node %s", node.Name)
 					snitchJob, err := clusterWatcher.Client.BatchV1().Jobs(common.Namespace).Create(context.Background(), deploySnitch(node.Name, runtime), v1.CreateOptions{})
 					if err != nil {
+						clusterWatcher.snitchInFlight.Delete(node.Name)
 						log.Errorf("Cannot run snitch on node %s, error=%s", node.Name, err.Error())
 						return
 					}
@@ -283,7 +337,7 @@ func (clusterWatcher *ClusterWatcher) WatchNodes() {
 						runtime := node.Status.NodeInfo.ContainerRuntimeVersion
 						runtime = strings.Split(runtime, ":")[0]
 						clusterWatcher.Log.Infof("Node might have been restarted, redeploying snitch ")
-						if val, ok := node.Labels[common.OsLabel]; ok && val == "linux" {
+						if val, ok := node.Labels[common.OsLabel]; ok && val == "linux" && nodeMatchesGlobalSelector(node) {
 							log.Infof("Installing snitch on node %s", node.Name)
 							snitchJob, err := clusterWatcher.Client.BatchV1().Jobs(common.Namespace).Create(context.Background(), deploySnitch(node.Name, runtime), v1.CreateOptions{})
 							if err != nil {
@@ -295,7 +349,7 @@ func (clusterWatcher *ClusterWatcher) WatchNodes() {
 						}
 					}
 				}
-				if val, ok := node.Labels[common.OsLabel]; ok && val == "linux" && oldRand != node.Labels[common.RandLabel] {
+				if val, ok := node.Labels[common.OsLabel]; ok && val == "linux" && nodeMatchesGlobalSelector(node) && oldRand != node.Labels[common.RandLabel] {
 					newNode := Node{}
 					newNode.Name = node.Name
 					if val, ok := node.Labels[common.EnforcerLabel]; ok {
@@ -454,7 +508,9 @@ func (clusterWatcher *ClusterWatcher) WatchConfigCrd() {
 					// mark it as current operating config crd
 					if cfg.Status.Phase == common.RUNNING {
 						common.OperatorConfigCrd = &cfg
+						UpdateImages(&common.OperatorConfigCrd.Spec)
 						if firstRun {
+							go clusterWatcher.deploySnichForMatchingNodes()
 							go clusterWatcher.WatchRequiredResources()
 							firstRun = false
 						}
@@ -473,6 +529,7 @@ func (clusterWatcher *ClusterWatcher) WatchConfigCrd() {
 						UpdatedSeccomp(&cfg.Spec)
 						UpdateRecommendedPolicyConfig(&cfg.Spec)
 						utils.UpdateControllerPort(&cfg.Spec)
+						go clusterWatcher.deploySnichForMatchingNodes()
 						// update status to (Installation) Created
 						go clusterWatcher.UpdateCrdStatus(cfg.Name, common.CREATED, common.CREATED_MSG)
 						go clusterWatcher.WatchRequiredResources()
@@ -491,6 +548,7 @@ func (clusterWatcher *ClusterWatcher) WatchConfigCrd() {
 				if cfg, ok := newObj.(*opv1.KubeArmorConfig); ok {
 					// update configmap only if it's operating crd
 					if common.OperatorConfigCrd != nil && cfg.Name == common.OperatorConfigCrd.Name {
+						oldCfg := oldObj.(*opv1.KubeArmorConfig)
 						configChanged := UpdateConfigMapData(&cfg.Spec)
 						imageUpdated := UpdateImages(&cfg.Spec)
 						controllerPortUpdated := utils.UpdateControllerPort(&cfg.Spec)
@@ -498,6 +556,11 @@ func (clusterWatcher *ClusterWatcher) WatchConfigCrd() {
 						seccompEnabledUpdated := UpdatedSeccomp(&cfg.Spec)
 						tlsUpdated := UpdateTlsData(&cfg.Spec)
 						UpdateRecommendedPolicyConfig(&cfg.Spec)
+
+						// if globalNodeSelector expanded, deploy snitch for newly matching nodes
+						if !reflect.DeepEqual(oldCfg.Spec.GlobalNodeSelector, cfg.Spec.GlobalNodeSelector) {
+							go clusterWatcher.deploySnichForMatchingNodes()
+						}
 
 						// return if only status has been updated
 						if !tlsUpdated && !relayEnvUpdated && !configChanged && cfg.Status != oldObj.(*opv1.KubeArmorConfig).Status && len(imageUpdated) < 1 && !controllerPortUpdated {

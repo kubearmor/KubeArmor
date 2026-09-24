@@ -42,7 +42,7 @@ var Cmd = &cobra.Command{
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		nodeWatcher := controllers.NewClusterWatcher(&o)
-		go nodeWatcher.WatchConfigCrd()
+		nodeWatcher.WatchConfigCrd()
 		nodeWatcher.WatchNodes()
 
 	},
