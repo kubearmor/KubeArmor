@@ -17,19 +17,20 @@ import (
 	"sync"
 	"time"
 
+	apipb "github.com/accuknox/SentryFlow/protobuf/golang"
+	"github.com/google/uuid"
+	pb "github.com/kubearmor/KubeArmor/protobuf"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/keepalive"
+
+	"github.com/kubearmor/KubeArmor/KubeArmor/cert"
 	"github.com/kubearmor/KubeArmor/KubeArmor/common"
 	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
 	"github.com/kubearmor/KubeArmor/KubeArmor/config"
 	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
 	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
-
-	"github.com/google/uuid"
-	"github.com/kubearmor/KubeArmor/KubeArmor/cert"
-	pb "github.com/kubearmor/KubeArmor/protobuf"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
-	"google.golang.org/grpc/keepalive"
 )
 
 // parseDataString parses a space-separated key=value string into a map
@@ -90,6 +91,9 @@ type EventStructs struct {
 
 	LogStructs map[string]EventStruct[pb.Log]
 	LogLock    sync.RWMutex
+
+	APIEventStructs map[string]EventStruct[apipb.APIEvent]
+	APIEventLock    sync.RWMutex
 }
 type cachedUserName struct {
 	Username  string
@@ -180,6 +184,24 @@ func (es *EventStructs) RemoveLogStruct(uid string) {
 	delete(es.LogStructs, uid)
 }
 
+// AddAPIEventStruct registers a direct-channel API event subscriber.
+// Prefer the gRPC path (GetAPIEvents RPC) for new consumers.
+func (es *EventStructs) AddAPIEventStruct(filter string, queueSize int) (string, chan *apipb.APIEvent) {
+	es.APIEventLock.Lock()
+	defer es.APIEventLock.Unlock()
+	uid := uuid.Must(uuid.NewRandom()).String()
+	ch := make(chan *apipb.APIEvent, queueSize)
+	es.APIEventStructs[uid] = EventStruct[apipb.APIEvent]{Filter: filter, Broadcast: ch}
+	return uid, ch
+}
+
+// RemoveAPIEventStruct deregisters a direct-channel subscriber.
+func (es *EventStructs) RemoveAPIEventStruct(uid string) {
+	es.APIEventLock.Lock()
+	defer es.APIEventLock.Unlock()
+	delete(es.APIEventStructs, uid)
+}
+
 // ============ //
 // == Feeder == //
 // ============ //
@@ -195,6 +217,11 @@ type FeederInterface interface {
 
 	// How this feeder serves log feeds
 	ServeLogFeeds()
+
+	// PushAPIEvent routes one correlated HTTP/gRPC event to the
+	// APIObserverService for fan-out to gRPC subscribers.
+	// Mirrors the PushLog pattern used for security audit events.
+	PushAPIEvent(*apipb.APIEvent)
 }
 
 type BaseFeeder struct {
@@ -206,8 +233,10 @@ type BaseFeeder struct {
 	WgServer sync.WaitGroup
 
 	// output
-	Output  string
-	LogFile *os.File
+	Output    string
+	LogFile   *os.File
+	LogWriter *bufio.Writer // persistent buffered writer for LogFile
+	LogWriterLock sync.Mutex
 
 	// Activated Enforcer
 	Enforcer     string
@@ -235,6 +264,10 @@ type BaseFeeder struct {
 
 	// username map
 	UserNameMap UserNameMap
+
+	// APIObserverService handles streaming API events to gRPC subscribers.
+	// Created in NewFeeder; registered with LogServer before serving.
+	APIObserverService *APIObserverService
 }
 
 type OuterKey struct {
@@ -294,12 +327,13 @@ func NewFeeder(node *tp.Node, nodeLock **sync.RWMutex) (feeder *Feeder) {
 	// output mode
 	if fd.Output != "stdout" && fd.Output != "none" {
 		// #nosec
-		logFile, err := os.OpenFile(filepath.Clean(fd.Output), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+		logFile, err := os.OpenFile(filepath.Clean(fd.Output), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o666)
 		if err != nil {
 			kg.Errf("Failed to open %s", fd.Output)
 			return nil
 		}
 		fd.LogFile = logFile
+		fd.LogWriter = bufio.NewWriterSize(logFile, 32*1024) // 32KB buffer
 	}
 
 	// default enforcer
@@ -321,6 +355,22 @@ func NewFeeder(node *tp.Node, nodeLock **sync.RWMutex) (feeder *Feeder) {
 	}
 
 	fd.Running = true
+
+	// Periodic log flush goroutine — flushes buffered log writer every 100ms.
+	if fd.LogWriter != nil {
+		go func() {
+			ticker := time.NewTicker(100 * time.Millisecond)
+			defer ticker.Stop()
+			for range ticker.C {
+				if !fd.Running {
+					return
+				}
+				fd.LogWriterLock.Lock()
+				fd.LogWriter.Flush()
+				fd.LogWriterLock.Unlock()
+			}
+		}()
+	}
 
 	// LogServer //
 
@@ -409,6 +459,15 @@ func NewFeeder(node *tp.Node, nodeLock **sync.RWMutex) (feeder *Feeder) {
 		ttl:       10 * time.Minute,
 	}
 
+	// Initialize API event structs (direct-channel path)
+	fd.EventStructs.APIEventStructs = make(map[string]EventStruct[apipb.APIEvent])
+
+	// Create and register the API observer gRPC service.
+	// Must be registered BEFORE ServeLogFeeds starts accepting connections.
+	fd.APIObserverService = NewAPIObserverService(fd.Running)
+	apipb.RegisterAPIObserverServiceServer(fd.LogServer, fd.APIObserverService)
+
+	// ... rest of existing initialization ...
 	return fd
 }
 
@@ -428,7 +487,13 @@ func (fd *BaseFeeder) DestroyFeeder() error {
 		fd.Listener = nil
 	}
 
-	// close LogFile
+	// flush and close LogFile
+	fd.LogWriterLock.Lock()
+	if fd.LogWriter != nil {
+		fd.LogWriter.Flush()
+	}
+	fd.LogWriterLock.Unlock()
+	
 	if fd.LogFile != nil {
 		if err := fd.LogFile.Close(); err != nil {
 			kg.Err(err.Error())
@@ -442,22 +507,46 @@ func (fd *BaseFeeder) DestroyFeeder() error {
 	return nil
 }
 
+// PushAPIEvent routes one API observability event to all active consumers.
+//
+// Primary path:  APIObserverService.PublishEvent → gRPC stream.Send
+// Secondary path: direct channel subscribers (legacy; prefer gRPC).
+//
+// Neither path blocks the caller — the ring-buffer processing goroutine in
+// apiObserver.go must never stall on a slow network client.
+func (fd *BaseFeeder) PushAPIEvent(event *apipb.APIEvent) {
+	// ── Primary: gRPC service fan-out ────────────────────────────────────
+	if fd.APIObserverService != nil {
+		fd.APIObserverService.PublishEvent(event)
+	}
+
+	// ── Secondary: direct channel subscribers (AddAPIEventStruct) ────────
+	fd.EventStructs.APIEventLock.RLock()
+	defer fd.EventStructs.APIEventLock.RUnlock()
+
+	dropped := 0
+	total := len(fd.EventStructs.APIEventStructs)
+	for uid := range fd.EventStructs.APIEventStructs {
+		select {
+		case fd.EventStructs.APIEventStructs[uid].Broadcast <- event:
+		default:
+			dropped++
+		}
+	}
+	if dropped > 0 {
+		kg.Printf("PushAPIEvent: %d/%d direct channels busy, events dropped", dropped, total)
+	}
+}
+
 // StrToFile Function
 func (fd *Feeder) StrToFile(str string) {
-	if fd.LogFile != nil {
-		// add the newline at the end of the string
-		str = str + "\n"
-
-		// write the string into the file
-		w := bufio.NewWriter(fd.LogFile)
-		if _, err := w.WriteString(str); err != nil {
-			kg.Err(err.Error())
-		}
-
-		// flush the file buffer
-		if err := w.Flush(); err != nil {
-			kg.Err(err.Error())
-		}
+	fd.LogWriterLock.Lock()
+	defer fd.LogWriterLock.Unlock()
+	if fd.LogWriter != nil {
+		// Write directly to persistent buffered writer.
+		// Flush happens periodically via background goroutine.
+		fd.LogWriter.WriteString(str)
+		fd.LogWriter.WriteByte('\n')
 	}
 }
 
@@ -764,11 +853,11 @@ func (fd *Feeder) PushLog(log tp.Log) {
 
 	// standard output / file output
 	if fd.Output == "stdout" {
-		arr, _ := json.Marshal(log)
-		fmt.Println(string(arr))
-	} else if fd.Output != "none" {
-		arr, _ := json.Marshal(log)
-		fd.StrToFile(string(arr))
+		json.NewEncoder(os.Stdout).Encode(log)
+	} else if fd.Output != "none" && fd.LogWriter != nil {
+		fd.LogWriterLock.Lock()
+		json.NewEncoder(fd.LogWriter).Encode(log)
+		fd.LogWriterLock.Unlock()
 	}
 
 	// gRPC output
