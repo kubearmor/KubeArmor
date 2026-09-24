@@ -3722,10 +3722,12 @@ func validateDefaultPosture(key string, ns *corev1.Namespace, defaultPosture str
 
 // UpdateDefaultPosture Function
 func (dm *KubeArmorDaemon) UpdateDefaultPosture(action string, namespace string, defaultPosture tp.DefaultPosture, annotated bool) {
-	dm.DefaultPosturesLock.Lock()
-	defer dm.DefaultPosturesLock.Unlock()
+	dm.EndPointsLock.Lock()
+	defer dm.EndPointsLock.Unlock()
 
-	// namespace deleted
+	dm.DefaultPosturesLock.Lock()
+
+	// Update defaultpostures map
 	if action == deleteEvent {
 		_, ok := dm.DefaultPostures[namespace]
 		if ok {
@@ -3739,33 +3741,15 @@ func (dm *KubeArmorDaemon) UpdateDefaultPosture(action string, namespace string,
 	}
 	dm.Logger.UpdateDefaultPosture(action, namespace, defaultPosture)
 
-	// Copy endpoints under lock to prevent TOCTOU race condition
-	dm.EndPointsLock.RLock()
-	endPointsCopy := make([]tp.EndPoint, len(dm.EndPoints))
-	copy(endPointsCopy, dm.EndPoints)
-	dm.EndPointsLock.RUnlock()
-
-	for _, endPoint := range endPointsCopy {
-		// update a security policy
+	dm.DefaultPosturesLock.Unlock()
+	for idx, endPoint := range dm.EndPoints {
 		if namespace == endPoint.NamespaceName {
 			if endPoint.DefaultPosture == defaultPosture {
 				continue
 			}
 
 			dm.Logger.Printf("Updating default posture for %s with %v namespace default %v", endPoint.EndPointName, endPoint.DefaultPosture, defaultPosture)
-			endPoint.DefaultPosture = defaultPosture
-
-			// Find and update the original endpoint in the array by matching unique identifiers
-			dm.EndPointsLock.Lock()
-			for idx := range dm.EndPoints {
-				if dm.EndPoints[idx].NamespaceName == endPoint.NamespaceName &&
-					dm.EndPoints[idx].EndPointName == endPoint.EndPointName &&
-					dm.EndPoints[idx].ContainerName == endPoint.ContainerName {
-					dm.EndPoints[idx] = endPoint
-					break
-				}
-			}
-			dm.EndPointsLock.Unlock()
+			dm.EndPoints[idx].DefaultPosture = defaultPosture
 
 			if cfg.GlobalCfg.Policy {
 				// update security policies
