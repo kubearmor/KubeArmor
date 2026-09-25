@@ -1,6 +1,6 @@
 module github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator
 
-go 1.26.6
+go 1.26.8
 
 replace (
 	github.com/go-jose/go-jose/v4 => github.com/go-jose/go-jose/v4 v4.1.4
@@ -11,7 +11,7 @@ replace (
 )
 
 require (
-	github.com/containerd/containerd/v2 v2.3.5
+	github.com/containerd/containerd/v2 v2.3.6
 	github.com/kubearmor/KubeArmor/KubeArmor v0.0.0-20260406102335-87edc770f8bf
 	github.com/kubearmor/KubeArmor/deployments v0.0.0-20260406102335-87edc770f8bf
 	github.com/kubearmor/KubeArmor/pkg/KubeArmorController v0.0.0-20260406102335-87edc770f8bf
