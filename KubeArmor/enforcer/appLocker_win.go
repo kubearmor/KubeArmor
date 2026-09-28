@@ -14,6 +14,8 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
+
+	fd "github.com/kubearmor/KubeArmor/KubeArmor/feeder"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 )
 
@@ -118,7 +120,7 @@ func classifyForAppLocker(path string) collectionRouting {
 //
 // Appx package policies should use the matchPackages stanza, which emits native
 // FilePublisherRule entries into the Appx collection.
-func applyAppLockerPolicy(secPolicies []tp.HostSecurityPolicy) error {
+func applyAppLockerPolicy(logger *fd.Feeder, secPolicies []tp.HostSecurityPolicy) error {
 	var exeRules strings.Builder
 	var appxRules strings.Builder
 	var dllRules strings.Builder
@@ -202,7 +204,7 @@ func applyAppLockerPolicy(secPolicies []tp.HostSecurityPolicy) error {
 			// publisherFilter is applied as an additional AND filter if specified.
 			matched := resolvePackageMatches(pkg.Name, pkg.Publisher)
 			if len(matched) == 0 {
-				fmt.Printf("WARNING: matchPackages: no installed AppX packages matched pattern '%s' (publisher filter: '%s')\n",
+				logger.Warnf("matchPackages: no installed AppX packages matched pattern '%s' (publisher filter: '%s')\n",
 					pkg.Name, pkg.Publisher)
 				continue
 			}
@@ -218,7 +220,7 @@ func applyAppLockerPolicy(secPolicies []tp.HostSecurityPolicy) error {
 					publisherName = "*"
 				}
 
-				fmt.Printf("INFO: matchPackages: blocking package '%s' (publisher: %s)\n",
+				logger.Printf("matchPackages: blocking package '%s' (publisher: %s)\n",
 					resolved.Name, publisherName)
 
 				appxRules.WriteString(fmt.Sprintf(`

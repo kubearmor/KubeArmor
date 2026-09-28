@@ -144,7 +144,7 @@ func (re *RuntimeEnforcerWin) UpdateHostSecurityPolicies(secPolicies []tp.HostSe
 	mon.GetPolicyNameRegistry().Clear()
 
 	// Apply AppLocker policies for process enforcement
-	errAppLocker := applyAppLockerPolicy(secPolicies)
+	errAppLocker := applyAppLockerPolicy(re.Logger, secPolicies)
 	if errAppLocker == nil {
 		re.Logger.Printf("AppLocker policy applied successfully for process enforcement")
 	} else {

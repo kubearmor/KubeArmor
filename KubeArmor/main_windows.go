@@ -30,7 +30,6 @@ const (
 )
 
 func init() {
-	fmt.Println("INITIALIZING WINDOWS")
 	buildinfo.PrintBuildDetails()
 }
 
@@ -218,7 +217,7 @@ func installService() error {
 		kg.Errf("Failed to install driver: %v", err)
 	}
 
-	fmt.Printf("Service %q installed successfully.\n", svcName)
+	kg.Printf("Service %q installed successfully.\n", svcName)
 	return nil
 }
 
@@ -244,7 +243,7 @@ func installDriver() error {
 	if err != nil {
 		return fmt.Errorf("output: %s, err: %w", string(out), err)
 	}
-	fmt.Println("Driver installed successfully.")
+	kg.Printf("Driver installed successfully.")
 	return nil
 }
 
@@ -276,7 +275,7 @@ func uninstallService() error {
 		kg.Errf("Failed to uninstall driver: %v", err)
 	}
 
-	fmt.Printf("Service %q uninstalled successfully.\n", svcName)
+	kg.Printf("Service %q uninstalled successfully.\n", svcName)
 	return nil
 }
 
@@ -302,7 +301,7 @@ func uninstallDriver() error {
 	if err != nil {
 		return fmt.Errorf("output: %s, err: %w", string(out), err)
 	}
-	fmt.Println("Driver uninstalled successfully.")
+	kg.Print("Driver uninstalled successfully.")
 	return nil
 }
 
@@ -319,7 +318,7 @@ func startService() error {
 		return fmt.Errorf("could not query service: %w", err)
 	}
 	if st.State == svc.Running {
-		fmt.Printf("Service %q is already running.\n", svcName)
+		kg.Printf("Service %q is already running.\n", svcName)
 		return nil
 	}
 
@@ -330,32 +329,31 @@ func startService() error {
 		return err
 	}
 
-	fmt.Printf("Service %q started.\n", svcName)
+	kg.Printf("Service %q started.\n", svcName)
 	return nil
 }
 
 // stopService is the shared internal helper used by stopServiceCmd,
 // restartService, and uninstallService.
 func stopService(s *mgr.Service) error {
-	fmt.Println("querying service...")
 	st, err := s.Query()
 	if err != nil {
-		fmt.Printf("error querying service state: %s", err)
+		kg.Printf("error querying service state: %s", err)
 		return fmt.Errorf("could not query service state: %w", err)
 	}
 
 	switch st.State {
 	case svc.Stopped:
 		// Nothing to do
-		fmt.Println("already stopped...")
+		kg.Print("already stopped...")
 		return nil
 	case svc.StopPending:
 		// Already on the way down — just wait it out
-		fmt.Println("already in stopping state...")
+		kg.Print("already in stopping state...")
 		return waitForState(s, svc.Stopped)
 	}
 
-	fmt.Println("sending stop signal...")
+	kg.Print("sending stop signal...")
 	if _, err := s.Control(svc.Stop); err != nil {
 		return fmt.Errorf("could not send stop control: %w", err)
 	}
@@ -363,31 +361,31 @@ func stopService(s *mgr.Service) error {
 }
 
 func stopServiceCmd() error {
-	fmt.Println("opening SCM...")
+	kg.Print("opening SCM...")
 	m, s, err := openSCM()
 	if err != nil {
-		fmt.Printf("error opening SCM: %s", err)
+		kg.Printf("error opening SCM: %s", err)
 		return err
 	}
 	defer m.Disconnect()
 	defer s.Close()
 
-	fmt.Println("querying service...")
+	kg.Print("querying service...")
 	st, err := s.Query()
 	if err != nil {
 		return fmt.Errorf("could not query service: %w", err)
 	}
 	if st.State == svc.Stopped {
-		fmt.Printf("Service %q is already stopped.\n", svcName)
+		kg.Printf("Service %q is already stopped.\n", svcName)
 		return nil
 	}
-	fmt.Println("stopping service now...")
+	kg.Print("stopping service now...")
 	if err := stopService(s); err != nil {
-		fmt.Printf("error stopping service: %s", err)
+		kg.Printf("error stopping service: %s", err)
 		return err
 	}
 
-	fmt.Printf("Service %q stopped.\n", svcName)
+	kg.Printf("Service %q stopped.\n", svcName)
 	return nil
 }
 
@@ -404,13 +402,13 @@ func restartService() error {
 		return fmt.Errorf("could not query service: %w", err)
 	}
 	if st.State == svc.Running || st.State == svc.Paused {
-		fmt.Printf("Stopping service %q...\n", svcName)
+		kg.Printf("Stopping service %q...\n", svcName)
 		if err := stopService(s); err != nil {
 			return fmt.Errorf("could not stop service: %w", err)
 		}
 	}
 
-	fmt.Printf("Starting service %q...\n", svcName)
+	kg.Printf("Starting service %q...\n", svcName)
 	if err := s.Start(); err != nil {
 		return fmt.Errorf("could not start service: %w", err)
 	}
@@ -418,7 +416,7 @@ func restartService() error {
 		return err
 	}
 
-	fmt.Printf("Service %q restarted.\n", svcName)
+	kg.Printf("Service %q restarted.\n", svcName)
 	return nil
 }
 
@@ -464,12 +462,12 @@ func statusService() error {
 		startType = fmt.Sprintf("Unknown (%d)", cfg.StartType)
 	}
 
-	fmt.Printf("Service:     %s\n", svcName)
-	fmt.Printf("Display:     %s\n", cfg.DisplayName)
-	fmt.Printf("State:       %s\n", stateName)
-	fmt.Printf("Start type:  %s\n", startType)
-	fmt.Printf("Binary:      %s\n", cfg.BinaryPathName)
-	fmt.Printf("PID:         %d\n", st.ProcessId)
+	kg.Printf("Service:     %s\n", svcName)
+	kg.Printf("Display:     %s\n", cfg.DisplayName)
+	kg.Printf("State:       %s\n", stateName)
+	kg.Printf("Start type:  %s\n", startType)
+	kg.Printf("Binary:      %s\n", cfg.BinaryPathName)
+	kg.Printf("PID:         %d\n", st.ProcessId)
 
 	return nil
 }
@@ -501,7 +499,7 @@ func main() {
 		case "start":
 			err = startService()
 		case "stop":
-			fmt.Println("stopping service...")
+			kg.Print("stopping service...")
 			err = stopServiceCmd()
 		case "restart":
 			err = restartService()

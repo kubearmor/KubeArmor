@@ -173,7 +173,7 @@ func (mon *MonitorImpl) InitBPF() error {
 	if err != nil {
 		var verr *cle.VerifierError
 		if errors.As(err, &verr) {
-			fmt.Printf("Full log: %+v\n", verr)
+			mon.Logger.Printf("Full log: %+v\n", verr)
 		}
 		return fmt.Errorf("bpf module is nil %v", err)
 	}

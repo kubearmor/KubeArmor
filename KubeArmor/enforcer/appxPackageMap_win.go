@@ -8,11 +8,12 @@ package enforcer
 
 import (
 	"encoding/json"
-	"fmt"
 	"os/exec"
 	"regexp"
 	"strings"
 	"sync"
+
+	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
 )
 
 // AppxPackageInfo holds the package identity information for an installed MSIX/AppX package.
@@ -42,7 +43,7 @@ func buildAppxPackageMap() map[string]AppxPackageInfo {
 		script := `Get-AppxPackage -AllUsers | Select-Object Name, Publisher, PackageFamilyName | ConvertTo-Json -Compress`
 		out, err := exec.Command("powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", script).Output()
 		if err != nil {
-			fmt.Printf("WARNING: Failed to enumerate AppX packages: %v\n", err)
+			kg.Warnf("Failed to enumerate AppX packages: %v\n", err)
 			return
 		}
 
@@ -59,7 +60,7 @@ func buildAppxPackageMap() map[string]AppxPackageInfo {
 			PackageFamilyName string `json:"PackageFamilyName"`
 		}
 		if err := json.Unmarshal([]byte(trimmed), &packages); err != nil {
-			fmt.Printf("WARNING: Failed to parse AppX package list: %v\n", err)
+			kg.Warnf("Failed to parse AppX package list: %v\n", err)
 			return
 		}
 
@@ -74,7 +75,7 @@ func buildAppxPackageMap() map[string]AppxPackageInfo {
 			}
 		}
 
-		fmt.Printf("INFO: AppX package map initialized with %d packages\n", len(appxPackageMap))
+		kg.Printf("AppX package map initialized with %d packages\n", len(appxPackageMap))
 	})
 	return appxPackageMap
 }
@@ -100,7 +101,7 @@ func resolvePackageMatches(namePattern string, publisherFilter string) []AppxPac
 
 	re, err := regexp.Compile("(?i)" + pattern)
 	if err != nil {
-		fmt.Printf("WARNING: Invalid package name pattern '%s': %v — using literal match\n", namePattern, err)
+		kg.Warnf("Invalid package name pattern '%s': %v — using literal match\n", namePattern, err)
 		// Fall back to literal substring match
 		literal := strings.ToLower(namePattern)
 		var results []AppxPackageInfo

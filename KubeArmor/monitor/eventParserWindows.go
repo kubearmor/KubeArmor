@@ -242,7 +242,6 @@ func parseField(r io.Reader) (*Field, error) {
 		f.RawBytes = val
 		return f, nil
 	case 0: // indicates end of the event
-		fmt.Println("====event end=====")
 		return nil, nil
 	default:
 		return f, fmt.Errorf("unsupported data type: %v", eh.DataType)
