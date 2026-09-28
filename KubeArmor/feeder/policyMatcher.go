@@ -2305,7 +2305,7 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 				}
 			}
 
-		} else if log.Type == "MatchedPolicy" {
+		} else if log.Type == "MatchedPolicy" || log.Type == "MatchedHostPolicy" {
 			if log.Action == "Allow" && log.Result == "Passed" {
 				return tp.Log{}
 			}
@@ -2340,7 +2340,7 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 					return log
 				}
 			}
-		} else if log.Type == "MatchedPolicy" {
+		} else if log.Type == "MatchedPolicy" || log.Type == "MatchedHostPolicy" {
 			log.Type = "MatchedHostPolicy"
 
 			if log.Action == "Allow" && log.Result == "Passed" {

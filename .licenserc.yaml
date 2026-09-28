@@ -10,11 +10,15 @@ header:
     - "**/*.sh"
     - "**/Dockerfile"
     - "**/Makefile"
+    - "**/*.cpp"
+    - "**/*.h"
 
   paths-ignore:
     - "KubeArmor/BPF/*"
     - "KubeArmor/**/*bpf*.go"
     - "protobuf/*"
+    - "pkg/KubeArmorWindowsDriver/KarmorLogs.h"
+    - "pkg/KubeArmorWindowsDriver/KarmorLogs.rc"
 
   comment: on-failure
 
