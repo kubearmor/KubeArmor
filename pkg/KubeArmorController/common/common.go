@@ -13,7 +13,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
-const k8sVisibility = "process,file,network,capabilities"
 const appArmorAnnotation = "container.apparmor.security.beta.kubernetes.io/"
 const KubeArmorRestartedAnnotation = "kubearmor.kubernetes.io/restartedAt"
 
@@ -113,11 +112,6 @@ func AddCommonAnnotations(obj *metav1.ObjectMeta) {
 		obj.Annotations["kubearmor-policy"] = "audited"
 	}
 
-	// == Visibility == //
-
-	if _, ok := obj.Annotations["kubearmor-visibility"]; !ok {
-		obj.Annotations["kubearmor-visibility"] = k8sVisibility
-	}
 }
 
 func RemoveApparmorAnnotation(pod *corev1.Pod) {
