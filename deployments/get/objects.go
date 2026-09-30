@@ -4,6 +4,7 @@
 package deployments
 
 import (
+	"os"
 	"strconv"
 
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
@@ -15,6 +16,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 
 	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
+	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
 )
 
 // GetServiceAccount Function
@@ -267,6 +269,20 @@ func GetRelayClusterRoleBinding(namespace string) *rbacv1.ClusterRoleBinding {
 
 var terminationGracePeriodSeconds = int64(10)
 
+// quantityFromEnv returns the quantity set in the given env var, or def if unset or invalid
+func quantityFromEnv(envVar, def string) resource.Quantity {
+	val, ok := os.LookupEnv(envVar)
+	if !ok {
+		return resource.MustParse(def)
+	}
+	q, err := resource.ParseQuantity(val)
+	if err != nil {
+		kg.Warnf("Invalid %s %q, using default %s: %s", envVar, val, def, err.Error())
+		return resource.MustParse(def)
+	}
+	return q
+}
+
 // GenerateDaemonSet Function
 func GenerateDaemonSet(env, namespace string) *appsv1.DaemonSet {
 
@@ -351,8 +367,8 @@ func GenerateDaemonSet(env, namespace string) *appsv1.DaemonSet {
 	}
 
 	resourceLimits := corev1.ResourceList{
-		corev1.ResourceCPU:    resource.MustParse("400m"),
-		corev1.ResourceMemory: resource.MustParse("600Mi"),
+		corev1.ResourceCPU:    quantityFromEnv("KUBEARMOR_DS_CPU_LIMIT", "400m"),
+		corev1.ResourceMemory: quantityFromEnv("KUBEARMOR_DS_MEM_LIMIT", "1000Mi"),
 	}
 	resourceRequest := corev1.ResourceList{
 		corev1.ResourceCPU:    resource.MustParse("50m"),
