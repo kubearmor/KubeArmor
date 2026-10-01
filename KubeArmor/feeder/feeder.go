@@ -903,7 +903,7 @@ func (fd *Feeder) PushLog(log tp.Log) {
 				counter++
 				if counter == lenAlert {
 					// Default on the last uid in Alterstruct means the Alert isn't pushed into Broadcast
-					kg.Printf("log channel busy, alert dropped.")
+					kg.Debugf("log channel busy, alert dropped.")
 				}
 
 			}
@@ -927,7 +927,7 @@ func (fd *Feeder) PushLog(log tp.Log) {
 					// Default on the last uid in Logstuct means the log isn't pushed into Broadcast
 					fd.DroppedLogs++
 					if fd.DroppedLogs%10000 == 0 {
-						kg.Warnf("log channel busy, 10000 logs dropped.")
+						kg.Debugf("log channel busy, 10000 logs dropped.")
 						fd.DroppedLogs = 0
 					}
 				}
