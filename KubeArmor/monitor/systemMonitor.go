@@ -37,7 +37,10 @@ const (
 	visibilityOff    = uint32(1)
 	visibilityOn     = uint32(0)
 	// how many event the channel can hold
-	SyscallChannelSize   = 1 << 13 //8192
+	SyscallChannelSize = 1 << 13 //8192
+	// how often and for how long events with an unknown container are replayed
+	ReplayInterval       = 1 * time.Second
+	ReplayTimeout        = 10 * time.Second
 	DefaultVisibilityKey = uint32(0xc0ffee)
 )
 
@@ -791,59 +794,48 @@ func (mon *SystemMonitor) TraceSyscall() {
 	Containers := *(mon.Containers)
 	ContainersLock := *(mon.ContainersLock)
 
-	ReplayChannel := make(chan []byte, SyscallChannelSize)
+	// events whose container is not known yet are queued here and
+	// retried (best effort) from the main loop on every replay tick
+	type replayEvent struct {
+		dataRaw  []byte
+		pidID    uint32
+		mntID    uint32
+		deadline time.Time
+	}
 
-	go func() {
-		for {
-			dataRaw, valid := <-ReplayChannel
-			if !valid {
-				continue
-			}
-			dataBuff := bytes.NewBuffer(dataRaw)
-			ctx, err := readContextFromBuff(dataBuff)
-			if err != nil {
-				continue
-			}
+	replayQueue := make([]replayEvent, 0)
+	replayTicker := time.NewTicker(ReplayInterval)
+	defer replayTicker.Stop()
 
-			now := time.Now()
-			if now.After(time.Unix(int64(ctx.Ts), 0).Add(10 * time.Second)) {
-				mon.Logger.Debug("Event dropped due to replay timeout")
-				continue
-			}
-
-			// Best effort replay
-			go func() {
-				for range 10 {
-					containerID := ""
-
-					if ctx.PidID != 0 && ctx.MntID != 0 {
-						containerID = mon.LookupContainerID(ctx.PidID, ctx.MntID)
-
-						if containerID == "" {
-							time.Sleep(1 * time.Second)
-							continue
-						}
-					}
-
-					select {
-					case mon.SyscallChannel <- dataRaw:
-					default:
-						// channel is full, wait for a short time before retrying
-						time.Sleep(1 * time.Second)
-						mon.Logger.Debug("Event dropped due to busy event channel")
-					}
-
-				}
-				mon.Logger.Debug("Event dropped due to replay timeout")
-			}()
-		}
-	}()
 	MonitorLock := *(mon.MonitorLock)
 
 	for {
 		select {
 		case <-StopChan:
 			return
+
+		case now := <-replayTicker.C:
+			pending := replayQueue[:0]
+			for _, ev := range replayQueue {
+				if now.After(ev.deadline) {
+					mon.Logger.Debug("Event dropped due to replay timeout")
+					continue
+				}
+
+				if mon.LookupContainerID(ev.pidID, ev.mntID) == "" {
+					pending = append(pending, ev)
+					continue
+				}
+
+				select {
+				case mon.SyscallChannel <- ev.dataRaw:
+				default:
+					// channel is full, retry on the next tick
+					pending = append(pending, ev)
+				}
+			}
+			clear(replayQueue[len(pending):])
+			replayQueue = pending
 
 		case dataRaw, valid := <-mon.SyscallChannel:
 			if !valid {
@@ -892,7 +884,16 @@ func (mon *SystemMonitor) TraceSyscall() {
 			}
 
 			if ctx.PidID != 0 && ctx.MntID != 0 && containerID == "" {
-				ReplayChannel <- dataRaw
+				if len(replayQueue) >= SyscallChannelSize {
+					mon.Logger.Debug("Event dropped due to full replay queue")
+					continue
+				}
+				replayQueue = append(replayQueue, replayEvent{
+					dataRaw:  dataRaw,
+					pidID:    ctx.PidID,
+					mntID:    ctx.MntID,
+					deadline: time.Now().Add(ReplayTimeout),
+				})
 				continue
 			}
 
