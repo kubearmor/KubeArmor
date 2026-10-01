@@ -146,6 +146,9 @@ func (dm *KubeArmorDaemon) checkAndUpdateNode(item *corev1.Node) {
 	slices.Sort(node.Identities)
 
 	// node info
+	// kubelet resolves MachineID from the host's /etc/machine-id, falling
+	// back to /var/lib/dbus/machine-id
+	node.NodeID = item.Status.NodeInfo.MachineID
 	node.Architecture = item.Status.NodeInfo.Architecture
 	node.OperatingSystem = item.Status.NodeInfo.OperatingSystem
 	node.OSImage = item.Status.NodeInfo.OSImage
@@ -159,6 +162,10 @@ func (dm *KubeArmorDaemon) checkAndUpdateNode(item *corev1.Node) {
 
 	// update node info
 	dm.NodeLock.Lock()
+	if node.NodeID == "" {
+		// keep the ID resolved at startup instead of clearing it
+		node.NodeID = dm.Node.NodeID
+	}
 	dm.Node = node
 	dm.NodeLock.Unlock()
 }
