@@ -80,6 +80,9 @@ type KubearmorConfig struct {
 	MatchArgs bool // enable argument rules for policy
 
 	NetworkPolicyEnforcer bool // enable network policy enforcement
+
+	EnablePprof bool   // enable pprof profiling server
+	PprofAddr   string // address for pprof profiling server
 }
 
 // GlobalCfg Global configuration for Kubearmor
@@ -138,6 +141,8 @@ const (
 	ConfigUSBDeviceHandler               string = "enableUSBDeviceHandler"
 	ConfigArgMatching                    string = "matchArgs"
 	ConfigNetworkPolicyEnforcer          string = "enableNetworkPolicyEnforcer"
+	ConfigEnablePprof                    string = "enablePprof"
+	ConfigPprofAddr                      string = "pprofAddr"
 )
 
 func readCmdLineParams() {
@@ -213,6 +218,9 @@ func readCmdLineParams() {
 	matchArgs := flag.Bool(ConfigArgMatching, true, "enabling Argument matching")
 
 	networkPolicyEnforcer := flag.Bool(ConfigNetworkPolicyEnforcer, true, "Enable network policy enforcement")
+
+	enablePprof := flag.Bool(ConfigEnablePprof, false, "enable pprof profiling server")
+	pprofAddr := flag.String(ConfigPprofAddr, "localhost:6060", "address for pprof profiling server")
 
 	flags := []string{}
 	flag.VisitAll(func(f *flag.Flag) {
@@ -296,6 +304,9 @@ func readCmdLineParams() {
 	viper.SetDefault(ConfigArgMatching, *matchArgs)
 
 	viper.SetDefault(ConfigNetworkPolicyEnforcer, *networkPolicyEnforcer)
+
+	viper.SetDefault(ConfigEnablePprof, *enablePprof)
+	viper.SetDefault(ConfigPprofAddr, *pprofAddr)
 }
 
 // LoadConfig Load configuration
@@ -392,6 +403,9 @@ func LoadConfig() error {
 	GlobalCfg.SELinuxProfileDir = viper.GetString(ConfigSELinuxProfileDir)
 
 	GlobalCfg.NetworkPolicyEnforcer = viper.GetBool(ConfigNetworkPolicyEnforcer)
+
+	GlobalCfg.EnablePprof = viper.GetBool(ConfigEnablePprof)
+	GlobalCfg.PprofAddr = viper.GetString(ConfigPprofAddr)
 
 	LoadDynamicConfig()
 

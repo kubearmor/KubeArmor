@@ -46,6 +46,28 @@ type filelessexecCmdArgsKey struct {
 	Ind  uint64
 }
 
+// Names of all BPF objects in the ELF.
+//
+// Used for safe lookups in a Collection or CollectionSpec.
+const (
+	filelessexecMapArgsBufk                              = "args_bufk"
+	filelessexecMapBufk                                  = "bufk"
+	filelessexecMapBufs                                  = "bufs"
+	filelessexecMapBufsOff                               = "bufs_off"
+	filelessexecMapCmdArgsBuf                            = "cmd_args_buf"
+	filelessexecMapEvents                                = "events"
+	filelessexecMapKubearmorAlertThrottle                = "kubearmor_alert_throttle"
+	filelessexecMapKubearmorArgsStore                    = "kubearmor_args_store"
+	filelessexecMapKubearmorArguments                    = "kubearmor_arguments"
+	filelessexecMapKubearmorConfig                       = "kubearmor_config"
+	filelessexecMapKubearmorContainers                   = "kubearmor_containers"
+	filelessexecMapKubearmorEvents                       = "kubearmor_events"
+	filelessexecMapKubearmorExecPids                     = "kubearmor_exec_pids"
+	filelessexecMapKubearmorFilelessExecPresetContainers = "kubearmor_fileless_exec_preset_containers"
+	filelessexecProgFilelessPresetBprmCheckSecurity      = "fileless_preset_bprm_check_security"
+	filelessexecVarUnused                                = "unused"
+)
+
 // loadFilelessexec returns the embedded CollectionSpec for filelessexec.
 func loadFilelessexec() (*ebpf.CollectionSpec, error) {
 	reader := bytes.NewReader(_FilelessexecBytes)
@@ -66,7 +88,7 @@ func loadFilelessexec() (*ebpf.CollectionSpec, error) {
 //	*filelessexecMaps
 //
 // See ebpf.CollectionSpec.LoadAndAssign documentation for details.
-func loadFilelessexecObjects(obj interface{}, opts *ebpf.CollectionOptions) error {
+func loadFilelessexecObjects(obj any, opts *ebpf.CollectionOptions) error {
 	spec, err := loadFilelessexec()
 	if err != nil {
 		return err
