@@ -776,7 +776,7 @@ func (mon *SystemMonitor) TraceSyscall() {
 				}
 
 				if record.LostSamples != 0 {
-					mon.Logger.Warnf("Lost Perf Events Count : %d", record.LostSamples)
+					mon.Logger.Debugf("Lost Perf Events Count : %d", record.LostSamples)
 					continue
 				}
 				mon.SyscallChannel <- record.RawSample
@@ -830,7 +830,7 @@ func (mon *SystemMonitor) TraceSyscall() {
 					default:
 						// channel is full, wait for a short time before retrying
 						time.Sleep(1 * time.Second)
-						mon.Logger.Warn("Event dropped due to busy event channel")
+						mon.Logger.Debug("Event dropped due to busy event channel")
 					}
 
 				}
