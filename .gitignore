@@ -1,5 +1,6 @@
 # KubeArmor
 kubearmor
+!KubeArmor/
 karmor
 snitch
 kubearmor-operator
@@ -48,3 +49,6 @@ deployHook
 
 # personal scratchpad for incubation reapplication work — not for upstream
 MEMORY.md
+
+# windows build exes
+*.exe

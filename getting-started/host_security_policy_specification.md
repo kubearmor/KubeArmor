@@ -1,5 +1,8 @@
 # Specification of Host Security Policy for Nodes/VMs
 
+> [!NOTE]
+> On Windows, only `KubeArmorHostPolicy` is supported. Container-level policies (`KubeArmorPolicy`) are not enforced on Windows. For Windows-specific architecture and additional policy fields, see [Windows Support](windows_support.md) and [Windows Policy Spec](windows_policy_spec.md).
+
 ## Policy Specification
 
 Here is the specification of a host security policy.
@@ -35,6 +38,11 @@ spec:
     matchPatterns:
     - pattern: [regex pattern]
       ownerOnly: [true|false]              # --> optional
+    matchPackages:                         # --> optional, Windows only
+    - name: [package name or wildcard]    # --> AppX package product name
+      publisher: [publisher DN]            # --> optional, certificate Subject DN
+      packageFamily: [family name]         # --> optional, name + publisher hash
+      action: [Block]                      # --> optional
 
   file:
     matchPaths:
@@ -156,6 +164,8 @@ Now, we will briefly explain how to define a host security policy.
 
   In the process section, there are three types of matches: matchPaths, matchDirectories, and matchPatterns. You can define specific executables using matchPaths or all executables in specific directories using matchDirectories. In the case of matchPatterns, advanced operators may be able to determine particular patterns for executables by using regular expressions. However, we generally do not recommend using this match.
 
+  On Windows, there is an additional `matchPackages` field for targeting UWP/MSIX packaged applications via AppLocker. See [Windows Policy Spec](windows_policy_spec.md) for details.
+
   ```text
     process:
       matchPaths:
@@ -172,6 +182,11 @@ Now, we will briefly explain how to define a host security policy.
       matchPatterns:
       - pattern: [regex pattern]
         ownerOnly: [true|false]            # --> optional
+      matchPackages:                       # Windows only
+      - name: [package name or wildcard]
+        publisher: [publisher DN]          # --> optional
+        packageFamily: [family name]       # --> optional
+        action: [Block]                    # --> optional
   ```
 
   In each match, there are three options.

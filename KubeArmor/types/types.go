@@ -435,11 +435,40 @@ type ProcessPatternType struct {
 	Action   string   `json:"action,omitempty"`
 }
 
+// PackageMatchType Structure — identifies a Windows packaged (MSIX/AppX) application
+// by its AppLocker publisher identity. All string fields support wildcards (e.g. "*Notepad").
+// Fields have an AND relationship: all specified fields must match.
+type PackageMatchType struct {
+	// Publisher is the signing certificate's Subject DN.
+	// Example: "CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US"
+	// Omit or use "*" to match any publisher.
+	Publisher string `json:"publisher,omitempty"`
+
+	// Name is the package product name as reported by Get-AppxPackage.
+	// Example: "Microsoft.WindowsNotepad"  or  "*Notepad" for a wildcard match.
+	// Omit or use "*" to match any product name.
+	Name string `json:"name,omitempty"`
+
+	// PackageFamily is the package family name (name + publisher hash).
+	// Example: "Microsoft.WindowsNotepad_8wekyb3d8bbwe"
+	// When provided together with Name/Publisher it further narrows the match.
+	PackageFamily string `json:"packageFamily,omitempty"`
+
+	Severity int      `json:"severity,omitempty"`
+	Tags     []string `json:"tags,omitempty"`
+	Message  string   `json:"message,omitempty"`
+	Action   string   `json:"action,omitempty"`
+}
+
 // ProcessType Structure
 type ProcessType struct {
 	MatchPaths       []ProcessPathType      `json:"matchPaths,omitempty"`
 	MatchDirectories []ProcessDirectoryType `json:"matchDirectories,omitempty"`
 	MatchPatterns    []ProcessPatternType   `json:"matchPatterns,omitempty"`
+
+	// MatchPackages targets Windows packaged (MSIX/AppX) applications via
+	// AppLocker FilePublisherRule entries in the Appx collection.
+	MatchPackages []PackageMatchType `json:"matchPackages,omitempty"`
 
 	Severity int      `json:"severity,omitempty"`
 	Tags     []string `json:"tags,omitempty"`

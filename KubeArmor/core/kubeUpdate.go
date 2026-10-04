@@ -9,6 +9,7 @@ import (
 	"maps"
 	"os"
 	"reflect"
+	"runtime"
 	"slices"
 	"strconv"
 	"strings"
@@ -63,21 +64,30 @@ func (dm *KubeArmorDaemon) HandleNodeAnnotations(node *tp.Node) {
 	if v, ok := node.Labels["kubearmor.io/enforcer"]; ok {
 		lsm = v
 	} else { // Read the lsm from the system
-		lsmByteData, err := os.ReadFile("/sys/kernel/security/lsm")
-		if err != nil && !os.IsNotExist(err) {
-			kg.Errf("Failed to read /sys/kernel/security/lsm (%s)", err.Error())
-		} else if len(lsmByteData) == 0 {
-			kg.Err("Failed to read /sys/kernel/security/lsm: empty file")
+		if runtime.GOOS != "windows" {
+			lsmByteData, err := os.ReadFile("/sys/kernel/security/lsm")
+			if err != nil && !os.IsNotExist(err) {
+				kg.Errf("Failed to read /sys/kernel/security/lsm (%s)", err.Error())
+			} else if len(lsmByteData) == 0 {
+				// Don't log error here if it's expected in some container environments, but keep original logic
+				if kl.IsInK8sCluster() {
+					kg.Err("Failed to read /sys/kernel/security/lsm: empty file")
+				}
+			}
+			lsm = string(lsmByteData)
+		} else {
+			lsm = "minifilter,applocker"
 		}
-		lsm = string(lsmByteData)
 	}
 
 	hasAppArmor := strings.Contains(lsm, "apparmor")
 	hasSelinux := strings.Contains(lsm, "selinux")
 	hasBPF := strings.Contains(lsm, "bpf")
 
-	if !hasBPF && !hasSelinux && !hasAppArmor {
-		// exception: neither AppArmor, SELinux or BPF
+	hasMinifilter := strings.Contains(lsm, "minifilter")
+
+	if !hasBPF && !hasSelinux && !hasAppArmor && !hasMinifilter {
+		// exception: neither AppArmor, SELinux, BPF or Minifilter
 		if node.Annotations["kubearmor-policy"] == "enabled" {
 			node.Annotations["kubearmor-policy"] = "audited"
 		}
@@ -591,7 +601,7 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 // HandleUnknownNamespaceNsMap Function
 func (dm *KubeArmorDaemon) HandleUnknownNamespaceNsMap(container *tp.Container) {
 	dm.SystemMonitor.AddContainerIDToNsMap(container.ContainerID, container.NamespaceName, container.PidNS, container.MntNS)
-	dm.SystemMonitor.NsMapLock.Lock()
+	dm.SystemMonitor.NamespacePidsMapLock.Lock()
 	if val, ok := dm.SystemMonitor.NamespacePidsMap["Unknown"]; ok {
 		for i := range val.NsKeys {
 			if val.NsKeys[i].MntNS == container.MntNS && val.NsKeys[i].PidNS == container.PidNS {
@@ -601,7 +611,7 @@ func (dm *KubeArmorDaemon) HandleUnknownNamespaceNsMap(container *tp.Container) 
 		}
 		dm.SystemMonitor.NamespacePidsMap["Unknown"] = val
 	}
-	dm.SystemMonitor.NsMapLock.Unlock()
+	dm.SystemMonitor.NamespacePidsMapLock.Unlock()
 }
 
 func (dm *KubeArmorDaemon) handlePodEvent(event string, obj *corev1.Pod) {
@@ -724,7 +734,7 @@ func (dm *KubeArmorDaemon) handlePodEvent(event string, obj *corev1.Pod) {
 		if pod.Annotations["kubearmor-policy"] == "enabled" {
 			pod.Annotations["kubearmor-policy"] = "audited"
 		}
-	} else if dm.RuntimeEnforcer != nil && dm.RuntimeEnforcer.EnforcerType == "SELinux" {
+	} else if dm.RuntimeEnforcer != nil && dm.RuntimeEnforcer.GetEnforcerType() == "SELinux" {
 		// exception: no SELinux support for containers
 		if pod.Annotations["kubearmor-policy"] == "enabled" {
 			pod.Annotations["kubearmor-policy"] = "audited"
@@ -777,7 +787,7 @@ func (dm *KubeArmorDaemon) handlePodEvent(event string, obj *corev1.Pod) {
 
 	pod.PrivilegedContainers = make(map[string]struct{})
 	pod.PrivilegedAppArmorProfiles = make(map[string]struct{})
-	if dm.RuntimeEnforcer != nil && dm.RuntimeEnforcer.EnforcerType == "AppArmor" {
+	if dm.RuntimeEnforcer != nil && dm.RuntimeEnforcer.GetEnforcerType() == "AppArmor" {
 		appArmorAnnotations := map[string]string{}
 		updateAppArmor := false
 		dm.OwnerInfoLock.RLock()
@@ -1945,6 +1955,41 @@ func (dm *KubeArmorDaemon) CreateHostSecurityPolicy(securityPolicy any) (secPoli
 		}
 	}
 
+	if len(secPolicy.Spec.Process.MatchPackages) > 0 {
+		for idx, pkg := range secPolicy.Spec.Process.MatchPackages {
+			if pkg.Severity == 0 {
+				if secPolicy.Spec.Process.Severity != 0 {
+					secPolicy.Spec.Process.MatchPackages[idx].Severity = secPolicy.Spec.Process.Severity
+				} else {
+					secPolicy.Spec.Process.MatchPackages[idx].Severity = secPolicy.Spec.Severity
+				}
+			}
+
+			if len(pkg.Tags) == 0 {
+				if len(secPolicy.Spec.Process.Tags) > 0 {
+					secPolicy.Spec.Process.MatchPackages[idx].Tags = secPolicy.Spec.Process.Tags
+				} else {
+					secPolicy.Spec.Process.MatchPackages[idx].Tags = secPolicy.Spec.Tags
+				}
+			}
+
+			if len(pkg.Message) == 0 {
+				if len(secPolicy.Spec.Process.Message) > 0 {
+					secPolicy.Spec.Process.MatchPackages[idx].Message = secPolicy.Spec.Process.Message
+				} else {
+					secPolicy.Spec.Process.MatchPackages[idx].Message = secPolicy.Spec.Message
+				}
+			}
+
+			if len(pkg.Action) == 0 {
+				if len(secPolicy.Spec.Process.Action) > 0 {
+					secPolicy.Spec.Process.MatchPackages[idx].Action = secPolicy.Spec.Process.Action
+				} else {
+					secPolicy.Spec.Process.MatchPackages[idx].Action = secPolicy.Spec.Action
+				}
+			}
+		}
+	}
 	if len(secPolicy.Spec.File.MatchPaths) > 0 {
 		for idx, path := range secPolicy.Spec.File.MatchPaths {
 			if path.Severity == 0 {
@@ -3017,7 +3062,7 @@ func (dm *KubeArmorDaemon) ParseAndUpdateHostSecurityPolicy(event tp.K8sKubeArmo
 				if len(secPolicy.Spec.Capabilities.Message) > 0 {
 					secPolicy.Spec.Capabilities.MatchCapabilities[idx].Message = secPolicy.Spec.Capabilities.Message
 				} else {
-					secPolicy.Spec.Capabilities.MatchCapabilities[idx].Message = secPolicy.Spec.Message
+					secPolicy.Spec.Capabilities.MatchCapabilities[idx].Message = secPolicy.Spec.Capabilities.Message
 				}
 			}
 
@@ -3806,8 +3851,8 @@ func (dm *KubeArmorDaemon) validateVisibility(scope string, visibility string) b
 
 // UpdateVisibility Function
 func (dm *KubeArmorDaemon) UpdateVisibility(action string, namespace string, visibility tp.Visibility) {
-	dm.SystemMonitor.BpfMapLock.Lock()
-	defer dm.SystemMonitor.BpfMapLock.Unlock()
+	dm.SystemMonitor.NamespacePidsMapLock.Lock()
+	defer dm.SystemMonitor.NamespacePidsMapLock.Unlock()
 
 	switch action {
 	case addEvent, updateEvent:
@@ -3820,7 +3865,7 @@ func (dm *KubeArmorDaemon) UpdateVisibility(action string, namespace string, vis
 			val.IMA = visibility.IMA
 			dm.SystemMonitor.NamespacePidsMap[namespace] = val
 			for _, nskey := range val.NsKeys {
-				dm.SystemMonitor.UpdateNsKeyMap(updateEvent, nskey, visibility)
+				dm.SystemMonitor.UpdateNsVisibility(updateEvent, nskey, visibility)
 			}
 		} else {
 			dm.SystemMonitor.NamespacePidsMap[namespace] = monitor.NsVisibility{
@@ -3837,7 +3882,7 @@ func (dm *KubeArmorDaemon) UpdateVisibility(action string, namespace string, vis
 	case deleteEvent:
 		if val, ok := dm.SystemMonitor.NamespacePidsMap[namespace]; ok {
 			for _, nskey := range val.NsKeys {
-				dm.SystemMonitor.UpdateNsKeyMap(deleteEvent, nskey, tp.Visibility{})
+				dm.SystemMonitor.UpdateNsVisibility(deleteEvent, nskey, tp.Visibility{})
 			}
 		}
 		delete(dm.SystemMonitor.NamespacePidsMap, namespace)
@@ -3848,7 +3893,7 @@ var visibilityKey string = "kubearmor-visibility"
 
 func (dm *KubeArmorDaemon) updateVisibilityWithCM(cm *corev1.ConfigMap, _ string) {
 
-	dm.SystemMonitor.UpdateVisibility() // update host and global default bpf maps
+	dm.SystemMonitor.UpdateDefaultVisibility() // update host and global default bpf maps
 
 	// get all namespaces
 	nsList, err := K8s.K8sClient.CoreV1().Namespaces().List(context.Background(), metav1.ListOptions{})
@@ -4174,12 +4219,11 @@ func (dm *KubeArmorDaemon) UpdateIMA(enabled bool) {
 		dm.Logger.Print("Successfully initialized IMA module")
 		return
 	}
-	if !enabled && dm.SystemMonitor.ImaHash != nil {
-		if err := dm.SystemMonitor.ImaHash.DestroyImaHash(); err != nil {
+	if !enabled {
+		if err := dm.SystemMonitor.DestroyImaHash(); err != nil {
 			dm.Logger.Warnf("error uninitializing IMA module: %s", err)
 			return
 		}
-		dm.SystemMonitor.ImaHash = nil
 		dm.Logger.Print("Successfully uninitialized IMA module")
 		return
 	}
