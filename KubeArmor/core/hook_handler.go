@@ -171,6 +171,11 @@ func (dm *KubeArmorDaemon) handleContainerCreate(container types.Container) {
 			}
 		}
 	}
+
+	// Notify API Observer of new container for namespace filtering.
+	if dm.APIObserver != nil && container.PidNS > 0 {
+		dm.APIObserver.OnContainerAdded(container.ContainerID, container.NamespaceName, container.PidNS)
+	}
 }
 func (dm *KubeArmorDaemon) handleContainerDelete(containerID string) {
 	dm.ContainersLock.Lock()
@@ -204,6 +209,11 @@ func (dm *KubeArmorDaemon) handleContainerDelete(containerID string) {
 		// update NsMap
 		dm.SystemMonitor.DeleteContainerIDFromNsMap(containerID, container.NamespaceName, container.PidNS, container.MntNS)
 		dm.RuntimeEnforcer.UnregisterContainer(containerID)
+	}
+
+	// Notify API Observer of removed container for namespace filtering.
+	if dm.APIObserver != nil {
+		dm.APIObserver.OnContainerRemoved(containerID)
 	}
 
 }

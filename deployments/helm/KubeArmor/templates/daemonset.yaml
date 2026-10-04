@@ -108,6 +108,7 @@ spec:
         {{- end }}
       dnsPolicy: ClusterFirstWithHostNet
       hostNetwork: true
+      hostPID: true
       securityContext:
           appArmorProfile:
             type: Unconfined

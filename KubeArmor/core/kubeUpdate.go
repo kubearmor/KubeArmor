@@ -1028,6 +1028,63 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 
 }
 
+// WatchK8sServices watches K8s Service objects and populates ServiceIPMap
+// with ClusterIP → FQDN mappings for API Observer :authority resolution.
+func (dm *KubeArmorDaemon) WatchK8sServices() cache.InformerSynced {
+	if !kl.IsK8sEnv() {
+		return nil
+	}
+
+	// Watch all services cluster-wide (no node filter needed).
+	factory := informers.NewSharedInformerFactory(K8s.K8sClient, 0)
+	informer := factory.Core().V1().Services().Informer()
+
+	updateServiceMap := func(svc *corev1.Service, add bool) {
+		clusterIP := svc.Spec.ClusterIP
+		if clusterIP == "" || clusterIP == "None" {
+			return
+		}
+		dm.ServiceIPMapLock.Lock()
+		if add {
+			fqdn := fmt.Sprintf("%s.%s.svc.cluster.local", svc.Name, svc.Namespace)
+			dm.ServiceIPMap[clusterIP] = fqdn
+		} else {
+			delete(dm.ServiceIPMap, clusterIP)
+		}
+		dm.ServiceIPMapLock.Unlock()
+	}
+
+	registration, err := informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj any) {
+			if svc, ok := obj.(*corev1.Service); ok {
+				updateServiceMap(svc, true)
+			}
+		},
+		UpdateFunc: func(oldObj, newObj any) {
+			// ClusterIP is immutable but handle old→new anyway.
+			if oldSvc, ok := oldObj.(*corev1.Service); ok {
+				updateServiceMap(oldSvc, false)
+			}
+			if svc, ok := newObj.(*corev1.Service); ok {
+				updateServiceMap(svc, true)
+			}
+		},
+		DeleteFunc: func(obj any) {
+			if svc, ok := obj.(*corev1.Service); ok {
+				updateServiceMap(svc, false)
+			}
+		},
+	})
+	if err != nil {
+		dm.Logger.Warnf("Error starting service informer: %s", err)
+		return nil
+	}
+
+	go factory.Start(StopChan)
+	dm.Logger.Print("Started watching K8s Services for API Observer")
+	return registration.HasSynced
+}
+
 // updateNamespaceListforCSP - in case of NotIn operator for namespace key, a new ns might be added later
 // and here we will update namespaceList for CSP
 func updateNamespaceListforCSP(policy *tp.SecurityPolicy) {
@@ -4074,6 +4131,17 @@ func (dm *KubeArmorDaemon) WatchConfigMap() cache.InformerSynced {
 				dm.UpdateIMA(cfg.GlobalCfg.EnableIMA)
 				dm.UpdateUSBDeviceHandler(cfg.GlobalCfg.USBDeviceHandler)
 
+				// API Observer config (enableAPIObserver requires restart)
+				if v, ok := cm.Data[cfg.ConfigApiBlockedAuthorities]; ok && v != "" {
+					cfg.GlobalCfg.ConfigApiBlockedAuthorities.Store(strings.Split(v, ","))
+				}
+				if v, ok := cm.Data[cfg.ConfigApiExcludedPorts]; ok && v != "" {
+					cfg.GlobalCfg.ConfigApiExcludedPorts.Store(strings.Split(v, ","))
+					if dm.APIObserver != nil {
+						dm.APIObserver.SyncPortExclusions()
+					}
+				}
+
 				dm.Logger.Printf("Current Global Posture is %v", currentGlobalPosture)
 				dm.UpdateGlobalPosture(globalPosture)
 
@@ -4149,6 +4217,17 @@ func (dm *KubeArmorDaemon) WatchConfigMap() cache.InformerSynced {
 				dm.SystemMonitor.UpdateMatchArgsConfig()
 				dm.UpdateIMA(cfg.GlobalCfg.EnableIMA)
 				dm.UpdateUSBDeviceHandler(cfg.GlobalCfg.USBDeviceHandler)
+
+				// API Observer config (enableAPIObserver requires restart)
+				if v, ok := cm.Data[cfg.ConfigApiBlockedAuthorities]; ok && v != "" {
+					cfg.GlobalCfg.ConfigApiBlockedAuthorities.Store(strings.Split(v, ","))
+				}
+				if v, ok := cm.Data[cfg.ConfigApiExcludedPorts]; ok && v != "" {
+					cfg.GlobalCfg.ConfigApiExcludedPorts.Store(strings.Split(v, ","))
+					if dm.APIObserver != nil {
+						dm.APIObserver.SyncPortExclusions()
+					}
+				}
 			}
 		},
 		DeleteFunc: func(obj any) {
