@@ -13,6 +13,7 @@ import (
 	versioned "github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/client/clientset/versioned"
 	internalinterfaces "github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/client/informers/externalversions/internalinterfaces"
 	operatorkubearmorcom "github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/client/informers/externalversions/operator.kubearmor.com"
+	securitykubearmorcom "github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/client/informers/externalversions/security.kubearmor.com"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
@@ -160,8 +161,13 @@ type SharedInformerFactory interface {
 	WaitForCacheSync(stopCh <-chan struct{}) map[reflect.Type]bool
 
 	Operator() operatorkubearmorcom.Interface
+	Security() securitykubearmorcom.Interface
 }
 
 func (f *sharedInformerFactory) Operator() operatorkubearmorcom.Interface {
 	return operatorkubearmorcom.New(f, f.namespace, f.tweakListOptions)
+}
+
+func (f *sharedInformerFactory) Security() securitykubearmorcom.Interface {
+	return securitykubearmorcom.New(f, f.namespace, f.tweakListOptions)
 }

@@ -8,9 +8,14 @@ spec:
       kubearmor-app: kubearmor-operator
   template:
     metadata:
+      annotations:
+        container.apparmor.security.beta.kubernetes.io/manager: unconfined
+        kubectl.kubernetes.io/default-container: operator
       labels:
         kubearmor-app: kubearmor-operator
     spec:
+      securityContext:
+        runAsNonRoot: true
       serviceAccountName: kubearmor-operator
       containers:
       - name: operator
@@ -21,3 +26,18 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.namespace
+        args:
+          - --leader-elect
+          - --health-probe-bind-address=:8081
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8081
+          initialDelaySeconds: 15
+          periodSeconds: 20
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: 8081
+          initialDelaySeconds: 5
+          periodSeconds: 10

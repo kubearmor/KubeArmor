@@ -148,16 +148,6 @@ jobs:
       (needs.go-tests.result == 'success' || needs.ebpf-tests.result == 'success')
     uses: ./.github/workflows/ci-network-tests.yml
 
-  matrix-tests-controller:
-    name: "Ginkgo Tests (Controller) - K8s"
-    needs: [detect-changes, go-tests, ebpf-tests]
-    if: |
-      !cancelled() &&
-      (needs.go-tests.result == 'success' || needs.go-tests.result == 'skipped') &&
-      (needs.ebpf-tests.result == 'success' || needs.ebpf-tests.result == 'skipped') &&
-      (needs.go-tests.result == 'success' || needs.ebpf-tests.result == 'success')
-    uses: ./.github/workflows/ci-test-controllers.yml
-
   build-test-operator:
     name: "Build Test - Operator"
     needs: [detect-changes, go-tests, ebpf-tests]
@@ -176,7 +166,6 @@ jobs:
       - matrix-tests-ubi
       - matrix-tests-systemd
       - matrix-tests-network
-      - matrix-tests-controller
       - build-test-operator
       - lvh-tests
     runs-on: ubuntu-latest

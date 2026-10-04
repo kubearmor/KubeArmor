@@ -5,6 +5,7 @@
 domain: kubearmor.com
 layout:
 - go.kubebuilder.io/v4
+multigroup: true
 projectName: kubearmoroperator
 repo: github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator
 resources:
@@ -15,6 +16,42 @@ resources:
   domain: kubearmor.com
   group: operator
   kind: KubeArmorConfig
-  path: github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/api/v1
+  path: github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/api/operator.kubearmor.com/v1
+  version: v1
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: kubearmor.com
+  group: security
+  kind: KubeArmorPolicy
+  path: github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/api/security.kubearmor.com/v1
+  version: v1
+- api:
+    crdVersion: v1
+    namespaced: false
+  controller: true
+  domain: kubearmor.com
+  group: security
+  kind: KubeArmorHostPolicy
+  path: github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/api/security.kubearmor.com/v1
+  version: v1
+- api:
+    crdVersion: v1
+    namespaced: false
+  controller: true
+  domain: kubearmor.com
+  group: security
+  kind: KubeArmorClusterPolicy
+  path: github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/api/security.kubearmor.com/v1
+  version: v1
+- api:
+    crdVersion: v1
+    namespaced: false
+  controller: true
+  domain: kubearmor.com
+  group: security
+  kind: KubeArmorNetworkPolicy
+  path: github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/api/security.kubearmor.com/v1
   version: v1
 version: "3"

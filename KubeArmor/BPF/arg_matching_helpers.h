@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright 2024 Authors of KubeArmor */
+/* Copyright 2026 Authors of KubeArmor */
 /* This module contains the common structures shared by lsm and system monitor*/
 #include "common_types.h"
 #ifndef __ARG_MATCHING_HELPERS_H

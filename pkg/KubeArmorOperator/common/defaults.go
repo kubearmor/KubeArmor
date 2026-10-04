@@ -13,8 +13,8 @@ import (
 	"sync"
 
 	deployments "github.com/kubearmor/KubeArmor/deployments/get"
-	securityv1 "github.com/kubearmor/KubeArmor/pkg/KubeArmorController/api/security.kubearmor.com/v1"
 	opv1 "github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/api/operator.kubearmor.com/v1"
+	securityv1 "github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/api/security.kubearmor.com/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/rand"
@@ -140,19 +140,7 @@ var (
 	KubeArmorRelayNodeSelector                                   = map[string]string{}
 	KubeArmorRelayEnv                                            = []corev1.EnvVar{}
 
-	KubeArmorControllerName string   = "kubearmor-controller"
-	KubeArmorControllerArgs []string = []string{
-		"--leader-elect",
-		"--health-probe-bind-address=:8081",
-		"--annotateExisting=false",
-	}
-	KubeArmorControllerImage              string                        = "docker.io/kubearmor/kubearmor-controller:latest"
-	KubeArmorControllerImagePullPolicy    string                        = "Always"
-	KubeArmorControllerImagePullSecrets   []corev1.LocalObjectReference = []corev1.LocalObjectReference{}
-	KubeArmorControllerTolerations        []corev1.Toleration           = []corev1.Toleration{}
-	KubeArmorControllerWebhookServiceName                               = "kubearmor-controller-webhook-service"
-	KubeArmorControllerNodeSelector                                     = map[string]string{}
-	KubeArmorControllerEnv                                              = []corev1.EnvVar{}
+	KubeArmorOperatorWebhookServiceName = "kubearmor-operator-webhook-service"
 
 	SeccompProfile     = "kubearmor-seccomp.json"
 	SeccompInitProfile = "kubearmor-init-seccomp.json"
@@ -207,8 +195,8 @@ var (
 
 	ElasticSearchAdapterCaCertPath = "/cert"
 
-	ControllerPortLock      sync.Mutex
-	KubeArmorControllerPort = 9443
+	WebhookPortLock      sync.Mutex
+	KubeArmorWebhookPort = 9443
 )
 var Pointer2True bool = true
 
@@ -518,7 +506,7 @@ func GetFreeRandSuffix(c *kubernetes.Clientset, namespace string) (suffix string
 	for {
 		suffix = rand.String(5)
 		found = false
-		if _, err = c.CoreV1().Secrets(namespace).Get(context.Background(), deployments.KubeArmorControllerSecretName+"-"+suffix, metav1.GetOptions{}); err != nil {
+		if _, err = c.CoreV1().Secrets(namespace).Get(context.Background(), deployments.KubeArmorOperatorSecretName+"-"+suffix, metav1.GetOptions{}); err != nil {
 			if !strings.Contains(err.Error(), "not found") {
 				return "", err
 			}
@@ -561,11 +549,6 @@ func GetApplicationImage(app string) string {
 			return image
 		}
 		return KubeArmorRelayImage
-	case KubeArmorControllerName:
-		if image := os.Getenv("RELATED_IMAGE_KUBEARMOR_CONTROLLER"); image != "" {
-			return image
-		}
-		return KubeArmorControllerImage
 	case SnitchName:
 		if image := os.Getenv("RELATED_IMAGE_KUBEARMOR_SNITCH"); image != "" {
 			return image

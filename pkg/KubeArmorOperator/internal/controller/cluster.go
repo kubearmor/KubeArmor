@@ -19,11 +19,11 @@ import (
 	certutil "github.com/kubearmor/KubeArmor/KubeArmor/cert"
 	"github.com/kubearmor/KubeArmor/KubeArmor/log"
 	deployments "github.com/kubearmor/KubeArmor/deployments/get"
-	secv1 "github.com/kubearmor/KubeArmor/pkg/KubeArmorController/api/security.kubearmor.com/v1"
-	secv1client "github.com/kubearmor/KubeArmor/pkg/KubeArmorController/client/clientset/versioned"
 	opv1 "github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/api/operator.kubearmor.com/v1"
+	secv1 "github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/api/security.kubearmor.com/v1"
 	"github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/cert"
 	opv1client "github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/client/clientset/versioned"
+	secv1client "github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/client/clientset/versioned"
 	"github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/client/clientset/versioned/scheme"
 	opv1Informer "github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/client/informers/externalversions"
 	"github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/cmd"
@@ -472,7 +472,7 @@ func (clusterWatcher *ClusterWatcher) WatchConfigCrd() {
 						UpdatedKubearmorRelayEnv(&cfg.Spec)
 						UpdatedSeccomp(&cfg.Spec)
 						UpdateRecommendedPolicyConfig(&cfg.Spec)
-						utils.UpdateControllerPort(&cfg.Spec)
+						utils.UpdateWebhookPort(&cfg.Spec)
 						// update status to (Installation) Created
 						go clusterWatcher.UpdateCrdStatus(cfg.Name, common.CREATED, common.CREATED_MSG)
 						go clusterWatcher.WatchRequiredResources()
@@ -493,14 +493,14 @@ func (clusterWatcher *ClusterWatcher) WatchConfigCrd() {
 					if common.OperatorConfigCrd != nil && cfg.Name == common.OperatorConfigCrd.Name {
 						configChanged := UpdateConfigMapData(&cfg.Spec)
 						imageUpdated := UpdateImages(&cfg.Spec)
-						controllerPortUpdated := utils.UpdateControllerPort(&cfg.Spec)
+						webhookPortUpdated := utils.UpdateWebhookPort(&cfg.Spec)
 						relayEnvUpdated := UpdatedKubearmorRelayEnv(&cfg.Spec)
 						seccompEnabledUpdated := UpdatedSeccomp(&cfg.Spec)
 						tlsUpdated := UpdateTlsData(&cfg.Spec)
 						UpdateRecommendedPolicyConfig(&cfg.Spec)
 
 						// return if only status has been updated
-						if !tlsUpdated && !relayEnvUpdated && !configChanged && cfg.Status != oldObj.(*opv1.KubeArmorConfig).Status && len(imageUpdated) < 1 && !controllerPortUpdated {
+						if !tlsUpdated && !relayEnvUpdated && !configChanged && cfg.Status != oldObj.(*opv1.KubeArmorConfig).Status && len(imageUpdated) < 1 && !webhookPortUpdated {
 							return
 						}
 						if tlsUpdated {
@@ -524,9 +524,8 @@ func (clusterWatcher *ClusterWatcher) WatchConfigCrd() {
 							go clusterWatcher.UpdateCrdStatus(cfg.Name, common.UPDATING, common.UPDATING_MSG)
 							clusterWatcher.UpdateKubearmorSeccomp(cfg)
 						}
-						if controllerPortUpdated {
-							clusterWatcher.UpdateKubeArmorImages([]string{"controller"})
-							clusterWatcher.UpdateWebhookSvcPort(cfg.Spec.ControllerPort)
+						if webhookPortUpdated {
+							clusterWatcher.UpdateWebhookSvcPort(cfg.Spec.WebhookPort)
 						}
 					}
 				}
@@ -671,63 +670,6 @@ func (clusterWatcher *ClusterWatcher) UpdateKubeArmorImages(images []string) err
 					res = err
 				} else {
 					clusterWatcher.Log.Infof("Updated Deployment=%s with image=%s", deployments.RelayDeploymentName, common.KubeArmorRelayImage)
-				}
-			}
-
-		case "controller":
-			dep, err := clusterWatcher.Client.AppsV1().Deployments(common.Namespace).Get(context.Background(), deployments.KubeArmorControllerDeploymentName, v1.GetOptions{})
-			if err != nil {
-				clusterWatcher.Log.Warnf("Cannot get deployment=%s error=%s", deployments.KubeArmorControllerDeploymentName, err.Error())
-				res = err
-			} else {
-				controller := dep.DeepCopy()
-				controller.Spec.Template.Spec.ImagePullSecrets = common.KubeArmorControllerImagePullSecrets
-				if len(controller.Spec.Template.Spec.ImagePullSecrets) == 0 && len(ImagePullSecrets) > 0 {
-					UpdateImagePullSecretsIfDefinedAndUpdated(&controller.Spec.Template.Spec.ImagePullSecrets, ImagePullSecrets)
-				}
-				if len(controller.Spec.Template.Spec.ImagePullSecrets) < 1 {
-					utils.UpdateImagePullSecretFromGlobal(common.GlobalImagePullSecrets, &controller.Spec.Template.Spec.ImagePullSecrets)
-				}
-				if len(controller.Spec.Template.Spec.ImagePullSecrets) == 0 && len(ImagePullSecrets) > 0 {
-					UpdateImagePullSecretsIfDefinedAndUpdated(&controller.Spec.Template.Spec.ImagePullSecrets, ImagePullSecrets)
-				}
-				controller.Spec.Template.Spec.Tolerations = common.KubeArmorControllerTolerations
-				if len(controller.Spec.Template.Spec.Tolerations) < 1 {
-					utils.UpdateTolerationFromGlobal(common.GlobalTolerations, &controller.Spec.Template.Spec.Tolerations)
-				}
-				containers := &controller.Spec.Template.Spec.Containers
-				for i, container := range *containers {
-					if container.Name == "manager" {
-						(*containers)[i].Image = common.GetApplicationImage(common.KubeArmorControllerName)
-						(*containers)[i].ImagePullPolicy = corev1.PullPolicy(common.KubeArmorControllerImagePullPolicy)
-						(*containers)[i].Args = common.KubeArmorControllerArgs
-						(*containers)[i].Ports[0].ContainerPort = int32(common.KubeArmorControllerPort)
-					}
-				}
-				UpdateArgsIfDefinedAndUpdated(&controller.Spec.Template.Spec.Containers[0].Args, []string{"webhook-port=" + strconv.Itoa(common.KubeArmorControllerPort)})
-
-				// update with globalNodeSelector
-				AddOrUpdateNodeSelector(controller.Spec.Template.Spec.NodeSelector, common.GlobalNodeSelectors)
-				// add/override with controller specific nodeSelector
-				if len(common.KubeArmorControllerNodeSelector) > 0 {
-					defer RemoveDeletedEntriesForNodeSelector(common.KubeArmorControllerNodeSelector)
-					AddOrUpdateNodeSelector(controller.Spec.Template.Spec.NodeSelector, common.KubeArmorControllerNodeSelector)
-				}
-
-				// update with global env
-				AddOrUpdateEnv(&controller.Spec.Template.Spec.Containers[0].Env, common.GlobalEnv)
-				// add/override with controller specific env
-				if len(common.KubeArmorControllerEnv) > 0 {
-					defer RemoveDeletedEntriesForEnv(&common.KubeArmorControllerEnv)
-					AddOrUpdateEnv(&controller.Spec.Template.Spec.Containers[0].Env, common.KubeArmorControllerEnv)
-				}
-
-				_, err := clusterWatcher.Client.AppsV1().Deployments(common.Namespace).Update(context.Background(), controller, v1.UpdateOptions{})
-				if err != nil {
-					clusterWatcher.Log.Warnf("Cannot update deployment=%s error=%s", deployments.KubeArmorControllerDeploymentName, err.Error())
-					res = err
-				} else {
-					clusterWatcher.Log.Infof("Updated Deployment=%s", deployments.KubeArmorControllerDeploymentName)
 				}
 			}
 		}
@@ -1145,23 +1087,13 @@ func UpdateImages(config *opv1.KubeArmorConfigSpec) []string {
 		UpdateEnvIfDefinedAndUpdated(&common.KubeArmorRelayEnv, config.KubeArmorRelayImage.Env) {
 		updatedImages = append(updatedImages, "relay")
 	}
-	// if kubearmor-controller image or imagePullPolicy got updated
-	if UpdateIfDefinedAndUpdated(&common.KubeArmorControllerImage, config.KubeArmorControllerImage.Image) ||
-		UpdateIfDefinedAndUpdated(&common.KubeArmorControllerImagePullPolicy, config.KubeArmorControllerImage.ImagePullPolicy) ||
-		UpdateArgsIfDefinedAndUpdated(&common.KubeArmorControllerArgs, config.KubeArmorControllerImage.Args) ||
-		UpdateImagePullSecretsIfDefinedAndUpdated(&common.KubeArmorControllerImagePullSecrets, config.KubeArmorControllerImage.ImagePullSecrets) ||
-		UpdateTolerationsIfDefinedAndUpdated(&common.KubeArmorControllerTolerations, config.KubeArmorControllerImage.Tolerations) ||
-		UpdateNodeSelectorIfDefinedAndUpdated(common.KubeArmorControllerNodeSelector, config.KubeArmorControllerImage.NodeSelector) ||
-		UpdateEnvIfDefinedAndUpdated(&common.KubeArmorControllerEnv, config.KubeArmorControllerImage.Env) {
-		updatedImages = append(updatedImages, "controller")
-	}
 
 	// if globalImagePullSecret or globalToleration updated
 	if UpdateImagePullSecretsIfDefinedAndUpdated(&common.GlobalImagePullSecrets, config.GloabalImagePullSecrets) ||
 		UpdateTolerationsIfDefinedAndUpdated(&common.GlobalTolerations, config.GlobalTolerations) ||
 		UpdateNodeSelectorIfDefinedAndUpdated(common.GlobalNodeSelectors, config.GlobalNodeSelector) ||
 		UpdateEnvIfDefinedAndUpdated(&common.GlobalEnv, config.GlobalEnv) {
-		updatedImages = []string{"kubearmor", "init", "relay", "controller"}
+		updatedImages = []string{"kubearmor", "init", "relay"}
 	}
 	return updatedImages
 }
@@ -1277,16 +1209,16 @@ func (clusterWatcher *ClusterWatcher) WatchTlsState(tlsEnabled bool) error {
 }
 func (clusterWatcher *ClusterWatcher) UpdateWebhookSvcPort(port int) {
 	// update webhook service port
-	svc, err := clusterWatcher.Client.CoreV1().Services(common.Namespace).Get(context.Background(), common.KubeArmorControllerWebhookServiceName, v1.GetOptions{})
+	svc, err := clusterWatcher.Client.CoreV1().Services(common.Namespace).Get(context.Background(), common.KubeArmorOperatorWebhookServiceName, v1.GetOptions{})
 	if err != nil {
-		clusterWatcher.Log.Warnf("Cannot get webhook service=%s error=%s", common.KubeArmorControllerWebhookServiceName, err.Error())
+		clusterWatcher.Log.Warnf("Cannot get webhook service=%s error=%s", common.KubeArmorOperatorWebhookServiceName, err.Error())
 	} else {
 		svc.Spec.Ports[0].TargetPort = intstr.FromInt(int(port))
 		_, err = clusterWatcher.Client.CoreV1().Services(common.Namespace).Update(context.Background(), svc, v1.UpdateOptions{})
 		if err != nil {
-			clusterWatcher.Log.Warnf("Cannot update webhook service=%s error=%s", common.KubeArmorControllerWebhookServiceName, err.Error())
+			clusterWatcher.Log.Warnf("Cannot update webhook service=%s error=%s", common.KubeArmorOperatorWebhookServiceName, err.Error())
 		} else {
-			clusterWatcher.Log.Infof("Updated webhook service=%s", common.KubeArmorControllerWebhookServiceName)
+			clusterWatcher.Log.Infof("Updated webhook service=%s", common.KubeArmorOperatorWebhookServiceName)
 		}
 	}
 }

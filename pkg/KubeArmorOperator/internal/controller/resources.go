@@ -17,9 +17,9 @@ import (
 	"time"
 
 	deployments "github.com/kubearmor/KubeArmor/deployments/get"
-	crds "github.com/kubearmor/KubeArmor/pkg/KubeArmorController/crd"
 	certGen "github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/cert"
 	"github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/common"
+	crds "github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/crd"
 	"github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/utils"
 	v1 "k8s.io/api/admissionregistration/v1"
 	appsv1 "k8s.io/api/apps/v1"
@@ -593,58 +593,6 @@ func (clusterWatcher *ClusterWatcher) AreAllNodesProcessed() bool {
 
 }
 
-func (clusterWatcher *ClusterWatcher) deployControllerDeployment(deployment *appsv1.Deployment) error {
-	deployment = addOwnership(deployment).(*appsv1.Deployment)
-
-	// add port to controller deployment
-	common.ControllerPortLock.Lock()
-	deployment.Spec.Template.Spec.Containers[0].Ports[0].ContainerPort = int32(common.KubeArmorControllerPort)
-	UpdateArgsIfDefinedAndUpdated(&deployment.Spec.Template.Spec.Containers[0].Args, []string{"webhook-port=" + strconv.Itoa(common.KubeArmorControllerPort)})
-	common.ControllerPortLock.Unlock()
-	if common.IfNodeWithSecurtiyFs {
-		deployment.Spec.Template.Spec.NodeSelector = map[string]string{
-			common.SecurityFsLabel: "yes",
-		}
-	} else {
-		deployment.Spec.Template.Spec.NodeSelector = make(map[string]string)
-	}
-
-	// update envs from kubearmorconfig
-	AddOrUpdateEnv(&deployment.Spec.Template.Spec.Containers[0].Env, common.GlobalEnv)
-	AddOrUpdateEnv(&deployment.Spec.Template.Spec.Containers[0].Env, common.KubeArmorControllerEnv)
-
-	// update nodeSelector from kubearmorconfig
-	AddOrUpdateNodeSelector(deployment.Spec.Template.Spec.NodeSelector, common.GlobalNodeSelectors)
-	AddOrUpdateNodeSelector(deployment.Spec.Template.Spec.NodeSelector, common.KubeArmorControllerNodeSelector)
-
-	controller, err := clusterWatcher.Client.AppsV1().Deployments(common.Namespace).Get(context.Background(), deployment.Name, metav1.GetOptions{})
-	if utils.IsNotfound(err) {
-		clusterWatcher.Log.Infof("Creating deployment %s", deployment.Name)
-		_, err = clusterWatcher.Client.AppsV1().Deployments(common.Namespace).Create(context.Background(), deployment, metav1.CreateOptions{})
-		if err != nil {
-			clusterWatcher.Log.Warnf("Cannot create deployment %s, error=%s", deployment.Name, err.Error())
-			return err
-		}
-	} else {
-		if (common.IfNodeWithSecurtiyFs && controller.Spec.Template.Spec.NodeSelector == nil) ||
-			(!common.IfNodeWithSecurtiyFs && controller.Spec.Template.Spec.NodeSelector != nil) ||
-			!reflect.DeepEqual(controller.Spec.Template.Spec.Containers[0].Args, deployment.Spec.Template.Spec.Containers[0].Args) ||
-			!reflect.DeepEqual(controller.Spec.Template.Spec.Tolerations, controller.Spec.Template.Spec.Tolerations) {
-			clusterWatcher.Log.Infof("Updating deployment %s", controller.Name)
-			controller.Spec.Template.Spec.NodeSelector = deployment.Spec.Template.Spec.NodeSelector
-			controller.Spec.Template.Spec.Containers = deployment.Spec.Template.Spec.Containers
-			controller.Spec.Template.Spec.Tolerations = deployment.Spec.Template.Spec.Tolerations
-			clusterWatcher.Log.Infoln("updated deployment", controller)
-			_, err = clusterWatcher.Client.AppsV1().Deployments(common.Namespace).Update(context.Background(), controller, metav1.UpdateOptions{})
-			if err != nil {
-				clusterWatcher.Log.Warnf("Cannot update deployment %s, error=%s", deployment.Name, err.Error())
-				return err
-			}
-		}
-	}
-	return nil
-}
-
 func (clusterWatcher *ClusterWatcher) getProvider(providerHostname, providerEndpoint string) (string, string, string) {
 	nodes, err := clusterWatcher.Client.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
@@ -800,30 +748,18 @@ func (clusterWatcher *ClusterWatcher) GetClusterName(providerHostname, providerE
 }
 
 func (clusterWatcher *ClusterWatcher) WatchRequiredResources() {
-	var caCert, tlsCrt, tlsKey *bytes.Buffer
-	var kGenErr, err, installErr error
+	var caCert *bytes.Buffer
+	var err, installErr error
 	RotateTls := false
 	srvAccs := []*corev1.ServiceAccount{
 		addOwnership(deployments.GetServiceAccount(common.Namespace)).(*corev1.ServiceAccount),
 		addOwnership(deployments.GetRelayServiceAccount(common.Namespace)).(*corev1.ServiceAccount),
-		addOwnership(deployments.GetKubeArmorControllerServiceAccount(common.Namespace)).(*corev1.ServiceAccount),
 		addOwnership(genSnitchServiceAccount()).(*corev1.ServiceAccount),
 	}
 	clusterRoles := []*rbacv1.ClusterRole{
 		addOwnership(genSnitchRole()).(*rbacv1.ClusterRole),
 		addOwnership(deployments.GetRelayClusterRole()).(*rbacv1.ClusterRole),
 	}
-	controllerClusterRole := addOwnership(deployments.GetKubeArmorControllerClusterRole()).(*rbacv1.ClusterRole)
-	if annotateExisting {
-		controllerClusterRole.Rules = append(controllerClusterRole.Rules, []rbacv1.PolicyRule{
-			{
-				APIGroups: []string{"apps"},
-				Resources: []string{"deployments", "statefulsets", "daemonsets", "replicasets"},
-				Verbs:     []string{"get", "update"},
-			},
-		}...)
-	}
-	clusterRoles = append(clusterRoles, controllerClusterRole)
 
 	kaClusterRole := addOwnership(deployments.GetClusterRole()).(*rbacv1.ClusterRole)
 	if annotateResource {
@@ -845,21 +781,16 @@ func (clusterWatcher *ClusterWatcher) WatchRequiredResources() {
 	clusterRoleBindings := []*rbacv1.ClusterRoleBinding{
 		addOwnership(deployments.GetClusterRoleBinding(common.Namespace)).(*rbacv1.ClusterRoleBinding),
 		addOwnership(deployments.GetRelayClusterRoleBinding(common.Namespace)).(*rbacv1.ClusterRoleBinding),
-		addOwnership(deployments.GetKubeArmorControllerClusterRoleBinding(common.Namespace)).(*rbacv1.ClusterRoleBinding),
 		addOwnership(genSnitchRoleBinding()).(*rbacv1.ClusterRoleBinding),
 	}
-	roles := []*rbacv1.Role{
-		addOwnership(deployments.GetKubeArmorControllerLeaderElectionRole(common.Namespace)).(*rbacv1.Role),
-	}
-	roleBindings := []*rbacv1.RoleBinding{
-		addOwnership(deployments.GetKubeArmorControllerLeaderElectionRoleBinding(common.Namespace)).(*rbacv1.RoleBinding),
-	}
+	roles := []*rbacv1.Role{}
+	roleBindings := []*rbacv1.RoleBinding{}
 
-	kubearmorControllerWebhookSvc := deployments.GetKubeArmorControllerWebhookService(common.Namespace)
-	kubearmorControllerWebhookSvc.Spec.Ports[0].TargetPort = intstr.FromInt(int(common.KubeArmorControllerPort))
+	kubearmorOperatorWebhookSvc := deployments.GetKubeArmorOperatorWebhookService(common.Namespace)
+	kubearmorOperatorWebhookSvc.Spec.Ports[0].TargetPort = intstr.FromInt(int(common.KubeArmorWebhookPort))
 	svcs := []*corev1.Service{
 
-		addOwnership(kubearmorControllerWebhookSvc).(*corev1.Service),
+		addOwnership(kubearmorOperatorWebhookSvc).(*corev1.Service),
 		addOwnership(deployments.GetRelayService(common.Namespace)).(*corev1.Service),
 	}
 	// Install CRDs
@@ -895,36 +826,14 @@ func (clusterWatcher *ClusterWatcher) WatchRequiredResources() {
 			clusterWatcher.Log.Warnf("Cannot install Nsp CRD, error=%s", err.Error())
 		}
 	}
-	// kubearmor-controller and relay-server deployments
-	controller := deployments.GetKubeArmorControllerDeployment(common.Namespace)
-
+	// kubearmor-relay-server deployment
 	relayServer := deployments.GetRelayDeployment(common.Namespace)
 	// update args, imagePullSecrets and tolerations
-	UpdateArgsIfDefinedAndUpdated(&controller.Spec.Template.Spec.Containers[0].Args, common.KubeArmorControllerArgs)
-
-	// add annotateExisting flag to controller args
-	if annotateExisting {
-		UpdateArgsIfDefinedAndUpdated(&controller.Spec.Template.Spec.Containers[0].Args, []string{"annotateExisting=true"})
-	}
-
-	UpdateImagePullSecretsIfDefinedAndUpdated(&controller.Spec.Template.Spec.ImagePullSecrets, common.KubeArmorControllerImagePullSecrets)
-	UpdateTolerationsIfDefinedAndUpdated(&controller.Spec.Template.Spec.Tolerations, common.KubeArmorControllerTolerations)
-	if len(controller.Spec.Template.Spec.ImagePullSecrets) < 1 {
-		utils.UpdateImagePullSecretFromGlobal(common.GlobalImagePullSecrets, &controller.Spec.Template.Spec.ImagePullSecrets)
-	}
-	if len(controller.Spec.Template.Spec.ImagePullSecrets) == 0 && len(ImagePullSecrets) > 0 {
-		UpdateImagePullSecretsIfDefinedAndUpdated(&controller.Spec.Template.Spec.ImagePullSecrets, ImagePullSecrets)
-	}
-	if len(controller.Spec.Template.Spec.Tolerations) < 1 {
-		utils.UpdateTolerationFromGlobal(common.GlobalTolerations, &controller.Spec.Template.Spec.Tolerations)
-	}
 	UpdateArgsIfDefinedAndUpdated(&relayServer.Spec.Template.Spec.Containers[0].Args, common.KubeArmorRelayArgs)
-	UpdateImagePullSecretsIfDefinedAndUpdated(&relayServer.Spec.Template.Spec.ImagePullSecrets, common.KubeArmorControllerImagePullSecrets)
 	if len(relayServer.Spec.Template.Spec.ImagePullSecrets) == 0 && len(ImagePullSecrets) > 0 {
 		UpdateImagePullSecretsIfDefinedAndUpdated(&relayServer.Spec.Template.Spec.ImagePullSecrets, ImagePullSecrets)
 	}
 
-	UpdateTolerationsIfDefinedAndUpdated(&relayServer.Spec.Template.Spec.Tolerations, common.KubeArmorControllerTolerations)
 	if len(relayServer.Spec.Template.Spec.ImagePullSecrets) < 1 {
 		utils.UpdateImagePullSecretFromGlobal(common.GlobalImagePullSecrets, &relayServer.Spec.Template.Spec.ImagePullSecrets)
 	}
@@ -1039,13 +948,6 @@ func (clusterWatcher *ClusterWatcher) WatchRequiredResources() {
 	}
 
 	// update images
-	containers := &controller.Spec.Template.Spec.Containers
-	for i, container := range *containers {
-		if container.Name == "manager" {
-			(*containers)[i].Image = common.GetApplicationImage(common.KubeArmorControllerName)
-			(*containers)[i].ImagePullPolicy = corev1.PullPolicy(common.KubeArmorControllerImagePullPolicy)
-		}
-	}
 	relayServer.Spec.Template.Spec.Containers[0].Image = common.GetApplicationImage(common.KubeArmorRelayName)
 	relayServer.Spec.Template.Spec.Containers[0].ImagePullPolicy = corev1.PullPolicy(common.KubeArmorRelayImagePullPolicy)
 	deploys := []*appsv1.Deployment{
@@ -1057,15 +959,6 @@ func (clusterWatcher *ClusterWatcher) WatchRequiredResources() {
 	configmap.Data = common.ConfigMapData
 	configmap.Data["cluster"] = clusterWatcher.GetClusterName(ProviderHostname, ProviderEndpoint)
 
-	for {
-		caCert, tlsCrt, tlsKey, kGenErr = common.GeneratePki(common.Namespace, deployments.KubeArmorControllerWebhookServiceName)
-		if kGenErr == nil {
-			break
-		}
-		clusterWatcher.Log.Infof("Couldn't generate TLS secret, re-trying in 3 seconds ...")
-		time.Sleep(3 * time.Second)
-	}
-
 	tlsCertSecrets := []*corev1.Secret{}
 
 	if common.EnableTls {
@@ -1075,10 +968,6 @@ func (clusterWatcher *ClusterWatcher) WatchRequiredResources() {
 		}
 	}
 
-	secret := deployments.GetKubeArmorControllerTLSSecret(common.Namespace, caCert.String(), tlsCrt.String(), tlsKey.String())
-	secret = addOwnership(secret).(*corev1.Secret)
-	mutationhook := deployments.GetKubeArmorControllerMutationAdmissionConfiguration(common.Namespace, caCert.Bytes())
-	mutationhook = addOwnership(mutationhook).(*v1.MutatingWebhookConfiguration)
 	var caInK8sSecret []byte
 	for {
 		for _, srvAcc := range srvAccs {
@@ -1179,19 +1068,33 @@ func (clusterWatcher *ClusterWatcher) WatchRequiredResources() {
 		clusterWatcher.WatchTlsState(common.GetTlsState())
 
 		//secret
-		s, err := clusterWatcher.Client.CoreV1().Secrets(common.Namespace).Get(context.Background(), secret.Name, metav1.GetOptions{})
+		secretName := deployments.KubeArmorOperatorSecretName
+		s, err := clusterWatcher.Client.CoreV1().Secrets(common.Namespace).Get(context.Background(), secretName, metav1.GetOptions{})
+
 		if utils.IsNotfound(err) {
-			clusterWatcher.Log.Infof("Creating secret %s", secret.Name)
-			_, err := clusterWatcher.Client.CoreV1().Secrets(common.Namespace).Create(context.Background(), secret, metav1.CreateOptions{})
-			if err != nil {
-				installErr = err
-				clusterWatcher.Log.Warnf("Cannot create secret %s, error=%s", secret.Name, err.Error())
-			} else {
-				caInK8sSecret = secret.Data["ca.crt"]
-			}
+			clusterWatcher.Log.Infof("Secret %s not yet available, waiting for main.go to create it...", secretName)
+			// Skip this loop iteration and let it retry in 5 seconds
+			time.Sleep(5 * time.Second)
+			continue
 		} else if err == nil {
+			if len(s.Data["ca.crt"]) == 0 || len(s.Data["tls.crt"]) == 0 || len(s.Data["tls.key"]) == 0 {
+				clusterWatcher.Log.Warnf("Webhook secret %s is missing certificate data", secretName)
+				time.Sleep(5 * time.Second)
+				continue
+			}
+
+			clusterWatcher.Log.Infof("Found existing secret %s, reusing keys", secretName)
+
 			caInK8sSecret = s.Data["ca.crt"]
+			caCert = bytes.NewBuffer(s.Data["ca.crt"])
+		} else {
+			installErr = err
+			clusterWatcher.Log.Error(err.Error())
+			continue
 		}
+
+		mutationhook := deployments.GetKubeArmorOperatorMutationAdmissionConfiguration(common.Namespace, caCert.Bytes())
+		mutationhook = addOwnership(mutationhook).(*v1.MutatingWebhookConfiguration)
 
 		// deploy
 		for _, deploy := range deploys {
@@ -1207,11 +1110,6 @@ func (clusterWatcher *ClusterWatcher) WatchRequiredResources() {
 		}
 
 		areAllNodeProcessed := clusterWatcher.AreAllNodesProcessed()
-
-		// deploy controller
-		if err := clusterWatcher.deployControllerDeployment(controller); err != nil {
-			installErr = err
-		}
 
 		//mutation webhook
 		hook, err := clusterWatcher.Client.AdmissionregistrationV1().MutatingWebhookConfigurations().Get(context.Background(), mutationhook.Name, metav1.GetOptions{})
@@ -1258,49 +1156,31 @@ func (clusterWatcher *ClusterWatcher) WatchRequiredResources() {
 
 func (clusterWatcher *ClusterWatcher) RotateTlsCerts() {
 	var caCert, tlsCrt, tlsKey *bytes.Buffer
-	var err error
 
-	origdeploy, err := clusterWatcher.Client.AppsV1().Deployments(common.Namespace).Get(context.Background(), deployments.KubeArmorControllerDeploymentName, metav1.GetOptions{})
-	if err != nil {
-		clusterWatcher.Log.Warnf("cannot get controller deployment, error=%s", err.Error())
-	}
-
-	caCert, tlsCrt, tlsKey, _ = common.GeneratePki(common.Namespace, deployments.KubeArmorControllerWebhookServiceName)
-	replicas := origdeploy.Spec.Replicas
+	caCert, tlsCrt, tlsKey, _ = common.GeneratePki(common.Namespace, deployments.KubeArmorOperatorWebhookServiceName)
 
 	// TODO: Keep CA certificate in k8s secret
 
 	// == CLEANUP ==
-	// scale down controller deployment to 0
-	controllerDeployment := deployments.GetKubeArmorControllerDeployment(common.Namespace)
-	controllerDeployment = addOwnership(controllerDeployment).(*appsv1.Deployment)
-	zeroReplicas := int32(0)
-	controllerDeployment.Spec.Replicas = &zeroReplicas
-	if _, err := clusterWatcher.Client.AppsV1().Deployments(common.Namespace).Update(context.Background(), controllerDeployment, metav1.UpdateOptions{}); err != nil {
-		clusterWatcher.Log.Warnf("cannot scale down controller %s, error=%s", controllerDeployment.Name, err.Error())
-	}
+
 	// delete mutation webhook configuration
-	mutationWebhook := deployments.GetKubeArmorControllerMutationAdmissionConfiguration(common.Namespace, caCert.Bytes())
+	mutationWebhook := deployments.GetKubeArmorOperatorMutationAdmissionConfiguration(common.Namespace, caCert.Bytes())
 	mutationWebhook = addOwnership(mutationWebhook).(*v1.MutatingWebhookConfiguration)
 	if err := clusterWatcher.Client.AdmissionregistrationV1().MutatingWebhookConfigurations().Delete(context.Background(), mutationWebhook.Name, metav1.DeleteOptions{}); err != nil {
 		clusterWatcher.Log.Warnf("cannot delete mutation webhook %s, error=%s", mutationWebhook.Name, err.Error())
 	}
 	// == ROTATE ==
-	// update controller tls secret
-	controllerSecret := deployments.GetKubeArmorControllerTLSSecret(common.Namespace, caCert.String(), tlsCrt.String(), tlsKey.String())
-	controllerSecret = addOwnership(controllerSecret).(*corev1.Secret)
-	if _, err := clusterWatcher.Client.CoreV1().Secrets(common.Namespace).Update(context.Background(), controllerSecret, metav1.UpdateOptions{}); err != nil {
-		clusterWatcher.Log.Warnf("cannot update controller tls secret %s, error=%s", controllerSecret.Name, err.Error())
+	// update operator tls secret
+	operatorSecret := deployments.GetKubeArmorOperatorTLSSecret(common.Namespace, caCert.String(), tlsCrt.String(), tlsKey.String())
+	operatorSecret = addOwnership(operatorSecret).(*corev1.Secret)
+	if _, err := clusterWatcher.Client.CoreV1().Secrets(common.Namespace).Update(context.Background(), operatorSecret, metav1.UpdateOptions{}); err != nil {
+		clusterWatcher.Log.Warnf("cannot update controller tls secret %s, error=%s", operatorSecret.Name, err.Error())
 	}
 	// == ROLLOUT ==
 	// create mutation webhook configuration
 	if _, err := clusterWatcher.Client.AdmissionregistrationV1().MutatingWebhookConfigurations().Create(context.Background(), mutationWebhook, metav1.CreateOptions{}); err != nil {
 		clusterWatcher.Log.Warnf("Cannot create mutation webhook %s, error=%s", mutationWebhook.Name, err.Error())
 	}
-	// scale up controller deployment to previous settings
-	controllerDeployment.Spec.Replicas = replicas
-	if _, err := clusterWatcher.Client.AppsV1().Deployments(common.Namespace).Update(context.Background(), controllerDeployment, metav1.UpdateOptions{}); err != nil {
-		clusterWatcher.Log.Warnf("cannot scale down controller %s, error=%s", controllerDeployment.Name, err.Error())
-	}
+
 	clusterWatcher.Log.Info("Tls rotation completed")
 }

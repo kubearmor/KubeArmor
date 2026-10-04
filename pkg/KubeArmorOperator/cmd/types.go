@@ -4,8 +4,7 @@
 package cmd
 
 import (
-	secv1client "github.com/kubearmor/KubeArmor/pkg/KubeArmorController/client/clientset/versioned"
-	opv1client "github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/client/clientset/versioned"
+	opclient "github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/client/clientset/versioned"
 	"go.uber.org/zap"
 	apiextensionsclientset "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	"k8s.io/client-go/kubernetes"
@@ -20,8 +19,8 @@ type OperatorOptions struct {
 	PathPrefix                         string
 	DeploymentName                     string
 	ExtClient                          *apiextensionsclientset.Clientset
-	Opv1Client                         *opv1client.Clientset
-	Secv1Client                        *secv1client.Clientset
+	Opv1Client                         *opclient.Clientset
+	Secv1Client                        *opclient.Clientset
 	AnnotateResource                   bool
 	AnnotateExisting                   bool
 	InitDeploy                         bool
@@ -29,6 +28,13 @@ type OperatorOptions struct {
 	ProviderHostname, ProviderEndpoint string
 	ImagePullSecrets                   []string
 	SocketFile                         string
+
+	MetricsAddr          string
+	EnableLeaderElection bool
+	ProbeAddr            string
+	SecureMetrics        bool
+	EnableHTTP2          bool
+	WebhookPort          int
 }
 
 type SnitchOptions struct {

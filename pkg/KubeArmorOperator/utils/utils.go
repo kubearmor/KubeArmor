@@ -109,13 +109,13 @@ func CheckNodeRestart(new, old *corev1.Node) bool {
 
 	return false
 }
-func UpdateControllerPort(config *opv1.KubeArmorConfigSpec) bool {
+func UpdateWebhookPort(config *opv1.KubeArmorConfigSpec) bool {
 	updated := false
-	if config.ControllerPort != 0 && config.ControllerPort != common.KubeArmorControllerPort {
+	if config.WebhookPort != 0 && config.WebhookPort != common.KubeArmorWebhookPort {
 
-		common.ControllerPortLock.Lock()
-		common.KubeArmorControllerPort = config.ControllerPort
-		common.ControllerPortLock.Unlock()
+		common.WebhookPortLock.Lock()
+		common.KubeArmorWebhookPort = config.WebhookPort
+		common.WebhookPortLock.Unlock()
 		updated = true
 	}
 

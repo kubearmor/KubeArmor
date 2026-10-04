@@ -9,6 +9,7 @@ import (
 	"fmt"
 
 	v1 "github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/api/operator.kubearmor.com/v1"
+	securitykubearmorcomv1 "github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/api/security.kubearmor.com/v1"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	cache "k8s.io/client-go/tools/cache"
 )
@@ -42,6 +43,16 @@ func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource
 	// Group=operator.kubearmor.com, Version=v1
 	case v1.SchemeGroupVersion.WithResource("kubearmorconfigs"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Operator().V1().KubeArmorConfigs().Informer()}, nil
+
+		// Group=security.kubearmor.com, Version=v1
+	case securitykubearmorcomv1.SchemeGroupVersion.WithResource("kubearmorclusterpolicies"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Security().V1().KubeArmorClusterPolicies().Informer()}, nil
+	case securitykubearmorcomv1.SchemeGroupVersion.WithResource("kubearmorhostpolicies"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Security().V1().KubeArmorHostPolicies().Informer()}, nil
+	case securitykubearmorcomv1.SchemeGroupVersion.WithResource("kubearmornetworkpolicies"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Security().V1().KubeArmorNetworkPolicies().Informer()}, nil
+	case securitykubearmorcomv1.SchemeGroupVersion.WithResource("kubearmorpolicies"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Security().V1().KubeArmorPolicies().Informer()}, nil
 
 	}
 

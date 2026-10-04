@@ -9,6 +9,7 @@ import (
 	"fmt"
 
 	operatorv1 "github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/client/clientset/versioned/typed/operator.kubearmor.com/v1"
+	securityv1 "github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/client/clientset/versioned/typed/security.kubearmor.com/v1"
 	discovery "k8s.io/client-go/discovery"
 	rest "k8s.io/client-go/rest"
 	flowcontrol "k8s.io/client-go/util/flowcontrol"
@@ -17,6 +18,7 @@ import (
 type Interface interface {
 	Discovery() discovery.DiscoveryInterface
 	OperatorV1() operatorv1.OperatorV1Interface
+	SecurityV1() securityv1.SecurityV1Interface
 }
 
 // Clientset contains the clients for groups. Each group has exactly one
@@ -24,11 +26,17 @@ type Interface interface {
 type Clientset struct {
 	*discovery.DiscoveryClient
 	operatorV1 *operatorv1.OperatorV1Client
+	securityV1 *securityv1.SecurityV1Client
 }
 
 // OperatorV1 retrieves the OperatorV1Client
 func (c *Clientset) OperatorV1() operatorv1.OperatorV1Interface {
 	return c.operatorV1
+}
+
+// SecurityV1 retrieves the SecurityV1Client
+func (c *Clientset) SecurityV1() securityv1.SecurityV1Interface {
+	return c.securityV1
 }
 
 // Discovery retrieves the DiscoveryClient
@@ -56,6 +64,10 @@ func NewForConfig(c *rest.Config) (*Clientset, error) {
 	if err != nil {
 		return nil, err
 	}
+	cs.securityV1, err = securityv1.NewForConfig(&configShallowCopy)
+	if err != nil {
+		return nil, err
+	}
 
 	cs.DiscoveryClient, err = discovery.NewDiscoveryClientForConfig(&configShallowCopy)
 	if err != nil {
@@ -69,6 +81,7 @@ func NewForConfig(c *rest.Config) (*Clientset, error) {
 func NewForConfigOrDie(c *rest.Config) *Clientset {
 	var cs Clientset
 	cs.operatorV1 = operatorv1.NewForConfigOrDie(c)
+	cs.securityV1 = securityv1.NewForConfigOrDie(c)
 
 	cs.DiscoveryClient = discovery.NewDiscoveryClientForConfigOrDie(c)
 	return &cs
@@ -78,6 +91,7 @@ func NewForConfigOrDie(c *rest.Config) *Clientset {
 func New(c rest.Interface) *Clientset {
 	var cs Clientset
 	cs.operatorV1 = operatorv1.New(c)
+	cs.securityV1 = securityv1.New(c)
 
 	cs.DiscoveryClient = discovery.NewDiscoveryClient(c)
 	return &cs

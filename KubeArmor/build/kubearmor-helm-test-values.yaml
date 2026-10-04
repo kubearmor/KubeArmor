@@ -8,12 +8,6 @@ kubearmorInit:
     tag: latest
   imagePullPolicy: Never
 
-# we pull the latest controller image by default
-kubearmorController:
-  image:
-    tag: latest
-  imagePullPolicy: Always
-
 environment:
   name: docker
 

@@ -2,31 +2,28 @@ module github.com/kubearmor/KubeArmor/tests
 
 go 1.26.6
 
-replace (
-	github.com/kubearmor/KubeArmor/pkg/KubeArmorController => ../pkg/KubeArmorController
-	github.com/kubearmor/KubeArmor/protobuf => ../protobuf
-)
+replace github.com/kubearmor/KubeArmor/protobuf => ../protobuf
 
 require (
-	github.com/kubearmor/KubeArmor/pkg/KubeArmorController v0.0.0-20260406102335-87edc770f8bf
-	github.com/kubearmor/KubeArmor/protobuf v0.0.0-20260519072523-d139952ecc8e
+	github.com/kubearmor/KubeArmor/pkg/KubeArmorController v0.0.0-20260921034706-63027a947dc9
+	github.com/kubearmor/KubeArmor/protobuf v0.0.0-20260521154542-6789b83a8cee
 	github.com/kubearmor/kubearmor-client v1.4.9
 	github.com/onsi/ginkgo/v2 v2.28.1
 	github.com/onsi/gomega v1.41.0
 	github.com/sirupsen/logrus v1.9.4
 	google.golang.org/grpc v1.83.2
 	google.golang.org/protobuf v1.36.12-0.20260120151049-f2248ac996af
-	k8s.io/api v0.36.1
-	k8s.io/apimachinery v0.36.1
+	k8s.io/api v0.36.3
+	k8s.io/apimachinery v0.36.3
 	k8s.io/cli-runtime v0.36.1
-	k8s.io/client-go v0.36.1
+	k8s.io/client-go v0.36.3
 	k8s.io/kubectl v0.36.1
 )
 
 require (
 	github.com/Azure/go-ansiterm v0.0.0-20250102033503-faa5f7b0171c // indirect
-	github.com/Masterminds/semver/v3 v3.4.0 // indirect
-	github.com/Microsoft/go-winio v0.6.2 // indirect
+	github.com/Masterminds/semver/v3 v3.5.0 // indirect
+	github.com/Microsoft/go-winio v0.6.3-0.20251027160822-ad3df93bed29 // indirect
 	github.com/blang/semver/v4 v4.0.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/containerd/errdefs v1.0.0 // indirect
@@ -110,7 +107,7 @@ require (
 	k8s.io/apiextensions-apiserver v0.36.1 // indirect
 	k8s.io/klog/v2 v2.140.0 // indirect
 	k8s.io/kube-openapi v0.0.0-20260520065146-aa012df4f4af // indirect
-	k8s.io/streaming v0.36.1 // indirect
+	k8s.io/streaming v0.36.3 // indirect
 	k8s.io/utils v0.0.0-20260507154919-ff6756f316d2 // indirect
 	sigs.k8s.io/controller-runtime v0.24.1 // indirect
 	sigs.k8s.io/json v0.0.0-20250730193827-2d320260d730 // indirect

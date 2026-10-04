@@ -40,7 +40,6 @@ seccompProfiles:
 supplementalGroups:
   type: RunAsAny
 users:
-- system:serviceaccount:kubearmor:kubearmor-controller
 - system:serviceaccount:kubearmor:kubearmor
 - system:serviceaccount:kubearmor:kubearmor-snitch
 volumes:

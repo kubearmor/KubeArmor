@@ -147,7 +147,7 @@ rules:
   - {{ .Values.tlsSecrets.kubearmorCa }}
   - {{ .Values.tlsSecrets.kubearmorClient }}
   - {{ .Values.tlsSecrets.relayServer }}
-  - {{ .Values.tlsSecrets.controllerWebhook }}
+  - {{ .Values.tlsSecrets.operatorWebhook }}
 # cannot restric create by resource name, https://kubernetes.io/docs/reference/access-authn-authz/rbac/  
 - apiGroups:
   - ""

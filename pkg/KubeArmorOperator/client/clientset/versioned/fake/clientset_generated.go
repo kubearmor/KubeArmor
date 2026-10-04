@@ -9,6 +9,8 @@ import (
 	clientset "github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/client/clientset/versioned"
 	operatorv1 "github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/client/clientset/versioned/typed/operator.kubearmor.com/v1"
 	fakeoperatorv1 "github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/client/clientset/versioned/typed/operator.kubearmor.com/v1/fake"
+	securityv1 "github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/client/clientset/versioned/typed/security.kubearmor.com/v1"
+	fakesecurityv1 "github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/client/clientset/versioned/typed/security.kubearmor.com/v1/fake"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/discovery"
@@ -69,4 +71,9 @@ var (
 // OperatorV1 retrieves the OperatorV1Client
 func (c *Clientset) OperatorV1() operatorv1.OperatorV1Interface {
 	return &fakeoperatorv1.FakeOperatorV1{Fake: &c.Fake}
+}
+
+// SecurityV1 retrieves the SecurityV1Client
+func (c *Clientset) SecurityV1() securityv1.SecurityV1Interface {
+	return &fakesecurityv1.FakeSecurityV1{Fake: &c.Fake}
 }

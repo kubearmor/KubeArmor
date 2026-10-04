@@ -7,8 +7,6 @@
   value: "{{ .repo }}/{{.images.kubearmorInit.image}}:{{.images.kubearmorInit.tag}}"
 - name: RELATED_IMAGE_KUBEARMOR_RELAY_SERVER
   value: "{{ .repo }}/{{.images.kubearmorRelay.image}}:{{.images.kubearmorRelay.tag}}"
-- name: RELATED_IMAGE_KUBEARMOR_CONTROLLER
-  value: "{{ .repo }}/{{.images.kubearmorController.image}}:{{.images.kubearmorController.tag}}"
 {{- end }}
 
 {{- define "operatorImage" }}

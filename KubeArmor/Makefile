@@ -141,8 +141,6 @@ scan:
 	govulncheck ./... ;\
 	cd $(CURDIR)/../deployments;\
 	govulncheck ./... ;\
-	cd $(CURDIR)/../pkg/KubeArmorController ;\
-	govulncheck ./... ;\
 	cd $(CURDIR)/../pkg/KubeArmorOperator;\
 	govulncheck ./... ;\
 

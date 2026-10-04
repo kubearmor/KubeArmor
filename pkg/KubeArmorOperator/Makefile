@@ -151,6 +151,18 @@ undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/confi
 .PHONY: manifests
 manifests: controller-gen kustomize## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
 	go mod tidy; $(CONTROLLER_GEN) rbac:roleName=manager-role crd webhook paths="./..." output:crd:artifacts:config=config/crd/bases
+	cp config/crd/bases/security.kubearmor.com_kubearmorpolicies.yaml ../../deployments/CRD/KubeArmorPolicy.yaml
+	cp config/crd/bases/security.kubearmor.com_kubearmorpolicies.yaml crd/KubeArmorPolicy.yaml
+	cp config/crd/bases/security.kubearmor.com_kubearmorpolicies.yaml ../../deployments/helm/KubeArmor/templates/crds/ksp.yaml
+	cp config/crd/bases/security.kubearmor.com_kubearmorclusterpolicies.yaml ../../deployments/CRD/KubeArmorClusterPolicy.yaml
+	cp config/crd/bases/security.kubearmor.com_kubearmorclusterpolicies.yaml crd/KubeArmorClusterPolicy.yaml
+	cp config/crd/bases/security.kubearmor.com_kubearmorclusterpolicies.yaml ../../deployments/helm/KubeArmor/templates/crds/csp.yaml
+	cp config/crd/bases/security.kubearmor.com_kubearmorhostpolicies.yaml ../../deployments/CRD/KubeArmorHostPolicy.yaml
+	cp config/crd/bases/security.kubearmor.com_kubearmorhostpolicies.yaml crd/KubeArmorHostPolicy.yaml
+	cp config/crd/bases/security.kubearmor.com_kubearmorhostpolicies.yaml ../../deployments/helm/KubeArmor/templates/crds/hsp.yaml
+	cp config/crd/bases/security.kubearmor.com_kubearmornetworkpolicies.yaml ../../deployments/CRD/KubeArmorNetworkPolicy.yaml
+	cp config/crd/bases/security.kubearmor.com_kubearmornetworkpolicies.yaml crd/KubeArmorNetworkPolicy.yaml
+	cp config/crd/bases/security.kubearmor.com_kubearmornetworkpolicies.yaml ../../deployments/helm/KubeArmor/templates/crds/nsp.yaml
 
 	rm -r $(CRDDIR)/* && cp config/crd/bases/* $(CRDDIR)/
 	$(KUSTOMIZE) build config/default | tee $(DEPLOYDIR)/operator/operator.yaml
@@ -162,7 +174,7 @@ generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and
 CONTROLLER_GEN = $(GOBIN)/controller-gen
 .PHONY: controller-gen
 controller-gen: ## Download controller-gen locally if necessary.
-	$(call go-get-tool,$(CONTROLLER_GEN),sigs.k8s.io/controller-tools/cmd/controller-gen@v0.16.5)
+	$(call go-get-tool,$(CONTROLLER_GEN),sigs.k8s.io/controller-tools/cmd/controller-gen@v0.19.0)
 
 client/gen:
 	@echo "--> Running code-generator to generate clients"
@@ -170,7 +182,7 @@ client/gen:
 	@mkdir -p ./tmp/code-generator
 	@git clone https://github.com/kubernetes/code-generator.git --branch v0.22.1 --single-branch  ./tmp/code-generator
 	# generate client
-	GOPATH= GOROOT= ./tmp/code-generator/generate-groups.sh "all" github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/client github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/api operator.kubearmor.com:v1 --go-header-file hack/boilerplate.go.txt
+	GOPATH= GOROOT= ./tmp/code-generator/generate-groups.sh "all" github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/client github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/api "operator.kubearmor.com:v1 security.kubearmor.com:v1" --go-header-file hack/boilerplate.go.txt
 	# check generated client at ./pkg/client
 	@cp -r ./github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/client/* ./client/
 	@rm -rf ./github.com ./tmp/code-generator
@@ -178,6 +190,14 @@ client/gen:
 .PHONY: bundle
 bundle: operator-sdk
 	${OPERATOR_SDK} generate bundle --version ${BUNDLE_VER} --input-dir ./config --output-dir ./bundle --package ${BUNDLE_PKG}
+
+.PHONY: install-crd
+install-crd: manifests kustomize ## Install CRDs into the K8s cluster specified in ~/.kube/config.
+	$(KUSTOMIZE) build config/crd | kubectl apply -f -
+
+.PHONY: uninstall-crd
+uninstall-crd: manifests kustomize ## Uninstall CRDs from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
+	$(KUSTOMIZE) build config/crd | kubectl delete --ignore-not-found=$(ignore-not-found) -f -
 
 .PHONY: clean
 clean:
