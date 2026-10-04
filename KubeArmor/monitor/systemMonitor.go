@@ -179,6 +179,8 @@ type SystemMonitor struct {
 	Status          bool
 	UptimeTimeStamp float64
 	HostByteOrder   binary.ByteOrder
+	WgMonitor       sync.WaitGroup
+	stopOnce        sync.Once
 }
 
 // NewSystemMonitor Function
@@ -720,9 +722,14 @@ probeBPFLSM:
 func (mon *SystemMonitor) DestroySystemMonitor() error {
 
 	(*mon.MonitorLock).Lock()
-	defer (*mon.MonitorLock).Unlock()
-
 	mon.Status = false
+	(*mon.MonitorLock).Unlock()
+
+	mon.stopOnce.Do(func() { close(StopChan) })
+	mon.WgMonitor.Wait()
+
+	(*mon.MonitorLock).Lock()
+	defer (*mon.MonitorLock).Unlock()
 
 	if mon.SyscallPerfMap != nil {
 		if err := mon.SyscallPerfMap.Close(); err != nil {

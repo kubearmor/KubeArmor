@@ -324,3 +324,66 @@ func TestConcurrentEndpointAccess(t *testing.T) {
 	wg.Wait()
 	t.Logf("Concurrent access test completed. Final endpoint count: %d", len(dm.EndPoints))
 }
+
+func TestWgDaemonShutdownOrdering(t *testing.T) {
+	stop := make(chan struct{})
+	var wg sync.WaitGroup
+	const numWorkers = 4
+	workerSignaled := make(chan struct{}, numWorkers)
+
+	wg.Add(numWorkers)
+	for range numWorkers {
+		go func() {
+			defer wg.Done()
+			<-stop
+			workerSignaled <- struct{}{}
+		}()
+	}
+
+	waitReturned := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(waitReturned)
+	}()
+
+	select {
+	case <-waitReturned:
+		t.Fatal("WaitGroup.Wait() returned before stop signal")
+	case <-time.After(50 * time.Millisecond):
+	}
+
+	close(stop)
+
+	select {
+	case <-waitReturned:
+	case <-time.After(time.Second):
+		t.Fatal("WaitGroup.Wait() did not return after stop signal")
+	}
+
+	if len(workerSignaled) != numWorkers {
+		t.Fatalf("expected all %d goroutines to finish before Wait returned, got %d", numWorkers, len(workerSignaled))
+	}
+}
+
+func TestWgAddBeforeGoEliminatesRace(t *testing.T) {
+	var wg sync.WaitGroup
+	stop := make(chan struct{})
+	const numWorkers = 3
+	workerSignaled := make(chan struct{}, numWorkers)
+
+	wg.Add(numWorkers)
+	for range numWorkers {
+		go func() {
+			defer wg.Done()
+			<-stop
+			workerSignaled <- struct{}{}
+		}()
+	}
+
+	close(stop)
+	wg.Wait()
+
+	if len(workerSignaled) != numWorkers {
+		t.Fatalf("expected %d workers signaled, got %d", numWorkers, len(workerSignaled))
+	}
+}
