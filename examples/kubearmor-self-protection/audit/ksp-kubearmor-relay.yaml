@@ -1,0 +1,21 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: ksp-kubearmor-relay-audit
+  namespace: kubearmor
+spec:
+  severity: 5
+  message: "KubeArmor relay self-protection (audit phase — intentionally permissive)"
+  tags:
+  - KubeArmor-SelfProtection
+  - ZeroTrust
+  - AuditPhase
+  selector:
+    matchLabels:
+      kubearmor-app: kubearmor-relay
+  file:
+    matchDirectories:
+    - dir: /
+      recursive: true
+      action: Allow
+  action: Allow

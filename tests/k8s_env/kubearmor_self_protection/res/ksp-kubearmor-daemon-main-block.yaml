@@ -1,0 +1,89 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: ksp-kubearmor-daemon-main-block
+  namespace: kubearmor
+spec:
+  severity: 5
+  message: "KubeArmor daemon main container zero-trust allow-list"
+  tags:
+  - KubeArmor-SelfProtection
+  - ZeroTrust
+  - BlockPhase
+  selector:
+    matchLabels:
+      kubearmor-app: kubearmor
+      kubearmor.io/container.name: "[kubearmor]"
+  process:
+    matchPaths:
+    - path: /KubeArmor/kubearmor
+      action: Allow
+  file:
+    matchPaths:
+    - path: /media/root/etc/os-release
+      action: Allow
+    - path: /var/run/containerd/containerd.sock
+      action: Allow
+    - path: /var/run/docker.sock
+      action: Allow
+    - path: /var/run/crio/crio.sock
+      action: Allow
+    matchDirectories:
+    - dir: /opt/kubearmor/BPF/
+      recursive: true
+      action: Allow
+    - dir: /lib/modules/
+      recursive: true
+      action: Allow
+    - dir: /sys/kernel/security/
+      recursive: true
+      action: Allow
+    - dir: /sys/kernel/debug/
+      recursive: true
+      action: Allow
+    - dir: /etc/apparmor.d/
+      recursive: true
+      action: Allow
+    - dir: /usr/src/
+      recursive: true
+      action: Allow
+    - dir: /var/run/containerd/
+      recursive: true
+      action: Allow
+    - dir: /var/run/crio/
+      recursive: true
+      action: Allow
+    - dir: /KubeArmor/templates/
+      recursive: true
+      action: Allow
+    - dir: /var/lib/kubearmor/tls/
+      recursive: true
+      action: Allow
+    - dir: /host/procfs/
+      recursive: true
+      action: Allow
+  capabilities:
+    matchCapabilities:
+    - capability: sys_admin
+      action: Allow
+    - capability: sys_ptrace
+      action: Allow
+    - capability: mac_admin
+      action: Allow
+    - capability: net_admin
+      action: Allow
+    - capability: sys_resource
+      action: Allow
+    - capability: ipc_lock
+      action: Allow
+    - capability: dac_override
+      action: Allow
+    - capability: dac_read_search
+      action: Allow
+    - capability: setuid
+      action: Allow
+    - capability: setgid
+      action: Allow
+    - capability: setpcap
+      action: Allow
+  action: Allow
