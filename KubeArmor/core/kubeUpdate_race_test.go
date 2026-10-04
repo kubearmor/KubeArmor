@@ -118,6 +118,7 @@ func TestUpdateHostSecurityPoliciesRaceCondition(t *testing.T) {
 	dm := &KubeArmorDaemon{
 		HostSecurityPolicies:     []tp.HostSecurityPolicy{},
 		HostSecurityPoliciesLock: &sync.RWMutex{},
+		HostPolicyHashLock:       &sync.RWMutex{},
 		Node: tp.Node{
 			Identities: []string{"hostname=test-node"},
 		},
