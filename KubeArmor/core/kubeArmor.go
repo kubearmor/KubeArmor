@@ -1106,7 +1106,7 @@ func KubeArmor() {
 		policyService := &policy.PolicyServer{
 			ContainerPolicyEnabled: enableContainerPolicy,
 			HostPolicyEnabled:      cfg.GlobalCfg.HostPolicy,
-			NetworkPolicyEnabled:   cfg.GlobalCfg.NetworkPolicyEnforcer,
+			NetworkPolicyEnabled:   cfg.GlobalCfg.NetworkPolicyEnforcer && dm.NetworkPolicyEnforcer != nil,
 		}
 		if enableContainerPolicy {
 			policyService.UpdateContainerPolicy = dm.ParseAndUpdateContainerSecurityPolicy
