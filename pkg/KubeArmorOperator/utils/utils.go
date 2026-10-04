@@ -121,3 +121,20 @@ func UpdateControllerPort(config *opv1.KubeArmorConfigSpec) bool {
 
 	return updated
 }
+
+func UpdateControllerNetworkConfig(config *opv1.KubeArmorConfigSpec) bool {
+	updated := false
+	if config.ControllerHostNetwork != common.KubeArmorControllerHostNetwork {
+		common.KubeArmorControllerHostNetwork = config.ControllerHostNetwork
+		updated = true
+	}
+	dnsPolicy := config.ControllerDNSPolicy
+	if dnsPolicy == "" {
+		dnsPolicy = "ClusterFirst"
+	}
+	if dnsPolicy != common.KubeArmorControllerDNSPolicy {
+		common.KubeArmorControllerDNSPolicy = dnsPolicy
+		updated = true
+	}
+	return updated
+}

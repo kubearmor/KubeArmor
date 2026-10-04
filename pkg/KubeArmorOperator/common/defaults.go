@@ -153,6 +153,8 @@ var (
 	KubeArmorControllerWebhookServiceName                               = "kubearmor-controller-webhook-service"
 	KubeArmorControllerNodeSelector                                     = map[string]string{}
 	KubeArmorControllerEnv                                              = []corev1.EnvVar{}
+	KubeArmorControllerHostNetwork                                      bool   = false
+	KubeArmorControllerDNSPolicy                                        string = "ClusterFirst"
 
 	SeccompProfile     = "kubearmor-seccomp.json"
 	SeccompInitProfile = "kubearmor-init-seccomp.json"
