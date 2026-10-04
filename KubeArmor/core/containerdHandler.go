@@ -525,17 +525,7 @@ func (dm *KubeArmorDaemon) UpdateContainerdContainer(ctx context.Context, contai
 				dm.Presets.RegisterContainer(container.ContainerID, container.PidNS, container.MntNS)
 			}
 
-			if len(endPoint.SecurityPolicies) > 0 { // struct can be empty or no policies registered for the endPoint yet
-				dm.Logger.UpdateSecurityPolicies("ADDED", endPoint)
-				if dm.RuntimeEnforcer != nil && endPoint.PolicyEnabled == tp.KubeArmorPolicyEnabled {
-					// enforce security policies
-					dm.RuntimeEnforcer.UpdateSecurityPolicies(endPoint)
-				}
-				if dm.Presets != nil && endPoint.PolicyEnabled == tp.KubeArmorPolicyEnabled {
-					// enforce preset rules
-					dm.Presets.UpdateSecurityPolicies(endPoint)
-				}
-			}
+			dm.enforceEndpointSecurityPolicies("ADDED", container.NamespaceName, container.EndPointName, container.ContainerID)
 		}
 
 		if cfg.GlobalCfg.StateAgent {

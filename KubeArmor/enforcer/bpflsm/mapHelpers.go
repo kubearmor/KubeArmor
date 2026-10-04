@@ -16,6 +16,8 @@ type ContainerKV struct {
 	Map   *ebpf.Map
 	Rules RuleList
 
+	AppliedPolicyRevision uint64
+
 	// -----------------//
 	Arg_Key ArgumentsKey
 	Arg_Map *ebpf.Map
