@@ -32,10 +32,29 @@ helm upgrade --install kubearmor-operator . -n kubearmor --create-namespace
 | kubearmorConfig | object | [values.yaml](values.yaml) | KubeArmor default configurations |
 | kubearmorOperator.annotateResource | bool | false | flag to control RBAC permissions conditionally, use `--annotateResource=<value>` arg as well to pass the same value to operator configuration |
 | autoDeploy | bool | false | Auto deploy KubeArmor with default configurations |
+| crds.install | bool | true | Install and upgrade the KubeArmorConfig CRD via Helm hooks. Set to false if you manage CRDs separately (e.g. GitOps workflows) |
 
 The operator needs a `KubeArmorConfig` object in order to create resources related to KubeArmor. A default config is present in Helm `values.yaml` which can be overridden during Helm install. To install KubeArmor with default configuration use `--set autoDeploy=true` flag with helm install/upgrade command. It is possible to specify configuration even after KubeArmor resources have been installed by directly editing the created `KubeArmorConfig` CR.
 
 By Default the helm does not deploys the default KubeArmor Configurations (KubeArmorConfig CR) and once installed, the operator waits for the user to create a `KubeArmorConfig` object.
+
+### CRD lifecycle
+
+The `KubeArmorConfig` CRD is managed via `pre-install` and `pre-upgrade` Helm hooks (weight `-5`), which means it is applied before any other chart resource on both fresh installs and upgrades. This ensures that CRD schema changes are always propagated when running `helm upgrade`, unlike the default `crds/` directory which Helm silently skips on upgrades.
+
+The CRD carries `helm.sh/resource-policy: keep`, so it is **not** removed when you run `helm uninstall`. To fully clean up, delete the CRD manually after uninstalling the chart:
+
+```bash
+kubectl delete crd kubearmorconfigs.operator.kubearmor.com
+```
+
+If you manage CRDs outside of Helm (e.g. via a GitOps pipeline where a cluster-admin owns CRD lifecycle), you can disable hook-based CRD installation:
+
+```bash
+helm upgrade --install kubearmor-operator kubearmor/kubearmor-operator \
+  -n kubearmor --create-namespace \
+  --set crds.install=false
+```
 ## KubeArmorConfig specification
 
 ```yaml
