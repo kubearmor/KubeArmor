@@ -15,6 +15,14 @@
   },
   "packageRules": [
     {
+      "description": "Group all routine version updates into a single PR",
+      "matchUpdateTypes": [
+        "minor",
+        "patch"
+      ],
+      "groupName": "routine version updates"
+    },
+    {
       "description": "Group all GitHub Actions digest-pin updates into one PR",
       "matchManagers": [
         "github-actions"

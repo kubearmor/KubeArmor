@@ -24,6 +24,16 @@ type ima_hashOuterKey struct {
 	MntNs uint32
 }
 
+// Names of all BPF objects in the ELF.
+//
+// Used for safe lookups in a Collection or CollectionSpec.
+const (
+	ima_hashMapKubearmorConfig       = "kubearmor_config"
+	ima_hashMapKubearmorImaHashMap   = "kubearmor_ima_hash_map"
+	ima_hashMapKubearmorVisibility   = "kubearmor_visibility"
+	ima_hashProgImaBprmCheckSecurity = "ima_bprm_check_security"
+)
+
 // loadIma_hash returns the embedded CollectionSpec for ima_hash.
 func loadIma_hash() (*ebpf.CollectionSpec, error) {
 	reader := bytes.NewReader(_Ima_hashBytes)
@@ -44,7 +54,7 @@ func loadIma_hash() (*ebpf.CollectionSpec, error) {
 //	*ima_hashMaps
 //
 // See ebpf.CollectionSpec.LoadAndAssign documentation for details.
-func loadIma_hashObjects(obj interface{}, opts *ebpf.CollectionOptions) error {
+func loadIma_hashObjects(obj any, opts *ebpf.CollectionOptions) error {
 	spec, err := loadIma_hash()
 	if err != nil {
 		return err
