@@ -184,3 +184,99 @@ func TestAddorUpdateNodeSelector(t *testing.T) {
 		})
 	})
 }
+
+func TestNodeMatchesGlobalNodeSelector(t *testing.T) {
+	tests := []struct {
+		name                string
+		nodeLabels          map[string]string
+		globalSelectors     map[string]string
+		expected            bool
+	}{
+		{
+			name:            "empty global selectors matches any node",
+			nodeLabels:      map[string]string{"key1": "value1"},
+			globalSelectors: map[string]string{},
+			expected:        true,
+		},
+		{
+			name:            "single matching label",
+			nodeLabels:      map[string]string{"env": "prod"},
+			globalSelectors: map[string]string{"env": "prod"},
+			expected:        true,
+		},
+		{
+			name:            "single non-matching label",
+			nodeLabels:      map[string]string{"env": "dev"},
+			globalSelectors: map[string]string{"env": "prod"},
+			expected:        false,
+		},
+		{
+			name:            "multiple matching labels",
+			nodeLabels:      map[string]string{"env": "prod", "zone": "us-east"},
+			globalSelectors: map[string]string{"env": "prod", "zone": "us-east"},
+			expected:        true,
+		},
+		{
+			name:            "missing key in node labels",
+			nodeLabels:      map[string]string{"env": "prod"},
+			globalSelectors: map[string]string{"env": "prod", "zone": "us-east"},
+			expected:        false,
+		},
+		{
+			name:            "extra node labels should not affect",
+			nodeLabels:      map[string]string{"env": "prod", "zone": "us-east", "extra": "x"},
+			globalSelectors: map[string]string{"env": "prod"},
+			expected:        true,
+		},
+		{
+			name:            "ignore deletion marker",
+			nodeLabels:      map[string]string{"env": "prod", "zone": "us-east"},
+			globalSelectors: map[string]string{"env": "prod", "zone": "-"},
+			expected:        true,
+		},
+		{
+			name:            "all deletion markers",
+			nodeLabels:      map[string]string{"env": "prod"},
+			globalSelectors: map[string]string{"env": "-", "zone": "-"},
+			expected:        true,
+		},
+		{
+			name:            "empty node labels with constraints",
+			nodeLabels:      map[string]string{},
+			globalSelectors: map[string]string{"env": "prod"},
+			expected:        false,
+		},
+		{
+			name:            "both empty",
+			nodeLabels:      map[string]string{},
+			globalSelectors: map[string]string{},
+			expected:        true,
+		},
+		{
+			name:            "case sensitive key mismatch",
+			nodeLabels:      map[string]string{"ENV": "prod"},
+			globalSelectors: map[string]string{"env": "prod"},
+			expected:        false,
+		},
+		{
+			name:            "case sensitive value mismatch",
+			nodeLabels:      map[string]string{"env": "Prod"},
+			globalSelectors: map[string]string{"env": "prod"},
+			expected:        false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			original := common.GlobalNodeSelectors
+			defer func() {
+				common.GlobalNodeSelectors = original
+			}()
+
+			common.GlobalNodeSelectors = tt.globalSelectors
+
+			result := nodeMatchesGlobalNodeSelector(tt.nodeLabels)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
