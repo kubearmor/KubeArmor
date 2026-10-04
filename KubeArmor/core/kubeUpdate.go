@@ -74,17 +74,21 @@ func (dm *KubeArmorDaemon) HandleNodeAnnotations(node *tp.Node) {
 
 	hasAppArmor := strings.Contains(lsm, "apparmor")
 	hasSelinux := strings.Contains(lsm, "selinux")
-	hasBPF := strings.Contains(lsm, "bpf")
+	// hasBPFLSM checks whether BPF-LSM is listed as an active LSM in
+	// /sys/kernel/security/lsm — distinct from general eBPF support.
+	hasBPFLSM := strings.Contains(lsm, "bpf")
 
-	if !hasBPF && !hasSelinux && !hasAppArmor {
-		// exception: neither AppArmor, SELinux or BPF
+	if !hasBPFLSM && !hasSelinux && !hasAppArmor {
+		// exception: neither AppArmor, SELinux or BPF-LSM
 		if node.Annotations["kubearmor-policy"] == "enabled" {
 			node.Annotations["kubearmor-policy"] = "audited"
 		}
 	}
 
-	if kl.IsInK8sCluster() && hasSelinux {
-		// exception: KubeArmor in a daemonset even though SELinux is enabled
+	if kl.IsInK8sCluster() && hasSelinux && !hasBPFLSM {
+		// exception: KubeArmor in a daemonset with SELinux but no BPF-LSM active.
+		// When BPF-LSM is also active (e.g. Bottlerocket), KubeArmor uses it for
+		// enforcement; downgrading to audited in that case is incorrect.
 		if node.Annotations["kubearmor-policy"] == "enabled" {
 			node.Annotations["kubearmor-policy"] = "audited"
 		}
