@@ -25,17 +25,40 @@ import (
 var (
 	kubeArmorSocket string
 	runtimeSocket   string
+	hookOutputFile  string
 	detached        bool
 )
 
 func main() {
 	flag.StringVar(&kubeArmorSocket, "kubearmor-socket", "/var/run/kubearmor/ka.sock", "KubeArmor socket")
 	flag.StringVar(&runtimeSocket, "runtime-socket", "", "container runtime socket")
+	flag.StringVar(&hookOutputFile, "hook-output", "/opt/kubearmor_hook_output.json", "output file path for Kata container events")
 	flag.BoolVar(&detached, "detached", false, "run detached")
 	flag.Parse()
 
-	if runtimeSocket == "" {
-		log.Println("runtime socket must be set")
+	// Auto-detect Kata Containers microVM environment by checking for the Kata shared root directory
+	if _, err := os.Stat("/var/run/kata-containers/shared"); err == nil {
+		input, err := io.ReadAll(os.Stdin)
+		if err != nil {
+			log.Println(err)
+			os.Exit(1)
+		}
+		flagRetrieved, containerNS := kubearmorIdRetrieved(input)
+		state := specs.State{}
+		err = json.Unmarshal(input, &state)
+		if err != nil {
+			log.Println(err)
+			os.Exit(1)
+		}
+		if err := runKata(state, flagRetrieved, containerNS); err != nil {
+			log.Println(err)
+			os.Exit(1)
+		}
+		os.Exit(0)
+	}
+
+	if runtimeSocket == "" && detached {
+		log.Println("runtime socket must be set for detached mode")
 		os.Exit(1)
 	}
 	if detached {
@@ -61,7 +84,85 @@ func main() {
 		log.Println(err)
 		os.Exit(1)
 	}
+}
 
+func kubearmorIdRetrieved(input []byte) (bool, string) {
+	var info map[string]interface{}
+
+	if err := json.Unmarshal(input, &info); err != nil {
+		log.Fatal(err)
+	}
+
+	dataMap, _ := info["annotations"].(map[string]interface{})
+	containerName, _ := dataMap["io.kubernetes.cri.container-name"].(string)
+	containerNS, _ := dataMap["io.kubernetes.cri.sandbox-namespace"].(string)
+	if containerName == "kubearmor" {
+		id, ok := info["id"].(string)
+		if !ok {
+			return false, containerNS
+		}
+		id = strings.Trim(id, `"`)
+		_ = os.WriteFile("/tmp/id.json", []byte(id), 0600)
+		return true, containerNS
+	} else if _, err := os.Stat("/tmp/id.json"); err == nil {
+		return true, containerNS
+	}
+	return false, containerNS
+}
+
+func runKata(state specs.State, flag bool, containerNS string) error {
+	var container types.Container
+	container = types.Container{
+		ContainerID:   state.ID,
+		NamespaceName: containerNS,
+	}
+	container.PidNS, container.MntNS = getNS(state.Pid)
+	return sendContainerKata(container, flag)
+}
+
+func sendContainerKata(container types.Container, flag bool) error {
+	dataJSON, err := json.Marshal(container)
+	if err != nil {
+		return err
+	}
+
+	srcFile, err := os.OpenFile("/tmp/output.json", os.O_CREATE|os.O_APPEND|os.O_RDWR, 0600)
+	if err != nil {
+		return err
+	}
+	defer srcFile.Close()
+
+	if _, err := srcFile.Write(dataJSON); err != nil {
+		return err
+	}
+
+	if _, err := srcFile.Seek(0, io.SeekStart); err != nil {
+		return err
+	}
+
+	if flag {
+		val, err := os.ReadFile("/tmp/id.json")
+		if err != nil {
+			log.Printf("failed to read id.json: %v\n", err)
+			return err
+		}
+		id := strings.TrimSpace(string(val))
+		targetPath := filepath.Join("/var/run/kata-containers/shared/containers/"+id+"/rootfs", hookOutputFile)
+		_ = os.MkdirAll(filepath.Dir(targetPath), 0755)
+
+		dstFile, err := os.OpenFile(targetPath, os.O_CREATE|os.O_RDWR, 0600)
+		if err != nil {
+			log.Printf("failed to open rootfs output file (%s) for container %s: %v\n", targetPath, id, err)
+			return err
+		}
+		defer dstFile.Close()
+
+		if _, err := io.Copy(dstFile, srcFile); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func runDetached() error {
@@ -116,13 +217,14 @@ func run(state specs.State) error {
 	operation := types.HookContainerCreate
 	// we try to connect to runtime here to make sure the socket is correct
 	// before spawning a detached process
-	handler, err := getRuntimeHandler(runtimeSocket)
-	if err != nil {
-		return err
-	}
-	err = handler.close()
-	if err != nil {
-		log.Printf("failed to close runtime connection: %s", err.Error())
+	if runtimeSocket != "" {
+		handler, err := getRuntimeHandler(runtimeSocket)
+		if err == nil {
+			err = handler.close()
+			if err != nil {
+				log.Printf("failed to close runtime connection: %s", err.Error())
+			}
+		}
 	}
 
 	container.ContainerID = state.ID
@@ -132,16 +234,6 @@ func run(state specs.State) error {
 	}
 
 	var appArmorProfile string
-	// the decision whether a container is KubeArmor container or not is done
-	// based on two things:
-	// - if we managed to get container spec, then we check the init process
-	// - if we couldn't, we use container name from kubernetes annotations
-	// this might lead to some containers acting as KubeArmor to spawn a detached
-	// processes that are unneeded. However, the design of KubeArmor hook logic
-	// is built around being idempotent so same requests being sent over and over
-	// shouldn't be a security issue. We can always add more restrictions on that guess
-	// but we always need to make sure to never introduce any false negatives as KubeArmor
-	// running without knowledge of previous containers could be a security issue.
 	var isKubeArmor bool
 	specBytes, err := os.ReadFile(filepath.Join(state.Bundle, "config.json"))
 	if err != nil {
@@ -158,7 +250,7 @@ func run(state specs.State) error {
 		if err != nil {
 			return err
 		}
-		appArmorProfile = spec.Process.ApparmorProfile // check if Process is nil??
+		appArmorProfile = spec.Process.ApparmorProfile
 		isKubeArmor = spec.Process.Args[0] == "/KubeArmor/kubearmor"
 	}
 
@@ -167,9 +259,6 @@ func run(state specs.State) error {
 		if err != nil {
 			return err
 		}
-		// we still continue to try to send container details after starting the detached process
-		// to make sure if it was a false positive (container trying to act as KubeArmor), we still
-		// monitor it.
 	}
 	container = types.Container{
 		ContainerID:     state.ID,
@@ -205,10 +294,6 @@ func getNS(pid int) (uint32, uint32) {
 func sendContainer(container types.Container, operation types.HookOperation) error {
 	conn, err := net.Dial("unix", kubeArmorSocket)
 	if err != nil {
-		// not returning error here because this can happen in multiple cases
-		// that we don't want container creation to be blocked on:
-		// - hook was created before KubeArmor was running so the socket doesn't exist yet
-		// - KubeArmor crashed so there is nothing listening on socket
 		return nil
 	}
 
@@ -241,10 +326,9 @@ func sendContainer(container types.Container, operation types.HookOperation) err
 		if bytes.Equal(response, []byte("ok")) {
 			return nil
 		} else {
-			time.Sleep(50 * time.Millisecond) // try again in 50 ms
+			time.Sleep(50 * time.Millisecond)
 			continue
 		}
-
 	}
 }
 
