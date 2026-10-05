@@ -451,18 +451,7 @@ func GenerateDaemonSet(env, namespace string) *appsv1.DaemonSet {
 									Name:          "grpc-health",
 								},
 							},
-							VolumeMounts: volumeMounts,
-							LivenessProbe: &corev1.Probe{
-								ProbeHandler: corev1.ProbeHandler{
-									GRPC: &corev1.GRPCAction{
-										Port: healthPort,
-									},
-								},
-								InitialDelaySeconds: 60,
-								PeriodSeconds:       20,
-								TimeoutSeconds:      5,
-								FailureThreshold:    5,
-							},
+							VolumeMounts:             volumeMounts,
 							TerminationMessagePolicy: "File",
 							TerminationMessagePath:   "/dev/termination-log",
 						},
