@@ -101,7 +101,7 @@ func GetClusterRoleBinding(namespace string) *rbacv1.ClusterRoleBinding {
 }
 
 // GetRelayService Function
-func GetRelayService(namespace string) *corev1.Service {
+func GetRelayService(namespace string, grpcPort int32) *corev1.Service {
 	return &corev1.Service{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Service",
@@ -116,8 +116,8 @@ func GetRelayService(namespace string) *corev1.Service {
 			Selector: relayDeploymentLabels,
 			Ports: []corev1.ServicePort{
 				{
-					Port:       port,
-					TargetPort: intstr.FromInt(int(port)),
+					Port:       grpcPort,
+					TargetPort: intstr.FromInt(int(grpcPort)),
 					Protocol:   "TCP",
 				},
 			},
@@ -146,7 +146,7 @@ var envVars = []corev1.EnvVar{
 }
 
 // GetRelayDeployment Function
-func GetRelayDeployment(namespace string) *appsv1.Deployment {
+func GetRelayDeployment(namespace string, grpcPort int32) *appsv1.Deployment {
 	return &appsv1.Deployment{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Deployment",
@@ -181,7 +181,7 @@ func GetRelayDeployment(namespace string) *appsv1.Deployment {
 							//imagePullPolicy is Always since image has latest tag
 							Ports: []corev1.ContainerPort{
 								{
-									ContainerPort: port,
+									ContainerPort: grpcPort,
 								},
 							},
 							Env: envVars,
@@ -255,7 +255,7 @@ func GetRelayClusterRoleBinding(namespace string) *rbacv1.ClusterRoleBinding {
 var terminationGracePeriodSeconds = int64(10)
 
 // GenerateDaemonSet Function
-func GenerateDaemonSet(env, namespace string) *appsv1.DaemonSet {
+func GenerateDaemonSet(env, namespace string, grpcPort int32) *appsv1.DaemonSet {
 
 	var label = map[string]string{
 		"kubearmor-app": kubearmor,
@@ -263,7 +263,7 @@ func GenerateDaemonSet(env, namespace string) *appsv1.DaemonSet {
 	var privileged = bool(false)
 	var terminationGracePeriodSeconds = int64(60)
 	var args = []string{
-		"-gRPC=" + strconv.Itoa(int(port)),
+		"-gRPC=" + strconv.Itoa(int(grpcPort)),
 		"-procfsMount=/host/procfs",
 	}
 
@@ -443,7 +443,7 @@ func GenerateDaemonSet(env, namespace string) *appsv1.DaemonSet {
 							Env:  envs,
 							Ports: []corev1.ContainerPort{
 								{
-									ContainerPort: port,
+									ContainerPort: grpcPort,
 									Name:          "grpc",
 								},
 								{

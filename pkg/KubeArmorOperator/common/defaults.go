@@ -9,6 +9,7 @@ import (
 	"encoding/hex"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -84,6 +85,7 @@ var (
 
 	// ConfigMap Data
 	ConfigGRPC                        string = "gRPC"
+	ConfigRelayGRPCPort               string = "gRPCPort"
 	ConfigVisibility                  string = "visibility"
 	ConfigCluster                     string = "cluster"
 	ConfigDefaultFilePosture          string = "defaultFilePosture"
@@ -131,6 +133,7 @@ var (
 
 	KubeArmorRelayName string   = "kubearmor-relay"
 	KubeArmorRelayArgs []string = []string{
+		"-" + ConfigRelayGRPCPort + "=32767",
 		"-tlsEnabled=false",
 	}
 	KubeArmorRelayImage            string                        = "docker.io/kubearmor/kubearmor-relay-server:latest"
@@ -658,6 +661,20 @@ func AddOrRemoveVolume(src *[]corev1.Volume, dest *[]corev1.Volume, action strin
 	if action == AddAction {
 		*dest = append(*dest, *src...)
 	}
+}
+
+// GetSensorGRPCPort returns the gRPC port of the sensor as configured in the
+// KubeArmor args, falling back to the default port if it is unset or invalid.
+// The relay listens on and dials the sensors on this same port.
+func GetSensorGRPCPort() int32 {
+	for _, arg := range KubeArmorArgs {
+		if key, value, found := ParseArgument(arg); found && key == ConfigGRPC {
+			if p, err := strconv.ParseUint(value, 10, 16); err == nil && p > 0 {
+				return int32(p)
+			}
+		}
+	}
+	return deployments.DefaultGRPCPort
 }
 
 func ParseArgument(arg string) (key string, value string, found bool) {

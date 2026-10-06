@@ -4,8 +4,11 @@
 package controller
 
 import (
+	"slices"
 	"testing"
 
+	opv1 "github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/api/operator.kubearmor.com/v1"
+	"github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/common"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 )
@@ -183,4 +186,27 @@ func TestAddorUpdateNodeSelector(t *testing.T) {
 			"env": "test",
 		})
 	})
+}
+
+func TestUpdateImagesSyncsRelayGRPCPort(t *testing.T) {
+	defaultArgs, defaultRelayArgs := slices.Clone(common.KubeArmorArgs), slices.Clone(common.KubeArmorRelayArgs)
+	defer func() { common.KubeArmorArgs, common.KubeArmorRelayArgs = defaultArgs, defaultRelayArgs }()
+
+	// defaults: nothing to update, sensor and relay agree on the default port
+	assert.Empty(t, UpdateImages(&opv1.KubeArmorConfigSpec{}))
+	assert.Contains(t, common.KubeArmorRelayArgs, "-gRPCPort=32767")
+
+	// custom sensor port moves the relay along with it
+	spec := &opv1.KubeArmorConfigSpec{KubeArmorImage: opv1.ImageSpec{Args: []string{"-gRPC=28080"}}}
+	assert.ElementsMatch(t, []string{"kubearmor", "relay"}, UpdateImages(spec))
+	assert.Equal(t, int32(28080), common.GetSensorGRPCPort())
+	assert.Contains(t, common.KubeArmorRelayArgs, "-gRPCPort=28080")
+	assert.NotContains(t, common.KubeArmorRelayArgs, "-gRPCPort=32767")
+
+	// the health port stays independently configurable and does not affect the relay's gRPC port
+	spec = &opv1.KubeArmorConfigSpec{KubeArmorImage: opv1.ImageSpec{Args: []string{"-gRPCHealthPort=28081"}}}
+	assert.Equal(t, []string{"kubearmor"}, UpdateImages(spec))
+	assert.Contains(t, common.KubeArmorArgs, "-gRPCHealthPort=28081")
+	assert.Contains(t, common.KubeArmorArgs, "-gRPC=28080")
+	assert.Contains(t, common.KubeArmorRelayArgs, "-gRPCPort=28080")
 }

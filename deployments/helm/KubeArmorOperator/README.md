@@ -76,6 +76,7 @@ spec:
     kubearmorImage:
         image: [image-repo:tag]                                # DEFAULT - kubearmor/kubearmor:stable
         imagePullPolicy: [image pull policy]                   # DEFAULT - Always
+        args: [list of sensor arguments]                       # e.g. ["-gRPC=28080"], DEFAULT - ["-gRPC=32767"]
 
     # KubeArmor init image and pull policy
     kubearmorInitImage:
@@ -97,6 +98,21 @@ spec:
         image: [image-repo:tag]                                # DEFAULT - gcr.io/kubebuilder/kube-rbac-proxy:v0.15.0
         imagePullPolicy: [image pull policy]                   # DEFAULT - Always
 ```
+
+## Changing the gRPC port
+
+The KubeArmor sensor runs with `hostNetwork: true`, and its gRPC (`32767`) and gRPC health (`32766`) ports fall inside the default Kubernetes NodePort range (`30000-32767`). If a Service is allocated one of these NodePorts, kube-proxy intercepts the traffic to that port on every node instead of reaching the sensor.
+
+To move the sensor gRPC port out of that range, set it through the sensor args of the `KubeArmorConfig`:
+```yaml
+spec:
+  kubearmorImage:
+    args:
+      - -gRPC=28080
+```
+The operator uses this value for the sensor DaemonSet and also configures the relay server (`-gRPCPort`), its container port and the `kubearmor` relay Service port/targetPort accordingly, since the relay dials the sensors on the same port it listens on. Any `-gRPCPort` set in `kubearmorRelayImage.args` is overridden by the sensor's `-gRPC` value.
+
+The gRPC health port is configured independently with `-gRPCHealthPort` on the sensor (`kubearmorImage.args`) and `-livenessPort` on the relay (`kubearmorRelayImage.args`).
 
 ## Verify if all the resources are up and running
 If a valid configuration is received, the operator will deploy jobs to your nodes to get the environment information and then start installing KubeArmor components.
