@@ -35,9 +35,11 @@ spec:
       recursive: true
     - dir: /pts/
     - dir: /lib/x86_64-linux-gnu/
+    - dir: /lib/aarch64-linux-gnu/
     - dir: /bin/
     - dir: /usr/bin/
     - dir: /lib/x86_64-linux-gnu/security/  
+    - dir: /lib/aarch64-linux-gnu/security/
   action:
     Allow
 

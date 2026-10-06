@@ -17,6 +17,8 @@ spec:
       recursive: true
     - dir: /lib/x86_64-linux-gnu/
       recursive: true
+    - dir: /lib/aarch64-linux-gnu/
+      recursive: true
     - dir: /credentials/
     - dir: /pts/
     - dir: /bin/
