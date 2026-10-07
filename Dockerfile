@@ -3,7 +3,7 @@
 
 ### Builder
 
-FROM golang:1.26-alpine3.22@sha256:28d89ee9cc0ff9fec75c82ca201e6bf7fdf9a679d4b7b24dfa04f2bb766bb468 AS builder
+FROM golang:1.26-alpine3.23@sha256:a8fa79c5bd40d880b52bd3b6d7669ecdcfd00e85facdd427d279efb5ddd79cb1 AS builder
 
 RUN apk --no-cache update && apk upgrade --no-cache libcrypto3 libssl3 zlib libexpat
 RUN apk add --no-cache git clang llvm make gcc protobuf protobuf-dev curl elfutils-dev libbpf-dev
