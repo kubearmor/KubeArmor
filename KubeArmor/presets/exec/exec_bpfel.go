@@ -46,6 +46,28 @@ type execCmdArgsKey struct {
 	Ind  uint64
 }
 
+// Names of all BPF objects in the ELF.
+//
+// Used for safe lookups in a Collection or CollectionSpec.
+const (
+	execMapArgsBufk                      = "args_bufk"
+	execMapBufk                          = "bufk"
+	execMapBufs                          = "bufs"
+	execMapBufsOff                       = "bufs_off"
+	execMapCmdArgsBuf                    = "cmd_args_buf"
+	execMapEvents                        = "events"
+	execMapKubearmorAlertThrottle        = "kubearmor_alert_throttle"
+	execMapKubearmorArgsStore            = "kubearmor_args_store"
+	execMapKubearmorArguments            = "kubearmor_arguments"
+	execMapKubearmorConfig               = "kubearmor_config"
+	execMapKubearmorContainers           = "kubearmor_containers"
+	execMapKubearmorEvents               = "kubearmor_events"
+	execMapKubearmorExecPids             = "kubearmor_exec_pids"
+	execMapKubearmorExecPresetContainers = "kubearmor_exec_preset_containers"
+	execProgExecPresetBprmCheckSecurity  = "exec_preset_bprm_check_security"
+	execVarUnused                        = "unused"
+)
+
 // loadExec returns the embedded CollectionSpec for exec.
 func loadExec() (*ebpf.CollectionSpec, error) {
 	reader := bytes.NewReader(_ExecBytes)
@@ -66,7 +88,7 @@ func loadExec() (*ebpf.CollectionSpec, error) {
 //	*execMaps
 //
 // See ebpf.CollectionSpec.LoadAndAssign documentation for details.
-func loadExecObjects(obj interface{}, opts *ebpf.CollectionOptions) error {
+func loadExecObjects(obj any, opts *ebpf.CollectionOptions) error {
 	spec, err := loadExec()
 	if err != nil {
 		return err

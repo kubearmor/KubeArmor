@@ -5,9 +5,12 @@
 package main
 
 import (
+	"net/http"
+	"net/http/pprof"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/kubearmor/KubeArmor/KubeArmor/buildinfo"
 	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
@@ -45,6 +48,29 @@ func cleanupBpfMaps(bpfMapsDir string, removeFn func(string) error) error {
 	return nil
 }
 
+// startPprofServer serves pprof profiling endpoints on a dedicated mux
+func startPprofServer(addr string) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/debug/pprof/", pprof.Index)
+	mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
+	mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
+	mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
+	mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
+
+	server := &http.Server{
+		Addr:              addr,
+		Handler:           mux,
+		ReadHeaderTimeout: 10 * time.Second,
+	}
+
+	go func() {
+		kg.Printf("Started pprof server on %s", addr)
+		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			kg.Errf("Failed to start pprof server: %v", err)
+		}
+	}()
+}
+
 func main() {
 	if os.Geteuid() != 0 {
 		if os.Getenv("KUBEARMOR_UBI") == "" {
@@ -75,6 +101,10 @@ func main() {
 	if err := cfg.LoadConfig(); err != nil {
 		kg.Err(err.Error())
 		return
+	}
+
+	if cfg.GlobalCfg.EnablePprof {
+		startPprofServer(cfg.GlobalCfg.PprofAddr)
 	}
 
 	core.KubeArmor()
