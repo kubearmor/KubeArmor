@@ -14,9 +14,11 @@ func handleAllNetworkRule(protocols *[]tp.NetworkProtocolType) {
 
 	allWithNoFromSourceAllow := false
 	allWithNoFromSourceBlock := false
+	allWithNoFromSourceAudit := false
 
 	sourcesBlock := map[string]string{}
 	sourcesAllow := map[string]string{}
+	sourcesAudit := map[string]string{}
 
 	for _, net := range *protocols {
 		if strings.ToUpper(net.Protocol) == "ALL" {
@@ -37,6 +39,14 @@ func handleAllNetworkRule(protocols *[]tp.NetworkProtocolType) {
 						})
 					}
 					allWithNoFromSourceBlock = true
+				} else if net.Action == "Audit" && !allWithNoFromSourceAudit {
+					for r := range netType {
+						allProtocols = append(allProtocols, tp.NetworkProtocolType{
+							Protocol: r,
+							Action:   net.Action,
+						})
+					}
+					allWithNoFromSourceAudit = true
 				}
 			} else {
 				for _, src := range net.FromSource {
@@ -45,6 +55,9 @@ func handleAllNetworkRule(protocols *[]tp.NetworkProtocolType) {
 					}
 					if _, ok := sourcesBlock[src.Path]; !ok && net.Action == "Block" {
 						sourcesBlock[src.Path] = net.Action
+					}
+					if _, ok := sourcesAudit[src.Path]; !ok && net.Action == "Audit" {
+						sourcesAudit[src.Path] = net.Action
 					}
 				}
 			}
@@ -80,6 +93,22 @@ func handleAllNetworkRule(protocols *[]tp.NetworkProtocolType) {
 			allProtocols = append(allProtocols, tp.NetworkProtocolType{
 				Protocol:   r,
 				Action:     "Block",
+				FromSource: sources,
+			})
+		}
+	}
+
+	if len(sourcesAudit) > 0 {
+		sources := []tp.MatchSourceType{}
+		for src := range sourcesAudit {
+			sources = append(sources, tp.MatchSourceType{
+				Path: src,
+			})
+		}
+		for r := range netType {
+			allProtocols = append(allProtocols, tp.NetworkProtocolType{
+				Protocol:   r,
+				Action:     "Audit",
 				FromSource: sources,
 			})
 		}
