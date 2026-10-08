@@ -329,6 +329,20 @@ struct exec_pid_map
 
 struct exec_pid_map kubearmor_exec_pids SEC(".maps");
 
+struct ip_key {
+    __u8 ip[16];
+};
+
+struct dns_visibility_map_t
+{
+    __uint(type, BPF_MAP_TYPE_HASH);
+    __uint(key_size, sizeof(struct ip_key));
+    __uint(value_size, sizeof(u32));
+    __uint(max_entries, 65535);
+    __uint(pinning, LIBBPF_PIN_BY_NAME);
+};
+struct dns_visibility_map_t kubearmor_dns_visibility SEC(".maps");
+
 struct pathname_t
 {
     char path[256];
@@ -2682,6 +2696,169 @@ int kprobe__udp_sendmsg(struct pt_regs *ctx)
     save_dns_data_to_dns_buffer(bufs_p, data, UDP_MSG);
     // dns_events_perf_submit(ctx, DATA_BUF_TYPE);
     events_perf_submit(ctx, DNS_BUF_TYPE);
+    return 0;
+}
+
+#ifndef ETH_P_IP
+#define ETH_P_IP 0x0800
+#endif
+#ifndef ETH_P_IPV6
+#define ETH_P_IPV6 0x86DD
+#endif
+
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+#define htons_local(x) __builtin_bswap16(x)
+#else
+#define htons_local(x) (x)
+#endif
+
+struct eth_hdr {
+    unsigned char h_dest[6];
+    unsigned char h_source[6];
+    __u16 h_proto;
+} __attribute__((packed));
+
+struct ip_hdr {
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+    __u8 ihl : 4, version : 4;
+#else
+    __u8 version : 4, ihl : 4;
+#endif
+    __u8 tos;
+    __u16 tot_len;
+    __u16 id;
+    __u16 frag_off;
+    __u8 ttl;
+    __u8 protocol;
+    __u16 check;
+    __u32 saddr;
+    __u32 daddr;
+} __attribute__((packed));
+
+struct ipv6_hdr {
+    __u32 ver_tc_flow;
+    __u16 payload_len;
+    __u8 nexthdr;
+    __u8 hop_limit;
+    __u8 saddr[16];
+    __u8 daddr[16];
+} __attribute__((packed));
+
+struct udp_hdr {
+    __u16 source;
+    __u16 dest;
+    __u16 len;
+    __u16 check;
+} __attribute__((packed));
+
+struct tcp_hdr {
+    __u16 source;
+    __u16 dest;
+    __u32 seq;
+    __u32 ack_seq;
+    __u16 flags;
+    __u16 window;
+    __u16 check;
+    __u16 urg_ptr;
+} __attribute__((packed));
+
+SEC("socket")
+int filter_dns(struct __sk_buff *skb)
+{
+    __u16 proto = 0;
+    // Ethernet header: h_proto is at offset 12
+    if (bpf_skb_load_bytes(skb, 12, &proto, 2) < 0)
+        return 0;
+
+    if (proto == htons_local(ETH_P_IP))
+    {
+        __u8 protocol = 0;
+        // IP header: protocol is at offset 14 + 9 = 23
+        if (bpf_skb_load_bytes(skb, 23, &protocol, 1) < 0)
+            return 0;
+
+        if (protocol == 17 || protocol == 6) // UDP or TCP
+        {
+            __u8 ihl_byte = 0;
+            // IP header: first byte (version + ihl) is at offset 14
+            if (bpf_skb_load_bytes(skb, 14, &ihl_byte, 1) < 0)
+                return 0;
+
+            __u32 ihl = (ihl_byte & 0x0f) * 4;
+            if (ihl < 20)
+                return 0;
+
+            __u16 ports[2] = {0, 0}; // ports[0] is source, ports[1] is dest
+            // Read ports at offset 14 + ihl
+            if (bpf_skb_load_bytes(skb, 14 + ihl, &ports, 4) < 0)
+                return 0;
+
+            if (ports[0] == htons_local(53) || ports[1] == htons_local(53))
+            {
+                __u32 saddr = 0;
+                __u32 daddr = 0;
+                if (bpf_skb_load_bytes(skb, 14 + 12, &saddr, 4) < 0)
+                    return 0;
+                if (bpf_skb_load_bytes(skb, 14 + 16, &daddr, 4) < 0)
+                    return 0;
+
+                struct ip_key src_key;
+                __builtin_memset(&src_key, 0, sizeof(src_key));
+                src_key.ip[10] = 0xff;
+                src_key.ip[11] = 0xff;
+                __builtin_memcpy(&src_key.ip[12], &saddr, 4);
+                if (bpf_map_lookup_elem(&kubearmor_dns_visibility, &src_key)) {
+                    return skb->len;
+                }
+
+                struct ip_key dst_key;
+                __builtin_memset(&dst_key, 0, sizeof(dst_key));
+                dst_key.ip[10] = 0xff;
+                dst_key.ip[11] = 0xff;
+                __builtin_memcpy(&dst_key.ip[12], &daddr, 4);
+                if (bpf_map_lookup_elem(&kubearmor_dns_visibility, &dst_key)) {
+                    return skb->len;
+                }
+            }
+        }
+    }
+    else if (proto == htons_local(ETH_P_IPV6))
+    {
+        __u8 nexthdr = 0;
+        // IPv6 header: nexthdr is at offset 14 + 6 = 20
+        if (bpf_skb_load_bytes(skb, 20, &nexthdr, 1) < 0)
+            return 0;
+
+        if (nexthdr == 17 || nexthdr == 6) // UDP or TCP
+        {
+            __u16 ports[2] = {0, 0};
+            // Read ports at offset 14 + 40 = 54
+            if (bpf_skb_load_bytes(skb, 54, &ports, 4) < 0)
+                return 0;
+
+            if (ports[0] == htons_local(53) || ports[1] == htons_local(53))
+            {
+                struct ip_key src_key;
+                __builtin_memset(&src_key, 0, sizeof(src_key));
+                // IPv6 saddr starts at offset 14 + 8 = 22
+                if (bpf_skb_load_bytes(skb, 22, &src_key.ip, 16) < 0)
+                    return 0;
+                if (bpf_map_lookup_elem(&kubearmor_dns_visibility, &src_key)) {
+                    return skb->len;
+                }
+
+                struct ip_key dst_key;
+                __builtin_memset(&dst_key, 0, sizeof(dst_key));
+                // IPv6 daddr starts at offset 14 + 24 = 38
+                if (bpf_skb_load_bytes(skb, 38, &dst_key.ip, 16) < 0)
+                    return 0;
+                if (bpf_map_lookup_elem(&kubearmor_dns_visibility, &dst_key)) {
+                    return skb->len;
+                }
+            }
+        }
+    }
+
     return 0;
 }
 
