@@ -43,7 +43,6 @@ import (
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
-	"k8s.io/kubectl/pkg/util/slice"
 )
 
 var (
@@ -1245,12 +1244,12 @@ func (clusterWatcher *ClusterWatcher) WatchTlsState(tlsEnabled bool) error {
 	}
 	for _, ds := range dsList.Items {
 		if !(ds.Status.DesiredNumberScheduled == ds.Status.CurrentNumberScheduled &&
-			slice.ContainsString(ds.Spec.Template.Spec.Containers[0].Args, tlsState, nil)) {
+			slices.Contains(ds.Spec.Template.Spec.Containers[0].Args, tlsState)) {
 			update = true
 		}
 	}
 	if !(relay.Status.Replicas == relay.Status.ReadyReplicas &&
-		slice.ContainsString(relay.Spec.Template.Spec.Containers[0].Args, tlsState, nil)) {
+		slices.Contains(relay.Spec.Template.Spec.Containers[0].Args, tlsState)) {
 		update = true
 	}
 	if tlsEnabled {
