@@ -61,6 +61,9 @@ func RemoveStringElement(slice []string, size int) []string {
 
 // ContainsElement Function
 func ContainsElement(slice any, element any) bool {
+	if slice == nil {
+		return false
+	}
 	switch reflect.TypeOf(slice).Kind() {
 	case reflect.Slice:
 		s := reflect.ValueOf(slice)
@@ -641,10 +644,16 @@ func ParseURL(address string) (string, string, error) {
 
 	addr, err := url.Parse(address)
 	if err != nil || addr.Host == "" {
+		if strings.Contains(address, "://") {
+			return "", "", fmt.Errorf("Error while parsing URL: %s", err)
+		}
 		// URL without scheme
 		u, repErr := url.ParseRequestURI("http://" + address)
 		if repErr != nil {
-			return "", "", fmt.Errorf("Error while parsing URL: %s", err)
+			if err != nil {
+				return "", "", fmt.Errorf("Error while parsing URL: %s", err)
+			}
+			return "", "", fmt.Errorf("Error while parsing URL: %s", repErr)
 		}
 
 		addr = u
