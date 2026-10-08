@@ -1199,16 +1199,16 @@ func GetArgs(dataBuff *bytes.Buffer, Argnum int32) ([]any, error) {
 }
 
 var auditedSyscalls = map[int]string{
-	84:  "rmdir",
-	87:  "unlink",
-	92:  "chown",
-	105: "setuid",
-	106: "setgid",
-	260: "fchownat",
-	263: "unlinkat",
-	101: "ptrace",
-	165: "mount",
-	166: "umount",
+	SysRmdir:    "rmdir",
+	SysUnlink:   "unlink",
+	SysChown:    "chown",
+	SysSetuid:   "setuid",
+	SysSetgid:   "setgid",
+	SysFChownAt: "fchownat",
+	SysUnlinkAt: "unlinkat",
+	SysPtrace:   "ptrace",
+	SysMount:    "mount",
+	SysUmount:   "umount",
 }
 
 func isAuditedSyscall(syscallID int32) bool {

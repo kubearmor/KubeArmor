@@ -29,6 +29,7 @@ spec:
     - dir: /dev/
       recursive: true
     - dir: /lib/x86_64-linux-gnu/
+    - dir: /lib/aarch64-linux-gnu/
     - dir: /bin/
     - dir: /
       recursive: true
