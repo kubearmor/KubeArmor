@@ -600,12 +600,14 @@ func (clusterWatcher *ClusterWatcher) UpdateKubeArmorImages(images []string) err
 						ds.Spec.Template.Spec.Tolerations = append(ds.Spec.Template.Spec.Tolerations, common.KubeArmorInitTolerations...)
 					}
 
-					// update with global env
-					AddOrUpdateEnv(&ds.Spec.Template.Spec.InitContainers[0].Env, common.GlobalEnv)
-					// add/override with kubearmor-init specific env
-					if len(common.KubeArmorInitEnv) > 0 {
-						defer RemoveDeletedEntriesForEnv(&common.KubeArmorInitEnv)
-						AddOrUpdateEnv(&ds.Spec.Template.Spec.InitContainers[0].Env, common.KubeArmorInitEnv)
+					if len(ds.Spec.Template.Spec.InitContainers) != 0 {
+						// update with global env
+						AddOrUpdateEnv(&ds.Spec.Template.Spec.InitContainers[0].Env, common.GlobalEnv)
+						// add/override with kubearmor-init specific env
+						if len(common.KubeArmorInitEnv) > 0 {
+							defer RemoveDeletedEntriesForEnv(&common.KubeArmorInitEnv)
+							AddOrUpdateEnv(&ds.Spec.Template.Spec.InitContainers[0].Env, common.KubeArmorInitEnv)
+						}
 					}
 
 					NRIVolume, NRIVolumeMount := common.GenerateNRIvol(ds.Spec.Selector.MatchLabels["kubearmor.io/nri-socket"])
