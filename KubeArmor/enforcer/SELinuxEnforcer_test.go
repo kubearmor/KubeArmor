@@ -44,6 +44,7 @@ func TestSELinuxEnforcer(t *testing.T) {
 	cfg.GlobalCfg.HostPolicy = true
 
 	// create logger
+	configureTestPorts(t)
 	logger := feeder.NewFeeder(&node, &nodeLock)
 	if logger == nil {
 		t.Log("[FAIL] Failed to create logger")
@@ -110,6 +111,7 @@ func TestSELinuxProfile(t *testing.T) {
 	cfg.GlobalCfg.HostPolicy = false
 
 	// create logger
+	configureTestPorts(t)
 	logger := feeder.NewFeeder(&node, &nodeLock)
 	if logger == nil {
 		t.Log("[FAIL] Failed to create logger")
@@ -176,6 +178,7 @@ func TestSELinuxHostProfile(t *testing.T) {
 	cfg.GlobalCfg.HostPolicy = true
 
 	// create logger
+	configureTestPorts(t)
 	logger := feeder.NewFeeder(&node, &nodeLock)
 	if logger == nil {
 		t.Log("[FAIL] Failed to create logger")
