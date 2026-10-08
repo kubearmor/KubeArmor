@@ -184,3 +184,26 @@ func TestAddorUpdateNodeSelector(t *testing.T) {
 		})
 	})
 }
+
+func TestGenerateDaemonsetBTFPresent(t *testing.T) {
+	// btfPresent="yes" + initDeploy=false clears InitContainers; verify no panic occurs
+	t.Run("no panic when BTF present and initDeploy false", func(t *testing.T) {
+		defer func() {
+			if r := recover(); r != nil {
+				t.Errorf("generateDaemonset panicked on BTF-present node: %v", r)
+			}
+		}()
+		ds := generateDaemonset("test-ds", "apparmor", "containerd", "_var_run_containerd_containerd.sock", "", "yes", "yes", "no", false, "no")
+		assert.Equal(t, 0, len(ds.Spec.Template.Spec.InitContainers))
+	})
+
+	t.Run("init container present when BTF absent", func(t *testing.T) {
+		defer func() {
+			if r := recover(); r != nil {
+				t.Errorf("generateDaemonset panicked when BTF absent: %v", r)
+			}
+		}()
+		ds := generateDaemonset("test-ds", "apparmor", "containerd", "_var_run_containerd_containerd.sock", "", "no", "yes", "no", false, "no")
+		assert.Greater(t, len(ds.Spec.Template.Spec.InitContainers), 0)
+	})
+}
