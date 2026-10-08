@@ -6,6 +6,7 @@ package networkpolicyenforcer
 import (
 	"context"
 	"fmt"
+	"net"
 	"os"
 	"os/exec"
 	"sort"
@@ -462,8 +463,31 @@ func (ne *NetworkPolicyEnforcer) monitorLoggedPackets() {
 	}
 }
 
+// resolveNetworkEndpoints fills in standalone endpoint addresses from their containers.
+func resolveNetworkEndpoints(endpoints []tp.EndPoint, containers map[string]tp.Container) []tp.EndPoint {
+	var resolved []tp.EndPoint
+	for _, ep := range endpoints {
+		if ep.PodIP != "" {
+			resolved = append(resolved, ep)
+			continue
+		}
+		for _, id := range ep.Containers {
+			container, ok := containers[id]
+			if !ok || net.ParseIP(container.ContainerIP) == nil {
+				continue
+			}
+			endpoint := ep
+			endpoint.PodIP = container.ContainerIP
+			endpoint.Containers = []string{id}
+			resolved = append(resolved, endpoint)
+		}
+	}
+	return resolved
+}
+
 // UpdateNetworkSecurityPolicies Function
 func (ne *NetworkPolicyEnforcer) UpdateNetworkSecurityPolicies(secPolicies []tp.NetworkSecurityPolicy, endpoints []tp.EndPoint, containers map[string]tp.Container) {
+	endpoints = resolveNetworkEndpoints(endpoints, containers)
 
 	ne.EndPointsLock.Lock()
 	ne.EndPoints = make(map[string]tp.EndPoint)
@@ -513,14 +537,19 @@ func (ne *NetworkPolicyEnforcer) UpdateNetworkSecurityPolicies(secPolicies []tp.
 
 		if isPodPolicy {
 			// Find matching endpoints and collect their pod IPs
+			seenIPs := make(map[string]bool)
 			for _, ep := range endpoints {
 				matched := kl.MatchIdentities(policy.Spec.Selector.Identities, ep.Identities)
 				if matched {
-					if ep.PodIP != "" {
+					if ep.PodIP != "" && !seenIPs[ep.PodIP] {
 						podIPs = append(podIPs, ep.PodIP)
+						seenIPs[ep.PodIP] = true
 					}
 					matchedPods[ep.EndPointName] = true
 				}
+			}
+			if len(podIPs) == 0 {
+				continue
 			}
 		}
 
