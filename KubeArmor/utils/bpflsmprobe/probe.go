@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2026 Authors of KubeArmor
 
+//go:build linux
+
 // Package probe checks whether the probed LSM support is available.
 package probe
 
@@ -15,7 +17,7 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -cc clang probe ../../BPF/probe.bpf.c -- -I/usr/include/ -O2 -g
+//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -cc clang -tags linux probe ../../BPF/probe.bpf.c -- -I/usr/include/ -O2 -g
 
 type eventBPF struct {
 	Exec bool

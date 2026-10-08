@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2026 Authors of KubeArmor
 
+//go:build linux
+
 package anonmapexec
 
 import (
@@ -23,7 +25,7 @@ import (
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 )
 
-//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -cc clang anonmapexec  ../../BPF/anonmapexec.bpf.c -type mmap_event -no-global-types -- -I/usr/include/ -O2 -g -Wno-missing-declarations
+//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -cc clang -tags linux anonmapexec  ../../BPF/anonmapexec.bpf.c -type mmap_event -no-global-types -- -I/usr/include/ -O2 -g -Wno-missing-declarations
 
 var (
 	_ base.PresetInterface = (*Preset)(nil)

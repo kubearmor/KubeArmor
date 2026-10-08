@@ -1,5 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2026 Authors of KubeArmor
+
+//go:build linux
+
 package monitor
 
 import (
@@ -11,7 +14,7 @@ import (
 	fd "github.com/kubearmor/KubeArmor/KubeArmor/feeder"
 )
 
-//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -cc clang ima_hash ../BPF/ima_hash.bpf.c -- -I/usr/include/ -O2 -g -fno-stack-protector -Wno-missing-declarations
+//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -cc clang -tags linux ima_hash ../BPF/ima_hash.bpf.c -- -I/usr/include/ -O2 -g -fno-stack-protector -Wno-missing-declarations
 
 // ImaHash struct
 type ImaHash struct {

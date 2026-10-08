@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2026 Authors of KubeArmor
 
+//go:build linux
+
 // Package protectenv contains components for protectenv preset rule
 package protectenv
 
@@ -26,7 +28,7 @@ import (
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 )
 
-//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -cc clang protectenv  ../../BPF/protectenv.bpf.c -type event -no-global-types -- -I/usr/include/ -O2 -g -Wno-missing-declarations
+//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -cc clang -tags linux protectenv  ../../BPF/protectenv.bpf.c -type event -no-global-types -- -I/usr/include/ -O2 -g -Wno-missing-declarations
 
 var (
 	_ base.PresetInterface = (*Preset)(nil)
