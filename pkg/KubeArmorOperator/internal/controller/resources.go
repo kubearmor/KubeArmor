@@ -800,7 +800,7 @@ func (clusterWatcher *ClusterWatcher) GetClusterName(providerHostname, providerE
 }
 
 func (clusterWatcher *ClusterWatcher) WatchRequiredResources() {
-	var caCert, tlsCrt, tlsKey *bytes.Buffer
+	var caCert, caKey, tlsCrt, tlsKey *bytes.Buffer
 	var kGenErr, err, installErr error
 	RotateTls := false
 	srvAccs := []*corev1.ServiceAccount{
@@ -1058,7 +1058,7 @@ func (clusterWatcher *ClusterWatcher) WatchRequiredResources() {
 	configmap.Data["cluster"] = clusterWatcher.GetClusterName(ProviderHostname, ProviderEndpoint)
 
 	for {
-		caCert, tlsCrt, tlsKey, kGenErr = common.GeneratePki(common.Namespace, deployments.KubeArmorControllerWebhookServiceName)
+		caCert, caKey, tlsCrt, tlsKey, kGenErr = common.GeneratePki(common.Namespace, deployments.KubeArmorControllerWebhookServiceName)
 		if kGenErr == nil {
 			break
 		}
@@ -1076,6 +1076,7 @@ func (clusterWatcher *ClusterWatcher) WatchRequiredResources() {
 	}
 
 	secret := deployments.GetKubeArmorControllerTLSSecret(common.Namespace, caCert.String(), tlsCrt.String(), tlsKey.String())
+	secret.StringData["ca.key"] = caKey.String()
 	secret = addOwnership(secret).(*corev1.Secret)
 	mutationhook := deployments.GetKubeArmorControllerMutationAdmissionConfiguration(common.Namespace, caCert.Bytes())
 	mutationhook = addOwnership(mutationhook).(*v1.MutatingWebhookConfiguration)
@@ -1257,7 +1258,7 @@ func (clusterWatcher *ClusterWatcher) WatchRequiredResources() {
 }
 
 func (clusterWatcher *ClusterWatcher) RotateTlsCerts() {
-	var caCert, tlsCrt, tlsKey *bytes.Buffer
+	var caCert, caKey, tlsCrt, tlsKey *bytes.Buffer
 	var err error
 
 	origdeploy, err := clusterWatcher.Client.AppsV1().Deployments(common.Namespace).Get(context.Background(), deployments.KubeArmorControllerDeploymentName, metav1.GetOptions{})
@@ -1265,10 +1266,38 @@ func (clusterWatcher *ClusterWatcher) RotateTlsCerts() {
 		clusterWatcher.Log.Warnf("cannot get controller deployment, error=%s", err.Error())
 	}
 
-	caCert, tlsCrt, tlsKey, _ = common.GeneratePki(common.Namespace, deployments.KubeArmorControllerWebhookServiceName)
+	secret, err := clusterWatcher.Client.CoreV1().Secrets(common.Namespace).Get(context.Background(), deployments.KubeArmorControllerSecretName, metav1.GetOptions{})
+	if err == nil {
+		if len(secret.Data["ca.crt"]) > 0 && len(secret.Data["ca.key"]) > 0 {
+			caCert, tlsCrt, tlsKey, err = common.GeneratePkiWithCA(common.Namespace, deployments.KubeArmorControllerWebhookServiceName, secret.Data["ca.crt"], secret.Data["ca.key"])
+			if err != nil {
+				clusterWatcher.Log.Warnf("failed to generate TLS with existing CA, generating new CA: %s", err.Error())
+				caCert, caKey, tlsCrt, tlsKey, err = common.GeneratePki(common.Namespace, deployments.KubeArmorControllerWebhookServiceName)
+				if err != nil {
+					clusterWatcher.Log.Warnf("failed to generate new CA: %s", err.Error())
+					return
+				}
+			} else {
+				caKey = bytes.NewBuffer(secret.Data["ca.key"])
+			}
+		} else {
+			caCert, caKey, tlsCrt, tlsKey, err = common.GeneratePki(common.Namespace, deployments.KubeArmorControllerWebhookServiceName)
+			if err != nil {
+				clusterWatcher.Log.Warnf("failed to generate PKI: %s", err.Error())
+				return
+			}
+		}
+	} else if utils.IsNotfound(err) {
+		caCert, caKey, tlsCrt, tlsKey, err = common.GeneratePki(common.Namespace, deployments.KubeArmorControllerWebhookServiceName)
+		if err != nil {
+			clusterWatcher.Log.Warnf("failed to generate PKI: %s", err.Error())
+			return
+		}
+	} else {
+		clusterWatcher.Log.Warnf("failed to get controller secret due to transient error, aborting TLS rotation: %s", err.Error())
+		return
+	}
 	replicas := origdeploy.Spec.Replicas
-
-	// TODO: Keep CA certificate in k8s secret
 
 	// == CLEANUP ==
 	// scale down controller deployment to 0
@@ -1288,6 +1317,7 @@ func (clusterWatcher *ClusterWatcher) RotateTlsCerts() {
 	// == ROTATE ==
 	// update controller tls secret
 	controllerSecret := deployments.GetKubeArmorControllerTLSSecret(common.Namespace, caCert.String(), tlsCrt.String(), tlsKey.String())
+	controllerSecret.StringData["ca.key"] = caKey.String()
 	controllerSecret = addOwnership(controllerSecret).(*corev1.Secret)
 	if _, err := clusterWatcher.Client.CoreV1().Secrets(common.Namespace).Update(context.Background(), controllerSecret, metav1.UpdateOptions{}); err != nil {
 		clusterWatcher.Log.Warnf("cannot update controller tls secret %s, error=%s", controllerSecret.Name, err.Error())
