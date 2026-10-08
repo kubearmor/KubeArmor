@@ -8,7 +8,9 @@ import (
 )
 
 var kubearmor = "kubearmor"
-var port int32 = 32767
+
+// DefaultGRPCPort is the default gRPC port of the sensor, which is also the port the relay listens on and dials
+var DefaultGRPCPort int32 = 32767
 var healthPort int32 = 32766
 
 // K8s Object Name Defaults

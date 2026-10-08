@@ -80,7 +80,7 @@ func generateDaemonset(name, enforcer, runtime, socket, nriSocket, btfPresent, a
 	}
 	vols = append(vols, commonVols...)
 	volMnts = append(volMnts, commonVolMnts...)
-	daemonset := deployments.GenerateDaemonSet("generic", common.Namespace)
+	daemonset := deployments.GenerateDaemonSet("generic", common.Namespace, common.GetSensorGRPCPort())
 
 	if btfPresent != "no" && !initDeploy {
 		daemonset.Spec.Template.Spec.InitContainers = []corev1.Container{}
@@ -860,7 +860,7 @@ func (clusterWatcher *ClusterWatcher) WatchRequiredResources() {
 	svcs := []*corev1.Service{
 
 		addOwnership(kubearmorControllerWebhookSvc).(*corev1.Service),
-		addOwnership(deployments.GetRelayService(common.Namespace)).(*corev1.Service),
+		addOwnership(deployments.GetRelayService(common.Namespace, common.GetSensorGRPCPort())).(*corev1.Service),
 	}
 	// Install CRDs
 	ksp := crds.GetKspCRD()
@@ -898,7 +898,7 @@ func (clusterWatcher *ClusterWatcher) WatchRequiredResources() {
 	// kubearmor-controller and relay-server deployments
 	controller := deployments.GetKubeArmorControllerDeployment(common.Namespace)
 
-	relayServer := deployments.GetRelayDeployment(common.Namespace)
+	relayServer := deployments.GetRelayDeployment(common.Namespace, common.GetSensorGRPCPort())
 	// update args, imagePullSecrets and tolerations
 	UpdateArgsIfDefinedAndUpdated(&controller.Spec.Template.Spec.Containers[0].Args, common.KubeArmorControllerArgs)
 

@@ -564,6 +564,7 @@ func (clusterWatcher *ClusterWatcher) UpdateKubeArmorImages(images []string) err
 					ds.Spec.Template.Spec.Containers[0].Image = common.GetApplicationImage(common.KubeArmorName)
 					ds.Spec.Template.Spec.Containers[0].ImagePullPolicy = corev1.PullPolicy(common.KubeArmorImagePullPolicy)
 					ds.Spec.Template.Spec.Containers[0].Args = common.KubeArmorArgs
+					setContainerPort(ds.Spec.Template.Spec.Containers[0].Ports, "grpc", common.GetSensorGRPCPort())
 					ds.Spec.Template.Spec.ImagePullSecrets = common.KubeArmorImagePullSecrets
 					if len(ds.Spec.Template.Spec.ImagePullSecrets) < 1 {
 						utils.UpdateImagePullSecretFromGlobal(common.GlobalImagePullSecrets, &ds.Spec.Template.Spec.ImagePullSecrets)
@@ -637,6 +638,7 @@ func (clusterWatcher *ClusterWatcher) UpdateKubeArmorImages(images []string) err
 				relay.Spec.Template.Spec.Containers[0].Image = common.GetApplicationImage(common.KubeArmorRelayName)
 				relay.Spec.Template.Spec.Containers[0].ImagePullPolicy = corev1.PullPolicy(common.KubeArmorRelayImagePullPolicy)
 				relay.Spec.Template.Spec.Containers[0].Args = common.KubeArmorRelayArgs
+				relay.Spec.Template.Spec.Containers[0].Ports[0].ContainerPort = common.GetSensorGRPCPort()
 				relay.Spec.Template.Spec.ImagePullSecrets = common.KubeArmorRelayImagePullSecrets
 				if len(relay.Spec.Template.Spec.ImagePullSecrets) < 1 {
 					utils.UpdateImagePullSecretFromGlobal(common.GlobalImagePullSecrets, &relay.Spec.Template.Spec.ImagePullSecrets)
@@ -672,6 +674,7 @@ func (clusterWatcher *ClusterWatcher) UpdateKubeArmorImages(images []string) err
 				} else {
 					clusterWatcher.Log.Infof("Updated Deployment=%s with image=%s", deployments.RelayDeploymentName, common.KubeArmorRelayImage)
 				}
+				clusterWatcher.UpdateRelaySvcPort(common.GetSensorGRPCPort())
 			}
 
 		case "controller":
@@ -1145,6 +1148,10 @@ func UpdateImages(config *opv1.KubeArmorConfigSpec) []string {
 		UpdateEnvIfDefinedAndUpdated(&common.KubeArmorRelayEnv, config.KubeArmorRelayImage.Env) {
 		updatedImages = append(updatedImages, "relay")
 	}
+	// the relay listens on and dials the sensors on the same port, so keep it in sync with the sensor's gRPC port
+	if UpdateArgsIfDefinedAndUpdated(&common.KubeArmorRelayArgs, []string{fmt.Sprintf("%s=%d", common.ConfigRelayGRPCPort, common.GetSensorGRPCPort())}) && !slices.Contains(updatedImages, "relay") {
+		updatedImages = append(updatedImages, "relay")
+	}
 	// if kubearmor-controller image or imagePullPolicy got updated
 	if UpdateIfDefinedAndUpdated(&common.KubeArmorControllerImage, config.KubeArmorControllerImage.Image) ||
 		UpdateIfDefinedAndUpdated(&common.KubeArmorControllerImagePullPolicy, config.KubeArmorControllerImage.ImagePullPolicy) ||
@@ -1275,6 +1282,35 @@ func (clusterWatcher *ClusterWatcher) WatchTlsState(tlsEnabled bool) error {
 	}
 	return nil
 }
+
+// UpdateRelaySvcPort updates the relay service port and targetPort to the gRPC port of the sensor
+func (clusterWatcher *ClusterWatcher) UpdateRelaySvcPort(port int32) {
+	svc, err := clusterWatcher.Client.CoreV1().Services(common.Namespace).Get(context.Background(), deployments.RelayServiceName, v1.GetOptions{})
+	if err != nil {
+		clusterWatcher.Log.Warnf("Cannot get relay service=%s error=%s", deployments.RelayServiceName, err.Error())
+		return
+	}
+	if svc.Spec.Ports[0].Port == port && svc.Spec.Ports[0].TargetPort == intstr.FromInt(int(port)) {
+		return
+	}
+	svc.Spec.Ports[0].Port = port
+	svc.Spec.Ports[0].TargetPort = intstr.FromInt(int(port))
+	if _, err = clusterWatcher.Client.CoreV1().Services(common.Namespace).Update(context.Background(), svc, v1.UpdateOptions{}); err != nil {
+		clusterWatcher.Log.Warnf("Cannot update relay service=%s error=%s", deployments.RelayServiceName, err.Error())
+		return
+	}
+	clusterWatcher.Log.Infof("Updated relay service=%s with port=%d", deployments.RelayServiceName, port)
+}
+
+// setContainerPort sets the port of the named container port
+func setContainerPort(ports []corev1.ContainerPort, name string, port int32) {
+	for i := range ports {
+		if ports[i].Name == name {
+			ports[i].ContainerPort = port
+		}
+	}
+}
+
 func (clusterWatcher *ClusterWatcher) UpdateWebhookSvcPort(port int) {
 	// update webhook service port
 	svc, err := clusterWatcher.Client.CoreV1().Services(common.Namespace).Get(context.Background(), common.KubeArmorControllerWebhookServiceName, v1.GetOptions{})

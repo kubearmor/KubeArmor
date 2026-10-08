@@ -58,12 +58,12 @@ func main() {
 			dp.GetKubeArmorControllerLeaderElectionRoleBinding(namespace),
 
 			// Services
-			dp.GetRelayService(namespace),
+			dp.GetRelayService(namespace, dp.DefaultGRPCPort),
 			dp.GetKubeArmorControllerWebhookService(namespace),
 
 			// Apps
-			dp.GenerateDaemonSet(strings.ToLower(env), namespace),
-			dp.GetRelayDeployment(namespace),
+			dp.GenerateDaemonSet(strings.ToLower(env), namespace, dp.DefaultGRPCPort),
+			dp.GetRelayDeployment(namespace, dp.DefaultGRPCPort),
 			dp.GetKubeArmorControllerDeployment(namespace),
 		}
 
