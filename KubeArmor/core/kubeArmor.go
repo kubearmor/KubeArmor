@@ -401,8 +401,8 @@ func (dm *KubeArmorDaemon) CloseNetworkPolicyEnforcer() error {
 // == Presets == //
 // ============= //
 
-// InitPresets Function
-func (dm *KubeArmorDaemon) InitPresets(logger *fd.Feeder, monitor *mon.SystemMonitor) error {
+// InitPresets initializes the preset rules using the daemon's logger and system monitor.
+func (dm *KubeArmorDaemon) InitPresets() error {
 	dm.Presets = presets.NewPreset(dm.Logger, dm.SystemMonitor)
 	if dm.Presets == nil {
 		return fmt.Errorf("failed to create presets")
@@ -721,7 +721,7 @@ func KubeArmor() {
 		}
 
 		// initialize presets
-		if err := dm.InitPresets(dm.Logger, dm.SystemMonitor); err != nil {
+		if err := dm.InitPresets(); err != nil {
 			dm.Logger.Printf("Disabled Presets: %s", err.Error())
 		} else {
 			dm.Logger.Print("Initialized Presets")
