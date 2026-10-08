@@ -323,13 +323,10 @@ func readCmdLineParams() {
 
 	viper.SetDefault(ConfigNetworkPolicyEnforcer, *networkPolicyEnforcer)
 
-<<<<<<< HEAD
 	viper.SetDefault(ConfigEnablePprof, *enablePprof)
 	viper.SetDefault(ConfigPprofAddr, *pprofAddr)
-=======
 	viper.SetDefault(ConfigManagementSocketPath, *managementSocketPath)
 	viper.SetDefault(ConfigManagementFallbackAddr, *managementFallbackAddr)
->>>>>>> 99e67397 ( config: add management TLS and transport config fields; management: separate trust domain and UDS support)
 }
 
 // LoadConfig Load configuration
