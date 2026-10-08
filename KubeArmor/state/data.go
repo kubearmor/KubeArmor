@@ -75,6 +75,9 @@ func (sa *StateAgent) PushContainerEvent(container tp.Container, event string) {
 		Object: containerBytes,
 	}
 
+	sa.StateEventChansLock.RLock()
+	defer sa.StateEventChansLock.RUnlock()
+
 	// skip sending message as no state receiver is connected
 	if sa.StateEventChans == nil {
 		return
@@ -110,6 +113,9 @@ func (sa *StateAgent) PushNodeEvent(node tp.Node, event string) {
 		Object: nodeData,
 	}
 
+	sa.StateEventChansLock.RLock()
+	defer sa.StateEventChansLock.RUnlock()
+
 	// skip sending message as no state receiver is connected
 	if sa.StateEventChans == nil {
 		return
@@ -139,6 +145,9 @@ func (sa *StateAgent) PushNamespaceEvent(namespace tp.Namespace, event string) {
 		Name:   namespace.Name,
 		Object: nsBytes,
 	}
+
+	sa.StateEventChansLock.RLock()
+	defer sa.StateEventChansLock.RUnlock()
 
 	// skip sending message as no state receiver is connected
 	if sa.StateEventChans == nil {
