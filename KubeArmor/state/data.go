@@ -25,7 +25,7 @@ func (sa *StateAgent) PushContainerEvent(container tp.Container, event string) {
 	sa.KubeArmorNamespacesLock.Lock()
 	if event == EventAdded {
 		// create this kubearmor ns if it doesn't exist
-		// currently only "container_namespace" until we have config agent
+		// uses hostname until we have config agent
 		if ns, ok := sa.KubeArmorNamespaces[namespace]; !ok {
 			nsObj := types.Namespace{
 				Name: namespace,

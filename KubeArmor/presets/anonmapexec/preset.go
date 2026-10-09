@@ -47,7 +47,8 @@ type Preset struct {
 	ContainerMap     map[string]base.ContainerVal
 	ContainerMapLock *sync.RWMutex
 
-	Link link.Link
+	MmapLink     link.Link
+	MprotectLink link.Link
 
 	obj anonmapexecObjects
 }
@@ -124,9 +125,15 @@ func (p *Preset) RegisterPreset(logger *fd.Feeder, monitor *mon.SystemMonitor) (
 		return nil, err
 	}
 
-	p.Link, err = link.AttachLSM(link.LSMOptions{Program: p.obj.EnforceMmapFile})
+	p.MmapLink, err = link.AttachLSM(link.LSMOptions{Program: p.obj.EnforceMmapFile})
 	if err != nil {
 		p.Logger.Errf("opening lsm %s: %s", p.obj.EnforceMmapFile.String(), err)
+		return nil, err
+	}
+
+	p.MprotectLink, err = link.AttachLSM(link.LSMOptions{Program: p.obj.EnforceFileMprotect})
+	if err != nil {
+		p.Logger.Errf("opening lsm %s: %s", p.obj.EnforceFileMprotect.String(), err)
 		return nil, err
 	}
 
@@ -202,9 +209,11 @@ func (p *Preset) TraceEvents() {
 			},
 		}, readLink)
 
+		p.ContainerMapLock.RLock()
 		if ckv, ok := p.ContainerMap[containerID]; ok {
 			base.AddPolicyLogInfo(&log, &ckv)
 		}
+		p.ContainerMapLock.RUnlock()
 
 		var f []string
 		f = append(f, ParseProtectionFlags(event.Args[0]))
@@ -285,19 +294,20 @@ func (p *Preset) UpdateSecurityPolicies(endPoint tp.EndPoint) {
 					p.ContainerMapLock.RLock()
 					// Check if Container ID is registered in Map or not
 					ckv, ok := p.ContainerMap[cid]
+					p.ContainerMapLock.RUnlock()
 					if !ok {
 						// It maybe possible that CRI has unregistered the containers but K8s construct still has not sent this update while the policy was being applied,
 						// so the need to check if the container is present in the map before we apply policy.
-						p.ContainerMapLock.RUnlock()
 						return
 					}
 					base.UpdateMatchPolicy(&ckv, &secPolicy)
+					p.ContainerMapLock.Lock()
 					p.ContainerMap[cid] = ckv
 					err := p.AddContainerIDToMap(cid, ckv.NsKey, preset.Action)
 					if err != nil {
 						p.Logger.Warnf("Updating policy for container %s :%s ", cid, err)
 					}
-					p.ContainerMapLock.RUnlock()
+					p.ContainerMapLock.Unlock()
 				}
 			}
 		}
@@ -321,7 +331,12 @@ func (p *Preset) Destroy() error {
 		errBPFCleanUp = errors.Join(errBPFCleanUp, err)
 	}
 
-	if err := p.Link.Close(); err != nil {
+	if err := p.MmapLink.Close(); err != nil {
+		p.Logger.Err(err.Error())
+		errBPFCleanUp = errors.Join(errBPFCleanUp, err)
+	}
+
+	if err := p.MprotectLink.Close(); err != nil {
 		p.Logger.Err(err.Error())
 		errBPFCleanUp = errors.Join(errBPFCleanUp, err)
 	}

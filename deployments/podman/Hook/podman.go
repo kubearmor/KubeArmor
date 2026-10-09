@@ -8,6 +8,7 @@ package main
 
 import (
 	"context"
+	"os"
 	"strings"
 
 	"github.com/kubearmor/KubeArmor/KubeArmor/types"
@@ -56,10 +57,11 @@ func containerFromListContainer(container entities.ListContainer) types.Containe
 		kaContainer.EndPointName = container.Names[0]
 	}
 
-	kaContainer.NamespaceName = "container_namespace"
+	hostname, _ := os.Hostname()
+	kaContainer.NamespaceName = hostname
 	// kaContainer.Privileged = container.Labels["privileged"] == "true" // Assuming a 'privileged' label is set
 	labels := []string{}
-	labels = append(labels, "namespaceName="+"container_namespace")
+	labels = append(labels, "namespaceName="+hostname)
 	labels = append(labels, "containerType="+"podman")
 	labels = append(labels, "kubearmor.io/container.name="+container.Names[0])
 

@@ -27,11 +27,9 @@ ifneq (, $(shell which bpftool))
 ifneq (, $(wildcard /sys/kernel/btf/vmlinux))
 	cd $(CURDIR); bpftool btf dump file /sys/kernel/btf/vmlinux format c > BPF/vmlinux.h || true
 endif
-ifneq (, $(shell which llvm-strip))
-	if grep -q bpf '/sys/kernel/security/lsm'; then \
-		cd $(CURDIR); go generate ./... || true; \
-	fi
 endif
+ifneq (, $(shell which clang))
+	cd $(CURDIR); go generate ./...
 endif
 	cd $(CURDIR); CGO_ENABLED=0 go build -ldflags "$(GIT_INFO)" -o kubearmor main.go
 
@@ -53,7 +51,7 @@ run: build
 	cd $(CURDIR); sudo rm -f /tmp/kubearmor.log
 	cd $(CURDIR)/BPF; make clean
 	cd $(CURDIR)/BPF; make
-	cd $(CURDIR); DEBUG=true sudo -E ./kubearmor -logPath=/tmp/kubearmor.log -enableKubeArmorPolicy -enableKubeArmorHostPolicy -hostVisibility=process,file,network,capabilities -defaultFilePosture block -defaultCapabilitiesPosture block -defaultNetworkPosture block -hostDefaultFilePosture block -hostDefaultCapabilitiesPosture block -hostDefaultNetworkPosture block -annotateResources=true
+	cd $(CURDIR); LOG_LEVEL=debug sudo -E ./kubearmor -logPath=/tmp/kubearmor.log -enableKubeArmorPolicy -enableKubeArmorHostPolicy -hostVisibility=process,file,network,capabilities -defaultFilePosture block -defaultCapabilitiesPosture block -defaultNetworkPosture block -hostDefaultFilePosture block -hostDefaultCapabilitiesPosture block -hostDefaultNetworkPosture block -annotateResources=true
 
 .PHONY: run-container
 run-container: build
@@ -75,6 +73,9 @@ test:
 .PHONY: testall
 testall:
 	cd $(CURDIR); sudo rm -f /tmp/kubearmor.log
+ifneq (, $(shell which clang))
+	cd $(CURDIR); go generate ./...
+endif
 	cd $(CURDIR)/feeder; go mod tidy
 	cd $(CURDIR)/feeder; sudo -E $(GO_EXEC) clean -testcache .; sudo -E $(GO_EXEC) test -v -coverprofile=.coverprofile .
 	cd $(CURDIR)/enforcer; go mod tidy

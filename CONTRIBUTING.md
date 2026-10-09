@@ -20,6 +20,27 @@ We maintain a list of curated issues that are great entry points:
 
 For help setting up your development environment, refer to our [Development Guide](contribution/development_guide.md). To understand how to fork the repository and raise a PR, see our [Contribution Guide](contribution/contribution_guide.md).
 
+## Developer Certificate of Origin (DCO)
+
+KubeArmor requires that all contributions be accompanied by a Developer Certificate of Origin (DCO) sign-off. By adding a DCO sign-off, you certify that you wrote the code or have the right to submit it under the Apache 2.0 open-source license.
+
+To sign off your commit, use the `-s` flag when committing:
+```bash
+git commit -s -m "feat: add feature description"
+```
+Or append `Signed-off-by: Your Name <your.email@example.com>` to your commit message.
+
+## Security & Quality Practices (OpenSSF Compliance)
+
+KubeArmor follows the [OpenSSF CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/5401) to maintain high security, stability, and code quality:
+
+- **Security Reporting:** Do not report security vulnerabilities in public issues. Submit reports privately via [GitHub Security Advisories](https://github.com/kubearmor/KubeArmor/security/advisories/new) or email `support@kubearmor.io` per [`SECURITY.md`](SECURITY.md).
+- **Code Review:** Every pull request requires human code review and approval by Maintainers prior to merging.
+- **Automated Testing:** All PRs must pass automated CI unit, integration, and Ginkgo end-to-end tests ([`ci-test-ginkgo.yml`](.github/workflows/ci-test-ginkgo.yml), [`ci-test-go.yml`](.github/workflows/ci-test-go.yml)).
+- **Static Analysis & SAST:** Code must pass static code analysis and CodeQL scanning ([`codeql.yml`](.github/workflows/codeql.yml)) without new critical or high severity alerts.
+- **Dependency & Vulnerability Management:** Base images and third-party dependencies are continuously scanned using Trivy ([`ci-trivy-scan.yaml`](.github/workflows/ci-trivy-scan.yaml)) and updated via Renovate.
+- **Compiler Warnings & Linting:** Code must build cleanly without compiler warnings or unresolved linter errors.
+
 ## Installation
 
 To begin contributing with code, it's essential to set up KubeArmor locally. Please refer to our [Development Guide](contribution/development_guide.md) for a step-by-step process to configure your environment and install necessary dependencies.
@@ -92,7 +113,7 @@ Contributors who show initiative, strong technical ability, consistent engagemen
 
 If you have any questions or need help while contributing:
 
-- **Slack Community**: Join the KubeArmor [Slack](https://cloud-native.slack.com/archives/C07EF44HWQM) to engage in real-time discussions.
+- **Slack Community**: Join the KubeArmor [Slack Channel](https://cloud-native.slack.com/archives/C07EF44HWQM) on CNCF Slack to engage in real-time discussions. If you need an invitation to join CNCF Slack, sign up using [inviter.co/cncf](https://inviter.co/cncf).
 - **Community Meetings**: Attend our regular meetings listed in our [GitHub README](https://github.com/kubearmor/KubeArmor#community).
 - **GitHub Discussions**: Use [GitHub Discussions](https://github.com/kubearmor/KubeArmor/discussions) for long-form questions and ideas.
 - **Documentation**: Refer to KubeArmor [Docs](https://docs.kubearmor.io/) for in-depth information.

@@ -1,9 +1,11 @@
 ![](.gitbook/assets/logo.png)
 
-[![Build Status](https://github.com/kubearmor/KubeArmor/actions/workflows/ci-test-ginkgo.yml/badge.svg)](https://github.com/kubearmor/KubeArmor/actions/workflows/ci-test-ginkgo.yml/)
+[![Build Status](https://github.com/kubearmor/KubeArmor/actions/workflows/ci-test-suite.yml/badge.svg)](https://github.com/kubearmor/KubeArmor/actions/workflows/ci-test-suite.yml/)
 [![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/5401/badge)](https://bestpractices.coreinfrastructure.org/projects/5401)
 [![CLOMonitor](https://img.shields.io/endpoint?url=https://clomonitor.io/api/projects/cncf/kubearmor/badge)](https://clomonitor.io/projects/cncf/kubearmor)
 [![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/kubearmor/kubearmor/badge)](https://securityscorecards.dev/viewer/?uri=github.com/kubearmor/KubeArmor)
+[![SLSA Level 3](https://slsa.dev/images/gh-badge-level3.svg)](https://github.com/kubearmor/KubeArmor/actions/workflows/slsa-verify.yml)
+[![codecov](https://codecov.io/gh/kubearmor/KubeArmor/branch/main/graph/badge.svg)](https://codecov.io/gh/kubearmor/KubeArmor)
 [![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fkubearmor%2FKubeArmor.svg?type=shield&issueType=license)](https://app.fossa.com/projects/git%2Bgithub.com%2Fkubearmor%2FKubeArmor?ref=badge_shield)
 [![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fkubearmor%2FKubeArmor.svg?type=shield&issueType=security)](https://app.fossa.com/projects/git%2Bgithub.com%2Fkubearmor%2FKubeArmor?ref=badge_shield)
 [![Slack](https://img.shields.io/badge/Join%20Our%20Community-Slack-blue)](https://cloud-native.slack.com/archives/C02R319HVL3)
@@ -40,7 +42,7 @@ KubeArmor leverages [Linux security modules \(LSMs\)](https://en.wikipedia.org/w
 
 * :blue_book: [Contribution Guide](contribution/contribution_guide.md)
 * :technologist: [Development Guide](contribution/development_guide.md), [Testing Guide](contribution/testing_guide.md)
-* :raised_hand: [Join KubeArmor Slack](https://cloud-native.slack.com/archives/C02R319HVL3)
+* :raised_hand: [Join KubeArmor Slack](https://cloud-native.slack.com/archives/C02R319HVL3) (If you need an invitation to join CNCF slack, sign up using [inviter.co/cncf](https://inviter.co/cncf))
 * :question: [FAQs](getting-started/FAQ.md)
 
 ### Biweekly Meeting

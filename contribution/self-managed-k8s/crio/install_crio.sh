@@ -39,5 +39,58 @@ git checkout $(git tag -l | sort -V | tail -n 1)
 sudo mkdir -p /opt/cni/bin
 sudo cp bin/* /opt/cni/bin/
 
+# CNI configuration - https://github.com/k3s-io/k3s/issues/13344
+sudo mkdir -p /etc/cni/net.d
+sudo mkdir -p /etc/crio/crio.conf.d
+
+sudo tee /etc/crio/crio.conf.d/20-cni.conf >/dev/null <<'EOF'
+[crio.network]
+plugin_dirs = [ "/var/lib/rancher/k3s/data/cni" ]
+network_dir = "/etc/cni/net.d"
+EOF
+
+sudo tee /etc/cni/net.d/10-crio-bridge.conflist >/dev/null <<'EOF'
+{
+  "cniVersion": "1.0.0",
+  "name": "crio",
+  "plugins": [
+    {
+      "type": "bridge",
+      "bridge": "cni0",
+      "isGateway": true,
+      "ipMasq": true,
+      "hairpinMode": true,
+      "ipam": {
+        "type": "host-local",
+        "ranges": [
+          [
+            {
+              "subnet": "10.85.0.0/16"
+            }
+          ]
+        ],
+        "routes": [
+          {
+            "dst": "0.0.0.0/0"
+          }
+        ]
+      }
+    },
+    {
+      "type": "portmap",
+      "capabilities": {
+        "portMappings": true
+      }
+    },
+    {
+      "type": "bandwidth",
+      "capabilities": {
+        "bandwidth": true
+      }
+    }
+  ]
+}
+EOF
+
 sudo systemctl daemon-reload
 sudo systemctl start crio.service

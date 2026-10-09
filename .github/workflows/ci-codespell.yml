@@ -1,17 +1,7 @@
 name: ci-codespell
 
 on:
-  pull_request:
-    branches: [main]
-    paths:
-      - ".codespellrc"
-      - ".github/workflows/ci-codespell.yml"
-      - "**/*.go"
-      - "**/*.md"
-      - "**/*.yaml"
-      - "**/*.yml"
-      - "**/*.sh"
-      - "**/*.txt"
+  workflow_call:
 
 permissions: read-all
 
@@ -21,9 +11,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Run codespell
-        uses: codespell-project/actions-codespell@v2
+        uses: codespell-project/actions-codespell@8f01853be192eb0f849a5c7d721450e7a467c579 # v2
         with:
           check_hidden: true
