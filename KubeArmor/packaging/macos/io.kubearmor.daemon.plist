@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>io.kubearmor.daemon</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/opt/kubearmor/kubearmor</string>
+        <string>-logPath=/var/log/kubearmor/kubearmor.log</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>/opt/kubearmor</string>
+
+    <!-- Start daemon automatically at system boot -->
+    <key>RunAtLoad</key>
+    <true/>
+
+    <!-- Restart automatically on crash or non-zero exit -->
+    <key>KeepAlive</key>
+    <dict>
+        <key>SuccessfulExit</key>
+        <false/>
+    </dict>
+
+    <!-- Operational Resource Quota & QoS Scheduling -->
+    <!-- Adaptive ProcessType ensures the kernel QoS scheduler yields resources to user foreground applications -->
+    <key>ProcessType</key>
+    <string>Adaptive</string>
+
+    <!-- Deprioritize CPU slightly relative to user interactive tasks -->
+    <key>Nice</key>
+    <integer>1</integer>
+
+    <!-- Resource Quotas (Soft & Hard limits) -->
+    <key>SoftResourceLimits</key>
+    <dict>
+        <!-- 512 MB Soft Memory limit -->
+        <key>Memory</key>
+        <integer>536870912</integer>
+        <!-- 65536 open file descriptors -->
+        <key>NumberOfFiles</key>
+        <integer>65536</integer>
+    </dict>
+
+    <key>HardResourceLimits</key>
+    <dict>
+        <!-- 1 GB Hard Memory ceiling -->
+        <key>Memory</key>
+        <integer>1073741824</integer>
+        <key>NumberOfFiles</key>
+        <integer>65536</integer>
+    </dict>
+
+    <!-- Standard log file destinations -->
+    <key>StandardOutPath</key>
+    <string>/var/log/kubearmor/kubearmor.out.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/var/log/kubearmor/kubearmor.err.log</string>
+
+    <!-- Graceful shutdown timeout before SIGKILL -->
+    <key>ExitTimeOut</key>
+    <integer>30</integer>
+</dict>
+</plist>
