@@ -601,11 +601,13 @@ func (clusterWatcher *ClusterWatcher) UpdateKubeArmorImages(images []string) err
 					}
 
 					// update with global env
-					AddOrUpdateEnv(&ds.Spec.Template.Spec.InitContainers[0].Env, common.GlobalEnv)
-					// add/override with kubearmor-init specific env
-					if len(common.KubeArmorInitEnv) > 0 {
-						defer RemoveDeletedEntriesForEnv(&common.KubeArmorInitEnv)
-						AddOrUpdateEnv(&ds.Spec.Template.Spec.InitContainers[0].Env, common.KubeArmorInitEnv)
+					if len(ds.Spec.Template.Spec.InitContainers) != 0 {
+						AddOrUpdateEnv(&ds.Spec.Template.Spec.InitContainers[0].Env, common.GlobalEnv)
+						// add/override with kubearmor-init specific env
+						if len(common.KubeArmorInitEnv) > 0 {
+							defer RemoveDeletedEntriesForEnv(&common.KubeArmorInitEnv)
+							AddOrUpdateEnv(&ds.Spec.Template.Spec.InitContainers[0].Env, common.KubeArmorInitEnv)
+						}
 					}
 
 					NRIVolume, NRIVolumeMount := common.GenerateNRIvol(ds.Spec.Selector.MatchLabels["kubearmor.io/nri-socket"])
@@ -871,13 +873,17 @@ func (clusterWatcher *ClusterWatcher) UpdateKubearmorSeccomp(cfg *opv1.KubeArmor
 						Type:             corev1.SeccompProfileTypeLocalhost,
 						LocalhostProfile: &common.SeccompProfile,
 					}
-					ds.Spec.Template.Spec.InitContainers[0].SecurityContext.SeccompProfile = &corev1.SeccompProfile{
-						Type:             corev1.SeccompProfileTypeLocalhost,
-						LocalhostProfile: &common.SeccompInitProfile,
+					if len(ds.Spec.Template.Spec.InitContainers) > 0 {
+						ds.Spec.Template.Spec.InitContainers[0].SecurityContext.SeccompProfile = &corev1.SeccompProfile{
+							Type:             corev1.SeccompProfileTypeLocalhost,
+							LocalhostProfile: &common.SeccompInitProfile,
+						}
 					}
 				} else if !cfg.Spec.SeccompEnabled && ds.Spec.Template.Spec.Containers[0].SecurityContext.SeccompProfile != nil {
 					ds.Spec.Template.Spec.Containers[0].SecurityContext.SeccompProfile = nil
-					ds.Spec.Template.Spec.InitContainers[0].SecurityContext.SeccompProfile = nil
+					if len(ds.Spec.Template.Spec.InitContainers) > 0 {
+						ds.Spec.Template.Spec.InitContainers[0].SecurityContext.SeccompProfile = nil
+					}
 				}
 
 				_, err = clusterWatcher.Client.AppsV1().DaemonSets(common.Namespace).Update(context.Background(), &ds, v1.UpdateOptions{})
