@@ -206,8 +206,9 @@ type BaseFeeder struct {
 	WgServer sync.WaitGroup
 
 	// output
-	Output  string
-	LogFile *os.File
+	Output     string
+	LogRotator *kl.LogRotator
+	LogFile    *os.File
 
 	// Activated Enforcer
 	Enforcer     string
@@ -293,13 +294,13 @@ func NewFeeder(node *tp.Node, nodeLock **sync.RWMutex) (feeder *Feeder) {
 
 	// output mode
 	if fd.Output != "stdout" && fd.Output != "none" {
-		// #nosec
-		logFile, err := os.OpenFile(filepath.Clean(fd.Output), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+		rotator, err := kl.NewLogRotator(fd.Output, cfg.GlobalCfg.LogMaxSizeMB, cfg.GlobalCfg.LogMaxBackups)
 		if err != nil {
-			kg.Errf("Failed to open %s", fd.Output)
+			kg.Errf("Failed to initialize log rotator for %s: %v", fd.Output, err)
 			return nil
 		}
-		fd.LogFile = logFile
+		fd.LogRotator = rotator
+		fd.LogFile = rotator.File()
 	}
 
 	// default enforcer
@@ -428,8 +429,14 @@ func (fd *BaseFeeder) DestroyFeeder() error {
 		fd.Listener = nil
 	}
 
-	// close LogFile
-	if fd.LogFile != nil {
+	// close LogRotator and LogFile
+	if fd.LogRotator != nil {
+		if err := fd.LogRotator.Close(); err != nil {
+			kg.Err(err.Error())
+		}
+		fd.LogRotator = nil
+		fd.LogFile = nil
+	} else if fd.LogFile != nil {
 		if err := fd.LogFile.Close(); err != nil {
 			kg.Err(err.Error())
 		}
@@ -444,7 +451,13 @@ func (fd *BaseFeeder) DestroyFeeder() error {
 
 // StrToFile Function
 func (fd *Feeder) StrToFile(str string) {
-	if fd.LogFile != nil {
+	if fd.LogRotator != nil {
+		// add the newline at the end of the string
+		str = str + "\n"
+		if err := fd.LogRotator.WriteString(str); err != nil {
+			kg.Err(err.Error())
+		}
+	} else if fd.LogFile != nil {
 		// add the newline at the end of the string
 		str = str + "\n"
 

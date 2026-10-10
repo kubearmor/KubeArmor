@@ -83,6 +83,11 @@ type KubearmorConfig struct {
 
 	EnablePprof bool   // enable pprof profiling server
 	PprofAddr   string // address for pprof profiling server
+
+	LogMaxSizeMB  int // Maximum size in megabytes before log rotation
+	LogMaxBackups int // Maximum number of rotated log backup archives to keep
+	MaxMemoryMB   int // Maximum memory limit in megabytes for the daemon
+	NiceLevel     int // Process scheduling nice level
 }
 
 // GlobalCfg Global configuration for Kubearmor
@@ -143,6 +148,10 @@ const (
 	ConfigNetworkPolicyEnforcer          string = "enableNetworkPolicyEnforcer"
 	ConfigEnablePprof                    string = "enablePprof"
 	ConfigPprofAddr                      string = "pprofAddr"
+	ConfigLogMaxSizeMB                   string = "logMaxSizeMB"
+	ConfigLogMaxBackups                  string = "logMaxBackups"
+	ConfigMaxMemoryMB                    string = "maxMemoryMB"
+	ConfigNiceLevel                      string = "niceLevel"
 )
 
 func readCmdLineParams() {
@@ -221,6 +230,11 @@ func readCmdLineParams() {
 
 	enablePprof := flag.Bool(ConfigEnablePprof, false, "enable pprof profiling server")
 	pprofAddr := flag.String(ConfigPprofAddr, "localhost:6060", "address for pprof profiling server")
+
+	logMaxSizeMB := flag.Int(ConfigLogMaxSizeMB, 10, "Maximum size in megabytes of local log file before rotation")
+	logMaxBackups := flag.Int(ConfigLogMaxBackups, 5, "Maximum number of rotated log backup archives to retain")
+	maxMemoryMB := flag.Int(ConfigMaxMemoryMB, 0, "Maximum memory allocation in megabytes for the daemon (0 for default/unlimited)")
+	niceLevel := flag.Int(ConfigNiceLevel, 0, "Process scheduling priority / niceness (0-20, higher values yield CPU)")
 
 	flags := []string{}
 	flag.VisitAll(func(f *flag.Flag) {
@@ -307,6 +321,11 @@ func readCmdLineParams() {
 
 	viper.SetDefault(ConfigEnablePprof, *enablePprof)
 	viper.SetDefault(ConfigPprofAddr, *pprofAddr)
+
+	viper.SetDefault(ConfigLogMaxSizeMB, *logMaxSizeMB)
+	viper.SetDefault(ConfigLogMaxBackups, *logMaxBackups)
+	viper.SetDefault(ConfigMaxMemoryMB, *maxMemoryMB)
+	viper.SetDefault(ConfigNiceLevel, *niceLevel)
 }
 
 // LoadConfig Load configuration
@@ -406,6 +425,11 @@ func LoadConfig() error {
 
 	GlobalCfg.EnablePprof = viper.GetBool(ConfigEnablePprof)
 	GlobalCfg.PprofAddr = viper.GetString(ConfigPprofAddr)
+
+	GlobalCfg.LogMaxSizeMB = viper.GetInt(ConfigLogMaxSizeMB)
+	GlobalCfg.LogMaxBackups = viper.GetInt(ConfigLogMaxBackups)
+	GlobalCfg.MaxMemoryMB = viper.GetInt(ConfigMaxMemoryMB)
+	GlobalCfg.NiceLevel = viper.GetInt(ConfigNiceLevel)
 
 	LoadDynamicConfig()
 
