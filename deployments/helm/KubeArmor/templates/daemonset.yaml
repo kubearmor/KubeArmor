@@ -33,8 +33,6 @@ spec:
         {{- if .Values.tls.enabled }}
         - {{ printf "-tlsCertPath=%s" .Values.kubearmor.tls.tlsCertPath | quote }}
         - {{ printf "-tlsCertProvider=%s" .Values.kubearmor.tls.tlsCertProvider | quote }}
-        - {{ printf "-managementTLSCertPath=%s" .Values.kubearmor.tls.managementTLSCertPath | quote }}
-        - {{ printf "-managementTLSCertProvider=%s" .Values.kubearmor.tls.managementTLSCertProvider | quote }}
         {{- end }}
 
         {{- with .Values.kubearmor.args }}
@@ -80,7 +78,6 @@ spec:
         {{- toYaml .Values.kubearmor.commonMounts | trim | nindent 10 }}
         {{- if .Values.tls.enabled -}}
           {{- toYaml .Values.kubearmor.tls.kubearmorCACertVolumeMount | trim | nindent 10 }}
-          {{- toYaml .Values.kubearmor.tls.kubearmorManagementCACertVolumeMount | trim | nindent 10 }}
         {{- end -}}
         {{- if eq .Values.environment.name "docker" }}
           {{- toYaml .Values.kubearmor.volumeMountsDocker | trim | nindent 10 }}
@@ -153,7 +150,6 @@ spec:
       {{- toYaml .Values.kubearmor.commonVolumes | trim | nindent 8}}
       {{- if .Values.tls.enabled -}}
         {{- toYaml .Values.kubearmor.tls.kubearmorCACertVolume | trim | nindent 8 }}
-        {{- toYaml .Values.kubearmor.tls.kubearmorManagementCACertVolume | trim | nindent 8 }}
       {{- end -}}
       {{- if eq .Values.environment.name "docker" }}
         {{- toYaml .Values.kubearmor.volumesDocker | trim | nindent 8 }}
