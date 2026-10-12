@@ -5,31 +5,15 @@ package usbdevicehandler
 
 import (
 	"fmt"
-	"net"
-	"strconv"
 	"sync"
 	"testing"
 
+	"github.com/kubearmor/KubeArmor/KubeArmor/common/testutils"
 	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
 	fd "github.com/kubearmor/KubeArmor/KubeArmor/feeder"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 	"k8s.io/utils/ptr"
 )
-
-func freeTCPPort(t *testing.T) string {
-	t.Helper()
-	listener, err := net.Listen("tcp", ":0")
-	if err != nil {
-		t.Fatalf("Failed to bind test port: %v", err)
-	}
-	defer listener.Close()
-	return strconv.Itoa(listener.Addr().(*net.TCPAddr).Port)
-}
-
-func configureTestPorts(t *testing.T) {
-	t.Helper()
-	cfg.GlobalCfg.GRPC = freeTCPPort(t)
-}
 
 func TestGetUSBLevel(t *testing.T) {
 	tests := []struct {
@@ -117,7 +101,7 @@ func TestUpdateHostSecurityPolicies(t *testing.T) {
 	cfg.GlobalCfg.USBDeviceHandler = true
 
 	// logger
-	configureTestPorts(t)
+	testutils.ConfigureTestPorts(t)
 	logger := fd.NewFeeder(&node, &nodeLock)
 	if logger == nil {
 		t.Log("[FAIL] Failed to create logger")
