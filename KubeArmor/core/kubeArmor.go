@@ -503,9 +503,25 @@ func GetOSSigChannel() chan os.Signal {
 // =================== //
 // == Health Server == //
 // =================== //
+
+// SetHealthStatus updates the dedicated health endpoint and, for management
+// services, the management endpoint when available.
 func (dm *KubeArmorDaemon) SetHealthStatus(serviceName string, healthStatus grpc_health_v1.HealthCheckResponse_ServingStatus) error {
+	updated := false
 	if dm.GRPCHealthServer != nil {
 		dm.GRPCHealthServer.SetServingStatus(serviceName, healthStatus)
+		updated = true
+	}
+
+	switch serviceName {
+	case pb.PolicyService_ServiceDesc.ServiceName, pb.ProbeService_ServiceDesc.ServiceName, pb.StateAgent_ServiceDesc.ServiceName:
+		if dm.ManagementServer != nil && dm.ManagementServer.HealthServer != nil {
+			dm.ManagementServer.HealthServer.SetServingStatus(serviceName, healthStatus)
+			updated = true
+		}
+	}
+
+	if updated {
 		return nil
 	}
 
