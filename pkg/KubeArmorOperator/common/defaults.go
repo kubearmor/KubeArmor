@@ -164,7 +164,8 @@ var (
 	KubeArmorCaSecretName          string   = "kubearmor-ca"
 	KubeArmorClientSecretName      string   = "kubearmor-client-certs"
 	KubeArmorRelayServerSecretName string   = "kubearmor-relay-server-certs"
-	DefaultTlsCertPath             string   = "/var/lib/kubearmor/tls"
+	DefaultTlsCertPath             string   = "/var/lib/kubearmor/tls/log"
+	DefaultRelayTlsCertPath        string   = "/var/lib/kubearmor/tls"
 	DefaultMode                    int32    = 420 // decimal representation of octal value 644
 
 	// throttling
@@ -401,7 +402,7 @@ var KubeArmorCaVolume = []corev1.Volume{
 var KubeArmorCaVolumeMount = []corev1.VolumeMount{
 	{
 		Name:      "kubearmor-ca-secret",
-		MountPath: "/var/lib/kubearmor/tls/log",
+		MountPath: DefaultTlsCertPath,
 		ReadOnly:  true,
 	},
 }
@@ -460,7 +461,7 @@ var KubeArmorRelayTlsVolume = []corev1.Volume{
 var KubeArmorRelayTlsVolumeMount = []corev1.VolumeMount{
 	{
 		Name:      "kubearmor-relay-certs-secrets",
-		MountPath: DefaultTlsCertPath,
+		MountPath: DefaultRelayTlsCertPath,
 		ReadOnly:  true,
 	},
 }
