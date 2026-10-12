@@ -29,6 +29,7 @@
 
 ## Documentation
 
+* [Security Enhancements and TLS Migration](getting-started/kubearmor-security-enhancements.md)
 * [KubeArmor Events](getting-started/kubearmor-events.md)
 * [Control Telemetry/Visibility](getting-started/kubearmor_visibility.md)
 * [Security Posture](getting-started/default_posture.md)

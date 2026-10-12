@@ -10,6 +10,19 @@ Although there are many ways to run a Kubernetes cluster (like minikube or kind)
 $ kubectl proxy &
 ```
 ## 0.2. Now run KubeArmor
+
+The daemon now defaults to mTLS with the `self` certificate provider. Before
+`make run` or a direct daemon launch, provision `ca.crt` and an RSA PKCS#1 `ca.key`
+under `/var/lib/kubearmor/tls/log`. Non-Kubernetes runs also need an independent CA
+under `/var/lib/kubearmor/tls/management`. See the
+[certificate requirements](../getting-started/kubearmor-security-enhancements.md#certificate-providers-and-directories).
+
+For a direct launch in an isolated development environment, `-tlsCertProvider=dev`
+can bootstrap development CA, server, and client files in writable directories
+selected by `-tlsCertPath` and `-managementTLSCertPath`. Use separate directories
+from any production credentials. Connect log clients using those generated
+`ca.crt`, `client.crt`, and `client.key` files; plaintext clients will not work.
+
 ```text
 ~/KubeArmor/KubeArmor$ make run
 ```
