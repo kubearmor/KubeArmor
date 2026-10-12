@@ -8,7 +8,7 @@ permissions: read-all
 
 jobs:
   build:
-    name: Test KubeArmor in Systemd Mode
+    name: Build KubeArmor Debian package
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -54,8 +54,34 @@ jobs:
         run: make local-release
         working-directory: KubeArmor
 
+      - name: Upload Debian package
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: kubearmor-systemd-deb
+          path: KubeArmor/dist/kubearmor*amd64.deb
+          if-no-files-found: error
+
+  test:
+    name: Test KubeArmor in Systemd Mode
+    needs: build
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version-file: "tests/go.mod"
+
+      - name: Download Debian package
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: kubearmor-systemd-deb
+          path: KubeArmor/dist
+
       - name: Install KubeArmor
-        run: sudo apt install -y ./dist/kubearmor*amd64.deb
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ./dist/kubearmor*amd64.deb
         working-directory: KubeArmor
 
       - name: Configure KubeArmor mTLS for systemd tests
@@ -91,9 +117,6 @@ jobs:
           sudo chmod 0750 /var/lib/kubearmor/tls/management
           sudo chmod 0600 /var/lib/kubearmor/tls/management/*
 
-      - name: Check journalctl
-        run: sudo journalctl -u kubearmor --no-pager
-
       - name: Test kubearmor using ginkgo
         run: |
           go install -mod=mod github.com/onsi/ginkgo/v2/ginkgo@9ff1646a26f77a4c0d33ddba3e6368c42c0e8842
@@ -102,3 +125,12 @@ jobs:
         env:
           KUBEARMOR_TLS_CERT_PATH: /var/lib/kubearmor/tls/log
         timeout-minutes: 30
+
+      - name: Check journalctl
+        if: always()
+        run: sudo journalctl -u kubearmor --no-pager
+
+  tls:
+    name: Test packaged TLS providers
+    needs: build
+    uses: ./.github/workflows/ci-test-systemd-tls.yml
