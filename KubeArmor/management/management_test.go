@@ -41,7 +41,7 @@ func cloneConfig() cfg.KubearmorConfig {
 
 func configureTestTLS(t *testing.T) {
 	t.Helper()
-	cfg.GlobalCfg.ManagementTLSCertProvider = cert.DevCertProvider
+	cfg.GlobalCfg.TLSCertProvider = cert.DevCertProvider
 	cfg.GlobalCfg.ManagementTLSCertPath = t.TempDir()
 }
 
@@ -139,7 +139,7 @@ func TestNewServer(t *testing.T) {
 
 			if tt.name == "TLSCredentialsFailure" {
 				cfg.GlobalCfg.TLSEnabled = true
-				cfg.GlobalCfg.ManagementTLSCertProvider = cert.SelfCertProvider
+				cfg.GlobalCfg.TLSCertProvider = cert.SelfCertProvider
 				cfg.GlobalCfg.ManagementTLSCertPath = t.TempDir()
 			}
 

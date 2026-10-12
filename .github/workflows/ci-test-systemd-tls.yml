@@ -87,7 +87,6 @@ jobs:
           sudo tee -a /opt/kubearmor/kubearmor.yaml >/dev/null <<'EOF'
           tlsCertProvider: external
           tlsCertPath: /var/lib/kubearmor/ci-external/log
-          managementTLSCertProvider: external
           managementTLSCertPath: /var/lib/kubearmor/ci-external/management
           EOF
           sudo systemctl start kubearmor

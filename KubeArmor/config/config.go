@@ -20,22 +20,21 @@ type KubearmorConfig struct {
 	Cluster string // Cluster name to use for feeds
 	Host    string // Host name to use for feeds
 
-	GRPC                      string // gRPC Port to use
-	ManagementGRPC            string // Management GRPC Port to use
-	GRPCHealthPort            string // gRPC Health Port to use
-	TLSEnabled                bool   // enable tls
-	TLSCertPath               string // tls certification path for observability
-	TLSCertProvider           string // tls certificate provider for observability
-	ManagementTLSCertPath     string // tls certification path for management
-	ManagementTLSCertProvider string // tls certificate provider for management
-	ManagementSocketPath      string // management unix domain socket path
-	ManagementFallbackAddr    string // management tcp fallback address
-	LogPath                   string // Log file to use
-	SELinuxProfileDir         string // Directory to store SELinux profiles
-	CRISocket                 string // Container runtime to use
-	NRISocket                 string // NRI socket to use
-	NRIIndex                  string // NRI socket to use
-	NRIEnabled                bool   // enable NRI
+	GRPC                   string // gRPC Port to use
+	ManagementGRPC         string // Management GRPC Port to use
+	GRPCHealthPort         string // gRPC Health Port to use
+	TLSEnabled             bool   // enable tls
+	TLSCertPath            string // tls certification path for observability
+	TLSCertProvider        string // tls certificate provider for observability and management
+	ManagementTLSCertPath  string // tls certification path for management
+	ManagementSocketPath   string // management unix domain socket path
+	ManagementFallbackAddr string // management tcp fallback address
+	LogPath                string // Log file to use
+	SELinuxProfileDir      string // Directory to store SELinux profiles
+	CRISocket              string // Container runtime to use
+	NRISocket              string // NRI socket to use
+	NRIIndex               string // NRI socket to use
+	NRIEnabled             bool   // enable NRI
 
 	Visibility     string // Container visibility to use
 	HostVisibility string // Host visibility to use
@@ -105,7 +104,6 @@ const (
 	ConfigTLSCertPath                    string = "tlsCertPath"
 	ConfigTLSCertProvider                string = "tlsCertProvider"
 	ConfigManagementTLSCertPath          string = "managementTLSCertPath"
-	ConfigManagementTLSCertProvider      string = "managementTLSCertProvider"
 	ConfigManagementSocketPath           string = "managementSocketPath"
 	ConfigManagementFallbackAddr         string = "managementFallbackAddr"
 	SelfCertProvider                     string = "self"
@@ -167,7 +165,6 @@ func readCmdLineParams() {
 	tlsCertsStr := flag.String(ConfigTLSCertPath, "/var/lib/kubearmor/tls/log", "path to tls ca certificate files ca.crt, ca.crt")
 	tlsCertProvider := flag.String(ConfigTLSCertProvider, "self", "source of certificate {self|external|dev}, self: create certificate dynamically, external: provided by some external entity, dev: use development CA certificate")
 	managementTLSCertStr := flag.String(ConfigManagementTLSCertPath, "/var/lib/kubearmor/tls/management", "management tls cert path")
-	managementTLSCertProvider := flag.String(ConfigManagementTLSCertProvider, "", "management tls cert provider {self|external|dev} (defaults to tlsCertProvider)")
 	logStr := flag.String(ConfigLogPath, "none", "log file path, {path|stdout|none}")
 	seLinuxProfileDirStr := flag.String(ConfigSELinuxProfileDir, "/tmp/kubearmor.selinux", "SELinux profile directory")
 	criSocket := flag.String(ConfigCRISocket, "", "path to CRI socket (format: unix:///path/to/file.sock)")
@@ -256,7 +253,6 @@ func readCmdLineParams() {
 	viper.SetDefault(ConfigTLSCertPath, *tlsCertsStr)
 	viper.SetDefault(ConfigTLSCertProvider, *tlsCertProvider)
 	viper.SetDefault(ConfigManagementTLSCertPath, *managementTLSCertStr)
-	viper.SetDefault(ConfigManagementTLSCertProvider, *managementTLSCertProvider)
 	viper.SetDefault(ConfigLogPath, *logStr)
 	viper.SetDefault(ConfigSELinuxProfileDir, *seLinuxProfileDirStr)
 	viper.SetDefault(ConfigCRISocket, *criSocket)
@@ -375,10 +371,6 @@ func LoadConfig() error {
 	GlobalCfg.ManagementTLSCertPath = viper.GetString(ConfigManagementTLSCertPath)
 	if GlobalCfg.ManagementTLSCertPath == "" {
 		GlobalCfg.ManagementTLSCertPath = "/var/lib/kubearmor/tls/management"
-	}
-	GlobalCfg.ManagementTLSCertProvider = viper.GetString(ConfigManagementTLSCertProvider)
-	if GlobalCfg.ManagementTLSCertProvider == "" {
-		GlobalCfg.ManagementTLSCertProvider = GlobalCfg.TLSCertProvider
 	}
 	GlobalCfg.LogPath = viper.GetString(ConfigLogPath)
 

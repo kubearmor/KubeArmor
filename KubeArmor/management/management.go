@@ -70,7 +70,7 @@ func NewManagementServer(cfg Config) (*ManagementServer, error) {
 
 	var server *grpc.Server
 	if cfg.TLSEnabled {
-		tlsCredentials, err := grpcutil.LoadServerTLS(cfg.NodeIP, globalCfg.ManagementTLSCertPath, globalCfg.ManagementTLSCertProvider, "kubearmor-management")
+		tlsCredentials, err := grpcutil.LoadServerTLS(cfg.NodeIP, globalCfg.ManagementTLSCertPath, globalCfg.TLSCertProvider, "kubearmor-management")
 		if err != nil {
 			_ = listener.Close()
 			return nil, fmt.Errorf("cannot load management gRPC TLS credentials: %w", err)
