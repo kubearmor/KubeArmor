@@ -62,14 +62,11 @@ func (dm *KubeArmorDaemon) HandleNodeAnnotations(node *tp.Node) {
 	// Check if enforcer is set in the node annotations
 	if v, ok := node.Labels["kubearmor.io/enforcer"]; ok {
 		lsm = v
-	} else { // Read the lsm from the system
-		lsmByteData, err := os.ReadFile("/sys/kernel/security/lsm")
-		if err != nil && !os.IsNotExist(err) {
-			kg.Errf("Failed to read /sys/kernel/security/lsm (%s)", err.Error())
-		} else if len(lsmByteData) == 0 {
-			kg.Err("Failed to read /sys/kernel/security/lsm: empty file")
-		}
-		lsm = string(lsmByteData)
+	} else {
+		// Read the active LSM list from the system. Empty on non-Linux (no host
+		// enforcer available) or when securityfs is not mounted; the empty case is
+		// handled by the "audited" downgrade below.
+		lsm = kl.GetSupportedLSMs()
 	}
 
 	hasAppArmor := strings.Contains(lsm, "apparmor")

@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2026 Authors of KubeArmor
 
+//go:build linux
+
 // Package exec ...
 package exec
 
-//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -cc clang exec  ../../BPF/exec.bpf.c -type event -no-global-types -- -I/usr/include/ -O2 -g -Wno-missing-declarations
+//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -cc clang -tags linux exec  ../../BPF/exec.bpf.c -type event -no-global-types -- -I/usr/include/ -O2 -g -Wno-missing-declarations
 
 import (
 	"bytes"

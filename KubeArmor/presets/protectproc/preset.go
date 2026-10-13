@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2026 Authors of KubeArmor
 
+//go:build linux
+
 // Package protectproc contains components for protectproc preset rule
 package protectproc
 
@@ -24,7 +26,7 @@ import (
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 )
 
-//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -cc clang protectproc  ../../BPF/protectproc.bpf.c -type prevent -no-global-types -- -I/usr/include/ -O2 -g -Wno-missing-declarations
+//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -cc clang -tags linux protectproc  ../../BPF/protectproc.bpf.c -type prevent -no-global-types -- -I/usr/include/ -O2 -g -Wno-missing-declarations
 
 var (
 	_ base.PresetInterface = (*Preset)(nil)
