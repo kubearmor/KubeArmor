@@ -13,5 +13,10 @@ metadata:
     name: kubearmor-default
     namespace: {{ .Release.Namespace }}
 spec:
-    {{- toYaml .Values.kubearmorConfig | nindent 4}}
+    {{- $config := omit .Values.kubearmorConfig "globalNodeSelector" "globalTolerations" }}
+    {{- toYaml $config | nindent 4}}
+    globalNodeSelector:
+        {{- toYaml (.Values.kubearmorConfig.globalNodeSelector | default .Values.global.nodeSelector) | nindent 8 }}
+    globalTolerations:
+        {{- toYaml (.Values.kubearmorConfig.globalTolerations | default .Values.global.tolerations) | nindent 8 }}
 {{- end}}
