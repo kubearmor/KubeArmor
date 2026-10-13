@@ -11,10 +11,12 @@ import (
 	"strconv"
 	"sync"
 	"testing"
+	"time"
 
 	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 	pb "github.com/kubearmor/KubeArmor/protobuf"
+	"google.golang.org/protobuf/proto"
 )
 
 var baseCfg cfg.KubearmorConfig
@@ -282,13 +284,85 @@ func TestMarshalVisibilityLog(t *testing.T) {
 		defer func() { cfg.GlobalCfg.DropResourceFromProcessLogs = originalDropResource }()
 		cfg.GlobalCfg.DropResourceFromProcessLogs = true
 
-		expectedWithoutResource := &pb.Log{}
-		*expectedWithoutResource = *expectedMarshaledLog
+		expectedWithoutResource := proto.Clone(expectedMarshaledLog).(*pb.Log)
 		expectedWithoutResource.Resource = ""
 
 		marshaledLog := MarshalVisibilityLog(visibilityLog)
-		if !reflect.DeepEqual(marshaledLog, expectedWithoutResource) {
+		if !proto.Equal(marshaledLog, expectedWithoutResource) {
 			t.Errorf("[FAIL] Expected marshaled log: %+v\nGot: %+v", expectedWithoutResource, marshaledLog)
 		}
 	})
+}
+
+func TestWgServerTracksServeLogFeedsGoroutine(t *testing.T) {
+	cfg.GlobalCfg = cloneConfig()
+	cfg.GlobalCfg.GRPC = "55558"
+
+	node := tp.Node{}
+	nodeLock := new(sync.RWMutex)
+	fd := NewFeeder(&node, &nodeLock)
+	if fd == nil {
+		t.Skip("cannot create feeder (port may be in use)")
+	}
+
+	served := make(chan struct{})
+	done := make(chan struct{})
+	go func() {
+		close(served)
+		fd.ServeLogFeeds()
+		close(done)
+	}()
+
+	<-served
+	time.Sleep(50 * time.Millisecond)
+
+	if err := fd.DestroyFeeder(); err != nil {
+		t.Fatalf("DestroyFeeder: %v", err)
+	}
+
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("ServeLogFeeds goroutine did not exit after DestroyFeeder")
+	}
+}
+
+func TestWgServerDestroyWaitsForServe(t *testing.T) {
+	cfg.GlobalCfg = cloneConfig()
+	cfg.GlobalCfg.GRPC = "55559"
+
+	node := tp.Node{}
+	nodeLock := new(sync.RWMutex)
+	fd := NewFeeder(&node, &nodeLock)
+	if fd == nil {
+		t.Skip("cannot create feeder (port may be in use)")
+	}
+
+	serveReturned := make(chan struct{})
+	go func() {
+		fd.ServeLogFeeds()
+		close(serveReturned)
+	}()
+
+	time.Sleep(50 * time.Millisecond)
+
+	destroyDone := make(chan struct{})
+	go func() {
+		if err := fd.DestroyFeeder(); err != nil {
+			t.Errorf("DestroyFeeder: %v", err)
+		}
+		close(destroyDone)
+	}()
+
+	select {
+	case <-destroyDone:
+	case <-time.After(3 * time.Second):
+		t.Fatal("DestroyFeeder did not return within timeout")
+	}
+
+	select {
+	case <-serveReturned:
+	case <-time.After(200 * time.Millisecond):
+		t.Fatal("ServeLogFeeds goroutine still running after DestroyFeeder completed")
+	}
 }
