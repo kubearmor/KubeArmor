@@ -93,6 +93,10 @@ type EndPoint struct {
 
 	SecurityPolicies []SecurityPolicy `json:"securityPolicies"`
 
+	// PolicyRevision is incremented on every authoritative security-policy write
+	// for this endpoint. BPF enforcer uses it to reject stale updates.
+	PolicyRevision uint64 `json:"policyRevision"`
+
 	// only needed for unorchestrated containers
 	PrivilegedContainers map[string]struct{} `json:"privilegdContainers"`
 
