@@ -45,6 +45,8 @@ spec:
     - dir: /proc/ # required to change root to user1 (coarse-grained way)
       recursive: true
     - dir: /lib/x86_64-linux-gnu/
+      recursive: true
+    - dir: /lib/aarch64-linux-gnu/
       recursive: true  
     - dir: /pts/
       recursive: true
