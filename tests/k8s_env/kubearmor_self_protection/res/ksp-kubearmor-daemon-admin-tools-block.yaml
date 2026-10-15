@@ -1,0 +1,23 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: ksp-kubearmor-daemon-admin-tools-block
+  namespace: kubearmor
+spec:
+  severity: 5
+  message: "Block common admin tools in KubeArmor daemon main container"
+  tags:
+  - KubeArmor-SelfProtection
+  - ZeroTrust
+  - BlockPhase
+  selector:
+    matchLabels:
+      kubearmor-app: kubearmor
+      kubearmor.io/container.name: "[kubearmor]"
+  process:
+    matchPaths:
+    - path: /usr/bin/curl
+    - path: /usr/bin/wget
+    - path: /bin/bash
+    - path: /usr/bin/bash
+  action: Block
