@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>io.kubearmor.agent</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/opt/kubearmor/kubearmor-agent</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>/opt/kubearmor</string>
+
+    <!-- Run in active graphical user login sessions (Aqua) -->
+    <key>LimitLoadToSessionType</key>
+    <string>Aqua</string>
+
+    <!-- Launch on user login -->
+    <key>RunAtLoad</key>
+    <true/>
+
+    <!-- Restart on failure -->
+    <key>KeepAlive</key>
+    <dict>
+        <key>SuccessfulExit</key>
+        <false/>
+    </dict>
+
+    <key>StandardOutPath</key>
+    <string>/tmp/kubearmor-agent.out.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/tmp/kubearmor-agent.err.log</string>
+</dict>
+</plist>
