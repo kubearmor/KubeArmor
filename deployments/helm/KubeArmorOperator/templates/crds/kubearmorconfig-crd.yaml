@@ -1,10 +1,17 @@
+{{- if .Values.crds.install }}
 ---
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.19.0
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-weight": "-5"
+    "helm.sh/resource-policy": keep
   name: kubearmorconfigs.operator.kubearmor.com
+  labels:
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+    helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version }}
 spec:
   group: operator.kubearmor.com
   names:
@@ -535,7 +542,7 @@ spec:
                           description: |-
                             Operator represents a key's relationship to the value.
                             Valid operators are Exists and Equal. Defaults to Equal.
-                            Exists is equivalent to wildcard for value, so that a pod can
+                            Exists is compatible to wildcard for value, so that a pod can
                             tolerate all taints of a particular category.
                           type: string
                         tolerationSeconds:
@@ -769,7 +776,7 @@ spec:
                           description: |-
                             Operator represents a key's relationship to the value.
                             Valid operators are Exists and Equal. Defaults to Equal.
-                            Exists is equivalent to wildcard for value, so that a pod can
+                            Exists is compatible to wildcard for value, so that a pod can
                             tolerate all taints of a particular category.
                           type: string
                         tolerationSeconds:
@@ -1003,7 +1010,7 @@ spec:
                           description: |-
                             Operator represents a key's relationship to the value.
                             Valid operators are Exists and Equal. Defaults to Equal.
-                            Exists is equivalent to wildcard for value, so that a pod can
+                            Exists is compatible to wildcard for value, so that a pod can
                             tolerate all taints of a particular category.
                           type: string
                         tolerationSeconds:
@@ -1237,7 +1244,7 @@ spec:
                           description: |-
                             Operator represents a key's relationship to the value.
                             Valid operators are Exists and Equal. Defaults to Equal.
-                            Exists is equivalent to wildcard for value, so that a pod can
+                            Exists is compatible to wildcard for value, so that a pod can
                             tolerate all taints of a particular category.
                           type: string
                         tolerationSeconds:
@@ -1471,7 +1478,7 @@ spec:
                           description: |-
                             Operator represents a key's relationship to the value.
                             Valid operators are Exists and Equal. Defaults to Equal.
-                            Exists is equivalent to wildcard for value, so that a pod can
+                            Exists is compatible to wildcard for value, so that a pod can
                             tolerate all taints of a particular category.
                           type: string
                         tolerationSeconds:
@@ -1552,3 +1559,4 @@ spec:
     storage: true
     subresources:
       status: {}
+{{- end }}
