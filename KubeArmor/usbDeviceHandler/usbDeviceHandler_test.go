@@ -8,6 +8,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/kubearmor/KubeArmor/KubeArmor/common/testutils"
 	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
 	fd "github.com/kubearmor/KubeArmor/KubeArmor/feeder"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
@@ -100,6 +101,7 @@ func TestUpdateHostSecurityPolicies(t *testing.T) {
 	cfg.GlobalCfg.USBDeviceHandler = true
 
 	// logger
+	testutils.ConfigureTestPorts(t)
 	logger := fd.NewFeeder(&node, &nodeLock)
 	if logger == nil {
 		t.Log("[FAIL] Failed to create logger")

@@ -20,6 +20,7 @@ import (
 	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
 	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
 	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
+	"github.com/kubearmor/KubeArmor/KubeArmor/management"
 	"github.com/kubearmor/KubeArmor/KubeArmor/policy"
 	"github.com/kubearmor/KubeArmor/KubeArmor/presets"
 	"github.com/kubearmor/KubeArmor/KubeArmor/state"
@@ -98,6 +99,9 @@ type KubeArmorDaemon struct {
 
 	// logger
 	Logger *fd.Feeder
+
+	// management server
+	ManagementServer *management.ManagementServer
 
 	// system monitor
 	SystemMonitor *mon.SystemMonitor
@@ -226,6 +230,11 @@ func (dm *KubeArmorDaemon) DestroyKubeArmorDaemon() {
 		}
 	}
 
+	if dm.ManagementServer != nil {
+		dm.ManagementServer.GracefulStop()
+		kg.Print("Stopped KubeArmor Management Server")
+	}
+
 	if dm.Logger != nil {
 		dm.Logger.Print("Terminated KubeArmor")
 	} else {
@@ -287,6 +296,14 @@ func (dm *KubeArmorDaemon) ServeLogFeeds() {
 	defer dm.WgDaemon.Done()
 
 	go dm.Logger.ServeLogFeeds()
+}
+
+// ServeManagementServer Function
+func (dm *KubeArmorDaemon) ServeManagementServer() {
+	dm.WgDaemon.Add(1)
+	defer dm.WgDaemon.Done()
+
+	go dm.ManagementServer.Serve()
 }
 
 // CloseLogger Function
@@ -486,9 +503,25 @@ func GetOSSigChannel() chan os.Signal {
 // =================== //
 // == Health Server == //
 // =================== //
+
+// SetHealthStatus updates the dedicated health endpoint and, for management
+// services, the management endpoint when available.
 func (dm *KubeArmorDaemon) SetHealthStatus(serviceName string, healthStatus grpc_health_v1.HealthCheckResponse_ServingStatus) error {
+	updated := false
 	if dm.GRPCHealthServer != nil {
 		dm.GRPCHealthServer.SetServingStatus(serviceName, healthStatus)
+		updated = true
+	}
+
+	switch serviceName {
+	case pb.PolicyService_ServiceDesc.ServiceName, pb.ProbeService_ServiceDesc.ServiceName, pb.StateAgent_ServiceDesc.ServiceName:
+		if dm.ManagementServer != nil && dm.ManagementServer.HealthServer != nil {
+			dm.ManagementServer.HealthServer.SetServingStatus(serviceName, healthStatus)
+			updated = true
+		}
+	}
+
+	if updated {
 		return nil
 	}
 
@@ -639,6 +672,28 @@ func KubeArmor() {
 
 	// == //
 
+	// initialize management server (VM/unorchestrated mode only)
+	if !dm.K8sEnabled {
+		mgmtErr := error(nil)
+		dm.ManagementServer, mgmtErr = management.NewManagementServer(management.Config{
+			SocketPath:   cfg.GlobalCfg.ManagementSocketPath,
+			FallbackAddr: cfg.GlobalCfg.ManagementFallbackAddr,
+			TLSEnabled:   cfg.GlobalCfg.TLSEnabled,
+			NodeIP:       dm.Node.NodeIP,
+		})
+		if mgmtErr != nil {
+			dm.Logger.Errf("Failed to initialize KubeArmor Management Server: %v", mgmtErr)
+
+			// destroy the daemon
+			dm.DestroyKubeArmorDaemon()
+
+			return
+		}
+		dm.Logger.Print("Initialized KubeArmor Management Server")
+	}
+
+	// == //
+
 	// health server — dedicated gRPC server for healthcheck since grpc probes are not supported with TLS
 	healthLis, err := net.Listen("tcp", ":"+cfg.GlobalCfg.GRPCHealthPort)
 	if err != nil {
@@ -672,7 +727,15 @@ func KubeArmor() {
 		}
 		dm.Logger.Print("Initialized State Agent Server")
 
-		pb.RegisterStateAgentServer(dm.Logger.LogServer, dm.StateAgent)
+		if dm.ManagementServer == nil {
+			dm.Logger.Errf("Management Server is not initialized, skipping State Agent registration")
+
+			// destroy the daemon
+			dm.DestroyKubeArmorDaemon()
+
+			return
+		}
+		pb.RegisterStateAgentServer(dm.ManagementServer.Server, dm.StateAgent)
 		if err := dm.SetHealthStatus(pb.StateAgent_ServiceDesc.ServiceName, grpc_health_v1.HealthCheckResponse_SERVING); err != nil {
 			dm.Logger.Warnf("Failed to set health status for StateAgent: %v", err)
 		}
@@ -1126,12 +1189,12 @@ func KubeArmor() {
 			policyService.UpdateNetworkPolicy = dm.ParseAndUpdateNetworkSecurityPolicy
 			dm.Logger.Print("Started to monitor network security policies on gRPC")
 		}
-		pb.RegisterPolicyServiceServer(dm.Logger.LogServer, policyService)
+		pb.RegisterPolicyServiceServer(dm.ManagementServer.Server, policyService)
 
 		// Enable grpc service to send kubearmor data to client in unorchestrated mode
 		probe := &Probe{}
 		probe.GetContainerData = dm.SetProbeContainerData
-		pb.RegisterProbeServiceServer(dm.Logger.LogServer, probe)
+		pb.RegisterProbeServiceServer(dm.ManagementServer.Server, probe)
 
 		if err := dm.SetHealthStatus(pb.PolicyService_ServiceDesc.ServiceName, grpc_health_v1.HealthCheckResponse_SERVING); err != nil {
 			dm.Logger.Warnf("Failed to set health status for PolicyService: %v", err)
@@ -1141,11 +1204,19 @@ func KubeArmor() {
 		}
 	}
 
-	reflection.Register(dm.Logger.LogServer) // Helps grpc clients list out what all svc/endpoints available
+	if dm.ManagementServer != nil {
+		reflection.Register(dm.ManagementServer.Server) // Helps grpc clients list out what all svc/endpoints available
+	}
 
 	// serve log feeds
 	go dm.ServeLogFeeds()
+	if dm.ManagementServer != nil {
+		go dm.ServeManagementServer()
+	}
 	dm.Logger.Print("Started to serve gRPC-based log feeds")
+	if dm.ManagementServer != nil {
+		dm.Logger.Print("Started to serve gRPC-based management server")
+	}
 	if err := dm.SetHealthStatus(pb.LogService_ServiceDesc.ServiceName, grpc_health_v1.HealthCheckResponse_SERVING); err != nil {
 		dm.Logger.Warnf("Failed to set health status for LogService: %v", err)
 	}
