@@ -86,6 +86,8 @@ type EndPoint struct {
 	Labels     map[string]string `json:"labels"`
 	Identities []string          `json:"identities"`
 
+	IdentitiesRegexp map[string]*regexp.Regexp `json:"-"`
+
 	Containers       []string `json:"containers"`
 	PodIP            string   `json:"podIP,omitempty"`
 	AppArmorProfiles []string `json:"apparmorProfiles"`
@@ -381,6 +383,8 @@ type SelectorType struct {
 
 	// only for ksp
 	Identities []string `json:"identities,omitempty"` // set during policy update
+
+	IdentitiesRegexp map[string]*regexp.Regexp `json:"-"`
 
 	// for ksp & csp - used in matchExpression, key: label
 	MatchExpIdentities []string `json:"matchExpIdentities,omitempty"`
