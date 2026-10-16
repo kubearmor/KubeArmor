@@ -118,9 +118,11 @@ func (ch *CrioHandler) GetContainerInfo(ctx context.Context, containerID, nodeID
 	containerLabels := resContainerStatus.Labels
 	if val, ok := containerLabels["io.kubernetes.pod.namespace"]; ok {
 		container.NamespaceName = val
-	}
-	if val, ok := containerLabels["io.kubernetes.pod.name"]; ok {
-		container.EndPointName = val
+		if val, ok := containerLabels["io.kubernetes.pod.name"]; ok {
+			container.EndPointName = val
+		}
+	} else {
+		container.NamespaceName = "container_namespace"
 	}
 
 	if len(OwnerInfo) > 0 {
@@ -318,7 +320,7 @@ func (dm *KubeArmorDaemon) UpdateCrioContainer(ctx context.Context, containerID,
 			}
 		}
 
-		if !dm.K8sEnabled {
+		if !dm.K8sEnabled || container.NamespaceName == "container_namespace" {
 			dm.ContainersLock.Lock()
 			dm.EndPointsLock.Lock()
 			dm.MatchandUpdateContainerSecurityPolicies(containerID)
@@ -334,7 +336,7 @@ func (dm *KubeArmorDaemon) UpdateCrioContainer(ctx context.Context, containerID,
 			dm.ContainersLock.Unlock()
 			return fmt.Errorf("container not found for removal: %s", containerID)
 		}
-		if !dm.K8sEnabled {
+		if !dm.K8sEnabled || container.NamespaceName == "container_namespace" {
 			dm.EndPointsLock.Lock()
 			dm.MatchandRemoveContainerFromEndpoint(containerID)
 			dm.EndPointsLock.Unlock()
