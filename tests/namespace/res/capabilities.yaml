@@ -1,0 +1,17 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: capabilities-allow-chown-different-path
+  namespace: nptest
+spec:
+  severity: 8
+  selector:
+    matchLabels:
+      container: ubuntu-1
+  capabilities:
+    matchCapabilities:
+    - capability: chown
+      fromSource:
+      - path: /usr/bin/chown
+  action:
+    Allow
