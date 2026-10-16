@@ -18,7 +18,7 @@ kubearmorRelay:
     # kubearmor-init image repo
     repository: docker.io/kubearmor/kubearmor-relay-server
     # kubearmor-init image tag
-    tag: latest
+    tag: stable
     # Optional, but if there are a lot of image pulls required, Docker might be rate-limited. So, it's good to add pull secrets for production.
     imagePullSecrets: ""
   # kubearmor-init imagePullPolicy
@@ -99,7 +99,7 @@ kubearmorController:
     # kubearmor-controller image repo
     repository: docker.io/kubearmor/kubearmor-controller
     # kubearmor-controller image tag
-    tag: latest
+    tag: stable
     # Optional, but if there are a lot of image pulls required, Docker might be rate-limited. So, it's good to add pull secrets for production.
     imagePullSecrets: ""
   tolerations: ""  
