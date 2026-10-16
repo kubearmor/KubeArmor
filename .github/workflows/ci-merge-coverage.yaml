@@ -26,7 +26,7 @@ jobs:
           commit_sha=$(git rev-parse HEAD)
 
           for workflow in "${workflows[@]}"; do
-              conclusion=$(gh run list --workflow=$workflow --json conclusion,headSha,event,headBranch | jq -r --arg sha "$commit_sha" --arg event "pull_request" '.[] | select(.headSha == $sha and .event == $event) | .conclusion')
+              conclusion=$(gh run list --workflow=$workflow --json conclusion,headSha,event,headBranch | jq -r --arg sha "$commit_sha" '.[] | select(.headSha == $sha and (.event == "pull_request" or .event == "push")) | .conclusion')
 
               if [[ -z "$conclusion" ]]; then
                   conclusion="pending"
