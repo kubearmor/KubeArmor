@@ -4,6 +4,7 @@
 package feeder
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"os"
@@ -11,10 +12,12 @@ import (
 	"strconv"
 	"sync"
 	"testing"
+	"time"
 
 	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 	pb "github.com/kubearmor/KubeArmor/protobuf"
+	"google.golang.org/grpc"
 )
 
 var baseCfg cfg.KubearmorConfig
@@ -289,6 +292,106 @@ func TestMarshalVisibilityLog(t *testing.T) {
 		marshaledLog := MarshalVisibilityLog(visibilityLog)
 		if !reflect.DeepEqual(marshaledLog, expectedWithoutResource) {
 			t.Errorf("[FAIL] Expected marshaled log: %+v\nGot: %+v", expectedWithoutResource, marshaledLog)
+		}
+	})
+}
+
+// fakeStreamingServer is a minimal grpc.ServerStreamingServer[T] used to drive
+// the LogService watch loops in tests. Context() returns the configured ctx so
+// the test controls the client-side (svr.Context()) cancellation path, while
+// Send is a no-op since these tests exercise shutdown rather than delivery.
+type fakeStreamingServer[T any] struct {
+	grpc.ServerStream
+	ctx context.Context
+}
+
+func (f *fakeStreamingServer[T]) Context() context.Context { return f.ctx }
+func (f *fakeStreamingServer[T]) Send(*T) error            { return nil }
+
+// TestLogServiceContextCancellation verifies that the LogService streaming
+// loops exit via context cancellation instead of the old shared Running *bool.
+// Run under the race detector (go test -race) to confirm no data race remains.
+func TestLogServiceContextCancellation(t *testing.T) {
+	newLS := func() (*LogService, context.CancelFunc) {
+		ctx, cancel := context.WithCancel(context.Background())
+		ls := &LogService{
+			QueueSize: 1,
+			EventStructs: &EventStructs{
+				MsgStructs:   make(map[string]EventStruct[pb.Message]),
+				AlertStructs: make(map[string]EventStruct[pb.Alert]),
+				LogStructs:   make(map[string]EventStruct[pb.Log]),
+			},
+			ctx: ctx,
+		}
+		return ls, cancel
+	}
+
+	// waitReturn asserts that the watch function returns nil within the timeout.
+	waitReturn := func(t *testing.T, done <-chan error) {
+		t.Helper()
+		select {
+		case err := <-done:
+			if err != nil {
+				t.Fatalf("watch function returned error: %v", err)
+			}
+		case <-time.After(2 * time.Second):
+			t.Fatal("watch function did not exit after cancellation - possible deadlock")
+		}
+	}
+
+	t.Run("WatchAlerts exits on feeder shutdown", func(t *testing.T) {
+		ls, cancel := newLS()
+		done := make(chan error, 1)
+		go func() {
+			done <- ls.WatchAlerts(&pb.RequestMessage{Filter: "all"},
+				&fakeStreamingServer[pb.Alert]{ctx: context.Background()})
+		}()
+		cancel() // simulate DestroyFeeder
+		waitReturn(t, done)
+	})
+
+	t.Run("WatchLogs exits on feeder shutdown", func(t *testing.T) {
+		ls, cancel := newLS()
+		done := make(chan error, 1)
+		go func() {
+			done <- ls.WatchLogs(&pb.RequestMessage{Filter: "system"},
+				&fakeStreamingServer[pb.Log]{ctx: context.Background()})
+		}()
+		cancel()
+		waitReturn(t, done)
+	})
+
+	t.Run("WatchMessages exits on feeder shutdown", func(t *testing.T) {
+		ls, cancel := newLS()
+		done := make(chan error, 1)
+		go func() {
+			done <- ls.WatchMessages(&pb.RequestMessage{Filter: "all"},
+				&fakeStreamingServer[pb.Message]{ctx: context.Background()})
+		}()
+		cancel()
+		waitReturn(t, done)
+	})
+
+	t.Run("WatchAlerts exits on client disconnect", func(t *testing.T) {
+		ls, lsCancel := newLS()
+		defer lsCancel()
+
+		// cancel the client (svr) context, not the LogService context
+		clientCtx, clientCancel := context.WithCancel(context.Background())
+		done := make(chan error, 1)
+		go func() {
+			done <- ls.WatchAlerts(&pb.RequestMessage{Filter: "all"},
+				&fakeStreamingServer[pb.Alert]{ctx: clientCtx})
+		}()
+		clientCancel()
+		waitReturn(t, done)
+	})
+
+	t.Run("returns error when ctx is nil", func(t *testing.T) {
+		ls := &LogService{QueueSize: 1}
+		if err := ls.WatchAlerts(&pb.RequestMessage{Filter: "all"},
+			&fakeStreamingServer[pb.Alert]{ctx: context.Background()}); err == nil {
+			t.Fatal("expected error when LogService ctx is nil")
 		}
 	})
 }
