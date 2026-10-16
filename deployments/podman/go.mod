@@ -5,7 +5,7 @@ go 1.26.9
 require (
 	github.com/kubearmor/KubeArmor/KubeArmor v0.0.0-20260521154542-6789b83a8cee
 	github.com/opencontainers/runtime-spec v1.3.0
-	go.podman.io/podman/v6 v6.0.0-20260603192226-3caa80eb73f3
+	go.podman.io/podman/v6 v6.0.0
 )
 
 require (
@@ -64,7 +64,7 @@ require (
 	github.com/kubearmor/KubeArmor/protobuf v0.0.0-20260521154542-6789b83a8cee // indirect
 	github.com/manifoldco/promptui v0.9.0 // indirect
 	github.com/mattn/go-runewidth v0.0.23 // indirect
-	github.com/mattn/go-sqlite3 v1.14.44 // indirect
+	github.com/mattn/go-sqlite3 v1.14.45 // indirect
 	github.com/miekg/pkcs11 v1.1.2 // indirect
 	github.com/mistifyio/go-zfs/v4 v4.0.0 // indirect
 	github.com/moby/buildkit v0.31.1 // indirect
