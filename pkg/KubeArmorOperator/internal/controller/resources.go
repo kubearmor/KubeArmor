@@ -33,7 +33,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
-func generateDaemonset(name, enforcer, runtime, socket, nriSocket, btfPresent, apparmorfs, seccompPresent string, initDeploy bool, ociHooks string) *appsv1.DaemonSet {
+func generateDaemonset(name, enforcer, runtime, socket, nriSocket, btfPresent, apparmorfs, seccompPresent string, initDeploy bool, ociHooks string, containerdNamespace string) *appsv1.DaemonSet {
 	enforcerVolumes := []corev1.Volume{}
 	enforcerVolumeMounts := []corev1.VolumeMount{}
 	if !(enforcer == "apparmor" && apparmorfs == "no") {
@@ -132,6 +132,14 @@ func generateDaemonset(name, enforcer, runtime, socket, nriSocket, btfPresent, a
 
 	AddOrUpdateEnv(&daemonset.Spec.Template.Spec.Containers[0].Env, common.GlobalEnv)
 	AddOrUpdateEnv(&daemonset.Spec.Template.Spec.Containers[0].Env, common.KubeArmorEnv)
+	if containerdNamespace != "" && containerdNamespace != "NA" {
+		AddOrUpdateEnv(&daemonset.Spec.Template.Spec.Containers[0].Env, []corev1.EnvVar{
+			{
+				Name:  "CONTAINERD_NAMESPACE",
+				Value: containerdNamespace,
+			},
+		})
+	}
 	AddOrUpdateEnv(&daemonset.Spec.Template.Spec.InitContainers[0].Env, common.GlobalEnv)
 	AddOrUpdateEnv(&daemonset.Spec.Template.Spec.InitContainers[0].Env, common.KubeArmorInitEnv)
 
