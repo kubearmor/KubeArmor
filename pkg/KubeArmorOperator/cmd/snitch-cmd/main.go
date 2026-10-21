@@ -146,7 +146,7 @@ func snitch() {
 	}
 
 	// Detecting runtime
-	runtime, socket, nriSocket := runtimepkg.DetectRuntimeViaMap(PathPrefix, o.Runtime, SocketFile, *Logger, K8sClient)
+	runtime, socket, nriSocket, containerdNamespace := runtimepkg.DetectRuntimeViaMap(PathPrefix, o.Runtime, SocketFile, *Logger, K8sClient)
 	if runtime != "NA" {
 		Logger.Infof("Detected %s as node runtime, runtime socket=%s", runtime, socket)
 	} else {
@@ -179,6 +179,7 @@ func snitch() {
 	patchNode := metadata{}
 	patchNode.Metadata.Labels = map[string]string{}
 	patchNode.Metadata.Labels[common.RuntimeLabel] = runtime
+	patchNode.Metadata.Labels[common.RuntimeNamespaceLabel] = containerdNamespace
 	patchNode.Metadata.Labels[common.SeccompLabel] = seccomp.CheckIfSeccompProfilePresent()
 	patchNode.Metadata.Labels[common.SocketLabel] = strings.ReplaceAll(socket[1:], "/", "_")
 	if len(nriSocket) > 0 {

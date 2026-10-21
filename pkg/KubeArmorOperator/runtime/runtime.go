@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	containerd "github.com/containerd/containerd/v2/client"
@@ -56,11 +57,11 @@ func dockerSockHasContainer(containerID, sockPath string) bool {
 	return true
 }
 
-func containerdSockHasContainer(containerID, sockPath string) bool {
+func containerdSockHasContainer(containerID, sockPath string) (bool, string) {
 	client, err := containerd.New(sockPath)
 	if err != nil {
 		log.Warnf("Error in creating containerd client: %v", err)
-		return false
+		return false, ""
 	}
 	defer client.Close()
 
@@ -72,17 +73,17 @@ func containerdSockHasContainer(containerID, sockPath string) bool {
 	if err != nil {
 		log.Warn("Container not found in K8s namespace")
 	} else {
-		return true
+		return true, containerdK8sNs
 	}
 
 	// check in docker ns also
 	_, err = client.LoadContainer(dockerNsCtx, containerID)
 	if err != nil {
-		log.Warn("Container not found in Docker namespace")
-		return false
+		log.Warnf("Container not found in Docker namespace: %v", err)
+		return false, ""
 	}
 
-	return true
+	return true, containerdDockerNs
 }
 
 func dockershimSockHasContainer(containerID, sockPath string) bool {
@@ -133,29 +134,48 @@ func crioSockHasContainer(containerID, sockPath string) bool {
 	return true
 }
 
-func runtimeSockHasContainer(containerID, sockPath string) (bool, string) {
+func runtimeSockHasContainer(containerID, sockPath string) (bool, string, string) {
 	// try all in case custom runtime wrapper is used
 
-	if containerdSockHasContainer(containerID, sockPath) {
-		return true, "containerd"
+	if found, namespace := containerdSockHasContainer(containerID, sockPath); found {
+		return true, "containerd", namespace
 	}
 
 	if crioSockHasContainer(containerID, sockPath) {
-		return true, "cri-o"
+		return true, "cri-o", ""
 	}
 
 	if dockerSockHasContainer(containerID, sockPath) {
-		return true, "docker"
+		return true, "docker", ""
 	}
 
 	if dockershimSockHasContainer(containerID, sockPath) {
-		return true, "docker"
+		return true, "docker", ""
 	}
 
-	return false, ""
+	return false, "", ""
 }
 
-func DetectRuntimeViaMap(pathPrefix string, k8sRuntime string, explicitSocket string, log zap.SugaredLogger, cl *kubernetes.Clientset) (string, string, string) {
+var containerIDRegex = regexp.MustCompile(`[0-9a-f]{64}`)
+
+// selfContainerID returns the ID of the container this process runs in, as
+// seen in its cgroup path or mounts, or "" if it can't be determined.
+// This will return the pause container ID.
+// TODO: check for alternative ways to acheive this, the current implementation is not ideal.
+func selfContainerID() string {
+	for _, f := range []string{"/proc/self/cgroup", "/proc/self/mountinfo"} {
+		data, err := os.ReadFile(f)
+		if err != nil {
+			continue
+		}
+		if m := containerIDRegex.FindAllString(string(data), -1); len(m) > 0 {
+			return m[len(m)-1]
+		}
+	}
+	return ""
+}
+
+func DetectRuntimeViaMap(pathPrefix string, k8sRuntime string, explicitSocket string, log zap.SugaredLogger, cl *kubernetes.Clientset) (detectedRuntime, socket, nriSocket, containerdNamespace string) {
 
 	// get container ID of snitch
 	podName := os.Getenv("POD_NAME")
@@ -163,7 +183,7 @@ func DetectRuntimeViaMap(pathPrefix string, k8sRuntime string, explicitSocket st
 	pod, err := cl.CoreV1().Pods(namespace).Get(context.TODO(), podName, metav1.GetOptions{})
 	if err != nil {
 		log.Errorf("Error in getting pod info: %v\n", err)
-		return "NA", "NA", "NA"
+		return "NA", "NA", "NA", "NA"
 	}
 
 	var id string
@@ -171,7 +191,7 @@ func DetectRuntimeViaMap(pathPrefix string, k8sRuntime string, explicitSocket st
 		id = pod.Status.ContainerStatuses[0].ContainerID // <type>://<container_id>, for example containerd://abcdef123456.....
 	} else {
 		log.Errorf("Error in getting pod info: %v\n", err)
-		return "NA", "NA", "NA"
+		return "NA", "NA", "NA", "NA"
 	}
 
 	containerID := id
@@ -179,8 +199,20 @@ func DetectRuntimeViaMap(pathPrefix string, k8sRuntime string, explicitSocket st
 		containerID = id[idx+3:]
 	} else {
 		log.Errorf("Unexpected ContainerID format: %s", id)
-		return "NA", "NA", "NA"
+		return "NA", "NA", "NA", "NA"
 	}
+
+	// The API ID can be stale after a container restart and wrapper runtimes
+	// (e.g. robin://) report IDs the real runtime doesn't know, so prefer the
+	// ID the kernel reports for this process.
+	if selfID := selfContainerID(); selfID != "" && selfID != containerID {
+		log.Warnf("Container ID from pod status (%s) differs from ID found in /proc (%s), using the latter", containerID, selfID)
+		containerID = selfID
+	}
+
+	log.Infof("PodName=%s Namespace=%s id=%s containerid=%s", podName, namespace, id, containerID)
+
+	found := false
 
 	if explicitSocket != "" {
 		log.Infof("Using explicit socket file: %s", explicitSocket)
@@ -188,28 +220,29 @@ func DetectRuntimeViaMap(pathPrefix string, k8sRuntime string, explicitSocket st
 		hostPath := strings.TrimPrefix(explicitSocket, "unix://")
 		if !filepath.IsAbs(hostPath) {
 			log.Errorf("Explicit socket path must be absolute: %s", explicitSocket)
-			return "NA", "NA", "NA"
+			return "NA", "NA", "NA", "NA"
 		}
 
 		hostPath = filepath.Clean(hostPath)
 		checkPath := filepath.Clean(pathPrefix + hostPath)
 
 		if _, err := os.Stat(checkPath); err == nil || os.IsPermission(err) {
-			found, runtime := runtimeSockHasContainer(containerID, checkPath)
+			found, detectedRuntime, containerdNamespace = runtimeSockHasContainer(containerID, checkPath)
 			if found {
-				if (runtime == "docker" && strings.Contains(hostPath, "containerd")) || runtime == "containerd" {
+				if (detectedRuntime == "docker" && strings.Contains(hostPath, "containerd")) || detectedRuntime == "containerd" {
 					if nriPath, err := DetectNRI(pathPrefix); err == nil {
-						return runtime, hostPath, nriPath
+						// NRI has no containerd namespace
+						return detectedRuntime, hostPath, nriPath, ""
 					} else {
 						log.Warnf("NRI detection failed: %s", err)
 					}
 				}
 
-				return runtime, hostPath, ""
+				return detectedRuntime, hostPath, "", containerdNamespace
 			}
 		} else {
 			log.Errorf("Explicit socket file not accessible: %s", err)
-			return "NA", "NA", "NA"
+			return "NA", "NA", "NA", "NA"
 		}
 	}
 
@@ -217,17 +250,17 @@ func DetectRuntimeViaMap(pathPrefix string, k8sRuntime string, explicitSocket st
 
 	if k8sRuntime != "" {
 		for _, path := range common.ContainerRuntimeSocketMap[k8sRuntime] {
-			if _, err := os.Stat(pathPrefix + path); err == nil || os.IsPermission(err) {
-				found, detectedRuntime := runtimeSockHasContainer(containerID, pathPrefix+path)
+			if _, err := os.Stat(filepath.Clean(pathPrefix + path)); err == nil || os.IsPermission(err) {
+				found, detectedRuntime, containerdNamespace = runtimeSockHasContainer(containerID, filepath.Clean(pathPrefix+path))
 				if found {
 					if (detectedRuntime == "docker" && strings.Contains(path, "containerd")) || detectedRuntime == "containerd" {
 						if nriPath, err := DetectNRI(pathPrefix); err == nil {
-							return detectedRuntime, path, nriPath
+							return detectedRuntime, path, nriPath, ""
 						} else {
 							log.Warnf("%s", err)
 						}
 					}
-					return detectedRuntime, path, ""
+					return detectedRuntime, path, "", containerdNamespace
 				}
 			} else {
 				log.Warnf("%s", err)
@@ -235,12 +268,16 @@ func DetectRuntimeViaMap(pathPrefix string, k8sRuntime string, explicitSocket st
 		}
 	}
 	log.Warn("Couldn't detect k8s runtime location, searching for other runtime sockets")
-	for _, paths := range common.ContainerRuntimeSocketMap {
-		for _, path := range paths {
-			if _, err := os.Stat(pathPrefix + path); err == nil || os.IsPermission(err) {
-				found, k8sRuntime := runtimeSockHasContainer(containerID, pathPrefix+path)
+	var runtimePriority = []string{"containerd", "docker", "nri", "cri-o"}
+
+	for _, name := range runtimePriority {
+		for _, path := range common.ContainerRuntimeSocketMap[name] {
+			log.Infof("Checking %s runtime with socket %s", name, path)
+			if _, err := os.Stat(filepath.Clean(pathPrefix + path)); err == nil || os.IsPermission(err) {
+				found, detectedRuntime, containerdNamespace = runtimeSockHasContainer(containerID, filepath.Clean(pathPrefix+path))
 				if found {
-					return k8sRuntime, path, ""
+					log.Infof("Found socket %s for runtime %s at namespace %s", path, detectedRuntime, containerdNamespace)
+					return detectedRuntime, path, "", containerdNamespace
 				}
 			} else {
 				log.Warnf("%s", err)
@@ -248,5 +285,5 @@ func DetectRuntimeViaMap(pathPrefix string, k8sRuntime string, explicitSocket st
 		}
 	}
 	log.Warn("Couldn't detect runtime")
-	return "NA", "NA", "NA"
+	return "NA", "NA", "NA", "NA"
 }
