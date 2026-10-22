@@ -5,6 +5,7 @@ package networkpolicyenforcer
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
@@ -216,5 +217,36 @@ func TestGenerateRules(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestGenerateRulesRejectsMalformedCIDR(t *testing.T) {
+	// A CIDR carrying extra nftables tokens must not reach the generated rule.
+	peers := []tp.NetworkPeer{
+		{IPBlock: &tp.IPBlock{CIDR: "10.0.0.0/8 accept comment injected"}},
+		{IPBlock: &tp.IPBlock{CIDR: "1.1.1.1/32"}},
+		{IPBlock: &tp.IPBlock{CIDR: "2001:db8::/32"}},
+	}
+
+	var quotas []QuotaObj
+	rules := generateRules("Ingress", peers, nil, nil, "Block", "p", "", "", 0, &quotas, nil, false, "host")
+
+	for _, r := range rules {
+		if strings.Contains(r.RuleContent, "injected") {
+			t.Fatalf("malformed CIDR leaked into rule: %q", r.RuleContent)
+		}
+	}
+
+	var sawV4, sawV6 bool
+	for _, r := range rules {
+		if strings.Contains(r.RuleContent, "1.1.1.1/32") {
+			sawV4 = true
+		}
+		if strings.Contains(r.RuleContent, "2001:db8::/32") {
+			sawV6 = true
+		}
+	}
+	if !sawV4 || !sawV6 {
+		t.Fatalf("valid CIDRs were dropped: v4=%v v6=%v", sawV4, sawV6)
 	}
 }

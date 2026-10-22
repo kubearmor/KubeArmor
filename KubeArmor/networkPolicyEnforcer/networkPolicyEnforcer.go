@@ -6,6 +6,7 @@ package networkpolicyenforcer
 import (
 	"context"
 	"fmt"
+	"net"
 	"os"
 	"os/exec"
 	"sort"
@@ -730,6 +731,15 @@ func sanitizeQuotaName(name string) string {
 	return quotaNameReplacer.Replace(name)
 }
 
+// validNetworkCIDR reports whether s is a well-formed CIDR prefix
+// (e.g. "10.0.0.0/8") or a bare IP address.
+func validNetworkCIDR(s string) bool {
+	if _, _, err := net.ParseCIDR(s); err == nil {
+		return true
+	}
+	return net.ParseIP(s) != nil
+}
+
 func generateRules(direction string, peers []tp.NetworkPeer, ports []tp.PortType, ifaces []string, action, policyName string, limit string, duration string, ruleIdx int, quotas *[]QuotaObj, podIPs []string, isPodPolicy bool, policyLevel string) []NetworkRule { // shorten this function signature later if needed
 	var rules []NetworkRule
 
@@ -772,6 +782,15 @@ func generateRules(direction string, peers []tp.NetworkPeer, ports []tp.PortType
 	var ipv6CIDRs []string
 	for _, peer := range peers {
 		if peer.IPBlock == nil || peer.IPBlock.CIDR == "" {
+			continue
+		}
+
+		// The CIDR is interpolated verbatim into the nftables ruleset applied
+		// via "nft -f", and the field carries no server-side format check
+		// (no CRD pattern, and in non-k8s mode it arrives over the policy
+		// gRPC service). Drop anything that is not a real CIDR prefix or bare
+		// IP so a crafted value cannot inject extra nft tokens.
+		if !validNetworkCIDR(peer.IPBlock.CIDR) {
 			continue
 		}
 
