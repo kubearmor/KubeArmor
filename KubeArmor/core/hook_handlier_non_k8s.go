@@ -181,10 +181,12 @@ func (dm *KubeArmorDaemon) UpdateContainer(containerID string, container tp.Cont
 
 		if dm.SystemMonitor != nil && cfg.GlobalCfg.Policy {
 			// for throttling
+			dm.SystemMonitor.Logger.AlertMapLock.Lock()
 			dm.SystemMonitor.Logger.ContainerNsKey[containerID] = common.OuterKey{
 				MntNs: container.MntNS,
 				PidNs: container.PidNS,
 			}
+			dm.SystemMonitor.Logger.AlertMapLock.Unlock()
 
 			// update NsMap
 			dm.SystemMonitor.AddContainerIDToNsMap(containerID, container.NamespaceName, container.PidNS, container.MntNS)
@@ -252,9 +254,11 @@ func (dm *KubeArmorDaemon) UpdateContainer(containerID string, container tp.Cont
 		}
 
 		if dm.SystemMonitor != nil && cfg.GlobalCfg.Policy {
+			dm.SystemMonitor.Logger.AlertMapLock.Lock()
 			outkey := dm.SystemMonitor.Logger.ContainerNsKey[containerID]
-			dm.Logger.DeleteAlertMapKey(outkey)
 			delete(dm.SystemMonitor.Logger.ContainerNsKey, containerID)
+			dm.SystemMonitor.Logger.AlertMapLock.Unlock()
+			dm.Logger.DeleteAlertMapKey(outkey)
 			// update NsMap
 			dm.SystemMonitor.DeleteContainerIDFromNsMap(containerID, container.NamespaceName, container.PidNS, container.MntNS)
 			dm.RuntimeEnforcer.UnregisterContainer(containerID)
