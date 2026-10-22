@@ -148,13 +148,6 @@ jobs:
 
           kubectl wait -n kubearmor --timeout=5m --for=jsonpath='{.status.phase}'=Running kubearmorconfigs/kubearmorconfig-test
 
-          while [ ! "$(kubectl wait --timeout=5s --for=condition=ready pod -l kubearmor-app,kubearmor-app!=kubearmor-snitch -n kubearmor >/dev/null 2>&1; echo $?)" -eq 0 ]; do
-            kubectl rollout status --timeout=5m deployment -n kubearmor -l kubearmor-app,kubearmor-app!=kubearmor-controller -n kubearmor
-            kubectl rollout status --timeout=5m daemonset -l kubearmor-app=kubearmor -n kubearmor
-            kubectl rollout status --timeout=5m deployment -n kubearmor -l kubearmor-app=kubearmor-controller -n kubearmor
-            kubectl get pods -A
-          done
-
           sleep 10
           DAEMONSET_NAME=$(kubectl get daemonset -n kubearmor -o jsonpath='{.items[0].metadata.name}')
           echo "DaemonSet: $DAEMONSET_NAME"
@@ -186,6 +179,16 @@ jobs:
             }
           ]'
 
+          # Wait for the coverage patch rollout before checking pod readiness.
+          while true; do
+            kubectl rollout status --timeout=5m deployment -n kubearmor -l kubearmor-app,kubearmor-app!=kubearmor-controller -n kubearmor
+            kubectl rollout status --timeout=5m daemonset -l kubearmor-app=kubearmor -n kubearmor
+            kubectl rollout status --timeout=5m deployment -n kubearmor -l kubearmor-app=kubearmor-controller -n kubearmor
+            kubectl get pods -A
+            if kubectl wait --timeout=5s --for=condition=ready pod -l kubearmor-app,kubearmor-app!=kubearmor-snitch -n kubearmor >/dev/null 2>&1; then
+              break
+            fi
+          done
           sleep 15
 
       - name: Get KubeArmor POD info
@@ -227,7 +230,7 @@ jobs:
         if: ${{ failure() }}
         run: |
           kubectl describe pod -n kubearmor -l kubearmor-app=kubearmor
-          curl -sfL http://get.kubearmor.io/ -o /tmp/install-karmor.sh && sudo sh /tmp/install-karmor.sh -b /usr/local/bin
+          curl -sfL http://get.kubearmor.io/ | sudo sh -s -- -b /usr/local/bin
           mkdir -p /tmp/kubearmor/ && cd /tmp/kubearmor && karmor sysdump
 
       - name: Archive log artifacts

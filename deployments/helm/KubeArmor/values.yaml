@@ -142,12 +142,12 @@ kubearmor:
   args: []
 
   tls:
-    tlsCertPath: /var/lib/kubearmor/tls
+    tlsCertPath: /var/lib/kubearmor/tls/log
     tlsCertProvider: self
     caSecretName: kubearmor-ca
     clientCertSecretName: kubearmor-client-certs
     kubearmorCACertVolumeMount:
-    - mountPath: /var/lib/kubearmor/tls
+    - mountPath: /var/lib/kubearmor/tls/log
       name: kubearmor-ca-secret
       readOnly: true
     kubearmorCACertVolume:

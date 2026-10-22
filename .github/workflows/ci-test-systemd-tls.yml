@@ -1,0 +1,111 @@
+name: ci-test-systemd-tls
+
+on:
+  workflow_call:
+
+permissions: read-all
+
+jobs:
+  test:
+    name: Test Debian package with self and external TLS
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version-file: "tests/go.mod"
+
+      - name: Download Debian package
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: kubearmor-systemd-deb
+          path: KubeArmor/dist
+
+      - name: Build mTLS checker
+        working-directory: tests
+        run: |
+          go test ../.github/workflows/systemd-tls-check/*.go
+          go build -o "$RUNNER_TEMP/systemd-tls-check" ../.github/workflows/systemd-tls-check/main.go
+
+      - name: Provision CAs for the default self provider
+        run: |
+          # self requires an existing CA; leave the packaged configuration unchanged.
+          bash .github/workflows/systemd-tls-fixtures.sh "$RUNNER_TEMP/systemd-tls-self"
+          for plane in log management; do
+            sudo install -d -m 0700 "/var/lib/kubearmor/tls/$plane"
+            for file in ca.crt ca.key; do
+              sudo install -m 0600 "$RUNNER_TEMP/systemd-tls-self/$plane/$file" "/var/lib/kubearmor/tls/$plane/$file"
+            done
+          done
+
+      - name: Install the package with its default configuration
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ./KubeArmor/dist/kubearmor*amd64.deb
+
+      - name: Verify the packaged configuration and unit are unchanged
+        run: |
+          sudo cmp KubeArmor/packaging/kubearmor.yaml /opt/kubearmor/kubearmor.yaml
+          sudo cmp KubeArmor/packaging/kubearmor.service /usr/lib/systemd/system/kubearmor.service
+          test "$(readlink -f "$(systemctl show kubearmor --property=FragmentPath --value)")" = "$(readlink -f /usr/lib/systemd/system/kubearmor.service)"
+          test -z "$(systemctl show kubearmor --property=DropInPaths --value)"
+          test -z "$(systemctl show kubearmor --property=Environment --value)"
+
+      - name: Verify default self startup and mTLS
+        run: |
+          "$RUNNER_TEMP/systemd-tls-check" \
+            -log-cert-dir "$RUNNER_TEMP/systemd-tls-self/log" \
+            -management-cert-dir "$RUNNER_TEMP/systemd-tls-self/management"
+          for plane in log management; do
+            # self generates its server certificate in memory.
+            sudo test ! -e "/var/lib/kubearmor/tls/$plane/server.crt"
+            sudo test ! -e "/var/lib/kubearmor/tls/$plane/server.key"
+          done
+          pid=$(systemctl show kubearmor --property=MainPID --value)
+          test "$pid" -gt 0
+          test "$(systemctl show kubearmor --property=NRestarts --value)" = 0
+          # The packaged unit restarts after 10 seconds; catch a crash loop.
+          sleep 12
+          systemctl is-active --quiet kubearmor
+          test "$(systemctl show kubearmor --property=MainPID --value)" = "$pid"
+          test "$(systemctl show kubearmor --property=NRestarts --value)" = 0
+
+      - name: Configure external certificates explicitly
+        run: |
+          sudo systemctl stop kubearmor
+          bash .github/workflows/systemd-tls-fixtures.sh "$RUNNER_TEMP/systemd-tls-external"
+          for plane in log management; do
+            sudo install -d -m 0700 "/var/lib/kubearmor/ci-external/$plane"
+            for file in ca.crt server.crt server.key; do
+              sudo install -m 0600 "$RUNNER_TEMP/systemd-tls-external/$plane/$file" "/var/lib/kubearmor/ci-external/$plane/$file"
+            done
+            # external must work without the CA private key.
+            sudo test ! -e "/var/lib/kubearmor/ci-external/$plane/ca.key"
+          done
+          sudo tee -a /opt/kubearmor/kubearmor.yaml >/dev/null <<'EOF'
+          tlsCertProvider: external
+          tlsCertPath: /var/lib/kubearmor/ci-external/log
+          managementTLSCertPath: /var/lib/kubearmor/ci-external/management
+          EOF
+          sudo systemctl start kubearmor
+
+      - name: Verify external startup and mTLS
+        run: |
+          "$RUNNER_TEMP/systemd-tls-check" \
+            -log-cert-dir "$RUNNER_TEMP/systemd-tls-external/log" \
+            -management-cert-dir "$RUNNER_TEMP/systemd-tls-external/management"
+          pid=$(systemctl show kubearmor --property=MainPID --value)
+          test "$pid" -gt 0
+          test "$(systemctl show kubearmor --property=NRestarts --value)" = 0
+          sleep 12
+          systemctl is-active --quiet kubearmor
+          test "$(systemctl show kubearmor --property=MainPID --value)" = "$pid"
+          test "$(systemctl show kubearmor --property=NRestarts --value)" = 0
+
+      - name: Show service diagnostics
+        if: always()
+        run: |
+          sudo systemctl status kubearmor --no-pager --full || true
+          sudo journalctl -u kubearmor --no-pager -n 200

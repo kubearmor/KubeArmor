@@ -12,6 +12,8 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/kubearmor/KubeArmor/KubeArmor/cert"
+	"github.com/kubearmor/KubeArmor/KubeArmor/common/testutils"
 	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 	pb "github.com/kubearmor/KubeArmor/protobuf"
@@ -42,6 +44,12 @@ func destroyFeederIfExists(fd *Feeder, t *testing.T) {
 	}
 }
 
+func configureTestTLS(t *testing.T) {
+	t.Helper()
+	cfg.GlobalCfg.TLSCertProvider = cert.DevCertProvider
+	cfg.GlobalCfg.TLSCertPath = t.TempDir()
+}
+
 // setup once for this package
 func TestMain(m *testing.M) {
 	if err := cfg.LoadConfig(); err != nil {
@@ -65,7 +73,8 @@ func TestNewFeeder(t *testing.T) {
 			name: "DefaultConfigSuccess",
 			setup: func(t *testing.T) {
 				cfg.GlobalCfg = cloneConfig()
-				cfg.GlobalCfg.GRPC = "55555"
+				testutils.ConfigureTestPorts(t)
+				configureTestTLS(t)
 			},
 			expectNil: false,
 		},
@@ -73,7 +82,8 @@ func TestNewFeeder(t *testing.T) {
 			name: "WithValidLogPath",
 			setup: func(t *testing.T) {
 				cfg.GlobalCfg = cloneConfig()
-				cfg.GlobalCfg.GRPC = "55555"
+				testutils.ConfigureTestPorts(t)
+				configureTestTLS(t)
 
 				tmpFile, err := os.CreateTemp("", "feeder-log-*.log")
 				if err != nil {
@@ -96,7 +106,7 @@ func TestNewFeeder(t *testing.T) {
 			name: "WithInvalidLogPath",
 			setup: func(t *testing.T) {
 				cfg.GlobalCfg = cloneConfig()
-				cfg.GlobalCfg.GRPC = "55555"
+				testutils.ConfigureTestPorts(t)
 				// directory cannot be opened as file
 				dir := t.TempDir()
 				cfg.GlobalCfg.LogPath = dir
@@ -108,8 +118,9 @@ func TestNewFeeder(t *testing.T) {
 			setup: func(t *testing.T) {
 				cfg.GlobalCfg = cloneConfig()
 				cfg.GlobalCfg.TLSEnabled = true
-				cfg.GlobalCfg.GRPC = "55555"
-				cfg.GlobalCfg.TLSCertPath = "/invalid/cert.pem"
+				testutils.ConfigureTestPorts(t)
+				cfg.GlobalCfg.TLSCertProvider = cert.SelfCertProvider
+				cfg.GlobalCfg.TLSCertPath = t.TempDir()
 			},
 			expectNil: true,
 		},

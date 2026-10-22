@@ -9,6 +9,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/kubearmor/KubeArmor/KubeArmor/common/testutils"
 	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
 	"github.com/kubearmor/KubeArmor/KubeArmor/feeder"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
@@ -44,6 +45,7 @@ func TestAppArmorEnforcer(t *testing.T) {
 	cfg.GlobalCfg.HostPolicy = true
 
 	// create logger
+	testutils.ConfigureTestPorts(t)
 	logger := feeder.NewFeeder(&node, &nodeLock)
 	if logger == nil {
 		t.Log("[FAIL] Failed to create logger")
@@ -110,6 +112,7 @@ func TestAppArmorProfile(t *testing.T) {
 	cfg.GlobalCfg.HostPolicy = false
 
 	// create logger
+	testutils.ConfigureTestPorts(t)
 	logger := feeder.NewFeeder(&node, &nodeLock)
 	if logger == nil {
 		t.Log("[FAIL] Failed to create logger")
@@ -224,6 +227,7 @@ func TestHostAppArmorProfile(t *testing.T) {
 	cfg.GlobalCfg.HostPolicy = true
 
 	// create logger
+	testutils.ConfigureTestPorts(t)
 	logger := feeder.NewFeeder(&node, &nodeLock)
 	if logger == nil {
 		t.Log("[FAIL] Failed to create logger")
