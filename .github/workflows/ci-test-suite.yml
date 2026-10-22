@@ -41,6 +41,9 @@ jobs:
               - '.github/workflows/ci-test-ubi-image.yml'
               - '.github/workflows/ci-test-ginkgo.yml'
               - '.github/workflows/ci-test-systemd.yml'
+              - '.github/workflows/ci-test-systemd-tls.yml'
+              - '.github/workflows/systemd-tls-*'
+              - '.github/workflows/systemd-tls-check/**'
               - '.github/workflows/ci-test-network-tests.yml'
               - '.github/workflows/ci-test-controllers.yml'
               - '.github/workflows/ci-test-operator.yaml'
@@ -129,7 +132,7 @@ jobs:
     uses: ./.github/workflows/ci-test-ubi-image.yml
 
   matrix-tests-systemd:
-    name: "Ginkgo Tests - Systemd"
+    name: "Systemd Tests"
     needs: [detect-changes, go-tests, ebpf-tests]
     if: |
       !cancelled() &&

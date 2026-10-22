@@ -12,9 +12,25 @@ cd deployments/helm/KubeArmor
 helm upgrade --install kubearmor . -n kubearmor --create-namespace
 ```
 
+## TLS and agent upgrades
+
+The daemon defaults to mTLS, but this chart explicitly configures it through
+`tls.enabled` (default `false`). With TLS enabled, the agent CA now mounts at
+`/var/lib/kubearmor/tls/log`; relay certificates remain at `/var/lib/kubearmor/tls`.
+Keep `kubearmor.tls.tlsCertPath` and the agent CA volume mount aligned when reusing
+custom values. Kubernetes does not expose the standalone management endpoint and
+does not need management certificates. Read the
+[TLS migration guide](../../../getting-started/kubearmor-security-enhancements.md#kubernetes-configuration)
+before upgrading the agent image or reusing values from an older chart.
+
 ## Values
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
+| tls.enabled | bool | false | Enable mTLS for the agent and relay |
+| kubearmor.tls.tlsCertPath | string | /var/lib/kubearmor/tls/log | Agent log CA directory; must match the agent CA volume mount |
+| kubearmor.tls.tlsCertProvider | string | self | Agent certificate provider |
+| kubearmorRelay.tls.tlsCertPath | string | /var/lib/kubearmor/tls | Relay certificate directory |
+| kubearmorRelay.tls.tlsCertProvider | string | external | Relay certificate provider |
 | environment.name | string | generic | The target environment to install KubeArmor in. Possible values: generic, GKE, EKS, BottleRocket, k0s, k3s, minikube, microk8s |
 | kubearmor.image.repository | string | kubearmor/kubearmor | kubearmor image repo |
 | kubearmor.image.tag | string | stable | kubearmor image tag |
@@ -44,6 +60,11 @@ helm upgrade --install kubearmor . -n kubearmor --create-namespace
 | kubearmorController.resources | object | { requests: { cpu: 10m, memory: 64Mi } } | kubearmor-controller container resources requests/limits |
 
 ## kubearmor-args
+
+`-gRPC` selects the observability port. For the new management, TLS, and health
+settings, see the [endpoint reference](../../../getting-started/kubearmor-security-enhancements.md#endpoints)
+and use `kubearmor -h` from the agent version being deployed.
+
 ```
 $ sudo ./kubearmor -h
 Usage of ./kubearmor:
