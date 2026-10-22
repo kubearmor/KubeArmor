@@ -46,7 +46,7 @@ jobs:
               - '.github/workflows/ci-test-operator.yaml'
             ebpf:
               - 'KubeArmor/BPF/**'
-              - 'KubeArmor/enforcer/**/*.o'
+              - 'KubeArmor/enforcer/bpflsm/**'
               - '.github/workflows/ci-test-ebpf.yml'
               - '.github/workflows/ci-test-lvh-matrix.yml'
             codespell:
