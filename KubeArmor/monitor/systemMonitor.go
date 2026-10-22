@@ -748,10 +748,6 @@ func (mon *SystemMonitor) DestroySystemMonitor() error {
 		mon.BpfModule.Close()
 	}
 
-	if mon.ContextChan != nil {
-		close(mon.ContextChan)
-	}
-
 	for _, link := range mon.Probes {
 		if err := link.Close(); err != nil {
 			return err
@@ -817,8 +813,6 @@ func (mon *SystemMonitor) TraceSyscall() {
 	replayQueue := make([]replayEvent, 0)
 	replayTicker := time.NewTicker(ReplayInterval)
 	defer replayTicker.Stop()
-
-	MonitorLock := *(mon.MonitorLock)
 
 	for {
 		select {
@@ -1165,10 +1159,16 @@ func (mon *SystemMonitor) TraceSyscall() {
 					continue
 				}
 			}
-			MonitorLock.Lock()
+
 			// push the context to the channel for logging
-			mon.ContextChan <- ContextCombined{ContainerID: containerID, ContextSys: ctx, ContextArgs: args, HashData: hashes}
-			MonitorLock.Unlock()
+			select {
+			case mon.ContextChan <- ContextCombined{ContainerID: containerID, ContextSys: ctx, ContextArgs: args, HashData: hashes}:
+			case <-StopChan:
+				return
+			default:
+				mon.Logger.Debug("ContextChan full or shutting down, dropping telemetry event")
+			}
+
 		}
 
 	}
