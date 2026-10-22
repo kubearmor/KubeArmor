@@ -1166,6 +1166,14 @@ func (mon *SystemMonitor) TraceSyscall() {
 				}
 			}
 			MonitorLock.Lock()
+
+			// status is true when the system monitor is running, false when it is being destroyed
+			if !mon.Status {
+				MonitorLock.Unlock()
+				mon.Logger.Print("System monitor is being destroyed, exiting TraceSyscall")
+				return
+			}
+
 			// push the context to the channel for logging
 			mon.ContextChan <- ContextCombined{ContainerID: containerID, ContextSys: ctx, ContextArgs: args, HashData: hashes}
 			MonitorLock.Unlock()
