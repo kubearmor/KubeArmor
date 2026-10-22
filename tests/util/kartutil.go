@@ -575,7 +575,7 @@ func K8sApplyFile(fileName string) error {
 				MatchCapabilities: append([]kcV1.MatchCapabilitiesType{}, ksp.Spec.Capabilities.MatchCapabilities...),
 			}
 			ksp.Spec.Network = kcV1.NetworkType{
-				MatchProtocols: append([]kcV1.MatchNetworkProtocolType{}, ksp.Spec.Network.MatchProtocols...),
+				MatchProtocols:  append([]kcV1.MatchNetworkProtocolType{}, ksp.Spec.Network.MatchProtocols...),
 				MatchDNSQueries: append([]kcV1.MatchDNSQueryType{}, ksp.Spec.Network.MatchDNSQueries...),
 			}
 
@@ -595,7 +595,7 @@ func K8sApplyFile(fileName string) error {
 				MatchCapabilities: append([]kcV1.MatchCapabilitiesType{}, csp.Spec.Capabilities.MatchCapabilities...),
 			}
 			csp.Spec.Network = kcV1.NetworkType{
-				MatchProtocols: append([]kcV1.MatchNetworkProtocolType{}, csp.Spec.Network.MatchProtocols...),
+				MatchProtocols:  append([]kcV1.MatchNetworkProtocolType{}, csp.Spec.Network.MatchProtocols...),
 				MatchDNSQueries: append([]kcV1.MatchDNSQueryType{}, csp.Spec.Network.MatchDNSQueries...),
 			}
 
@@ -650,7 +650,7 @@ func K8sApplyFile(fileName string) error {
 				MatchCapabilities: append([]kcV1.MatchHostCapabilitiesType{}, hsp.Spec.Capabilities.MatchCapabilities...),
 			}
 			hsp.Spec.Network = kcV1.HostNetworkType{
-				MatchProtocols: append([]kcV1.MatchHostNetworkProtocolType{}, hsp.Spec.Network.MatchProtocols...),
+				MatchProtocols:  append([]kcV1.MatchHostNetworkProtocolType{}, hsp.Spec.Network.MatchProtocols...),
 				MatchDNSQueries: append([]kcV1.MatchHostDNSQueryType{}, hsp.Spec.Network.MatchDNSQueries...),
 			}
 

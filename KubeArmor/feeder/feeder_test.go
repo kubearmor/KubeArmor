@@ -12,6 +12,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/kubearmor/KubeArmor/KubeArmor/common"
 	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 	pb "github.com/kubearmor/KubeArmor/protobuf"
@@ -291,4 +292,174 @@ func TestMarshalVisibilityLog(t *testing.T) {
 			t.Errorf("[FAIL] Expected marshaled log: %+v\nGot: %+v", expectedWithoutResource, marshaledLog)
 		}
 	})
+}
+
+func TestAlertThrottlingAppArmor(t *testing.T) {
+	cfg.GlobalCfg = cloneConfig()
+	cfg.GlobalCfg.GRPC = "55556"
+	cfg.GlobalCfg.LogPath = "none"
+	cfg.GlobalCfg.AlertThrottling = true
+	cfg.GlobalCfg.MaxAlertPerSec = 3
+	cfg.GlobalCfg.ThrottleSec = 30
+	cfg.GlobalCfg.DefaultPostureLogs = true
+
+	node := tp.Node{NodeName: "ubuntu-apparmor-node"}
+	nodeLock := new(sync.RWMutex)
+
+	fd := NewFeeder(&node, &nodeLock)
+	if fd == nil {
+		t.Fatalf("expected feeder to be created")
+	}
+	defer destroyFeederIfExists(fd, t)
+
+	fd.UpdateEnforcer("AppArmor")
+	containerID := "test-container-123"
+	fd.ContainerNsKeyLock.Lock()
+	fd.ContainerNsKey[containerID] = common.OuterKey{PidNs: 1001, MntNs: 2002}
+	fd.ContainerNsKeyLock.Unlock()
+
+	alertUID, alertCh := fd.EventStructs.AddAlertStruct("", 100)
+	defer fd.EventStructs.RemoveAlertStruct(alertUID)
+	logUID, logCh := fd.EventStructs.AddLogStruct("", 100)
+	defer fd.EventStructs.RemoveLogStruct(logUID)
+
+	// 1. Unmatched AppArmor / DAC failed syscalls (no KubeArmor policy) -> ContainerLog telemetry, zero alerts or AlertThreshold
+	for i := 0; i < 10; i++ {
+		fd.PushLog(tp.Log{
+			ContainerID:              containerID,
+			NamespaceName:            "default",
+			PodName:                  "test-pod",
+			Operation:                "File",
+			Resource:                 "/etc/shadow",
+			Source:                   "/usr/bin/python3",
+			ProcessName:              "/usr/bin/python3",
+			Result:                   "Permission denied",
+			FileVisibilityEnabled:    true,
+			ProcessVisibilityEnabled: true,
+		})
+	}
+
+	if gotAlerts := len(alertCh); gotAlerts != 0 {
+		t.Fatalf("expected 0 alerts for unmatched AppArmor telemetry, got %d", gotAlerts)
+	}
+	if gotLogs := len(logCh); gotLogs != 10 {
+		t.Fatalf("expected 10 telemetry logs, got %d", gotLogs)
+	}
+
+	// 2. DefaultPosture events (when an Allow policy exists and non-allowed files are blocked by default posture)
+	//    must NOT trigger AlertThreshold throttling.
+	allowEndpoint := tp.EndPoint{
+		NamespaceName: "default",
+		EndPointName:  "test-pod",
+		PolicyEnabled: tp.KubeArmorPolicyEnabled,
+		SecurityPolicies: []tp.SecurityPolicy{
+			{
+				Metadata: map[string]string{
+					"namespaceName": "default",
+					"policyName":    "ksp-allow-app",
+				},
+				Spec: tp.SecuritySpec{
+					Action: "Allow",
+					File: tp.FileType{
+						MatchPaths: []tp.FilePathType{
+							{
+								Path:   "/app/allowed.txt",
+								Action: "Allow",
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	fd.UpdateSecurityPolicies("ADDED", allowEndpoint)
+
+	for i := 0; i < 6; i++ {
+		fd.PushLog(tp.Log{
+			ContainerID:   containerID,
+			NamespaceName: "default",
+			PodName:       "test-pod",
+			Operation:     "File",
+			Resource:      "/etc/shadow",
+			Source:        "/usr/bin/cat /etc/shadow",
+			ProcessName:   "/usr/bin/cat",
+			Result:        "Permission denied",
+			PolicyEnabled: tp.KubeArmorPolicyEnabled,
+		})
+	}
+
+	if gotAlerts := len(alertCh); gotAlerts != 6 {
+		t.Fatalf("expected all 6 DefaultPosture events without throttling, got %d", gotAlerts)
+	}
+	for i := 0; i < 6; i++ {
+		a := <-alertCh
+		if a.Operation == "AlertThreshold" || a.Type == "SystemEvent" {
+			t.Fatalf("unexpected AlertThreshold generated for DefaultPosture event %d", i)
+		}
+	}
+
+	// 3. Explicit AppArmor policy violation -> first MaxAlertPerSec (3) alerts pass as MatchedPolicy,
+	//    4th becomes SystemEvent (AlertThreshold) with PolicyName and Enforcer preserved, 5th+ are dropped.
+	endPoint := tp.EndPoint{
+		NamespaceName: "default",
+		EndPointName:  "test-pod",
+		PolicyEnabled: tp.KubeArmorPolicyEnabled,
+		SecurityPolicies: []tp.SecurityPolicy{
+			{
+				Metadata: map[string]string{
+					"namespaceName": "default",
+					"policyName":    "ksp-block-shadow",
+				},
+				Spec: tp.SecuritySpec{
+					Action: "Block",
+					File: tp.FileType{
+						MatchPaths: []tp.FilePathType{
+							{
+								Path:   "/etc/shadow",
+								Action: "Block",
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	fd.UpdateSecurityPolicies("ADDED", endPoint)
+
+	for i := 0; i < 6; i++ {
+		fd.PushLog(tp.Log{
+			ContainerID:   containerID,
+			NamespaceName: "default",
+			PodName:       "test-pod",
+			Operation:     "File",
+			Resource:      "/etc/shadow",
+			Source:        "/usr/bin/cat /etc/shadow",
+			ProcessName:   "/usr/bin/cat",
+			Result:        "Permission denied",
+			PolicyEnabled: tp.KubeArmorPolicyEnabled,
+			PID:           1234,
+			PPID:          1,
+			UID:           1000,
+		})
+	}
+
+	// Expect 3 MatchedPolicy alerts + 1 SystemEvent (AlertThreshold) = 4 total alerts (5th and 6th dropped)
+	if gotAlerts := len(alertCh); gotAlerts != 4 {
+		t.Fatalf("expected 4 alerts (3 MatchedPolicy + 1 AlertThreshold), got %d", gotAlerts)
+	}
+
+	for i := 0; i < 3; i++ {
+		a := <-alertCh
+		if a.Type != "MatchedPolicy" || a.PolicyName != "ksp-block-shadow" || a.Enforcer != "AppArmor" {
+			t.Fatalf("alert %d: unexpected fields: Type=%s PolicyName=%s Enforcer=%s", i, a.Type, a.PolicyName, a.Enforcer)
+		}
+	}
+
+	throttleAlert := <-alertCh
+	if throttleAlert.Type != "SystemEvent" || throttleAlert.Operation != "AlertThreshold" {
+		t.Fatalf("expected 4th alert to be SystemEvent/AlertThreshold, got Type=%s Operation=%s", throttleAlert.Type, throttleAlert.Operation)
+	}
+	if throttleAlert.PolicyName != "ksp-block-shadow" || throttleAlert.Enforcer != "AppArmor" {
+		t.Fatalf("expected AlertThreshold to preserve PolicyName='ksp-block-shadow' and Enforcer='AppArmor', got PolicyName=%q Enforcer=%q", throttleAlert.PolicyName, throttleAlert.Enforcer)
+	}
 }
