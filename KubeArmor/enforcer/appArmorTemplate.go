@@ -218,6 +218,8 @@ profile {{$v := $.Name | split "."}}{{$v._0}}_{{ regexReplaceAllLiteral "[^a-z A
 	{{ if .File}}file,{{end}}
 	{{ if .Network}}network,{{end}}
 	{{ if .Capabilities}}capability,{{end}}
+	signal (receive) peer=runc,
+	signal (receive) peer=crun,
 	## == PRE END == ##
 {{- end}}
 

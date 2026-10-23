@@ -11,6 +11,8 @@ umount,
 file,
 network,
 capability,
+signal (receive) peer=runc,
+signal (receive) peer=crun,
 
 `
 	AppArmorPrivilegedPreStart = AppArmorDefaultPreStart +

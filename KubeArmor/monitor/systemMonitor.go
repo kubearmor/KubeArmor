@@ -329,6 +329,9 @@ func (mon *SystemMonitor) DestroyBPFMaps() {
 }
 
 func (mon *SystemMonitor) UpdateThrottlingConfig() {
+	if mon.BpfConfigMap == nil {
+		return
+	}
 	if cfg.GlobalCfg.AlertThrottling {
 		if err := mon.BpfConfigMap.Update(uint32(3), uint32(1), cle.UpdateAny); err != nil {
 			mon.Logger.Errf("Error Updating System Monitor Config Map to enable alert throttling : %s", err.Error())
@@ -352,6 +355,10 @@ func (mon *SystemMonitor) UpdateThrottlingConfig() {
 
 // UpdateNsKeyMap Function
 func (mon *SystemMonitor) UpdateNsKeyMap(action string, nsKey NsKey, visibility tp.Visibility) {
+	if mon.BpfNsVisibilityMap == nil {
+		return
+	}
+
 	var err error
 
 	file := cle.MapKV{
@@ -549,8 +556,6 @@ func (mon *SystemMonitor) InitBPF() error {
 		}
 	}
 
-	mon.Logger.Print("Initializing eBPF system monitor")
-
 	// Allow the current process to lock memory for eBPF resources.
 	if err := rlimit.RemoveMemlock(); err != nil {
 		return fmt.Errorf("error removing memlock %v", err)
@@ -562,6 +567,12 @@ func (mon *SystemMonitor) InitBPF() error {
 	if err != nil {
 		return err
 	}
+	if !cfg.GlobalCfg.SystemMonitor {
+		mon.Logger.Print("eBPF system event tracing disabled (enableSystemMonitor=false)")
+		return nil
+	}
+
+	mon.Logger.Print("Initializing eBPF system monitor")
 	mon.Logger.Printf("eBPF system monitor object file path: %s", bpfPath)
 	bpfModuleSpec, err := cle.LoadCollectionSpec(bpfPath)
 	if err != nil {
@@ -1155,6 +1166,14 @@ func (mon *SystemMonitor) TraceSyscall() {
 				}
 			}
 			MonitorLock.Lock()
+
+			// status is true when the system monitor is running, false when it is being destroyed
+			if !mon.Status {
+				MonitorLock.Unlock()
+				mon.Logger.Print("System monitor is being destroyed, exiting TraceSyscall")
+				return
+			}
+
 			// push the context to the channel for logging
 			mon.ContextChan <- ContextCombined{ContainerID: containerID, ContextSys: ctx, ContextArgs: args, HashData: hashes}
 			MonitorLock.Unlock()
