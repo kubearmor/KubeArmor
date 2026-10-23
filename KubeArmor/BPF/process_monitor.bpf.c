@@ -11,6 +11,16 @@ struct {
     __uint(max_entries, 10240);
 } ns_transition SEC(".maps");
 
+struct tracepoint_raw_sys_enter
+{
+    unsigned short common_type;
+    unsigned char common_flags;
+    unsigned char common_preempt_count;
+    int common_pid;
+    long id;
+    unsigned long args[6];
+};
+
 static __always_inline void save_cmd_args_to_buffer(const char *const *ptr)
 {
     struct cmd_args_key key;
@@ -36,28 +46,17 @@ static __always_inline void save_cmd_args_to_buffer(const char *const *ptr)
     }
 }
 
-SEC("kprobe/__x64_sys_execve")
-int kprobe__args_execve(struct pt_regs *ctx)
+SEC("tracepoint/syscalls/sys_enter_execve")
+int sys_enter_execve(struct tracepoint_raw_sys_enter *ctx)
 {
-    struct pt_regs *ctx2 = (struct pt_regs *)PT_REGS_PARM1(ctx);
-    unsigned long argv = READ_KERN(PT_REGS_PARM2(ctx2));
-
     if (get_kubearmor_config(_MATCH_ARGS))
     {
+        unsigned long argv = ctx->args[1];
         save_cmd_args_to_buffer((const char *const *)argv);
     }
+
     return 0;
 }
-
-struct tracepoint_raw_sys_enter
-{
-    unsigned short common_type;
-    unsigned char common_flags;
-    unsigned char common_preempt_count;
-    int common_pid;
-    long id;
-    unsigned long args[6];
-};
 
 SEC("tracepoint/syscalls/sys_enter_setns")
 int sys_enter_setns(struct tracepoint_raw_sys_enter *ctx)

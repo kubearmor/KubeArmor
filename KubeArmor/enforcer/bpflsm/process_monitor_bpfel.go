@@ -48,6 +48,30 @@ type process_monitorOuterKey struct {
 	MntNs uint32
 }
 
+// Names of all BPF objects in the ELF.
+//
+// Used for safe lookups in a Collection or CollectionSpec.
+const (
+	process_monitorMapArgsBufk               = "args_bufk"
+	process_monitorMapBufk                   = "bufk"
+	process_monitorMapBufs                   = "bufs"
+	process_monitorMapBufsOff                = "bufs_off"
+	process_monitorMapCmdArgsBuf             = "cmd_args_buf"
+	process_monitorMapKubearmorAlertThrottle = "kubearmor_alert_throttle"
+	process_monitorMapKubearmorArgsStore     = "kubearmor_args_store"
+	process_monitorMapKubearmorArguments     = "kubearmor_arguments"
+	process_monitorMapKubearmorConfig        = "kubearmor_config"
+	process_monitorMapKubearmorContainers    = "kubearmor_containers"
+	process_monitorMapKubearmorEvents        = "kubearmor_events"
+	process_monitorMapKubearmorExecPids      = "kubearmor_exec_pids"
+	process_monitorMapNsTransition           = "ns_transition"
+	process_monitorProgSchedProcessExit      = "sched_process_exit"
+	process_monitorProgSchedProcessFork      = "sched_process_fork"
+	process_monitorProgSysEnterExecve        = "sys_enter_execve"
+	process_monitorProgSysEnterSetns         = "sys_enter_setns"
+	process_monitorProgSysExitSetns          = "sys_exit_setns"
+)
+
 // loadProcess_monitor returns the embedded CollectionSpec for process_monitor.
 func loadProcess_monitor() (*ebpf.CollectionSpec, error) {
 	reader := bytes.NewReader(_Process_monitorBytes)
@@ -68,7 +92,7 @@ func loadProcess_monitor() (*ebpf.CollectionSpec, error) {
 //	*process_monitorMaps
 //
 // See ebpf.CollectionSpec.LoadAndAssign documentation for details.
-func loadProcess_monitorObjects(obj interface{}, opts *ebpf.CollectionOptions) error {
+func loadProcess_monitorObjects(obj any, opts *ebpf.CollectionOptions) error {
 	spec, err := loadProcess_monitor()
 	if err != nil {
 		return err
@@ -90,9 +114,9 @@ type process_monitorSpecs struct {
 //
 // It can be passed ebpf.CollectionSpec.Assign.
 type process_monitorProgramSpecs struct {
-	KprobeArgsExecve *ebpf.ProgramSpec `ebpf:"kprobe__args_execve"`
 	SchedProcessExit *ebpf.ProgramSpec `ebpf:"sched_process_exit"`
 	SchedProcessFork *ebpf.ProgramSpec `ebpf:"sched_process_fork"`
+	SysEnterExecve   *ebpf.ProgramSpec `ebpf:"sys_enter_execve"`
 	SysEnterSetns    *ebpf.ProgramSpec `ebpf:"sys_enter_setns"`
 	SysExitSetns     *ebpf.ProgramSpec `ebpf:"sys_exit_setns"`
 }
@@ -185,18 +209,18 @@ type process_monitorVariables struct {
 //
 // It can be passed to loadProcess_monitorObjects or ebpf.CollectionSpec.LoadAndAssign.
 type process_monitorPrograms struct {
-	KprobeArgsExecve *ebpf.Program `ebpf:"kprobe__args_execve"`
 	SchedProcessExit *ebpf.Program `ebpf:"sched_process_exit"`
 	SchedProcessFork *ebpf.Program `ebpf:"sched_process_fork"`
+	SysEnterExecve   *ebpf.Program `ebpf:"sys_enter_execve"`
 	SysEnterSetns    *ebpf.Program `ebpf:"sys_enter_setns"`
 	SysExitSetns     *ebpf.Program `ebpf:"sys_exit_setns"`
 }
 
 func (p *process_monitorPrograms) Close() error {
 	return _Process_monitorClose(
-		p.KprobeArgsExecve,
 		p.SchedProcessExit,
 		p.SchedProcessFork,
+		p.SysEnterExecve,
 		p.SysEnterSetns,
 		p.SysExitSetns,
 	)

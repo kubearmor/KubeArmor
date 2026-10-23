@@ -64,6 +64,7 @@ const (
 	anonmapexecMapKubearmorContainers                  = "kubearmor_containers"
 	anonmapexecMapKubearmorEvents                      = "kubearmor_events"
 	anonmapexecMapKubearmorExecPids                    = "kubearmor_exec_pids"
+	anonmapexecProgEnforceFileMprotect                 = "enforce_file_mprotect"
 	anonmapexecProgEnforceMmapFile                     = "enforce_mmap_file"
 	anonmapexecVarUnused                               = "unused"
 )
@@ -110,7 +111,8 @@ type anonmapexecSpecs struct {
 //
 // It can be passed ebpf.CollectionSpec.Assign.
 type anonmapexecProgramSpecs struct {
-	EnforceMmapFile *ebpf.ProgramSpec `ebpf:"enforce_mmap_file"`
+	EnforceFileMprotect *ebpf.ProgramSpec `ebpf:"enforce_file_mprotect"`
+	EnforceMmapFile     *ebpf.ProgramSpec `ebpf:"enforce_mmap_file"`
 }
 
 // anonmapexecMapSpecs contains maps before they are loaded into the kernel.
@@ -206,11 +208,13 @@ type anonmapexecVariables struct {
 //
 // It can be passed to loadAnonmapexecObjects or ebpf.CollectionSpec.LoadAndAssign.
 type anonmapexecPrograms struct {
-	EnforceMmapFile *ebpf.Program `ebpf:"enforce_mmap_file"`
+	EnforceFileMprotect *ebpf.Program `ebpf:"enforce_file_mprotect"`
+	EnforceMmapFile     *ebpf.Program `ebpf:"enforce_mmap_file"`
 }
 
 func (p *anonmapexecPrograms) Close() error {
 	return _AnonmapexecClose(
+		p.EnforceFileMprotect,
 		p.EnforceMmapFile,
 	)
 }
