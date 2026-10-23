@@ -50,6 +50,16 @@ To make a contribution, please follow the steps below.
 
    If you have made changes in Operator or Controller, then follow [this](testing_operator_controller_guide.md)
 
+   If you changed anything that affects the released `kubearmor` binary or its build flags,
+   verify that the build is still reproducible:
+
+   ```text
+   make -C KubeArmor verify-reproducible
+   ```
+
+   See [Build Reproducibility](../docs/build-reproducibility/README.md) for details on how to
+   verify that a release binary matches its source.
+
 5. Commit changes
 
    Please see your changes using "git status" and add them to the branch using "git add".
