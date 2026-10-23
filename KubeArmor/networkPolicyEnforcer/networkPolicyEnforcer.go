@@ -8,10 +8,12 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"text/template"
 	"time"
 
@@ -20,8 +22,10 @@ import (
 	fd "github.com/kubearmor/KubeArmor/KubeArmor/feeder"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 
+	"github.com/cilium/ebpf"
 	"github.com/florianl/go-nflog/v2"
 	"github.com/mdlayher/netlink"
+	"golang.org/x/sys/unix"
 
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
@@ -80,6 +84,9 @@ type NetworkPolicyEnforcer struct {
 	// Key: "<podIP>-<logPrefix>", Value: struct{}{}
 	// Prevents repeated alerts within the same quota window.
 	QuotaSilencer sync.Map
+
+	dnsSocketFd int
+	cancelDNS   context.CancelFunc
 }
 
 // NewNetworkPolicyEnforcer Function
@@ -136,6 +143,7 @@ func NewNetworkPolicyEnforcer(logger *fd.Feeder) (*NetworkPolicyEnforcer, error)
 	}()
 
 	go ne.monitorLoggedPackets()
+	go ne.monitorDNSPackets()
 
 	ne.UpdateNetworkSecurityPolicies([]tp.NetworkSecurityPolicy{}, []tp.EndPoint{}, map[string]tp.Container{})
 
@@ -1383,6 +1391,15 @@ func (ne *NetworkPolicyEnforcer) DestroyNetworkPolicyEnforcer() error {
 		ne.cancelNflog()
 	}
 
+	if ne.cancelDNS != nil {
+		ne.cancelDNS()
+	}
+
+	if ne.dnsSocketFd != 0 && ne.dnsSocketFd != -1 {
+		_ = syscall.Close(ne.dnsSocketFd)
+		ne.dnsSocketFd = -1
+	}
+
 	// cleanup nftables tables
 	for _, family := range []string{"ip", "ip6", "inet"} {
 		cmd := exec.Command("nft", "delete", "table", family, "kubearmor") // #nosec G204
@@ -1391,4 +1408,195 @@ func (ne *NetworkPolicyEnforcer) DestroyNetworkPolicyEnforcer() error {
 
 	ne = nil
 	return nil
+}
+
+func loadDNSSocketFilter() (*ebpf.Collection, *ebpf.Program, error) {
+	bpfPath := "/opt/kubearmor/BPF/system_monitor.bpf.o"
+	if _, err := os.Stat(filepath.Clean(bpfPath)); err != nil { // #nosec G703
+		bpfPath = "./BPF/system_monitor.bpf.o"
+		if _, err := os.Stat(filepath.Clean(bpfPath)); err != nil { // #nosec G703
+			pwd := os.Getenv("PWD")
+			if pwd != "" {
+				bpfPath = filepath.Join(pwd, "BPF/system_monitor.bpf.o")
+				if _, err = os.Stat(filepath.Clean(bpfPath)); err != nil { // #nosec G703
+					bpfPath = filepath.Join(pwd, "../BPF/system_monitor.bpf.o")
+				}
+			}
+			if _, err = os.Stat(filepath.Clean(bpfPath)); err != nil { // #nosec G703
+				bpfPath = "../BPF/system_monitor.bpf.o"
+			}
+		}
+	}
+
+	spec, err := ebpf.LoadCollectionSpec(filepath.Clean(bpfPath)) // #nosec G304
+	if err != nil {
+		return nil, nil, err
+	}
+
+	for name := range spec.Programs {
+		if name != "filter_dns" {
+			delete(spec.Programs, name)
+		}
+	}
+	for name := range spec.Maps {
+		if name != "kubearmor_dns_visibility" && !strings.HasPrefix(name, ".") {
+			delete(spec.Maps, name)
+		}
+	}
+
+	coll, err := ebpf.NewCollectionWithOptions(spec, ebpf.CollectionOptions{
+		Maps: ebpf.MapOptions{
+			PinPath: kl.GetMapRoot(),
+		},
+	})
+	if err != nil {
+		return nil, nil, err
+	}
+
+	prog, ok := coll.Programs["filter_dns"]
+	if !ok {
+		coll.Close()
+		return nil, nil, fmt.Errorf("filter_dns program not found")
+	}
+
+	return coll, prog, nil
+}
+
+func htons(i uint16) uint16 {
+	return (i << 8) | (i >> 8)
+}
+
+func (ne *NetworkPolicyEnforcer) monitorDNSPackets() {
+	ctx, cancel := context.WithCancel(context.Background())
+	ne.cancelDNS = cancel
+
+	coll, prog, err := loadDNSSocketFilter()
+	if err != nil {
+		if ne.Logger != nil {
+			ne.Logger.Warnf("failed to load BPF DNS socket filter: %v", err)
+		}
+		return
+	}
+
+	fd, err := syscall.Socket(syscall.AF_PACKET, syscall.SOCK_RAW, int(htons(unix.ETH_P_ALL)))
+	if err != nil {
+		if ne.Logger != nil {
+			ne.Logger.Warnf("failed to create raw socket: %v", err)
+		}
+		coll.Close()
+		return
+	}
+	ne.dnsSocketFd = fd
+
+	err = syscall.SetsockoptInt(fd, syscall.SOL_SOCKET, unix.SO_ATTACH_BPF, prog.FD())
+	if err != nil {
+		if ne.Logger != nil {
+			ne.Logger.Warnf("failed to attach BPF socket filter: %v", err)
+		}
+		_ = syscall.Close(fd)
+		ne.dnsSocketFd = -1
+		coll.Close()
+		return
+	}
+	coll.Close() // Kernel socket retains the BPF program reference; close user-space FDs to prevent leaks
+
+	tv := syscall.Timeval{Sec: 1, Usec: 0}
+	_ = syscall.SetsockoptTimeval(fd, syscall.SOL_SOCKET, syscall.SO_RCVTIMEO, &tv)
+
+	if ne.Logger != nil {
+		ne.Logger.Print("Successfully attached DNS socket filter to raw socket")
+	}
+
+	buf := make([]byte, 2048)
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
+
+		n, _, err := syscall.Recvfrom(fd, buf, 0)
+		if err != nil {
+			if err == syscall.EAGAIN || err == syscall.EWOULDBLOCK || err == syscall.EINTR {
+				continue
+			}
+			break
+		}
+
+		if n < 14 {
+			continue
+		}
+
+		packet := gopacket.NewPacket(buf[:n], layers.LayerTypeEthernet, gopacket.Default)
+
+		var srcIP, dstIP string
+		if ip4Layer := packet.Layer(layers.LayerTypeIPv4); ip4Layer != nil {
+			ip4 := ip4Layer.(*layers.IPv4)
+			srcIP = ip4.SrcIP.String()
+			dstIP = ip4.DstIP.String()
+		} else if ip6Layer := packet.Layer(layers.LayerTypeIPv6); ip6Layer != nil {
+			ip6 := ip6Layer.(*layers.IPv6)
+			srcIP = ip6.SrcIP.String()
+			dstIP = ip6.DstIP.String()
+		}
+
+		if srcIP == "" {
+			continue
+		}
+
+		var domain, qtype string
+		if dnsLayer := packet.Layer(layers.LayerTypeDNS); dnsLayer != nil {
+			dnsMsg := dnsLayer.(*layers.DNS)
+			if len(dnsMsg.Questions) > 0 {
+				domain = string(dnsMsg.Questions[0].Name)
+				qtype = dnsMsg.Questions[0].Type.String()
+			}
+		}
+
+		if domain == "" {
+			continue
+		}
+
+		log := tp.Log{}
+		timestamp, updatedTime := kl.GetDateTimeNow()
+
+		log.Timestamp = timestamp
+		log.UpdatedTime = updatedTime
+		log.Operation = "Network"
+
+		saFamily := "AF_INET"
+		if strings.Contains(srcIP, ":") || strings.Contains(dstIP, ":") {
+			saFamily = "AF_INET6"
+		}
+		log.Resource = "sa_family=" + saFamily + " sin_port=53"
+
+		kfunc := "kfunc=DNS_FILTER"
+		log.Data = fmt.Sprintf("%s,domain=%s,daddr=%s,qtype=%s", kfunc, domain, dstIP, qtype)
+		log.Action = "Audit"
+		log.Result = "Passed"
+		log.Type = "ContainerLog"
+		log.Enforcer = "NetworkPolicyEnforcer"
+
+		ne.EndPointsLock.RLock()
+		if ep, ok := ne.EndPoints[srcIP]; ok {
+			log.NamespaceName = ep.NamespaceName
+			log.PodName = ep.EndPointName
+
+			var labelSlice []string
+			for k, v := range ep.Labels {
+				labelSlice = append(labelSlice, k+"="+v)
+			}
+			sort.Strings(labelSlice)
+			log.Labels = strings.Join(labelSlice, ",")
+
+			if len(ep.Containers) > 0 {
+				log.ContainerID = ep.Containers[0]
+			}
+		}
+		ne.EndPointsLock.RUnlock()
+
+		if ne.Logger != nil {
+			ne.Logger.PushLog(log)
+		}
+	}
 }
