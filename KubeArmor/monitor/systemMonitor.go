@@ -37,7 +37,10 @@ const (
 	visibilityOff    = uint32(1)
 	visibilityOn     = uint32(0)
 	// how many event the channel can hold
-	SyscallChannelSize   = 1 << 13 //8192
+	SyscallChannelSize = 1 << 13 //8192
+	// how often and for how long events with an unknown container are replayed
+	ReplayInterval       = 1 * time.Second
+	ReplayTimeout        = 10 * time.Second
 	DefaultVisibilityKey = uint32(0xc0ffee)
 )
 
@@ -326,6 +329,9 @@ func (mon *SystemMonitor) DestroyBPFMaps() {
 }
 
 func (mon *SystemMonitor) UpdateThrottlingConfig() {
+	if mon.BpfConfigMap == nil {
+		return
+	}
 	if cfg.GlobalCfg.AlertThrottling {
 		if err := mon.BpfConfigMap.Update(uint32(3), uint32(1), cle.UpdateAny); err != nil {
 			mon.Logger.Errf("Error Updating System Monitor Config Map to enable alert throttling : %s", err.Error())
@@ -349,6 +355,10 @@ func (mon *SystemMonitor) UpdateThrottlingConfig() {
 
 // UpdateNsKeyMap Function
 func (mon *SystemMonitor) UpdateNsKeyMap(action string, nsKey NsKey, visibility tp.Visibility) {
+	if mon.BpfNsVisibilityMap == nil {
+		return
+	}
+
 	var err error
 
 	file := cle.MapKV{
@@ -546,8 +556,6 @@ func (mon *SystemMonitor) InitBPF() error {
 		}
 	}
 
-	mon.Logger.Print("Initializing eBPF system monitor")
-
 	// Allow the current process to lock memory for eBPF resources.
 	if err := rlimit.RemoveMemlock(); err != nil {
 		return fmt.Errorf("error removing memlock %v", err)
@@ -559,6 +567,12 @@ func (mon *SystemMonitor) InitBPF() error {
 	if err != nil {
 		return err
 	}
+	if !cfg.GlobalCfg.SystemMonitor {
+		mon.Logger.Print("eBPF system event tracing disabled (enableSystemMonitor=false)")
+		return nil
+	}
+
+	mon.Logger.Print("Initializing eBPF system monitor")
 	mon.Logger.Printf("eBPF system monitor object file path: %s", bpfPath)
 	bpfModuleSpec, err := cle.LoadCollectionSpec(bpfPath)
 	if err != nil {
@@ -776,7 +790,7 @@ func (mon *SystemMonitor) TraceSyscall() {
 				}
 
 				if record.LostSamples != 0 {
-					mon.Logger.Warnf("Lost Perf Events Count : %d", record.LostSamples)
+					mon.Logger.Debugf("Lost Perf Events Count : %d", record.LostSamples)
 					continue
 				}
 				mon.SyscallChannel <- record.RawSample
@@ -791,59 +805,48 @@ func (mon *SystemMonitor) TraceSyscall() {
 	Containers := *(mon.Containers)
 	ContainersLock := *(mon.ContainersLock)
 
-	ReplayChannel := make(chan []byte, SyscallChannelSize)
+	// events whose container is not known yet are queued here and
+	// retried (best effort) from the main loop on every replay tick
+	type replayEvent struct {
+		dataRaw  []byte
+		pidID    uint32
+		mntID    uint32
+		deadline time.Time
+	}
 
-	go func() {
-		for {
-			dataRaw, valid := <-ReplayChannel
-			if !valid {
-				continue
-			}
-			dataBuff := bytes.NewBuffer(dataRaw)
-			ctx, err := readContextFromBuff(dataBuff)
-			if err != nil {
-				continue
-			}
+	replayQueue := make([]replayEvent, 0)
+	replayTicker := time.NewTicker(ReplayInterval)
+	defer replayTicker.Stop()
 
-			now := time.Now()
-			if now.After(time.Unix(int64(ctx.Ts), 0).Add(10 * time.Second)) {
-				mon.Logger.Debug("Event dropped due to replay timeout")
-				continue
-			}
-
-			// Best effort replay
-			go func() {
-				for range 10 {
-					containerID := ""
-
-					if ctx.PidID != 0 && ctx.MntID != 0 {
-						containerID = mon.LookupContainerID(ctx.PidID, ctx.MntID)
-
-						if containerID == "" {
-							time.Sleep(1 * time.Second)
-							continue
-						}
-					}
-
-					select {
-					case mon.SyscallChannel <- dataRaw:
-					default:
-						// channel is full, wait for a short time before retrying
-						time.Sleep(1 * time.Second)
-						mon.Logger.Warn("Event dropped due to busy event channel")
-					}
-
-				}
-				mon.Logger.Debug("Event dropped due to replay timeout")
-			}()
-		}
-	}()
 	MonitorLock := *(mon.MonitorLock)
 
 	for {
 		select {
 		case <-StopChan:
 			return
+
+		case now := <-replayTicker.C:
+			pending := replayQueue[:0]
+			for _, ev := range replayQueue {
+				if now.After(ev.deadline) {
+					mon.Logger.Debug("Event dropped due to replay timeout")
+					continue
+				}
+
+				if mon.LookupContainerID(ev.pidID, ev.mntID) == "" {
+					pending = append(pending, ev)
+					continue
+				}
+
+				select {
+				case mon.SyscallChannel <- ev.dataRaw:
+				default:
+					// channel is full, retry on the next tick
+					pending = append(pending, ev)
+				}
+			}
+			clear(replayQueue[len(pending):])
+			replayQueue = pending
 
 		case dataRaw, valid := <-mon.SyscallChannel:
 			if !valid {
@@ -892,7 +895,16 @@ func (mon *SystemMonitor) TraceSyscall() {
 			}
 
 			if ctx.PidID != 0 && ctx.MntID != 0 && containerID == "" {
-				ReplayChannel <- dataRaw
+				if len(replayQueue) >= SyscallChannelSize {
+					mon.Logger.Debug("Event dropped due to full replay queue")
+					continue
+				}
+				replayQueue = append(replayQueue, replayEvent{
+					dataRaw:  dataRaw,
+					pidID:    ctx.PidID,
+					mntID:    ctx.MntID,
+					deadline: time.Now().Add(ReplayTimeout),
+				})
 				continue
 			}
 
@@ -1154,6 +1166,14 @@ func (mon *SystemMonitor) TraceSyscall() {
 				}
 			}
 			MonitorLock.Lock()
+
+			// status is true when the system monitor is running, false when it is being destroyed
+			if !mon.Status {
+				MonitorLock.Unlock()
+				mon.Logger.Print("System monitor is being destroyed, exiting TraceSyscall")
+				return
+			}
+
 			// push the context to the channel for logging
 			mon.ContextChan <- ContextCombined{ContainerID: containerID, ContextSys: ctx, ContextArgs: args, HashData: hashes}
 			MonitorLock.Unlock()

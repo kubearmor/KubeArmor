@@ -22,7 +22,8 @@ contribution/vagrant/*.log
 .coverprofile
 
 # object files
-**/BPF/**/*.o
+*.o
+**/*.o
 
 # kernel header
 vmlinux.h

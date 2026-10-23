@@ -61,8 +61,9 @@ type KubearmorConfig struct {
 	DefaultPostureLogs bool         // Enable/Disable Default Posture logs for AppArmor LSM
 	InitTimeout        string       // Timeout for main thread init stages
 
-	StateAgent  bool // enable KubeArmor state agent
-	UseOCIHooks bool
+	SystemMonitor bool // enable system monitor
+	StateAgent    bool // enable KubeArmor state agent
+	UseOCIHooks   bool
 
 	AlertThrottling   bool  // Enable/Disable Alert Throttling
 	MaxAlertPerSec    int32 // Maximum alerts allowed per second
@@ -80,6 +81,9 @@ type KubearmorConfig struct {
 	MatchArgs bool // enable argument rules for policy
 
 	NetworkPolicyEnforcer bool // enable network policy enforcement
+
+	EnablePprof bool   // enable pprof profiling server
+	PprofAddr   string // address for pprof profiling server
 }
 
 // GlobalCfg Global configuration for Kubearmor
@@ -125,6 +129,7 @@ const (
 	EnforcerAlerts                       string = "enforcerAlerts"
 	ConfigDefaultPostureLogs             string = "defaultPostureLogs"
 	ConfigInitTimeout                    string = "initTimeout"
+	ConfigSystemMonitor                  string = "enableSystemMonitor"
 	ConfigStateAgent                     string = "enableKubeArmorStateAgent"
 	ConfigAlertThrottling                string = "alertThrottling"
 	ConfigMaxAlertPerSec                 string = "maxAlertPerSec"
@@ -138,6 +143,8 @@ const (
 	ConfigUSBDeviceHandler               string = "enableUSBDeviceHandler"
 	ConfigArgMatching                    string = "matchArgs"
 	ConfigNetworkPolicyEnforcer          string = "enableNetworkPolicyEnforcer"
+	ConfigEnablePprof                    string = "enablePprof"
+	ConfigPprofAddr                      string = "pprofAddr"
 )
 
 func readCmdLineParams() {
@@ -165,7 +172,7 @@ func readCmdLineParams() {
 	kvmAgentB := flag.Bool(ConfigKubearmorVM, false, "enabling KubeArmorVM")
 	k8sEnvB := flag.Bool(ConfigK8sEnv, true, "is k8s env?")
 
-	debugB := flag.Bool(ConfigDebug, false, "Enable/Disable pushing KubeArmor debug logs over gRPC. NOTE: Set environment DEBUG=true to configure stdout debug logging")
+	debugB := flag.Bool(ConfigDebug, false, "Enable/Disable pushing KubeArmor debug logs over gRPC. NOTE: Set environment LOG_LEVEL=debug to configure stdout debug logging")
 
 	defaultFilePosture := flag.String(ConfigDefaultFilePosture, "audit", "configuring default enforcement action in global file context {allow|audit|block}")
 	defaultNetworkPosture := flag.String(ConfigDefaultNetworkPosture, "audit", "configuring default enforcement action in global network context {allow|audit|block}")
@@ -188,6 +195,8 @@ func readCmdLineParams() {
 	defaultPostureLogs := flag.Bool(ConfigDefaultPostureLogs, true, "Default Posture Alerts (for Apparmor only)")
 
 	initTimeout := flag.String(ConfigInitTimeout, "60s", "Timeout for main thread init stages")
+
+	systemMonitor := flag.Bool(ConfigSystemMonitor, true, "enabling SystemMonitor")
 
 	stateAgent := flag.Bool(ConfigStateAgent, false, "enabling KubeArmor State Agent client")
 
@@ -213,6 +222,9 @@ func readCmdLineParams() {
 	matchArgs := flag.Bool(ConfigArgMatching, true, "enabling Argument matching")
 
 	networkPolicyEnforcer := flag.Bool(ConfigNetworkPolicyEnforcer, true, "Enable network policy enforcement")
+
+	enablePprof := flag.Bool(ConfigEnablePprof, false, "enable pprof profiling server")
+	pprofAddr := flag.String(ConfigPprofAddr, "localhost:6060", "address for pprof profiling server")
 
 	flags := []string{}
 	flag.VisitAll(func(f *flag.Flag) {
@@ -271,6 +283,8 @@ func readCmdLineParams() {
 
 	viper.SetDefault(ConfigInitTimeout, *initTimeout)
 
+	viper.SetDefault(ConfigSystemMonitor, *systemMonitor)
+
 	viper.SetDefault(ConfigStateAgent, *stateAgent)
 
 	viper.SetDefault(ConfigAlertThrottling, *alertThrottling)
@@ -296,6 +310,9 @@ func readCmdLineParams() {
 	viper.SetDefault(ConfigArgMatching, *matchArgs)
 
 	viper.SetDefault(ConfigNetworkPolicyEnforcer, *networkPolicyEnforcer)
+
+	viper.SetDefault(ConfigEnablePprof, *enablePprof)
+	viper.SetDefault(ConfigPprofAddr, *pprofAddr)
 }
 
 // LoadConfig Load configuration
@@ -393,6 +410,9 @@ func LoadConfig() error {
 
 	GlobalCfg.NetworkPolicyEnforcer = viper.GetBool(ConfigNetworkPolicyEnforcer)
 
+	GlobalCfg.EnablePprof = viper.GetBool(ConfigEnablePprof)
+	GlobalCfg.PprofAddr = viper.GetString(ConfigPprofAddr)
+
 	LoadDynamicConfig()
 
 	kg.Printf("Final Configuration [%+v]", GlobalCfg)
@@ -429,6 +449,8 @@ func LoadDynamicConfig() {
 	GlobalCfg.MaxAlertPerSec = int32(viper.GetInt(ConfigMaxAlertPerSec))
 	GlobalCfg.ThrottleSec = int32(viper.GetInt(ConfigThrottleSec))
 	GlobalCfg.InitTimeout = viper.GetString(ConfigInitTimeout)
+
+	GlobalCfg.SystemMonitor = viper.GetBool(ConfigSystemMonitor)
 
 	GlobalCfg.StateAgent = viper.GetBool(ConfigStateAgent)
 

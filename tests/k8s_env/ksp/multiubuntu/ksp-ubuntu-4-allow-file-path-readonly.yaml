@@ -33,6 +33,7 @@ spec:
     - dir: /usr/bin/
     - dir: /bin/
     - dir: /lib/x86_64-linux-gnu/
+    - dir: /lib/aarch64-linux-gnu/
     - dir: /pts/
     - dir: /var/lib/
       recursive: true  

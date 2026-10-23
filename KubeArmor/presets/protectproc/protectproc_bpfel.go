@@ -51,6 +51,29 @@ type protectprocPathname struct {
 	Path [256]int8
 }
 
+// Names of all BPF objects in the ELF.
+//
+// Used for safe lookups in a Collection or CollectionSpec.
+const (
+	protectprocMapArgsBufk                    = "args_bufk"
+	protectprocMapBufk                        = "bufk"
+	protectprocMapBufs                        = "bufs"
+	protectprocMapBufsOff                     = "bufs_off"
+	protectprocMapCmdArgsBuf                  = "cmd_args_buf"
+	protectprocMapEvents                      = "events"
+	protectprocMapKubearmorAlertThrottle      = "kubearmor_alert_throttle"
+	protectprocMapKubearmorArgsStore          = "kubearmor_args_store"
+	protectprocMapKubearmorArguments          = "kubearmor_arguments"
+	protectprocMapKubearmorConfig             = "kubearmor_config"
+	protectprocMapKubearmorContainers         = "kubearmor_containers"
+	protectprocMapKubearmorEvents             = "kubearmor_events"
+	protectprocMapKubearmorExecPids           = "kubearmor_exec_pids"
+	protectprocMapProcFileAccess              = "proc_file_access"
+	protectprocMapProtectprocPresetContainers = "protectproc_preset_containers"
+	protectprocProgEnforceFile                = "enforce_file"
+	protectprocVarUnused                      = "unused"
+)
+
 // loadProtectproc returns the embedded CollectionSpec for protectproc.
 func loadProtectproc() (*ebpf.CollectionSpec, error) {
 	reader := bytes.NewReader(_ProtectprocBytes)
@@ -71,7 +94,7 @@ func loadProtectproc() (*ebpf.CollectionSpec, error) {
 //	*protectprocMaps
 //
 // See ebpf.CollectionSpec.LoadAndAssign documentation for details.
-func loadProtectprocObjects(obj interface{}, opts *ebpf.CollectionOptions) error {
+func loadProtectprocObjects(obj any, opts *ebpf.CollectionOptions) error {
 	spec, err := loadProtectproc()
 	if err != nil {
 		return err

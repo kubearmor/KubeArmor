@@ -46,6 +46,35 @@ type enforcer_pathCmdArgsKey struct {
 	Ind  uint64
 }
 
+// Names of all BPF objects in the ELF.
+//
+// Used for safe lookups in a Collection or CollectionSpec.
+const (
+	enforcer_pathMapArgsBufk               = "args_bufk"
+	enforcer_pathMapBufk                   = "bufk"
+	enforcer_pathMapBufs                   = "bufs"
+	enforcer_pathMapBufsOff                = "bufs_off"
+	enforcer_pathMapCmdArgsBuf             = "cmd_args_buf"
+	enforcer_pathMapKubearmorAlertThrottle = "kubearmor_alert_throttle"
+	enforcer_pathMapKubearmorArgsStore     = "kubearmor_args_store"
+	enforcer_pathMapKubearmorArguments     = "kubearmor_arguments"
+	enforcer_pathMapKubearmorConfig        = "kubearmor_config"
+	enforcer_pathMapKubearmorContainers    = "kubearmor_containers"
+	enforcer_pathMapKubearmorEvents        = "kubearmor_events"
+	enforcer_pathMapKubearmorExecPids      = "kubearmor_exec_pids"
+	enforcer_pathProgEnforceChmod          = "enforce_chmod"
+	enforcer_pathProgEnforceLinkDst        = "enforce_link_dst"
+	enforcer_pathProgEnforceLinkSrc        = "enforce_link_src"
+	enforcer_pathProgEnforceMkdir          = "enforce_mkdir"
+	enforcer_pathProgEnforceMknod          = "enforce_mknod"
+	enforcer_pathProgEnforceRenameNew      = "enforce_rename_new"
+	enforcer_pathProgEnforceRenameOld      = "enforce_rename_old"
+	enforcer_pathProgEnforceRmdir          = "enforce_rmdir"
+	enforcer_pathProgEnforceSymlink        = "enforce_symlink"
+	enforcer_pathProgEnforceTruncate       = "enforce_truncate"
+	enforcer_pathProgEnforceUnlink         = "enforce_unlink"
+)
+
 // loadEnforcer_path returns the embedded CollectionSpec for enforcer_path.
 func loadEnforcer_path() (*ebpf.CollectionSpec, error) {
 	reader := bytes.NewReader(_Enforcer_pathBytes)
@@ -66,7 +95,7 @@ func loadEnforcer_path() (*ebpf.CollectionSpec, error) {
 //	*enforcer_pathMaps
 //
 // See ebpf.CollectionSpec.LoadAndAssign documentation for details.
-func loadEnforcer_pathObjects(obj interface{}, opts *ebpf.CollectionOptions) error {
+func loadEnforcer_pathObjects(obj any, opts *ebpf.CollectionOptions) error {
 	spec, err := loadEnforcer_path()
 	if err != nil {
 		return err

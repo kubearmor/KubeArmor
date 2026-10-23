@@ -47,7 +47,8 @@ type Preset struct {
 	ContainerMap     map[string]base.ContainerVal
 	ContainerMapLock *sync.RWMutex
 
-	Link link.Link
+	MmapLink     link.Link
+	MprotectLink link.Link
 
 	obj anonmapexecObjects
 }
@@ -124,9 +125,15 @@ func (p *Preset) RegisterPreset(logger *fd.Feeder, monitor *mon.SystemMonitor) (
 		return nil, err
 	}
 
-	p.Link, err = link.AttachLSM(link.LSMOptions{Program: p.obj.EnforceMmapFile})
+	p.MmapLink, err = link.AttachLSM(link.LSMOptions{Program: p.obj.EnforceMmapFile})
 	if err != nil {
 		p.Logger.Errf("opening lsm %s: %s", p.obj.EnforceMmapFile.String(), err)
+		return nil, err
+	}
+
+	p.MprotectLink, err = link.AttachLSM(link.LSMOptions{Program: p.obj.EnforceFileMprotect})
+	if err != nil {
+		p.Logger.Errf("opening lsm %s: %s", p.obj.EnforceFileMprotect.String(), err)
 		return nil, err
 	}
 
@@ -202,9 +209,11 @@ func (p *Preset) TraceEvents() {
 			},
 		}, readLink)
 
+		p.ContainerMapLock.RLock()
 		if ckv, ok := p.ContainerMap[containerID]; ok {
 			base.AddPolicyLogInfo(&log, &ckv)
 		}
+		p.ContainerMapLock.RUnlock()
 
 		var f []string
 		f = append(f, ParseProtectionFlags(event.Args[0]))
@@ -322,7 +331,12 @@ func (p *Preset) Destroy() error {
 		errBPFCleanUp = errors.Join(errBPFCleanUp, err)
 	}
 
-	if err := p.Link.Close(); err != nil {
+	if err := p.MmapLink.Close(); err != nil {
+		p.Logger.Err(err.Error())
+		errBPFCleanUp = errors.Join(errBPFCleanUp, err)
+	}
+
+	if err := p.MprotectLink.Close(); err != nil {
 		p.Logger.Err(err.Error())
 		errBPFCleanUp = errors.Join(errBPFCleanUp, err)
 	}

@@ -46,6 +46,28 @@ type anonmapexecCmdArgsKey struct {
 	Ind  uint64
 }
 
+// Names of all BPF objects in the ELF.
+//
+// Used for safe lookups in a Collection or CollectionSpec.
+const (
+	anonmapexecMapArgsBufk                             = "args_bufk"
+	anonmapexecMapBufk                                 = "bufk"
+	anonmapexecMapBufs                                 = "bufs"
+	anonmapexecMapBufsOff                              = "bufs_off"
+	anonmapexecMapCmdArgsBuf                           = "cmd_args_buf"
+	anonmapexecMapEvents                               = "events"
+	anonmapexecMapKubearmorAlertThrottle               = "kubearmor_alert_throttle"
+	anonmapexecMapKubearmorAnonMapExecPresetContainers = "kubearmor_anon_map_exec_preset_containers"
+	anonmapexecMapKubearmorArgsStore                   = "kubearmor_args_store"
+	anonmapexecMapKubearmorArguments                   = "kubearmor_arguments"
+	anonmapexecMapKubearmorConfig                      = "kubearmor_config"
+	anonmapexecMapKubearmorContainers                  = "kubearmor_containers"
+	anonmapexecMapKubearmorEvents                      = "kubearmor_events"
+	anonmapexecMapKubearmorExecPids                    = "kubearmor_exec_pids"
+	anonmapexecProgEnforceMmapFile                     = "enforce_mmap_file"
+	anonmapexecVarUnused                               = "unused"
+)
+
 // loadAnonmapexec returns the embedded CollectionSpec for anonmapexec.
 func loadAnonmapexec() (*ebpf.CollectionSpec, error) {
 	reader := bytes.NewReader(_AnonmapexecBytes)
@@ -66,7 +88,7 @@ func loadAnonmapexec() (*ebpf.CollectionSpec, error) {
 //	*anonmapexecMaps
 //
 // See ebpf.CollectionSpec.LoadAndAssign documentation for details.
-func loadAnonmapexecObjects(obj interface{}, opts *ebpf.CollectionOptions) error {
+func loadAnonmapexecObjects(obj any, opts *ebpf.CollectionOptions) error {
 	spec, err := loadAnonmapexec()
 	if err != nil {
 		return err

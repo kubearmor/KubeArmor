@@ -46,6 +46,28 @@ type protectenvCmdArgsKey struct {
 	Ind  uint64
 }
 
+// Names of all BPF objects in the ELF.
+//
+// Used for safe lookups in a Collection or CollectionSpec.
+const (
+	protectenvMapArgsBufk                            = "args_bufk"
+	protectenvMapBufk                                = "bufk"
+	protectenvMapBufs                                = "bufs"
+	protectenvMapBufsOff                             = "bufs_off"
+	protectenvMapCmdArgsBuf                          = "cmd_args_buf"
+	protectenvMapEvents                              = "events"
+	protectenvMapKubearmorAlertThrottle              = "kubearmor_alert_throttle"
+	protectenvMapKubearmorArgsStore                  = "kubearmor_args_store"
+	protectenvMapKubearmorArguments                  = "kubearmor_arguments"
+	protectenvMapKubearmorConfig                     = "kubearmor_config"
+	protectenvMapKubearmorContainers                 = "kubearmor_containers"
+	protectenvMapKubearmorEvents                     = "kubearmor_events"
+	protectenvMapKubearmorExecPids                   = "kubearmor_exec_pids"
+	protectenvMapKubearmorProtectenvPresetContainers = "kubearmor_protectenv_preset_containers"
+	protectenvProgEnvPresetEnforceFile               = "env_preset_enforce_file"
+	protectenvVarUnused                              = "unused"
+)
+
 // loadProtectenv returns the embedded CollectionSpec for protectenv.
 func loadProtectenv() (*ebpf.CollectionSpec, error) {
 	reader := bytes.NewReader(_ProtectenvBytes)
@@ -66,7 +88,7 @@ func loadProtectenv() (*ebpf.CollectionSpec, error) {
 //	*protectenvMaps
 //
 // See ebpf.CollectionSpec.LoadAndAssign documentation for details.
-func loadProtectenvObjects(obj interface{}, opts *ebpf.CollectionOptions) error {
+func loadProtectenvObjects(obj any, opts *ebpf.CollectionOptions) error {
 	spec, err := loadProtectenv()
 	if err != nil {
 		return err
