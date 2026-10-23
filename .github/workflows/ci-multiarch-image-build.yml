@@ -1,0 +1,61 @@
+name: ci-multiarch-image-build
+
+on:
+  workflow_call:
+
+# Declare default permissions as read only.
+permissions: read-all
+
+jobs:
+  ka-multiarch-img-build-test:
+    name: Build KubeArmor Multiarch Images
+    runs-on: oracle-vm-16cpu-64gb-x86-64
+    permissions: read-all
+    timeout-minutes: 150
+    
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          submodules: true
+
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version-file: "KubeArmor/go.mod"
+      - name: Install the latest LLVM toolchain
+        run: ./.github/workflows/install-llvm.sh
+
+      - name: Compile libbpf
+        run: ./.github/workflows/install-libbpf.sh
+
+      - name: Install bpftool
+        run: ./.github/workflows/install-bpftool.sh
+
+      - name: Generate vmlinux.h
+        run: make -C BPF kernel_headers
+        working-directory: KubeArmor
+
+      - name: Generate BPF files
+        run: go generate ./...
+        working-directory: KubeArmor
+
+      - name: Set up Docker
+        uses: docker/setup-docker-action@e43656e248c0bd0647d3f5c195d116aacf6fcaf4 # v4
+        with:
+          daemon-config: |
+            {
+              "debug": true,
+              "features": {
+                "containerd-snapshotter": true
+              }
+            }
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@2b82ce82d56a2a04d2637cd93a637ae1b359c0a7 # v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@885d1462b80bc1c1c7f0b00334ad271f09369c55 # v2
+        with:
+          platforms: linux/amd64,linux/arm64/v8
+
+      - name: Build KubeArmor images to Docker
+        run: GITHUB_SHA=$GITHUB_SHA ./KubeArmor/build/push_kubearmor.sh laatest --load
