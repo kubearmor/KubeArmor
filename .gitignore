@@ -25,6 +25,10 @@ contribution/vagrant/*.log
 *.o
 **/*.o
 
+# bpf2go generated files
+**/*bpfel.go
+**/*bpfeb.go
+
 # kernel header
 vmlinux.h
 
