@@ -1,0 +1,24 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: ksp-kubearmor-relay-block
+  namespace: kubearmor
+spec:
+  severity: 5
+  message: "KubeArmor relay zero-trust allow-list"
+  tags:
+  - KubeArmor-SelfProtection
+  - ZeroTrust
+  - BlockPhase
+  selector:
+    matchLabels:
+      kubearmor-app: kubearmor-relay
+  file:
+    matchDirectories:
+    - dir: /var/lib/kubearmor/tls/
+      recursive: true
+      action: Allow
+    - dir: /tmp/
+      recursive: true
+      action: Allow
+  action: Allow

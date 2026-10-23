@@ -1,0 +1,25 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: ksp-kubearmor-controller-audit
+  namespace: kubearmor
+spec:
+  severity: 5
+  message: "KubeArmor controller self-protection (audit phase — intentionally permissive)"
+  tags:
+  - KubeArmor-SelfProtection
+  - ZeroTrust
+  - AuditPhase
+  selector:
+    matchLabels:
+      kubearmor-app: kubearmor-controller
+  file:
+    matchDirectories:
+    - dir: /
+      recursive: true
+      action: Allow
+  process:
+    matchPaths:
+    - path: /manager
+      action: Allow
+  action: Allow
