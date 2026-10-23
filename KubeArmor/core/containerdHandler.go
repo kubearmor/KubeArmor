@@ -285,6 +285,14 @@ func (ch *ContainerdHandler) GetContainerInfo(ctx context.Context, containerID, 
 
 		container.NodeID = nodeID
 
+		// containerd doesn't expose a container's IP through its own API
+		// (unlike Docker); resolve it via the container's network namespace.
+		// NetworkPolicyEnforcer is the only consumer, so don't pay for the
+		// namespace switch when it's disabled.
+		if cfg.GlobalCfg.NetworkPolicyEnforcer {
+			container.ContainerIP = kl.GetContainerIPFromPid(container.Pid)
+		}
+
 		labels := []string{}
 		for k, v := range res.Labels {
 			labels = append(labels, k+"="+v)
@@ -543,6 +551,10 @@ func (dm *KubeArmorDaemon) UpdateContainerdContainer(ctx context.Context, contai
 			go dm.StateAgent.PushContainerEvent(container, state.EventAdded)
 		}
 
+		if !dm.K8sEnabled && cfg.GlobalCfg.NetworkPolicyEnforcer && dm.NetworkPolicyEnforcer != nil {
+			dm.UpdateNetworkSecurityPolicies()
+		}
+
 		dm.Logger.Printf("Detected a container (added/%.12s/pidns=%d/mntns=%d)", containerID, container.PidNS, container.MntNS)
 
 	} else if action == "destroy" {
@@ -610,6 +622,10 @@ func (dm *KubeArmorDaemon) UpdateContainerdContainer(ctx context.Context, contai
 		if cfg.GlobalCfg.StateAgent {
 			container.Status = "terminated"
 			go dm.StateAgent.PushContainerEvent(container, state.EventDeleted)
+		}
+
+		if !dm.K8sEnabled && cfg.GlobalCfg.NetworkPolicyEnforcer && dm.NetworkPolicyEnforcer != nil {
+			dm.UpdateNetworkSecurityPolicies()
 		}
 
 		dm.Logger.Printf("Detected a container (removed/%.12s/pidns=%d/mntns=%d)", containerID, container.PidNS, container.MntNS)
