@@ -409,6 +409,8 @@ func NewFeeder(node *tp.Node, nodeLock **sync.RWMutex) (feeder *Feeder) {
 		ttl:       10 * time.Minute,
 	}
 
+	fd.ContainerNsKey = make(map[string]common.OuterKey)
+
 	return fd
 }
 
@@ -774,9 +776,14 @@ func (fd *Feeder) PushLog(log tp.Log) {
 	// gRPC output
 	if log.Type == "MatchedPolicy" || log.Type == "MatchedHostPolicy" || log.Type == "SystemEvent" {
 
-		// checking throttling condition for "Audit" alerts when enforcer is 'eBPF Monitor'
-		if cfg.GlobalCfg.AlertThrottling && ((strings.Contains(log.Action, "Audit") && log.Enforcer == "eBPF Monitor") || (log.Type == "MatchedHostPolicy" && (log.Enforcer == "AppArmor" || log.Enforcer == "eBPF Monitor"))) {
+		// checking throttling condition for container and host policy alerts (excluding DefaultPosture)
+		if cfg.GlobalCfg.AlertThrottling &&
+			((log.Type == "MatchedPolicy" || log.Type == "MatchedHostPolicy") &&
+				(log.Enforcer == "AppArmor" || log.Enforcer == "SELinux" || log.Enforcer == "eBPF Monitor") &&
+				log.PolicyName != "DefaultPosture") {
+			fd.AlertMapLock.RLock()
 			nsKey := fd.ContainerNsKey[log.ContainerID]
+			fd.AlertMapLock.RUnlock()
 			alert, throttle := fd.ShouldDropAlertsPerContainer(nsKey.PidNs, nsKey.MntNs)
 			if alert && throttle {
 				return
