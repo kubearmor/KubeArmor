@@ -33,13 +33,13 @@ spec:
       imagePullSecrets:
         - name: {{ .Values.registry.secretName }}
       {{- end }}
-      {{- if .Values.kubearmorOperator.tolerations }}
-      tolerations: 
-        {{- toYaml .Values.kubearmorOperator.tolerations | nindent 8 }}
+      {{- with .Values.kubearmorOperator.tolerations | default .Values.kubearmorConfig.globalTolerations | default .Values.global.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- if .Values.kubearmorOperator.nodeSelector }}
+      {{- with .Values.kubearmorOperator.nodeSelector | default .Values.kubearmorConfig.globalNodeSelector | default .Values.global.nodeSelector }}
       nodeSelector: 
-        {{- .Values.kubearmorOperator.nodeSelector | toYaml | nindent 8}}
+        {{- . | toYaml | nindent 8}}
       {{- end }}
       containers:
       - name: {{ .Values.kubearmorOperator.name }}
