@@ -11,7 +11,7 @@ RUN apk --no-cache update && \
     apk add --no-cache musl musl-utils perl
 
 RUN apk --no-cache update
-RUN apk --no-cache add bash git clang llvm make gcc bpftool
+RUN apk --no-cache add bash git clang llvm make gcc bpftool pkgconf elfutils-dev zlib-dev
 
 COPY ./KubeArmor/BPF /KubeArmor/BPF/
 COPY ./KubeArmor/build/compile.sh /KubeArmor/compile.sh
@@ -35,6 +35,8 @@ RUN microdnf -y update && \
         glibc-devel && \
     microdnf -y install --nodocs --setopt=install_weak_deps=0 --setopt=keepcache=0 \
         shadow-utils git clang llvm make gcc libbpf tar gzip && \
+     microdnf -y install --nodocs --setopt=install_weak_deps=0 --setopt=keepcache=0 \
+        pkgconf-pkg-config elfutils-libelf-devel zlib-devel && \
     microdnf clean all
 
 # install bpftool  
