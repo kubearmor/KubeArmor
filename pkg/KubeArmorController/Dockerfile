@@ -2,7 +2,7 @@
 # Copyright 2026 Authors of KubeArmor
 
 # Build the manager binary
-FROM golang:1.26.10@sha256:fb456410ab4c979617acaf28c46b2b9fe60b11bcc3dc8ceea0eaeb3e7cd0f8a8 AS builder
+FROM golang:1.26.10@sha256:672c944cfd07599b5f1bb179869270cdc94c6254e41db4d431259693cb286b82 AS builder
 
 WORKDIR /workspace
 # Copy the Go Modules manifests
@@ -31,7 +31,7 @@ COPY --from=builder /workspace/manager .
 ENTRYPOINT ["/manager"]
 
 # Build controller with ubi as base image
-FROM redhat/ubi10-minimal@sha256:3948fdfe71007909b37faf48c52eda28bfab7c4e440d6f4d4619422d06ceeb4c AS controller-ubi
+FROM redhat/ubi10-minimal@sha256:ab67cd02caf8706e34a695a1432ebe965934f6128ec352a6c3f4048b43a4fb5e AS controller-ubi
 
 ARG VERSION=latest
 
