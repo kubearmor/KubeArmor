@@ -640,7 +640,7 @@ func KubeArmor() {
 	// == //
 
 	// health server — dedicated gRPC server for healthcheck since grpc probes are not supported with TLS
-	healthLis, err := net.Listen("tcp", ":"+cfg.GlobalCfg.GRPCHealthPort)
+	healthLis, err := net.Listen("tcp", ":"+cfg.GlobalCfg.GRPCHealthPort) // #nosec G102
 	if err != nil {
 		dm.Logger.Errf("Failed to listen on plaintext health port %s: %v", cfg.GlobalCfg.GRPCHealthPort, err)
 	} else {
