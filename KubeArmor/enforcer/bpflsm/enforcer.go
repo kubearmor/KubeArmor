@@ -28,6 +28,7 @@ import (
 
 //go:generate go run github.com/cilium/ebpf/cmd/bpf2go -cc clang enforcer ../../BPF/enforcer.bpf.c -- -I/usr/include/ -O2 -g -fno-stack-protector -Wno-missing-declarations
 //go:generate go run github.com/cilium/ebpf/cmd/bpf2go -cc clang enforcer_path ../../BPF/enforcer_path.bpf.c -- -I/usr/include/ -O2 -g -fno-stack-protector -Wno-missing-declarations
+//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -cc clang process_monitor ../../BPF/process_monitor.bpf.c -- -I/usr/include/ -O2 -g -fno-stack-protector -Wno-missing-declarations
 
 // ===================== //
 // == BPFLSM Enforcer == //
@@ -279,9 +280,9 @@ func NewBPFEnforcer(node tp.Node, pinpath string, logger *fd.Feeder, monitor *mo
 	}); err != nil {
 		be.Logger.Warnf("error loading process_monitor objects: %v", err)
 	} else {
-		be.Probes["sys_execve_args"], err = link.Kprobe("sys_execve", be.objProcess.KprobeArgsExecve, nil)
+		be.Probes["sys_enter_execve"], err = link.Tracepoint("syscalls", "sys_enter_execve", be.objProcess.SysEnterExecve, nil)
 		if err != nil {
-			be.Logger.Warnf("opening kprobe sys_execve: %s", err)
+			be.Logger.Warnf("opening tracepoint sys_enter_setns: %s", err)
 		}
 
 		if !cfg.GlobalCfg.SystemMonitor {
