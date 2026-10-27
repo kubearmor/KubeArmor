@@ -414,7 +414,13 @@ func findGoSymbolOffsets(fpath string, offsets map[string]*GoTlsExtendedOffset) 
 		offsets[sym.Name] = extendedOffset
 	}
 
-	goidOffset, gStructOffset, err = getGoidOffset(elfFile, netConnOffsets)
+	// NOTE: getGoidOffset (full DWARF traversal, ~2.8GB of allocations per
+	// binary in profiles) used to run here. goid/g-struct/net.Conn offsets are
+	// not consumed by any probe (populateGoBPFMaps uses fixed stdlib layouts),
+	// so it is skipped. Set KUBEARMOR_GO_DWARF_OFFSETS=1 to re-enable.
+	if os.Getenv("KUBEARMOR_GO_DWARF_OFFSETS") == "1" {
+		goidOffset, gStructOffset, err = getGoidOffset(elfFile, netConnOffsets)
+	}
 	return goidOffset, gStructOffset, netConnOffsets, err
 }
 

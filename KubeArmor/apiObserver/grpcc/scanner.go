@@ -9,7 +9,76 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 )
+
+// offsetsCache memoises OffsetsForLib per canonical library path. The ELF
+// .rodata scan behind OffsetsForLib is expensive, and the same libgrpc.so is
+// typically shared by many processes.
+var (
+	offsetsCacheMu sync.Mutex
+	offsetsCache   = map[string]offsetsResult{}
+)
+
+type offsetsResult struct {
+	offsets GRPCCOffsets
+	err     error
+}
+
+func cachedOffsetsForLib(libPath string) (GRPCCOffsets, error) {
+	offsetsCacheMu.Lock()
+	if r, ok := offsetsCache[libPath]; ok {
+		offsetsCacheMu.Unlock()
+		return r.offsets, r.err
+	}
+	offsetsCacheMu.Unlock()
+
+	offsets, err := OffsetsForLib(libPath)
+
+	offsetsCacheMu.Lock()
+	offsetsCache[libPath] = offsetsResult{offsets: offsets, err: err}
+	offsetsCacheMu.Unlock()
+	return offsets, err
+}
+
+// ScanPID inspects /proc/<pid>/maps of a single process for libgrpc.so and
+// returns a GRPCCTarget per distinct library. Unlike ScanProc it does NOT walk
+// every process on the host, so it is safe to call once per newly discovered
+// PID from the unified proc walker.
+func ScanPID(pid int) ([]GRPCCTarget, error) {
+	data, err := os.ReadFile(fmt.Sprintf("/proc/%d/maps", pid)) // #nosec G304 -- integer PID
+	if err != nil {
+		return nil, err // process may have exited
+	}
+	// Cheap pre-check avoids splitting the whole maps file for the
+	// overwhelming majority of processes that do not use libgrpc.
+	if !strings.Contains(string(data), "libgrpc.so") {
+		return nil, nil
+	}
+
+	var targets []GRPCCTarget
+	seen := make(map[string]bool)
+	for _, line := range strings.Split(string(data), "\n") {
+		if !strings.Contains(line, "libgrpc.so") {
+			continue
+		}
+		fields := strings.Fields(line)
+		if len(fields) < 6 || seen[fields[5]] {
+			continue
+		}
+		seen[fields[5]] = true
+		libPath, err := filepath.EvalSymlinks(fields[5])
+		if err != nil {
+			libPath = fields[5]
+		}
+		offsets, err := cachedOffsetsForLib(libPath)
+		if err != nil {
+			continue // unsupported version — caller treats as not-a-target
+		}
+		targets = append(targets, GRPCCTarget{PID: pid, LibPath: libPath, Offsets: offsets})
+	}
+	return targets, nil
+}
 
 // GRPCCTarget is a process that has libgrpc.so loaded with known struct offsets.
 type GRPCCTarget struct {

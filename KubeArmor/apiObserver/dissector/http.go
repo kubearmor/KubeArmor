@@ -22,6 +22,7 @@ import (
 	"github.com/kubearmor/KubeArmor/KubeArmor/apiObserver/events"
 	"github.com/kubearmor/KubeArmor/KubeArmor/apiObserver/poller"
 	"github.com/kubearmor/KubeArmor/KubeArmor/apiObserver/protocols/grpc"
+	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
 	fd "github.com/kubearmor/KubeArmor/KubeArmor/feeder"
 )
 
@@ -64,14 +65,14 @@ type Dissector struct {
 	log     *fd.Feeder
 	stop    chan struct{} // closed by Close() to stop background goroutines
 
-	// HTTP/1 streams: key = "srcIP:srcPort>dstIP:dstPort"
+	// HTTP/1 streams: key = connKey{hi, lo}
 	h1mu      sync.Mutex
-	h1streams map[string]*h1Stream
+	h1streams map[connKey]*h1Stream
 
-	// HTTP/2 connections: key = connection ID → per-stream-ID state
+	// HTTP/2 connections: key = connKey{hi, lo} → per-stream-ID state
 	// Used by the raw-packet (non-TLS) path only.
 	h2mu    sync.Mutex
-	h2conns map[string]*h2Conn
+	h2conns map[connKey]*h2Conn
 
 	// TLS stream assembler: handles TLS HTTP/2 traffic with
 	// timestamp-sorted chunk delivery and per-direction HPACK decoders.
@@ -91,8 +92,8 @@ func New(handler Handler, svcResolver func(string) string, logger *fd.Feeder, cf
 		cfg:       cfg,
 		svcFn:     svcResolver,
 		log:       logger,
-		h1streams: make(map[string]*h1Stream),
-		h2conns:   make(map[string]*h2Conn),
+		h1streams: make(map[connKey]*h1Stream),
+		h2conns:   make(map[connKey]*h2Conn),
 		stop:      make(chan struct{}),
 	}
 	// TLS stream assembler for HTTP/2 over TLS with ordered chunk delivery.
@@ -101,12 +102,13 @@ func New(handler Handler, svcResolver func(string) string, logger *fd.Feeder, cf
 	// idle for more than 5 minutes. This prevents unbounded memory growth from
 	// connections closed without a TCP FIN (e.g. pod restarts).
 	go func() {
-		ticker := time.NewTicker(2 * time.Minute)
+		ticker := time.NewTicker(30 * time.Second)
 		defer ticker.Stop()
 		for {
 			select {
 			case <-ticker.C:
 				d.gcStaleH2Conns(5 * time.Minute)
+				d.gcStaleH1Streams(60 * time.Second)
 			case <-d.stop:
 				return
 			}
@@ -130,6 +132,12 @@ func (d *Dissector) Close() {
 // It extracts TCP payload bytes and routes them to the appropriate stream
 // reassembler based on detected protocol.
 func (d *Dissector) HandleRawPacket(pkt *poller.RawPacket) {
+	// Cheap rejection BEFORE any string formatting: pure ACKs, loopback and
+	// raw TLS records make up the bulk of captured traffic and are dropped
+	// below anyway.
+	if skipRawPacket(pkt) {
+		return
+	}
 	info, payload, err := extractTransportPayload(pkt)
 	if err != nil {
 		return // non-TCP/UDP or unsupported — expected and normal
@@ -186,6 +194,49 @@ func (d *Dissector) HandleRawPacket(pkt *poller.RawPacket) {
 	}
 
 	d.processPayload(info, payload, false)
+}
+
+// skipRawPacket reports whether an IPv4/TCP packet can be dropped without
+// building a streamInfo: loopback traffic, payload-less segments that are not
+// SYNs (SYNs must still reach the state-reset logic), and raw TLS records.
+// Anything it cannot cheaply classify is passed on (returns false).
+func skipRawPacket(pkt *poller.RawPacket) bool {
+	if pkt.IPHdrType != 0x0800 {
+		return false
+	}
+	data := pkt.Data
+	if len(data) < 20 {
+		return false
+	}
+	ihl := int(data[0]&0x0f) * 4
+	if ihl < 20 || len(data) < ihl+20 || data[9] != 6 { // TCP only
+		return false
+	}
+	if data[12] == 127 || data[16] == 127 { // 127.0.0.0/8
+		return true
+	}
+	if pkt.IsTCPSyn() {
+		return false
+	}
+	payloadStart := ihl + int(data[ihl+12]>>4)*4
+	if payloadStart >= len(data) {
+		return true // pure ACK
+	}
+	return isTLSRecord(data[payloadStart:])
+}
+
+// ipv4String formats 4 bytes as dotted-quad with a single allocation
+// (fmt.Sprintf costs several).
+func ipv4String(b []byte) string {
+	var buf [15]byte
+	out := buf[:0]
+	for i := 0; i < 4; i++ {
+		if i > 0 {
+			out = append(out, '.')
+		}
+		out = strconv.AppendUint(out, uint64(b[i]), 10)
+	}
+	return string(out)
 }
 
 // isLoopbackIP returns true for 127.0.0.0/8 (IPv4) and ::1 (IPv6) addresses.
@@ -248,20 +299,23 @@ func (d *Dissector) HandleTlsChunk(chunk *events.TlsChunkEvent) {
 		return
 	}
 
-	// Log every TLS chunk with full metadata for diagnosis.
-	dataPreview := chunk.Data
-	if len(dataPreview) > 64 {
-		dataPreview = dataPreview[:64]
+	// Log every TLS chunk with full metadata for diagnosis (debug only —
+	// building the preview and IP strings is not free).
+	if cfg.GlobalCfg.Debug {
+		dataPreview := chunk.Data
+		if len(dataPreview) > 64 {
+			dataPreview = dataPreview[:64]
+		}
+		readStr := "write(egress)"
+		if chunk.IsRead() {
+			readStr = "read(ingress)"
+		}
+		d.log.Debugf("[TLS] CHUNK pid=%d fd=%d cgroupID=%d family=%d src=%s:%d dst=%s:%d op=%s len=%d recorded=%d data=%q",
+			chunk.PID, chunk.FD, chunk.CgroupID, chunk.Family,
+			chunk.SrcIPString(), chunk.SrcPort,
+			chunk.DstIPString(), chunk.DstPort,
+			readStr, chunk.Len, chunk.Recorded, dataPreview)
 	}
-	readStr := "write(egress)"
-	if chunk.IsRead() {
-		readStr = "read(ingress)"
-	}
-	d.log.Debugf("[TLS] CHUNK pid=%d fd=%d cgroupID=%d family=%d src=%s:%d dst=%s:%d op=%s len=%d recorded=%d data=%q",
-		chunk.PID, chunk.FD, chunk.CgroupID, chunk.Family,
-		chunk.SrcIPString(), chunk.SrcPort,
-		chunk.DstIPString(), chunk.DstPort,
-		readStr, chunk.Len, chunk.Recorded, dataPreview)
 
 	info := streamInfo{
 		srcIP:     chunk.SrcIPString(),
@@ -331,17 +385,68 @@ type streamInfo struct {
 	timestamp        time.Time
 }
 
-// connKey returns a stable connection key (always pod-side-first order).
-// Uses packet direction to ensure egress + ingress of the same TCP connection
-// produce the same key regardless of isRequest (which is unreliable for HTTP/2
-// binary frames where isHTTPRequest always returns false).
-func (s streamInfo) connKey() string {
-	if s.direction == 1 {
-		// Egress: pod is src, peer is dst → stable key: src>dst
-		return fmt.Sprintf("%s:%d>%s:%d", s.srcIP, s.srcPort, s.dstIP, s.dstPort)
+// connKey is a zero-allocation map key that encodes a TCP/UDP connection
+// endpoint pair. hi encodes the pod-side endpoint; lo encodes the peer-side
+// endpoint. Each field packs an IP address (IPv4: 32-bit; IPv6: FNV-folded)
+// into the upper 48 bits and a port number into the lower 16 bits.
+type connKey struct {
+	hi, lo uint64
+}
+
+// ipToUint64 converts an IP address string to a uint64 for use in connKey.
+// IPv4: straightforward 32-bit value in the upper 32 bits.
+// IPv6: FNV-1a fold of all bytes (no allocation, good distribution).
+func ipToUint64(ip string) uint64 {
+	// Fast path: parse IPv4 "a.b.c.d" without allocating.
+	var v, cur uint64
+	dots := 0
+	for i := 0; i < len(ip); i++ {
+		c := ip[i]
+		if c == '.' {
+			v = v<<8 | cur
+			cur = 0
+			dots++
+		} else if c >= '0' && c <= '9' {
+			cur = cur*10 + uint64(c-'0')
+		} else {
+			// Not pure digits/dots — must be IPv6. Fall through to FNV.
+			goto ipv6
+		}
 	}
-	// Ingress: peer is src, pod is dst → stable key: dst>src (pod-side first)
-	return fmt.Sprintf("%s:%d>%s:%d", s.dstIP, s.dstPort, s.srcIP, s.srcPort)
+	v = v<<8 | cur
+	if dots == 3 {
+		return v
+	}
+ipv6:
+	// FNV-1a hash over the IPv6 string — zero allocation, good distribution.
+	h := uint64(14695981039346656037)
+	for i := 0; i < len(ip); i++ {
+		h ^= uint64(ip[i])
+		h *= 1099511628211
+	}
+	return h
+}
+
+// connKey returns a stable, zero-allocation connection key (pod-side first).
+// Uses packet direction to ensure egress + ingress of the same TCP connection
+// produce the same key regardless of isRequest.
+func (s streamInfo) connKey() connKey {
+	podIP, podPort := s.srcIP, s.srcPort
+	peerIP, peerPort := s.dstIP, s.dstPort
+	if s.direction != 1 {
+		// Ingress: peer is src, pod is dst — swap so pod-side is always hi.
+		podIP, podPort = s.dstIP, s.dstPort
+		peerIP, peerPort = s.srcIP, s.srcPort
+	}
+	return connKey{
+		hi: ipToUint64(podIP)<<16 | uint64(podPort),
+		lo: ipToUint64(peerIP)<<16 | uint64(peerPort),
+	}
+}
+
+// String implements fmt.Stringer for debug logging.
+func (k connKey) String() string {
+	return fmt.Sprintf("%x>%x", k.hi, k.lo)
 }
 
 // ============================================================================
@@ -355,13 +460,9 @@ func (d *Dissector) processPayload(info streamInfo, payload []byte, fromTLS bool
 	proto := detectProtocol(payload)
 	switch proto {
 	case protoHTTP1:
-		d.log.Debugf("[TLS] PROTO detected=HTTP/1 key=%s isRequest=%v fromTLS=%v payloadLen=%d",
-			key, info.isRequest, fromTLS, len(payload))
 		d.handleHTTP1(info, payload)
-	case protoHTTP2, protoGRPC:
-		d.log.Debugf("[TLS] PROTO detected=HTTP/2 key=%s isRequest=%v fromTLS=%v payloadLen=%d",
-			key, info.isRequest, fromTLS, len(payload))
 
+	case protoHTTP2, protoGRPC:
 		if !fromTLS && len(payload) >= 24 && string(payload[:24]) == "PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n" {
 			d.h2mu.Lock()
 			conn := d.getH2Conn_locked(key)
@@ -389,14 +490,6 @@ func (d *Dissector) processPayload(info streamInfo, payload []byte, fromTLS bool
 		d.h2mu.Unlock()
 
 		if isKnownH2 {
-			d.log.Debugf("[TLS] PROTO fragment key=%s payloadLen=%d fromTLS=%v prefix=%q → existing HTTP/2 conn",
-				key, len(payload), fromTLS,
-				func() string {
-					if len(payload) > 8 {
-						return fmt.Sprintf("%x", payload[:8])
-					}
-					return fmt.Sprintf("%x", payload)
-				}())
 			d.handleHTTP2(info, payload)
 			return
 		}
@@ -405,13 +498,7 @@ func (d *Dissector) processPayload(info streamInfo, payload []byte, fromTLS bool
 		// This handles TLS traffic where the protocol isn't in the plaintext
 		// prefix, and also catches HTTP/1 on non-standard ports.
 		d.log.Debugf("[TLS] PROTO unknown key=%s isRequest=%v fromTLS=%v payloadLen=%d prefix=%q — falling back to HTTP/1",
-			key, info.isRequest, fromTLS, len(payload),
-			func() string {
-				if len(payload) > 12 {
-					return string(payload[:12])
-				}
-				return string(payload)
-			}())
+			key, info.isRequest, fromTLS, len(payload), payloadPrefix(payload, 12))
 		d.handleHTTP1(info, payload)
 	}
 }
@@ -490,9 +577,10 @@ func detectProtocol(data []byte) protocol {
 // ============================================================================
 
 type h1Stream struct {
-	mu      sync.Mutex
-	connKey string
-	pending []h1Pending // FIFO queue (pipelining)
+	mu       sync.Mutex
+	connKey  connKey
+	pending  []h1Pending // FIFO queue (pipelining)
+	lastSeen time.Time   // updated on every request/response; used by gcStaleH1Streams
 }
 
 type h1Pending struct {
@@ -508,38 +596,65 @@ type h1Pending struct {
 	reqBody string
 }
 
-func (d *Dissector) getH1Stream(key string) *h1Stream {
+// maxH1Pending caps the per-connection request queue so a connection that
+// only ever sends requests (responses missed) cannot grow without bound.
+const maxH1Pending = 64
+
+// getH1Stream returns the h1Stream for key, creating it if needed.
+func (d *Dissector) getH1Stream(key connKey) *h1Stream {
 	d.h1mu.Lock()
 	defer d.h1mu.Unlock()
 	s, ok := d.h1streams[key]
 	if !ok {
-		s = &h1Stream{connKey: key}
+		s = &h1Stream{connKey: key, lastSeen: time.Now()}
 		d.h1streams[key] = s
 	}
 	return s
 }
 
+// lookupH1Stream returns the existing h1Stream for key or nil. It never
+// allocates a map entry, so non-HTTP/continuation payloads cannot leak state.
+func (d *Dissector) lookupH1Stream(key connKey) *h1Stream {
+	d.h1mu.Lock()
+	s := d.h1streams[key]
+	d.h1mu.Unlock()
+	return s
+}
+
+// gcStaleH1Streams evicts HTTP/1 streams idle for longer than maxAge.
+// TLS-path connections never see a TCP SYN, so without this the map grows
+// forever.
+func (d *Dissector) gcStaleH1Streams(maxAge time.Duration) {
+	cutoff := time.Now().Add(-maxAge)
+	d.h1mu.Lock()
+	defer d.h1mu.Unlock()
+	for key, s := range d.h1streams {
+		s.mu.Lock()
+		if s.lastSeen.Before(cutoff) {
+			delete(d.h1streams, key)
+		}
+		s.mu.Unlock()
+	}
+}
+
+// payloadPrefix returns up to n bytes of payload as a string (debug only).
+func payloadPrefix(payload []byte, n int) string {
+	if len(payload) > n {
+		return string(payload[:n])
+	}
+	return string(payload)
+}
+
 func (d *Dissector) handleHTTP1(info streamInfo, payload []byte) {
 	key := info.connKey()
-	stream := d.getH1Stream(key)
-	stream.mu.Lock()
-	defer stream.mu.Unlock()
 
 	if info.isRequest {
 		br := bufioReaderPool.Get().(*bufio.Reader)
 		br.Reset(bytes.NewReader(payload))
-		req, err := http.ReadRequest(br)
 		defer bufioReaderPool.Put(br)
+		req, err := http.ReadRequest(br)
 		if err != nil {
-			d.log.Debugf("[TLS][HTTP1] DROP key=%s: ReadRequest failed: %v (payloadLen=%d prefix=%q)",
-				key, err, len(payload),
-				func() string {
-					if len(payload) > 24 {
-						return string(payload[:24])
-					}
-					return string(payload)
-				}())
-			return
+			return // not a valid request: do NOT create stream state
 		}
 		reqBody := d.readBody(req.Body)
 		hdrs := headersToMap(req.Header)
@@ -548,8 +663,15 @@ func (d *Dissector) handleHTTP1(info streamInfo, payload []byte) {
 		if req.Host != "" {
 			hdrs["Host"] = req.Host
 		}
-		d.log.Debugf("[TLS][HTTP1] ENQUEUE REQUEST key=%s method=%s url=%s ssl=%v pending_before=%d",
-			key, req.Method, req.URL.String(), info.isSSL, len(stream.pending))
+		urlStr := req.URL.String()
+
+		stream := d.getH1Stream(key)
+		stream.mu.Lock()
+		defer stream.mu.Unlock()
+		stream.lastSeen = time.Now()
+		if len(stream.pending) >= maxH1Pending {
+			stream.pending = stream.pending[1:]
+		}
 		stream.pending = append(stream.pending, h1Pending{
 			ts:    info.timestamp,
 			srcIP: info.srcIP, dstIP: info.dstIP,
@@ -557,37 +679,39 @@ func (d *Dissector) handleHTTP1(info streamInfo, payload []byte) {
 			cgroupID: info.cgroupID,
 			isSSL:    info.isSSL,
 			method:   req.Method,
-			url:      req.URL.String(),
+			url:      urlStr,
 			reqHdrs:  hdrs,
 			reqBody:  reqBody,
 		})
 		return
 	}
 
-	// Response path.
+	// Response path: only meaningful if a request is already pending.
+	stream := d.lookupH1Stream(key)
+	if stream == nil {
+		return
+	}
+	stream.mu.Lock()
+	defer stream.mu.Unlock()
+	if len(stream.pending) == 0 {
+		return // skip http.ReadResponse entirely
+	}
+
 	br := bufioReaderPool.Get().(*bufio.Reader)
 	br.Reset(bytes.NewReader(payload))
 	defer bufioReaderPool.Put(br)
 	resp, err := http.ReadResponse(br, nil)
 	if err != nil {
-		d.log.Debugf("[TLS][HTTP1] DROP key=%s: ReadResponse failed: %v (payloadLen=%d prefix=%q)",
-			key, err, len(payload),
-			func() string {
-				if len(payload) > 24 {
-					return string(payload[:24])
-				}
-				return string(payload)
-			}())
 		return
 	}
-	if len(stream.pending) == 0 {
-		d.log.Debugf("[TLS][HTTP1] DROP key=%s: response arrived but no pending request (status=%d)",
-			key, resp.StatusCode)
-		return
-	}
+	stream.lastSeen = time.Now()
 	// Pop the matching request (FIFO pipelining).
 	req := stream.pending[0]
+	stream.pending[0] = h1Pending{} // release references
 	stream.pending = stream.pending[1:]
+	if len(stream.pending) == 0 {
+		stream.pending = nil // drop the backing array
+	}
 
 	d.log.Debugf("[TLS][HTTP1] MATCHED key=%s method=%s url=%s status=%d ssl=%v",
 		key, req.method, req.url, resp.StatusCode, req.isSSL)
@@ -637,17 +761,17 @@ func (d *Dissector) buildHTTP1Event(req h1Pending, resp *http.Response, respHdrs
 			Ip:   dstLabel,
 			Port: int32(req.dstPort),
 		},
-		Req: &pb.APIEvent_Request{Request: &pb.Request{
+		Request: &pb.Request{
 			Method:  req.method,
 			Path:    req.url,
 			Headers: req.reqHdrs,
 			Body:    capString(req.reqBody, d.cfg.MaxBodySize),
-		}},
-		Res: &pb.APIEvent_Response{Response: &pb.Response{
+		},
+		Response: &pb.Response{
 			StatusCode: statusCode,
 			Headers:    respHdrs,
 			Body:       capString(respBody, d.cfg.MaxBodySize),
-		}},
+		},
 		Protocol: proto,
 	}
 }
@@ -675,7 +799,7 @@ func (d *Dissector) buildHTTP1Event(req h1Pending, resp *http.Response, respHdrs
 // connections whose buffers have been idle for more than 5 minutes.
 type h2Conn struct {
 	mu       sync.Mutex
-	key      string
+	key      connKey // used as map key
 	peerDec  *hpack.Decoder
 	selfDec  *hpack.Decoder
 	streams  map[uint32]*h2Stream
@@ -689,6 +813,16 @@ type h2Conn struct {
 	// respBuf accumulates server→client bytes (HEADERS/DATA sent by the server).
 	reqBuf  bytes.Buffer
 	respBuf bytes.Buffer
+
+	// Per-connection Framers, reused across frames to avoid per-frame allocation.
+	// Each Framer is backed by a bytes.Reader that is Reset() to point at the
+	// current frame bytes — no allocation on the hot path.
+	// reqFramer decodes client→server frames; respFramer decodes server→client frames.
+	// ReadMetaHeaders is set once at construction and updated only on HPACK reset.
+	reqFramerBuf  bytes.Reader
+	respFramerBuf bytes.Reader
+	reqFramer     *http2.Framer
+	respFramer    *http2.Framer
 }
 
 // h2Stream tracks a single HTTP/2 stream.
@@ -715,7 +849,7 @@ type h2Stream struct {
 	respBodyBuf bytes.Buffer
 }
 
-func (d *Dissector) getH2Conn_locked(key string) *h2Conn {
+func (d *Dissector) getH2Conn_locked(key connKey) *h2Conn {
 	c, ok := d.h2conns[key]
 	if !ok {
 		c = &h2Conn{
@@ -725,12 +859,19 @@ func (d *Dissector) getH2Conn_locked(key string) *h2Conn {
 			streams:  make(map[uint32]*h2Stream),
 			lastSeen: time.Now(),
 		}
+		// Initialize per-connection Framers backed by the embedded bytes.Reader fields.
+		// These are reused for every frame on this connection (Reset() to new frame bytes)
+		// instead of allocating a fresh Framer + buffer per frame.
+		c.reqFramer = http2.NewFramer(io.Discard, &c.reqFramerBuf)
+		c.reqFramer.ReadMetaHeaders = c.selfDec
+		c.respFramer = http2.NewFramer(io.Discard, &c.respFramerBuf)
+		c.respFramer.ReadMetaHeaders = c.peerDec
 		d.h2conns[key] = c
 	}
 	return c
 }
 
-func (d *Dissector) getH2Conn(key string) *h2Conn {
+func (d *Dissector) getH2Conn(key connKey) *h2Conn {
 	d.h2mu.Lock()
 	defer d.h2mu.Unlock()
 	return d.getH2Conn_locked(key)
@@ -832,16 +973,9 @@ func (d *Dissector) handleHTTP2(info streamInfo, payload []byte) {
 	}
 	buf.Write(data)
 
-	// Pick the HPACK decoder for this direction.
-	// HTTP/2 has two independent HPACK dynamic tables (RFC 9113 §4.3):
-	//   selfDec: client's encoding context (used to decode request HEADERS)
-	//   peerDec: server's encoding context (used to decode response HEADERS)
-	var hpackDec *hpack.Decoder
-	if info.isRequest {
-		hpackDec = conn.selfDec
-	} else {
-		hpackDec = conn.peerDec
-	}
+	// The HPACK decoder for each direction is wired into the per-connection
+	// reused Framer (reqFramer / respFramer) via ReadMetaHeaders at construction
+	// and updated on HPACK reset. No need for a local hpackDec variable here.
 
 	// Parse as many complete frames as the buffer contains.
 	// We check the frame header (9 bytes) to learn the payload length, then
@@ -866,11 +1000,14 @@ func (d *Dissector) handleHTTP2(info streamInfo, payload []byte) {
 			d.log.Debugf("[TLS][HTTP2] oversized frame payload (%d bytes) on key=%s isRequest=%v — resetting",
 				framePayloadLen, key, info.isRequest)
 			buf.Reset()
-			// Also reset the HPACK decoder since we may have partial state.
+			// Also reset the HPACK decoder since we may have partial state,
+			// and re-wire the reused Framer to the new decoder.
 			if info.isRequest {
 				conn.selfDec = hpack.NewDecoder(4096, nil)
+				conn.reqFramer.ReadMetaHeaders = conn.selfDec
 			} else {
 				conn.peerDec = hpack.NewDecoder(4096, nil)
+				conn.respFramer.ReadMetaHeaders = conn.peerDec
 			}
 			return
 		}
@@ -886,12 +1023,20 @@ func (d *Dissector) handleHTTP2(info streamInfo, payload []byte) {
 		frameBytes := make([]byte, totalFrameLen)
 		_, _ = io.ReadFull(buf, frameBytes) // guaranteed to succeed: buf.Len() >= totalFrameLen
 
-		// Feed the isolated frame into a fresh Framer.
-		// The Framer is stateless for framing (only HPACK decoders are stateful),
-		// so creating a new one per frame is correct and avoids any internal
-		// EOF/buffering surprises.
-		framer := http2.NewFramer(io.Discard, bytes.NewReader(frameBytes))
-		framer.ReadMetaHeaders = hpackDec
+		// Feed the isolated frame into the per-connection reused Framer.
+		// We Reset() the backing bytes.Reader to point at the current frame bytes —
+		// zero allocation vs. http2.NewFramer(io.Discard, bytes.NewReader(frameBytes))
+		// which was responsible for ~40% of total allocations at scale.
+		// ReadMetaHeaders remains bound to the connection's HPACK decoder (selfDec /
+		// peerDec) from construction; it is only updated when a HPACK reset occurs.
+		var framer *http2.Framer
+		if info.isRequest {
+			conn.reqFramerBuf.Reset(frameBytes)
+			framer = conn.reqFramer
+		} else {
+			conn.respFramerBuf.Reset(frameBytes)
+			framer = conn.respFramer
+		}
 
 		frame, err := framer.ReadFrame()
 		if err != nil {
@@ -908,8 +1053,10 @@ func (d *Dissector) handleHTTP2(info streamInfo, payload []byte) {
 				key, info.isRequest, err)
 			if info.isRequest {
 				conn.selfDec = hpack.NewDecoder(4096, nil)
+				conn.reqFramer.ReadMetaHeaders = conn.selfDec
 			} else {
 				conn.peerDec = hpack.NewDecoder(4096, nil)
+				conn.respFramer.ReadMetaHeaders = conn.peerDec
 			}
 
 			// Skip the remaining buffer for this direction — we can't know
@@ -1143,7 +1290,7 @@ func (d *Dissector) emitH2Event(s *h2Stream) {
 			Ip:   dstLabel,
 			Port: int32(s.dstPort),
 		},
-		Req: &pb.APIEvent_Request{Request: &pb.Request{
+		Request: &pb.Request{
 			Method:      s.reqMethod,
 			Path:        s.reqPath,
 			Headers:     reqHdrs,
@@ -1151,14 +1298,14 @@ func (d *Dissector) emitH2Event(s *h2Stream) {
 			GrpcService: s.grpcService,
 			GrpcMethod:  s.grpcMethod,
 			ContentType: s.contentType,
-		}},
-		Res: &pb.APIEvent_Response{Response: &pb.Response{
+		},
+		Response: &pb.Response{
 			StatusCode:        statusCode,
 			Headers:           respHdrs,
 			Body:              capString(respBodyStr, d.cfg.MaxBodySize),
 			GrpcStatusCode:    s.grpcStatus,
 			GrpcStatusMessage: grpcMsg,
-		}},
+		},
 		Protocol: proto,
 	}
 	if d.handler != nil {
@@ -1244,8 +1391,8 @@ func extractTransportPayload(pkt *poller.RawPacket) (streamInfo, []byte, error) 
 		if proto != 6 && proto != 17 { // TCP=6, UDP=17
 			return streamInfo{}, nil, fmt.Errorf("not TCP/UDP (proto=%d)", proto)
 		}
-		srcIP := fmt.Sprintf("%d.%d.%d.%d", data[12], data[13], data[14], data[15])
-		dstIP := fmt.Sprintf("%d.%d.%d.%d", data[16], data[17], data[18], data[19])
+		srcIP := ipv4String(data[12:16])
+		dstIP := ipv4String(data[16:20])
 		hdrStart := ihl
 
 		if proto == 6 { // TCP
@@ -1396,7 +1543,7 @@ func (d *Dissector) buildH2APIEvent(
 			Ip:   dstLabel,
 			Port: int32(dstPort),
 		},
-		Req: &pb.APIEvent_Request{Request: &pb.Request{
+		Request: &pb.Request{
 			Method:      reqMethod,
 			Path:        reqPath,
 			Headers:     reqHdrs,
@@ -1404,14 +1551,14 @@ func (d *Dissector) buildH2APIEvent(
 			GrpcService: grpcService,
 			GrpcMethod:  grpcMethod,
 			ContentType: contentType,
-		}},
-		Res: &pb.APIEvent_Response{Response: &pb.Response{
+		},
+		Response: &pb.Response{
 			StatusCode:        statusCode,
 			Headers:           respHdrs,
 			Body:              capString(respBodyStr, d.cfg.MaxBodySize),
 			GrpcStatusCode:    grpcStatus,
 			GrpcStatusMessage: grpcMsg,
-		}},
+		},
 		Protocol: proto,
 	}
 }

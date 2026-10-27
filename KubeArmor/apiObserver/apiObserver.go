@@ -77,6 +77,13 @@ type APIObserver struct {
 	goAttached    map[string]bool
 	grpcCAttached map[string]bool
 
+	// SSL probe bookkeeping keyed by library inode (guarded by attachedMu).
+	// Uprobes are per-binary, so they must be attached once per inode, not
+	// once per process that maps the library. sslOffsets caches the (costly)
+	// .rodata version scan per library.
+	sslProbeState map[uint64]*sslProbeState
+	sslOffsets    map[uint64]sslOffsetsEntry
+
 	// =======================================================================
 	// dual-path packet capture pipeline
 	// =======================================================================
@@ -171,6 +178,8 @@ func NewAPIObserver(node tp.Node, pinpath string, logger *fd.Feeder, svcResolver
 		linksByInode:     make(map[uint64][]io.Closer),
 		goAttached:       make(map[string]bool),
 		grpcCAttached:    make(map[string]bool),
+		sslProbeState:    make(map[uint64]*sslProbeState),
+		sslOffsets:       make(map[uint64]sslOffsetsEntry),
 		sockResolver:     procsocket.New(ctx),
 	}
 	ao.ctx, ao.cancel = ctx, cancel
@@ -930,6 +939,16 @@ func deepSanitizeEvent(ev *pb.APIEvent) {
 			r.Headers = clean
 		}
 	}
+	if dq := ev.DnsRequest; dq != nil {
+		dq.QueryName = sanitizeUTF8(dq.QueryName)
+		dq.QueryType = sanitizeUTF8(dq.QueryType)
+	}
+	if dr := ev.DnsResponse; dr != nil {
+		dr.RcodeName = sanitizeUTF8(dr.RcodeName)
+		for i, ip := range dr.ResolvedIps {
+			dr.ResolvedIps[i] = sanitizeUTF8(ip)
+		}
+	}
 	if ev.Source != nil {
 		ev.Source.Ip = sanitizeUTF8(ev.Source.Ip)
 	}
@@ -1002,6 +1021,71 @@ func (ao *APIObserver) runProcWalker() {
 	ao.wg.Add(1)
 	defer ao.wg.Done()
 	ao.procWalker.Run(ao.ctx)
+}
+
+// sslProbeState tracks uprobe attachment for one SSL library inode.
+type sslProbeState struct {
+	attached bool // uprobes are live
+	busy     bool // an attach is in flight on another goroutine
+	attempts int  // failed attempts so far (capped to avoid retry storms)
+}
+
+// maxSSLAttachAttempts bounds retries for a library whose attach keeps failing.
+const maxSSLAttachAttempts = 3
+
+type sslOffsetsEntry struct {
+	offsets ssl.SymAddrs
+	err     error
+}
+
+// sslOffsetsForInode returns (and caches) the OpenSSL struct offsets for the
+// library identified by inode. The ELF .rodata scan runs once per library
+// instead of once per process.
+func (ao *APIObserver) sslOffsetsForInode(inode uint64, libPath string) (ssl.SymAddrs, error) {
+	ao.attachedMu.Lock()
+	if e, ok := ao.sslOffsets[inode]; ok {
+		ao.attachedMu.Unlock()
+		return e.offsets, e.err
+	}
+	ao.attachedMu.Unlock()
+
+	offsets, err := ssl.OffsetsForLib(libPath)
+
+	ao.attachedMu.Lock()
+	ao.sslOffsets[inode] = sslOffsetsEntry{offsets: offsets, err: err}
+	ao.attachedMu.Unlock()
+	return offsets, err
+}
+
+// claimSSLAttach reserves the right to attach uprobes for inode. It returns
+// false when the library is already probed, being probed by another goroutine
+// (walker and ExecWatcher workers run concurrently), or has failed too often.
+func (ao *APIObserver) claimSSLAttach(inode uint64) bool {
+	ao.attachedMu.Lock()
+	defer ao.attachedMu.Unlock()
+	st := ao.sslProbeState[inode]
+	if st == nil {
+		st = &sslProbeState{}
+		ao.sslProbeState[inode] = st
+	}
+	if st.attached || st.busy || st.attempts >= maxSSLAttachAttempts {
+		return false
+	}
+	st.busy = true
+	return true
+}
+
+func (ao *APIObserver) finishSSLAttach(inode uint64, ok bool) {
+	ao.attachedMu.Lock()
+	defer ao.attachedMu.Unlock()
+	if st := ao.sslProbeState[inode]; st != nil {
+		st.busy = false
+		if ok {
+			st.attached = true
+		} else {
+			st.attempts++
+		}
+	}
 }
 
 // sslScannerFunc is the unified walker callback for SSL uprobe attachment.
@@ -1077,7 +1161,7 @@ func (ao *APIObserver) sslScannerFunc(snap ProcSnapshot) error {
 		if offsetPath == "" {
 			offsetPath = m.LibSSLPath
 		}
-		symAddrs, symErr := ssl.OffsetsForLib(offsetPath)
+		symAddrs, symErr := ao.sslOffsetsForInode(inode, offsetPath)
 		if symErr == nil {
 			type bpfSSLSymaddrs struct {
 				SSLRBIOOffset int32
@@ -1105,20 +1189,22 @@ func (ao *APIObserver) sslScannerFunc(snap ProcSnapshot) error {
 			}
 		}
 
-		// Try to attach uprobe links. This will be a no-op (0 links) if the
-		// same library binary was already probed via a previously seen PID —
-		// that is fine. The uprobes fire for all processes using that binary.
+		// Uprobes are per-binary: attach once per library inode. Every later
+		// PID mapping the same library only needs its ssl_symaddrs entry
+		// (written above), not another ELF parse + duplicate kernel uprobes.
+		if !ao.claimSSLAttach(inode) {
+			ao.Logger.Debugf("SSL: %s (PID %d) — library already probed (no new uprobes needed)",
+				m.LibSSLPath, pid)
+			continue
+		}
 		links := ao.attachSSLProbesForMatch(m)
+		ao.finishSSLAttach(inode, len(links) > 0)
 		if len(links) > 0 {
 			for _, l := range links {
 				ao.appendLinkForInode(inode, l)
 			}
-			// Promoted from Debugf: visible in production logs to confirm uprobe attachment.
 			ao.Logger.Debugf("SSL uprobes attached to %s (PID %d, %d probes)",
 				m.LibSSLPath, pid, len(links))
-		} else {
-			ao.Logger.Debugf("SSL: %s (PID %d) — library already probed (no new uprobes needed)",
-				m.LibSSLPath, pid)
 		}
 	}
 	return nil
@@ -1233,10 +1319,11 @@ func (ao *APIObserver) goHTTP2ScannerFunc(snap ProcSnapshot) error {
 // grpcCScannerFunc is the unified walker callback for gRPC-C uprobe attachment.
 // Called only for genuinely new PIDs (binary inode not seen before).
 func (ao *APIObserver) grpcCScannerFunc(snap ProcSnapshot) error {
-	targets, err := grpcc.ScanProc()
+	// Inspect only the PID the walker handed us. (grpcc.ScanProc walks every
+	// /proc/*/maps on the host — doing that once per new PID was O(N²).)
+	targets, err := grpcc.ScanPID(int(snap.PID))
 	if err != nil {
-		ao.Logger.Warnf("gRPC-C proc scan error: %v", err)
-		return nil
+		return nil // process exited between discovery and scan
 	}
 
 	for _, target := range targets {
@@ -1254,11 +1341,7 @@ func (ao *APIObserver) grpcCScannerFunc(snap ProcSnapshot) error {
 		}
 		ao.attachedMu.Unlock()
 
-		offsets, err := grpcc.OffsetsForLib(target.LibPath)
-		if err != nil {
-			ao.Logger.Warnf("gRPC-C: %v", err)
-			continue
-		}
+		offsets := target.Offsets // already resolved (and cached) by ScanPID
 		// Array map (max_entries=1) — key is always 0.
 		if err := ao.objs.GrpccSymaddrsMap.Put(uint32(0), offsets); err != nil {
 			ao.Logger.Warnf("gRPC-C: failed to write symaddrs for %s: %v", target.LibPath, err)
@@ -1298,11 +1381,29 @@ func (ao *APIObserver) grpcCScannerFunc(snap ProcSnapshot) error {
 // no longer exists (container exited). Closes uprobe links for that PID's
 // binary inode and removes the BPF map entry.
 func (ao *APIObserver) onPIDGone(pid uint32, snap ProcSnapshot) {
+	// Always drop per-TGID BPF map entries for the exited process.
+	defer func() {
+		_ = ao.objs.SslSymaddrs.Delete(pid)
+		_ = ao.objs.KsGoTlsFdOffsets.Delete(pid)
+	}()
+
+	// Uprobe links are per-binary and shared by every process running that
+	// binary. Only tear them down when the last such process is gone;
+	// otherwise the remaining processes silently lose their probes.
+	if snap.Inode != 0 && ao.procWalker != nil && ao.procWalker.Cache().InodeInUse(snap.Inode) {
+		return
+	}
+
 	// Close uprobe links associated with this binary inode.
 	ao.linksByInodeMu.Lock()
 	links := ao.linksByInode[snap.Inode]
 	delete(ao.linksByInode, snap.Inode)
 	ao.linksByInodeMu.Unlock()
+	if snap.Inode != 0 {
+		ao.attachedMu.Lock()
+		delete(ao.sslProbeState, snap.Inode)
+		ao.attachedMu.Unlock()
+	}
 
 	for _, l := range links {
 		if err := l.Close(); err != nil {
@@ -1310,12 +1411,6 @@ func (ao *APIObserver) onPIDGone(pid uint32, snap ProcSnapshot) {
 				pid, snap.Inode, err)
 		}
 	}
-
-	// Remove per-TGID BPF map entries.
-	_ = ao.objs.SslSymaddrs.Delete(pid)
-	// Also remove Go TLS FD offsets written by populateGoBPFMaps to prevent
-	// stale entries accumulating as processes come and go.
-	_ = ao.objs.KsGoTlsFdOffsets.Delete(pid)
 
 	if len(links) > 0 {
 		ao.Logger.Debugf("onPIDGone: cleaned up %d links for PID %d (inode %d)",
@@ -1390,58 +1485,29 @@ func (ao *APIObserver) attachSSLProbesForMatch(m ssl.SSLLibMatch) []link.Link {
 	// names that cilium/ebpf can resolve via .dynsym.
 	resolveAddr := isStaticSSL || m.Matcher.SocketFDAccess == ssl.SSLFDUserSpaceOffsets
 
-	// Populate per-TGID ssl_symaddrs so the BPF entry handler can attempt
-	// the ssl->rbio->num struct walk to extract FD directly from the SSL struct.
-	// This works for standard OpenSSL with SSL_set_fd (rbio->num holds the fd).
-	// For memory BIO apps (Node.js, Python asyncio), rbio->num is -1 and the
-	// BPF code gracefully falls through to the syscall/cache fallback path.
-	if m.PID > 0 {
-		// Use CanonicalPath for version detection — LibSSLPath may be a
-		// /proc/<pid>/map_files/<range> path whose basename is an address range,
-		// not a recognizable library filename.
-		offsetPath := m.CanonicalPath
-		if offsetPath == "" {
-			offsetPath = m.LibSSLPath
-		}
-		offsets, err := ssl.OffsetsForLib(offsetPath)
-		if err != nil {
-			ao.Logger.Debugf("SSL symaddrs: cannot determine offsets for %s: %v", offsetPath, err)
-		} else {
-			tgid := uint32(m.PID)
-			// The BPF struct ssl_symaddrs must match ssl.SymAddrs layout.
-			type bpfSSLSymaddrs struct {
-				SSLRBIOOffset int32
-				BIONumOffset  int32
-			}
-			bpfOffsets := bpfSSLSymaddrs{
-				SSLRBIOOffset: offsets.SSLRBIOOffset,
-				BIONumOffset:  offsets.BIONumOffset,
-			}
-			if err := ao.objs.SslSymaddrs.Put(tgid, bpfOffsets); err != nil {
-				ao.Logger.Warnf("SSL symaddrs: failed to write ssl_symaddrs[%d]: %v", tgid, err)
-			} else {
-				ao.Logger.Debugf("SSL symaddrs: populated ssl_symaddrs[%d] rbio=0x%x num=0x%x for %s",
-					tgid, offsets.SSLRBIOOffset, offsets.BIONumOffset, offsetPath)
-			}
-		}
-	}
+	// NOTE: per-TGID ssl_symaddrs are written by sslScannerFunc for every
+	// process; they are intentionally not duplicated here.
+
+	// One lazily-parsed symbol table shared by every probe pair below
+	// (previously each failed lookup re-opened and re-parsed the ELF).
+	syms := ssl.NewSymbolTable(m.LibSSLPath)
 
 	// clean entry/return pattern with FD resolution
 	// via syscalltracepoints + address via tcp kprobes.
-	links = append(links, ao.attachSSLProbePair(ex, m.LibSSLPath,
+	links = append(links, ao.attachSSLProbePair(ex, syms,
 		"SSL_write", ao.objs.KsSslWrite, ao.objs.KsSslRetWrite, resolveAddr)...)
-	links = append(links, ao.attachSSLProbePair(ex, m.LibSSLPath,
+	links = append(links, ao.attachSSLProbePair(ex, syms,
 		"SSL_read", ao.objs.KsSslRead, ao.objs.KsSslRetRead, resolveAddr)...)
-	links = append(links, ao.attachSSLProbePair(ex, m.LibSSLPath,
+	links = append(links, ao.attachSSLProbePair(ex, syms,
 		"SSL_write_ex", ao.objs.KsSslWriteEx, ao.objs.KsSslRetWriteEx, resolveAddr)...)
-	links = append(links, ao.attachSSLProbePair(ex, m.LibSSLPath,
+	links = append(links, ao.attachSSLProbePair(ex, syms,
 		"SSL_read_ex", ao.objs.KsSslReadEx, ao.objs.KsSslRetReadEx, resolveAddr)...)
 
 	// SSL_pending — proactive context capture for double-read pattern.
 	if l, err := attachUprobeWithFallback(ex, "SSL_pending", ao.objs.KsSslPending, 0); err == nil {
 		links = append(links, l)
 	} else if isStaticSSL {
-		if addr, ok := ssl.ELFSymbolAddress(m.LibSSLPath, "SSL_pending"); ok {
+		if addr, ok := syms.Address("SSL_pending"); ok {
 			if l, err := ex.Uprobe("", ao.objs.KsSslPending, &link.UprobeOptions{Address: addr}); err == nil {
 				links = append(links, l)
 			}
@@ -1457,7 +1523,7 @@ func (ao *APIObserver) attachSSLProbesForMatch(m ssl.SSLLibMatch) []link.Link {
 // symbols by name.
 // Returns attached links (0-2). Failures are logged but not fatal.
 func (ao *APIObserver) attachSSLProbePair(
-	ex *link.Executable, libPath, sym string,
+	ex *link.Executable, syms *ssl.SymbolTable, sym string,
 	entryProg, retProg *ebpf.Program,
 	resolveAddr bool,
 ) []link.Link {
@@ -1468,16 +1534,16 @@ func (ao *APIObserver) attachSSLProbePair(
 			links = append(links, l)
 		} else if resolveAddr {
 			// Try address-based attachment for static symbols
-			if addr, ok := ssl.ELFSymbolAddress(libPath, sym); ok {
+			if addr, ok := syms.Address(sym); ok {
 				if l, err := ex.Uprobe("", entryProg, &link.UprobeOptions{Address: addr}); err == nil {
 					links = append(links, l)
-					ao.Logger.Debugf("SSL: uprobe/%s on %s via address 0x%x", sym, libPath, addr)
+					ao.Logger.Debugf("SSL: uprobe/%s on %s via address 0x%x", sym, syms.Path(), addr)
 				} else {
-					ao.Logger.Debugf("SSL: uprobe/%s on %s via address 0x%x failed: %v", sym, libPath, addr, err)
+					ao.Logger.Debugf("SSL: uprobe/%s on %s via address 0x%x failed: %v", sym, syms.Path(), addr, err)
 				}
 			}
 		} else {
-			ao.Logger.Debugf("SSL: uprobe/%s on %s: %v", sym, libPath, err)
+			ao.Logger.Debugf("SSL: uprobe/%s on %s: %v", sym, syms.Path(), err)
 		}
 	}
 	if retProg != nil {
@@ -1486,16 +1552,16 @@ func (ao *APIObserver) attachSSLProbePair(
 			links = append(links, l)
 		} else if resolveAddr {
 			// Try address-based uretprobe for static symbols
-			if addr, ok := ssl.ELFSymbolAddress(libPath, sym); ok {
+			if addr, ok := syms.Address(sym); ok {
 				if l, err := ex.Uretprobe("", retProg, &link.UprobeOptions{Address: addr}); err == nil {
 					links = append(links, l)
-					ao.Logger.Debugf("SSL: uretprobe/%s on %s via address 0x%x", sym, libPath, addr)
+					ao.Logger.Debugf("SSL: uretprobe/%s on %s via address 0x%x", sym, syms.Path(), addr)
 				} else {
-					ao.Logger.Debugf("SSL: uretprobe/%s on %s via address 0x%x failed: %v", sym, libPath, addr, err)
+					ao.Logger.Debugf("SSL: uretprobe/%s on %s via address 0x%x failed: %v", sym, syms.Path(), addr, err)
 				}
 			}
 		} else {
-			ao.Logger.Debugf("SSL: uretprobe/%s on %s: %v", sym, libPath, err)
+			ao.Logger.Debugf("SSL: uretprobe/%s on %s: %v", sym, syms.Path(), err)
 		}
 	}
 

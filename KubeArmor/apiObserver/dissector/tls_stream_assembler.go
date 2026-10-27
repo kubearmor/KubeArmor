@@ -6,12 +6,12 @@ package dissector
 import (
 	"bytes"
 	"encoding/base64"
-	"fmt"
 	"io"
 	"sort"
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"golang.org/x/net/http2"
@@ -19,6 +19,7 @@ import (
 
 	"github.com/kubearmor/KubeArmor/KubeArmor/apiObserver/events"
 	"github.com/kubearmor/KubeArmor/KubeArmor/apiObserver/protocols/grpc"
+	fd "github.com/kubearmor/KubeArmor/KubeArmor/feeder"
 )
 
 // ============================================================================
@@ -37,18 +38,22 @@ import (
 //     except on connection preface or pipe close.
 type TlsStreamAssembler struct {
 	mu        sync.Mutex
-	conns     map[string]*asmConn // key = connKey()
+	conns     map[connKey]*asmConn // key = connKey struct (zero-alloc)
 	dissector *Dissector
-	log       Logger
+	log       *fd.Feeder
 
 	// flushInterval controls how long chunks are buffered before being
 	// sorted and delivered. Shorter = lower latency, longer = better ordering.
 	flushInterval time.Duration
+
+	// flushBuf is scratch space reused by flushAll (only touched by the
+	// flushLoop goroutine) so the 5ms tick does not allocate.
+	flushBuf []*asmConn
 }
 
 // asmConn is the per-TCP-connection state for the assembler.
 type asmConn struct {
-	key  string
+	key  connKey
 	info streamInfo // connection metadata from first chunk
 
 	// Per-direction pipes. Writer side is fed by sorted chunks;
@@ -71,6 +76,11 @@ type asmConn struct {
 
 	// closed is set when the connection's pipes are closed.
 	closed bool
+
+	// hasPending is true while pending is non-empty. It is written under mu
+	// but read lock-free by flushAll so idle connections cost one atomic load
+	// per tick instead of two mutex acquisitions.
+	hasPending atomic.Bool
 }
 
 // asmChunk is a chunk waiting to be sorted and flushed.
@@ -86,7 +96,7 @@ type asmChunk struct {
 // newTlsStreamAssembler creates and starts a TlsStreamAssembler.
 func newTlsStreamAssembler(d *Dissector) *TlsStreamAssembler {
 	asm := &TlsStreamAssembler{
-		conns:         make(map[string]*asmConn),
+		conns:         make(map[connKey]*asmConn),
 		dissector:     d,
 		log:           d.log,
 		flushInterval: 5 * time.Millisecond,
@@ -114,7 +124,6 @@ func (asm *TlsStreamAssembler) Deliver(chunk *events.TlsChunkEvent, info streamI
 	conn, exists := asm.conns[key]
 
 	if exists && hasPreface {
-		asm.log.Printf("[TLS-ASM] HTTP/2 preface detected on key=%s — resetting connection", key)
 		// Close old connection pipes to stop its parsers
 		conn.mu.Lock()
 		conn.closed = true
@@ -147,6 +156,7 @@ func (asm *TlsStreamAssembler) Deliver(chunk *events.TlsChunkEvent, info streamI
 				wallClock: now,
 			})
 			conn.lastSeen = now
+			conn.hasPending.Store(true)
 			conn.mu.Unlock()
 		}
 		return
@@ -162,21 +172,23 @@ func (asm *TlsStreamAssembler) Deliver(chunk *events.TlsChunkEvent, info streamI
 		wallClock: now,
 	})
 	conn.lastSeen = now
+	conn.hasPending.Store(true)
 	conn.mu.Unlock()
 }
 
 // connKey builds a stable connection key from chunk addresses.
-// Uses the same convention as streamInfo.connKey() but for TLS chunks
-// where direction is always 0 (addresses come from struct sock: src=local, dst=remote).
-func (asm *TlsStreamAssembler) connKey(chunk *events.TlsChunkEvent) string {
-	return fmt.Sprintf("%s:%d>%s:%d",
-		chunk.SrcIPString(), chunk.SrcPort,
-		chunk.DstIPString(), chunk.DstPort)
+// Uses the same convention as streamInfo.connKey() — src=local, dst=remote
+// for TLS chunks (addresses come from struct sock).
+func (asm *TlsStreamAssembler) connKey(chunk *events.TlsChunkEvent) connKey {
+	return connKey{
+		hi: ipToUint64(chunk.SrcIPString())<<16 | uint64(chunk.SrcPort),
+		lo: ipToUint64(chunk.DstIPString())<<16 | uint64(chunk.DstPort),
+	}
 }
 
 // newConn creates a new assembled connection with pipe pairs and starts
 // parser goroutines for both directions.
-func (asm *TlsStreamAssembler) newConn(key string, info streamInfo) *asmConn {
+func (asm *TlsStreamAssembler) newConn(key connKey, info streamInfo) *asmConn {
 	reqReader, reqWriter := io.Pipe()
 	respReader, respWriter := io.Pipe()
 
@@ -191,7 +203,7 @@ func (asm *TlsStreamAssembler) newConn(key string, info streamInfo) *asmConn {
 		lastSeen:   time.Now(),
 	}
 
-	asm.log.Printf("[TLS-ASM] new connection key=%s src=%s:%d dst=%s:%d",
+	asm.log.Debugf("[TLS-ASM] new connection key=%s src=%s:%d dst=%s:%d",
 		key, info.srcIP, info.srcPort, info.dstIP, info.dstPort)
 
 	// Start parser goroutines — one per direction.
@@ -202,7 +214,7 @@ func (asm *TlsStreamAssembler) newConn(key string, info streamInfo) *asmConn {
 }
 
 // resetConn closes and removes an existing connection.
-func (asm *TlsStreamAssembler) resetConn(key string) {
+func (asm *TlsStreamAssembler) resetConn(key connKey) {
 	asm.mu.Lock()
 	conn, exists := asm.conns[key]
 	if exists {
@@ -228,30 +240,31 @@ func (asm *TlsStreamAssembler) flushLoop() {
 	}
 }
 
-// flushAll sorts and delivers pending chunks for all connections.
+// flushAll sorts and delivers pending chunks for connections that have any.
+// Idle connections are skipped with a single atomic load; the scratch slice
+// is reused across ticks.
 func (asm *TlsStreamAssembler) flushAll() {
+	active := asm.flushBuf[:0]
 	asm.mu.Lock()
-	keys := make([]string, 0, len(asm.conns))
-	for k := range asm.conns {
-		keys = append(keys, k)
+	for _, conn := range asm.conns {
+		if conn.hasPending.Load() {
+			active = append(active, conn)
+		}
 	}
 	asm.mu.Unlock()
 
-	for _, key := range keys {
-		asm.mu.Lock()
-		conn, exists := asm.conns[key]
-		asm.mu.Unlock()
-		if !exists {
-			continue
-		}
+	for i, conn := range active {
 		asm.flushConn(conn)
+		active[i] = nil // don't retain conns via the scratch slice
 	}
+	asm.flushBuf = active[:0]
 }
 
 // flushConn sorts pending chunks by BPF timestamp and writes them to pipes.
 func (asm *TlsStreamAssembler) flushConn(conn *asmConn) {
 	conn.mu.Lock()
 	if len(conn.pending) == 0 || conn.closed {
+		conn.hasPending.Store(false)
 		conn.mu.Unlock()
 		return
 	}
@@ -293,6 +306,7 @@ func (asm *TlsStreamAssembler) flushConn(conn *asmConn) {
 	}
 
 	conn.pending = remaining
+	conn.hasPending.Store(len(remaining) > 0)
 	conn.mu.Unlock()
 
 	// Deliver to the appropriate pipe in strictly sorted order.
@@ -307,20 +321,20 @@ func (asm *TlsStreamAssembler) flushConn(conn *asmConn) {
 		_, err := w.Write(c.data)
 		if err != nil {
 			// Pipe closed — connection was reset or GC'd.
-			asm.log.Printf("[TLS-ASM] write error on key=%s isRequest=%v: %v", conn.key, c.isRequest, err)
+			asm.log.Debugf("[TLS-ASM] write error on key=%s isRequest=%v: %v", conn.key, c.isRequest, err)
 			return
 		}
 	}
 }
 
-// gcLoop evicts connections idle for >5 minutes.
+// gcLoop evicts connections idle for >60 seconds, reclaiming parseH2Stream goroutines.
 func (asm *TlsStreamAssembler) gcLoop() {
-	ticker := time.NewTicker(2 * time.Minute)
+	ticker := time.NewTicker(30 * time.Second)
 	defer ticker.Stop()
 	for range ticker.C {
-		cutoff := time.Now().Add(-5 * time.Minute)
+		cutoff := time.Now().Add(-60 * time.Second)
 		asm.mu.Lock()
-		var stale []string
+		var stale []connKey
 		for key, conn := range asm.conns {
 			conn.mu.Lock()
 			if conn.lastSeen.Before(cutoff) {
@@ -331,7 +345,6 @@ func (asm *TlsStreamAssembler) gcLoop() {
 		asm.mu.Unlock()
 
 		for _, key := range stale {
-			asm.log.Printf("[TLS-ASM] GC: evicting stale connection key=%s", key)
 			asm.resetConn(key)
 		}
 	}
@@ -346,26 +359,16 @@ func (asm *TlsStreamAssembler) gcLoop() {
 // Because the pipe delivers bytes in timestamp-sorted order, the HPACK decoder
 // stays perfectly in sync with the encoder's state.
 func (asm *TlsStreamAssembler) parseH2Stream(conn *asmConn, reader *io.PipeReader, isRequest bool) {
-	dirStr := "response"
-	if isRequest {
-		dirStr = "request"
-	}
-	asm.log.Printf("[TLS-ASM] parser goroutine started for key=%s dir=%s", conn.key, dirStr)
-
 	dec := hpack.NewDecoder(4096, nil)
 
 	// Use a bufio.Reader to allow peeking without consuming.
 	bufReader := newFrameReader(reader)
+	defer bufReader.release()
 
 	for {
 		// Read the 9-byte frame header first to determine frame length.
 		headerBuf, err := bufReader.Peek(h2FrameHeaderSize)
 		if err != nil {
-			if err == io.EOF || err == io.ErrClosedPipe {
-				asm.log.Printf("[TLS-ASM] parser goroutine exiting for key=%s dir=%s: %v", conn.key, dirStr, err)
-			} else {
-				asm.log.Printf("[TLS-ASM] parser read error for key=%s dir=%s: %v", conn.key, dirStr, err)
-			}
 			return
 		}
 
@@ -375,8 +378,6 @@ func (asm *TlsStreamAssembler) parseH2Stream(conn *asmConn, reader *io.PipeReade
 		// Sanity check: reject obviously corrupt frame lengths.
 		const maxAllowedFramePayload = 1 << 20 // 1 MB
 		if framePayloadLen > maxAllowedFramePayload {
-			asm.log.Printf("[TLS-ASM] oversized frame payload (%d bytes) on key=%s dir=%s — resetting decoder",
-				framePayloadLen, conn.key, dirStr)
 			// Discard all buffered data and reset decoder.
 			dec = hpack.NewDecoder(4096, nil)
 			bufReader.Discard(bufReader.Buffered())
@@ -389,11 +390,6 @@ func (asm *TlsStreamAssembler) parseH2Stream(conn *asmConn, reader *io.PipeReade
 		frameBytes := make([]byte, totalFrameLen)
 		_, err = io.ReadFull(bufReader, frameBytes)
 		if err != nil {
-			if err == io.EOF || err == io.ErrClosedPipe || err == io.ErrUnexpectedEOF {
-				asm.log.Printf("[TLS-ASM] parser goroutine exiting for key=%s dir=%s: %v", conn.key, dirStr, err)
-			} else {
-				asm.log.Printf("[TLS-ASM] parser frame read error for key=%s dir=%s: %v", conn.key, dirStr, err)
-			}
 			return
 		}
 
@@ -403,8 +399,6 @@ func (asm *TlsStreamAssembler) parseH2Stream(conn *asmConn, reader *io.PipeReade
 
 		frame, err := framer.ReadFrame()
 		if err != nil {
-			asm.log.Printf("[TLS-ASM] frame parse error on key=%s dir=%s: %v — resetting HPACK",
-				conn.key, dirStr, err)
 			dec = hpack.NewDecoder(4096, nil)
 			continue
 		}
@@ -430,7 +424,7 @@ func (asm *TlsStreamAssembler) processFrame(conn *asmConn, frame http2.Frame, is
 		conn.mu.Unlock()
 	case *http2.SettingsFrame:
 		// SETTINGS frames are connection-level control; log but don't process.
-		asm.log.Printf("[TLS-ASM] SETTINGS frame on key=%s isRequest=%v ack=%v",
+		asm.log.Debugf("[TLS-ASM] SETTINGS frame on key=%s isRequest=%v ack=%v -- Not Processing",
 			conn.key, isRequest, f.IsAck())
 	}
 }
@@ -506,9 +500,6 @@ func (asm *TlsStreamAssembler) processHeaders(conn *asmConn, f *http2.MetaHeader
 		}
 	}
 
-	asm.log.Printf("[TLS-ASM] HEADERS key=%s streamID=%d isReqFrame=%v endStream=%v fields=%d",
-		conn.key, sid, isReqFrame, f.StreamEnded(), len(f.Fields))
-
 	if isReqFrame {
 		for _, hf := range f.Fields {
 			switch hf.Name {
@@ -565,9 +556,6 @@ func (asm *TlsStreamAssembler) processData(conn *asmConn, f *http2.DataFrame, is
 	data := f.Data()
 	maxBody := asm.dissector.cfg.MaxBodySize
 
-	asm.log.Printf("[TLS-ASM] DATA key=%s streamID=%d isRequest=%v len=%d endStream=%v",
-		conn.key, f.StreamID, isRequest, len(data), f.StreamEnded())
-
 	if isRequest {
 		if s.reqBodyBuf.Len() < maxBody {
 			s.reqBodyBuf.Write(data)
@@ -587,7 +575,7 @@ func (asm *TlsStreamAssembler) processData(conn *asmConn, f *http2.DataFrame, is
 // Must be called with conn.mu held.
 func (asm *TlsStreamAssembler) emitEvent(s *h2AsmStream, conn *asmConn) {
 	if s.reqMethod == "" && s.reqPath == "" {
-		asm.log.Printf("[TLS-ASM] DROP incomplete stream key=%s (no method or path)", conn.key)
+		asm.log.Debugf("[TLS-ASM] DROP incomplete stream key=%s (no method or path)", conn.key)
 		return
 	}
 
@@ -679,7 +667,7 @@ func (asm *TlsStreamAssembler) emitEvent(s *h2AsmStream, conn *asmConn) {
 		s.grpcService, s.grpcMethod, s.grpcStatus, grpcMsg)
 
 	if d.handler != nil {
-		asm.log.Printf("[TLS-ASM] EMIT proto=%s method=%s path=%s status=%s src=%s:%d dst=%s:%d",
+		asm.log.Debugf("[TLS-ASM] EMIT proto=%s method=%s path=%s status=%s src=%s:%d dst=%s:%d",
 			proto, s.reqMethod, s.reqPath, s.respStatus,
 			s.srcIP, s.srcPort, s.dstIP, s.dstPort)
 		d.handler(evt)
@@ -699,11 +687,29 @@ type frameReader struct {
 	reader io.Reader
 }
 
+// frameReaderBufSize is the initial buffer size. Most HTTP/2 frames are far
+// smaller than 16KB (the default max frame size); Peek grows the buffer when
+// a larger frame arrives. (Was 64KB per direction per connection.)
+const frameReaderBufSize = 16 * 1024
+
+var frameReaderPool = sync.Pool{
+	New: func() any { return &frameReader{buf: make([]byte, frameReaderBufSize)} },
+}
+
 func newFrameReader(r io.Reader) *frameReader {
-	return &frameReader{
-		buf:    make([]byte, 64*1024), // 64KB buffer
-		reader: r,
+	fr := frameReaderPool.Get().(*frameReader)
+	fr.pos, fr.end, fr.reader = 0, 0, r
+	return fr
+}
+
+// release returns the reader to the pool. Buffers that grew beyond the
+// default size are dropped so the pool does not pin large allocations.
+func (fr *frameReader) release() {
+	fr.reader = nil
+	if len(fr.buf) != frameReaderBufSize {
+		return
 	}
+	frameReaderPool.Put(fr)
 }
 
 // Peek returns the next n bytes without advancing the reader.

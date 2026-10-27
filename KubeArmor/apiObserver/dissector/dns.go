@@ -7,9 +7,14 @@ import (
 	"encoding/binary"
 	"fmt"
 	"strings"
+	"sync"
 
 	pb "github.com/accuknox/SentryFlow/protobuf/golang"
 )
+
+// dnsBuilderPool reuses strings.Builder instances across parseDNSName calls
+// to eliminate the []string + strings.Join allocation hot path.
+var dnsBuilderPool = sync.Pool{New: func() any { return new(strings.Builder) }}
 
 // processDNS attempts to parse the payload as a DNS query or response
 // and emits an APIEvent if successful.
@@ -73,18 +78,19 @@ func (d *Dissector) processDNS(info streamInfo, payload []byte) {
 	}
 
 	if !isResponse {
-		evt.Req = &pb.APIEvent_DnsRequest{DnsRequest: &pb.DNSRequest{
+		evt.DnsRequest = &pb.DNSRequest{
 			QueryName: queryName,
 			QueryType: dnsTypeToString(qtype),
-		}}
+		}
 	} else {
 		rcode := int32(flags & 0x000F)
 		rcodeName := dnsRCodeToString(rcode)
 
 		var ips []string
 		for i := 0; i < int(ancount) && offset < len(payload); i++ {
-			_, newOffset, err := parseDNSName(payload, offset)
-			if err != nil {
+			// The RR owner name is not needed — just skip it (no allocation).
+			newOffset, ok := skipDNSName(payload, offset)
+			if !ok {
 				break
 			}
 			offset = newOffset
@@ -107,11 +113,11 @@ func (d *Dissector) processDNS(info streamInfo, payload []byte) {
 			offset += rdlength
 		}
 
-		evt.Res = &pb.APIEvent_DnsResponse{DnsResponse: &pb.DNSResponse{
+		evt.DnsResponse = &pb.DNSResponse{
 			Rcode:       rcode,
 			RcodeName:   rcodeName,
 			ResolvedIps: ips,
-		}}
+		}
 	}
 
 	if d.handler != nil {
@@ -119,12 +125,18 @@ func (d *Dissector) processDNS(info streamInfo, payload []byte) {
 	}
 }
 
+// parseDNSName parses a DNS name from payload starting at startOffset.
+// It uses a pooled strings.Builder to avoid per-call []string + strings.Join allocations.
 func parseDNSName(payload []byte, startOffset int) (string, int, error) {
-	var parts []string
+	b := dnsBuilderPool.Get().(*strings.Builder)
+	b.Reset()
+	defer dnsBuilderPool.Put(b)
+
 	offset := startOffset
 	jumped := false
 	maxJumps := 10
 	jumps := 0
+	first := true
 
 	for {
 		if offset >= len(payload) {
@@ -156,7 +168,11 @@ func parseDNSName(payload []byte, startOffset int) (string, int, error) {
 		if offset+length > len(payload) {
 			return "", 0, nil
 		}
-		parts = append(parts, string(payload[offset:offset+length]))
+		if !first {
+			b.WriteByte('.')
+		}
+		b.Write(payload[offset : offset+length])
+		first = false
 		offset += length
 	}
 
@@ -164,7 +180,30 @@ func parseDNSName(payload []byte, startOffset int) (string, int, error) {
 		startOffset = offset
 	}
 
-	return strings.Join(parts, "."), startOffset, nil
+	return b.String(), startOffset, nil
+}
+
+// skipDNSName advances past a (possibly compressed) DNS name starting at
+// offset without building the string. Returns the offset of the first byte
+// after the name and whether the name was well-formed.
+func skipDNSName(payload []byte, offset int) (int, bool) {
+	for {
+		if offset >= len(payload) {
+			return 0, false
+		}
+		length := int(payload[offset])
+		switch {
+		case length == 0:
+			return offset + 1, true
+		case length&0xC0 == 0xC0: // compression pointer terminates the name
+			if offset+2 > len(payload) {
+				return 0, false
+			}
+			return offset + 2, true
+		default:
+			offset += 1 + length
+		}
+	}
 }
 
 func dnsTypeToString(qtype uint16) string {
@@ -213,7 +252,7 @@ func parseIPv4(rdata []byte) string {
 	if len(rdata) != 4 {
 		return ""
 	}
-	return fmt.Sprintf("%d.%d.%d.%d", rdata[0], rdata[1], rdata[2], rdata[3])
+	return ipv4String(rdata)
 }
 
 func parseIPv6(rdata []byte) string {

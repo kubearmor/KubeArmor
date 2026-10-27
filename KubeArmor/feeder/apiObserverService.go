@@ -2,25 +2,16 @@
 // Copyright 2026 Authors of KubeArmor
 
 // Package feeder: apiObserverService.go implements the gRPC streaming
-// service for API observability events.  It mirrors logServer.go's pattern
-// (replacing pb.Log with pb.APIEvent) and is owned by the Feeder, not by
-// the APIObserver.
-//
-// Data flow (Pixie sockettraceconnector.cc → data table export):
-//
-//	APIObserver.processMessage()
-//	  → feeder.PushAPIEvent(pb.APIEvent)           [handoff point]
-//	    → APIObserverService.PublishEvent()         [fan-out]
-//	      → subscriber.ch (buffered)
-//	        → stream.Send()                         [gRPC to client]
+// service for API observability events.
+
 package feeder
 
 import (
 	"context"
 	"fmt"
-	"sort"
 	"strings"
 	"sync"
+	"sync/atomic"
 
 	pb "github.com/accuknox/SentryFlow/protobuf/golang"
 	"github.com/google/uuid"
@@ -28,7 +19,6 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
 	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
 )
 
@@ -42,8 +32,9 @@ type APIObserverService struct {
 	subscribers   map[string]*apiEventSubscriber
 	subscribersMu sync.RWMutex
 
-	metrics metricsAggregator
-	running bool
+	// running is a pointer to the feeder's atomic Running flag so that
+	// GetAPIEvents sees the live value set by DestroyFeeder.
+	running *atomic.Bool
 }
 
 type apiEventSubscriber struct {
@@ -54,25 +45,10 @@ type apiEventSubscriber struct {
 	cancel context.CancelFunc
 }
 
-type metricsAggregator struct {
-	mu                sync.RWMutex
-	totalEvents       uint64
-	eventsByProtocol  map[string]uint64
-	eventsByStatus    map[string]uint64
-	endpointCounts    map[string]uint64
-	endpointLatencies map[string][]int64
-}
-
-func NewAPIObserverService(running bool) *APIObserverService {
+func NewAPIObserverService(running *atomic.Bool) *APIObserverService {
 	return &APIObserverService{
 		subscribers: make(map[string]*apiEventSubscriber),
-		metrics: metricsAggregator{
-			eventsByProtocol:  make(map[string]uint64),
-			eventsByStatus:    make(map[string]uint64),
-			endpointCounts:    make(map[string]uint64),
-			endpointLatencies: make(map[string][]int64),
-		},
-		running: running,
+		running:     running,
 	}
 }
 
@@ -80,7 +56,7 @@ func (s *APIObserverService) GetAPIEvents(
 	filter *pb.APIEventFilter,
 	stream grpc.ServerStreamingServer[pb.APIEvent],
 ) error {
-	if !s.running {
+	if !s.running.Load() {
 		return status.Error(codes.Unavailable, "API Observer service is not running")
 	}
 	sub := s.createSubscriber(filter, stream.Context())
@@ -109,35 +85,11 @@ func (s *APIObserverService) GetAPIEvents(
 	}
 }
 
-func (s *APIObserverService) GetAPIMetrics(
-	_ context.Context,
-	req *pb.MetricsRequest,
-) (*pb.APIObserverMetrics, error) {
-	if !s.running {
-		return nil, status.Error(codes.Unavailable, "API Observer service is not running")
-	}
-	s.metrics.mu.RLock()
-	defer s.metrics.mu.RUnlock()
-
-	// ✅ Changed: &pb.APIMetrics{} → &pb.APIObserverMetrics{}
-	return &pb.APIObserverMetrics{
-		Timestamp:            fmt.Sprintf("%d", kl.GetCurrentTimeStamp()),
-		TotalEvents:          s.metrics.totalEvents,
-		EventsByProtocol:     cloneMapSU64(s.metrics.eventsByProtocol),
-		EventsByStatus:       cloneMapSU64(s.metrics.eventsByStatus),
-		TopEndpoints:         s.topEndpointsLocked(),
-		AvgLatencyByEndpoint: s.avgLatencyMapLocked(),
-		ErrorRate:            s.errorRateLocked(),
-	}, nil
-}
-
 // ═══════════════════════════════════════════════════════════════════════════
 // Internal API — called by feeder.PushAPIEvent
 // ═══════════════════════════════════════════════════════════════════════════
 
 func (s *APIObserverService) PublishEvent(event *pb.APIEvent) {
-	s.updateMetrics(event)
-
 	s.subscribersMu.RLock()
 	defer s.subscribersMu.RUnlock()
 
@@ -244,85 +196,6 @@ func matchesFilter(event *pb.APIEvent, f *pb.APIEventFilter) bool {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// Metrics helpers
-// ═══════════════════════════════════════════════════════════════════════════
-
-func (s *APIObserverService) updateMetrics(event *pb.APIEvent) {
-	s.metrics.mu.Lock()
-	defer s.metrics.mu.Unlock()
-
-	s.metrics.totalEvents++
-	s.metrics.eventsByProtocol[event.Protocol]++
-
-	code := ""
-	if res := event.GetResponse(); res != nil {
-		code = fmt.Sprintf("%d", res.StatusCode)
-	}
-	s.metrics.eventsByStatus[code]++
-
-	method, path := "", ""
-	if req := event.GetRequest(); req != nil {
-		method, path = req.Method, req.Path
-	}
-	endpoint := method + " " + path
-
-	var dur int64
-	if event.LatencyMs > 0 {
-		dur = int64(event.LatencyMs)
-	}
-	s.metrics.endpointCounts[endpoint]++
-	s.metrics.endpointLatencies[endpoint] = append(s.metrics.endpointLatencies[endpoint], dur)
-}
-
-func (s *APIObserverService) topEndpointsLocked() []*pb.EndpointMetric {
-	out := make([]*pb.EndpointMetric, 0, len(s.metrics.endpointCounts))
-	for ep, count := range s.metrics.endpointCounts {
-		lats := s.metrics.endpointLatencies[ep]
-		parts := strings.SplitN(ep, " ", 2)
-		method, path := "", ep
-		if len(parts) == 2 {
-			method, path = parts[0], parts[1]
-		}
-		out = append(out, &pb.EndpointMetric{
-			Method:       method,
-			Path:         path,
-			RequestCount: count,
-			AvgLatencyMs: calcAvg(lats),
-			P95LatencyMs: calcPct(lats, 0.95),
-			P99LatencyMs: calcPct(lats, 0.99),
-		})
-	}
-	sort.Slice(out, func(i, j int) bool {
-		return out[i].RequestCount > out[j].RequestCount
-	})
-	if len(out) > 20 {
-		out = out[:20]
-	}
-	return out
-}
-
-func (s *APIObserverService) avgLatencyMapLocked() map[string]float64 {
-	m := make(map[string]float64, len(s.metrics.endpointLatencies))
-	for ep, lats := range s.metrics.endpointLatencies {
-		m[ep] = calcAvg(lats)
-	}
-	return m
-}
-
-func (s *APIObserverService) errorRateLocked() float64 {
-	if s.metrics.totalEvents == 0 {
-		return 0
-	}
-	var errs uint64
-	for code, n := range s.metrics.eventsByStatus {
-		if strings.HasPrefix(code, "4") || strings.HasPrefix(code, "5") {
-			errs += n
-		}
-	}
-	return float64(errs) / float64(s.metrics.totalEvents) * 100.0
-}
-
-// ═══════════════════════════════════════════════════════════════════════════
 // Pure utility functions
 // ═══════════════════════════════════════════════════════════════════════════
 
@@ -350,37 +223,4 @@ func sliceContains(slice []string, s string) bool {
 		}
 	}
 	return false
-}
-
-func cloneMapSU64(m map[string]uint64) map[string]uint64 {
-	out := make(map[string]uint64, len(m))
-	for k, v := range m {
-		out[k] = v
-	}
-	return out
-}
-
-func calcAvg(vals []int64) float64 {
-	if len(vals) == 0 {
-		return 0
-	}
-	var s int64
-	for _, v := range vals {
-		s += v
-	}
-	return float64(s) / float64(len(vals))
-}
-
-func calcPct(vals []int64, pct float64) float64 {
-	if len(vals) == 0 {
-		return 0
-	}
-	cp := make([]int64, len(vals))
-	copy(cp, vals)
-	sort.Slice(cp, func(i, j int) bool { return cp[i] < cp[j] })
-	idx := int(float64(len(cp)) * pct)
-	if idx >= len(cp) {
-		idx = len(cp) - 1
-	}
-	return float64(cp[idx])
 }

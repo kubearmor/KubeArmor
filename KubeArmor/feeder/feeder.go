@@ -15,6 +15,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	apipb "github.com/accuknox/SentryFlow/protobuf/golang"
@@ -233,9 +234,9 @@ type BaseFeeder struct {
 	WgServer sync.WaitGroup
 
 	// output
-	Output    string
-	LogFile   *os.File
-	LogWriter *bufio.Writer // persistent buffered writer for LogFile
+	Output        string
+	LogFile       *os.File
+	LogWriter     *bufio.Writer // persistent buffered writer for LogFile
 	LogWriterLock sync.Mutex
 
 	// Activated Enforcer
@@ -245,8 +246,10 @@ type BaseFeeder struct {
 	// Msg, log and alert connection stores
 	EventStructs *EventStructs
 
-	// True if feeder and its workers are working
-	Running bool
+	// True if feeder and its workers are working.
+	// Must be accessed via Load/Store — shared between the main goroutine
+	// (DestroyFeeder) and background goroutines (ticker, LogService watch loops).
+	Running atomic.Bool
 
 	// Number of dropped logs
 	DroppedLogs uint64
@@ -355,7 +358,7 @@ func NewFeeder(node *tp.Node, nodeLock **sync.RWMutex) (feeder *Feeder) {
 		LogLock:    sync.RWMutex{},
 	}
 
-	fd.Running = true
+	fd.Running.Store(true)
 
 	// Periodic log flush goroutine — flushes buffered log writer every 100ms.
 	if fd.LogWriter != nil {
@@ -363,11 +366,11 @@ func NewFeeder(node *tp.Node, nodeLock **sync.RWMutex) (feeder *Feeder) {
 			ticker := time.NewTicker(100 * time.Millisecond)
 			defer ticker.Stop()
 			for range ticker.C {
-				if !fd.Running {
+				if !fd.Running.Load() {
 					return
 				}
 				fd.LogWriterLock.Lock()
-				fd.LogWriter.Flush()
+				_ = fd.LogWriter.Flush()
 				fd.LogWriterLock.Unlock()
 			}
 		}()
@@ -467,17 +470,16 @@ func NewFeeder(node *tp.Node, nodeLock **sync.RWMutex) (feeder *Feeder) {
 
 	// Create and register the API observer gRPC service.
 	// Must be registered BEFORE ServeLogFeeds starts accepting connections.
-	fd.APIObserverService = NewAPIObserverService(fd.Running)
+	fd.APIObserverService = NewAPIObserverService(&fd.Running)
 	apipb.RegisterAPIObserverServiceServer(fd.LogServer, fd.APIObserverService)
 
-	// ... rest of existing initialization ...
 	return fd
 }
 
 // DestroyFeeder Function
 func (fd *BaseFeeder) DestroyFeeder() error {
 	// stop gRPC service
-	fd.Running = false
+	fd.Running.Store(false)
 
 	// wait for a while
 	time.Sleep(time.Second * 1)
@@ -493,10 +495,10 @@ func (fd *BaseFeeder) DestroyFeeder() error {
 	// flush and close LogFile
 	fd.LogWriterLock.Lock()
 	if fd.LogWriter != nil {
-		fd.LogWriter.Flush()
+		_ = fd.LogWriter.Flush()
 	}
 	fd.LogWriterLock.Unlock()
-	
+
 	if fd.LogFile != nil {
 		if err := fd.LogFile.Close(); err != nil {
 			kg.Err(err.Error())
@@ -518,12 +520,12 @@ func (fd *BaseFeeder) DestroyFeeder() error {
 // Neither path blocks the caller — the ring-buffer processing goroutine in
 // apiObserver.go must never stall on a slow network client.
 func (fd *BaseFeeder) PushAPIEvent(event *apipb.APIEvent) {
-	// ── Primary: gRPC service fan-out ────────────────────────────────────
+	// Primary: gRPC service fan-out 
 	if fd.APIObserverService != nil {
 		fd.APIObserverService.PublishEvent(event)
 	}
 
-	// ── Secondary: direct channel subscribers (AddAPIEventStruct) ────────
+	// Secondary: direct channel subscribers (AddAPIEventStruct)
 	fd.EventStructs.APIEventLock.RLock()
 	defer fd.EventStructs.APIEventLock.RUnlock()
 
@@ -548,8 +550,8 @@ func (fd *Feeder) StrToFile(str string) {
 	if fd.LogWriter != nil {
 		// Write directly to persistent buffered writer.
 		// Flush happens periodically via background goroutine.
-		fd.LogWriter.WriteString(str)
-		fd.LogWriter.WriteByte('\n')
+		_, _ = fd.LogWriter.WriteString(str)
+		_ = fd.LogWriter.WriteByte('\n')
 	}
 }
 
@@ -578,6 +580,11 @@ func (fd *Feeder) Debug(message string) {
 
 // Debugf Function
 func (fd *Feeder) Debugf(message string, args ...any) {
+	if !cfg.GlobalCfg.Debug {
+		// Only Push Message over GRPC when Debug Mode
+		return
+	}
+
 	str := fmt.Sprintf(message, args...)
 	fd.PushMessage("DEBUG", str)
 	kg.Debug(str)
@@ -856,10 +863,10 @@ func (fd *Feeder) PushLog(log tp.Log) {
 
 	// standard output / file output
 	if fd.Output == "stdout" {
-		json.NewEncoder(os.Stdout).Encode(log)
+		_ = json.NewEncoder(os.Stdout).Encode(log)
 	} else if fd.Output != "none" && fd.LogWriter != nil {
 		fd.LogWriterLock.Lock()
-		json.NewEncoder(fd.LogWriter).Encode(log)
+		_ = json.NewEncoder(fd.LogWriter).Encode(log)
 		fd.LogWriterLock.Unlock()
 	}
 
