@@ -39,6 +39,17 @@ type cachedScanResult struct {
 // might have unique inodes for its binaries, preventing expensive ELF parsing thrashing.
 var binaryCache, _ = lru.New[uint64, *cachedScanResult](1024)
 
+// pathCache is a secondary LRU keyed by hostPath (the on-disk binary path as seen
+// from the host's /proc/<pid>/root). It maps hostPath → the inode of the last
+// successful scan for that path.
+//
+// Why: when a container restarts, its overlayfs layer gets a new inode even though
+// the binary content is identical. binaryCache misses on the new inode and would
+// re-parse the ELF for every restart. pathCache lets ScanBinary detect this case
+// by checking whether the same path was already scanned under a different inode,
+// aliasing the new inode to the existing cachedScanResult without re-opening the ELF.
+var pathCache, _ = lru.New[string, uint64](1024)
+
 // LocType mirrors BPF enum go_location_type.
 const (
 	LocInvalid  uint32 = 0
@@ -168,7 +179,7 @@ func ScanBinary(pid uint32, hostPath string, inode uint64) *GoUProbeTarget {
 		return nil
 	}
 
-	// Check the binary scan cache.
+	// Check the binary scan cache (keyed by inode — O(1) fast path).
 	if cached, ok := binaryCache.Get(inode); ok {
 		if cached.symbols == nil {
 			return nil // negative cache: known non-Go or non-gRPC binary
@@ -183,9 +194,34 @@ func ScanBinary(pid uint32, hostPath string, inode uint64) *GoUProbeTarget {
 		}
 	}
 
+	// Path-based dedup: container restarts on overlayfs assign a new inode to the
+	// same binary content, causing a binaryCache miss even though we already parsed
+	// the ELF. Check whether we scanned the same hostPath under a previous inode.
+	if prevInode, ok := pathCache.Get(hostPath); ok && prevInode != inode {
+		if cached, ok2 := binaryCache.Get(prevInode); ok2 {
+			// Alias the new inode to the existing result — no ELF re-open needed.
+			binaryCache.Add(inode, cached)
+			pathCache.Add(hostPath, inode) // update to the current inode
+			if cached.symbols == nil {
+				return nil
+			}
+			kg.Debugf("ScanBinary path-cache hit: path=%s old_inode=%d new_inode=%d — skipping ELF re-parse",
+				hostPath, prevInode, inode)
+			return &GoUProbeTarget{
+				PID:          pid,
+				BinaryPath:   hostPath,
+				Inode:        inode,
+				Symbols:      cached.symbols,
+				OffsetTable:  cached.offTable,
+				GoTlsOffsets: cached.tlsOffsets,
+			}
+		}
+	}
+
 	// Quick check: is it a Go binary?
 	if !isGoBinary(hostPath) {
 		binaryCache.Add(inode, &cachedScanResult{symbols: nil}) // negative cache
+		pathCache.Add(hostPath, inode)
 		return nil
 	}
 
@@ -199,6 +235,7 @@ func ScanBinary(pid uint32, hostPath string, inode uint64) *GoUProbeTarget {
 	_ = ef.Close() // #nosec G104 -- best-effort close of read-only ELF fd
 	if err != nil || len(syms) == 0 {
 		binaryCache.Add(inode, &cachedScanResult{symbols: nil}) // negative cache
+		pathCache.Add(hostPath, inode)
 		return nil
 	}
 
@@ -226,7 +263,8 @@ func ScanBinary(pid uint32, hostPath string, inode uint64) *GoUProbeTarget {
 		}
 	}
 
-	// Store in cache for future scan cycles.
+	// Store in cache for future scan cycles. Also record in pathCache so that
+	// a container restart (new inode, same binary content) hits the fast path.
 	binaryCache.Add(inode, &cachedScanResult{
 		symbols:    syms,
 		offTable:   offTable,
@@ -234,6 +272,7 @@ func ScanBinary(pid uint32, hostPath string, inode uint64) *GoUProbeTarget {
 		tlsOffsets: tlsOffsets,
 		inode:      inode,
 	})
+	pathCache.Add(hostPath, inode)
 
 	return &GoUProbeTarget{
 		PID:          pid,

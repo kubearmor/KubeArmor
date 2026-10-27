@@ -116,6 +116,13 @@ var pktBufferPool = sync.Pool{
 	New: func() interface{} { return &pktBuffer{} },
 }
 
+// rawPacketPool reuses RawPacket structs (and their Data backing slices)
+// across packet delivery cycles. Workers must call pkt.Release() after
+// onPacket returns so the buffer can be reclaimed.
+var rawPacketPool = sync.Pool{
+	New: func() interface{} { return &RawPacket{Data: make([]byte, 0, 4096)} },
+}
+
 // PacketsPoller drains the ka_pkts_buffer perf event array, reassembles
 // chunked raw network packets, and delivers complete RawPackets to a
 // registered handler.
@@ -240,6 +247,9 @@ func (p *PacketsPoller) startWorkerPool() {
 				if p.onPacket != nil {
 					p.onPacket(pkt)
 				}
+				// Return packet to pool after the dissector is done with it.
+				// The dissector copies any data it retains, so this is safe.
+				pkt.Release()
 			}
 		}(done)
 	}
@@ -404,6 +414,8 @@ func (p *PacketsPoller) handleChunk(rec *perf.Record) (bool, error) {
 }
 
 // buildPacket constructs a RawPacket from chunk metadata and raw IP bytes.
+// It acquires a RawPacket from rawPacketPool, reusing the Data backing slice
+// where possible. The caller must call pkt.Release() when done.
 func (p *PacketsPoller) buildPacket(chunk *pktChunk, data []byte) *RawPacket {
 	var ts time.Time
 	if chunk.Timestamp != 0 {
@@ -412,14 +424,23 @@ func (p *PacketsPoller) buildPacket(chunk *pktChunk, data []byte) *RawPacket {
 		ts = time.Now()
 	}
 
-	payload := make([]byte, len(data))
-	copy(payload, data)
-
-	return &RawPacket{
-		Timestamp: ts,
-		CgroupID:  chunk.CgroupID,
-		Direction: chunk.Direction,
-		IPHdrType: chunk.IPHdrType,
-		Data:      payload,
+	pkt := rawPacketPool.Get().(*RawPacket)
+	// Grow the backing slice only when the current capacity is insufficient.
+	if cap(pkt.Data) < len(data) {
+		pkt.Data = make([]byte, len(data))
+	} else {
+		pkt.Data = pkt.Data[:len(data)]
 	}
+	copy(pkt.Data, data)
+	pkt.Timestamp = ts
+	pkt.CgroupID = chunk.CgroupID
+	pkt.Direction = chunk.Direction
+	pkt.IPHdrType = chunk.IPHdrType
+	return pkt
+}
+
+// Release returns the RawPacket to the pool for reuse.
+// Must be called by the consumer after the packet Data is no longer needed.
+func (p *RawPacket) Release() {
+	rawPacketPool.Put(p)
 }

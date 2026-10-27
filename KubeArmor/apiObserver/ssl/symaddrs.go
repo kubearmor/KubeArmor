@@ -19,6 +19,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
+	"syscall"
 )
 
 // SSLSocketFDAccess defines how the FD is extracted for a given SSL library.
@@ -133,7 +135,7 @@ func DiscoverSSLLibsForPID(pid int) []SSLLibMatch {
 			}
 			// Verify the binary actually exports SSL symbols
 			hostPath := HostPath(pid, exePath)
-			if !ELFHasSymbol(hostPath, "SSL_write") {
+			if !exeHasSSLWrite(hostPath) {
 				continue
 			}
 			if seenInodes[hostPath] {
@@ -311,4 +313,76 @@ func ELFSymbolAddress(binPath string, symbolName string) (uint64, bool) {
 	}
 
 	return 0, false
+}
+
+// exeSSLCache memoises "does this executable export SSL_write" by file
+// identity (dev+inode) so the full ELF symbol parse happens once per binary
+// instead of once per process.
+var exeSSLCache sync.Map // fileID → bool
+
+type fileID struct{ dev, ino uint64 }
+
+func exeHasSSLWrite(hostPath string) bool {
+	var st syscall.Stat_t
+	if err := syscall.Stat(hostPath, &st); err != nil {
+		return ELFHasSymbol(hostPath, "SSL_write")
+	}
+	id := fileID{dev: uint64(st.Dev), ino: st.Ino} // #nosec G115 -- identity only
+	if v, ok := exeSSLCache.Load(id); ok {
+		return v.(bool)
+	}
+	has := ELFHasSymbol(hostPath, "SSL_write")
+	exeSSLCache.Store(id, has)
+	return has
+}
+
+// SymbolTable lazily loads an ELF's dynamic+static symbols once so repeated
+// lookups (SSL_write, SSL_read, SSL_write_ex, ...) do not each re-open and
+// re-parse the whole binary the way ELFSymbolAddress does.
+type SymbolTable struct {
+	path string
+	once sync.Once
+	syms map[string]uint64
+}
+
+// NewSymbolTable returns a SymbolTable for binPath. Nothing is read until the
+// first Address call.
+func NewSymbolTable(binPath string) *SymbolTable {
+	return &SymbolTable{path: binPath}
+}
+
+// Path returns the binary path this table reads.
+func (t *SymbolTable) Path() string { return t.path }
+
+// Address returns the virtual address of name, mirroring ELFSymbolAddress
+// semantics (dynamic symbols take precedence; zero-valued symbols ignored).
+func (t *SymbolTable) Address(name string) (uint64, bool) {
+	t.once.Do(func() {
+		t.syms = make(map[string]uint64)
+		f, err := elf.Open(t.path)
+		if err != nil {
+			return
+		}
+		defer f.Close()
+		if dyn, err := f.DynamicSymbols(); err == nil {
+			for _, sym := range dyn {
+				if sym.Value != 0 {
+					if _, dup := t.syms[sym.Name]; !dup {
+						t.syms[sym.Name] = sym.Value
+					}
+				}
+			}
+		}
+		if st, err := f.Symbols(); err == nil {
+			for _, sym := range st {
+				if sym.Value != 0 {
+					if _, dup := t.syms[sym.Name]; !dup {
+						t.syms[sym.Name] = sym.Value
+					}
+				}
+			}
+		}
+	})
+	v, ok := t.syms[name]
+	return v, ok
 }

@@ -55,11 +55,8 @@ func NewProcCache() *ProcCache {
 func (pc *ProcCache) Diff() (newSnaps []ProcSnapshot, gonePIDs []uint32) {
 	entries, err := os.ReadDir(ssl.ProcRoot)
 	if err != nil {
-		kg.Printf("ProcWalker: failed to read %s: %v", ssl.ProcRoot, err)
 		return nil, nil
 	}
-
-	kg.Debugf("ProcWalker: scanning %d entries in %s", len(entries), ssl.ProcRoot)
 
 	seen := make(map[uint32]struct{}, len(entries))
 
@@ -111,7 +108,6 @@ func (pc *ProcCache) Diff() (newSnaps []ProcSnapshot, gonePIDs []uint32) {
 			fi, err = os.Stat(hostPath)
 		}
 		if err != nil {
-			kg.Printf("ProcWalker: PID %d stat final %s failed (%v) — yielding inode=0 snapshot", pid, hostPath, err)
 			// Don't drop the PID: the sslScannerFunc can still discover SSL
 			// libs for this process via /proc/<pid>/maps directly.
 			// We skip inode-based dedup (inode=0) and rely on PID dedup only.
@@ -199,6 +195,20 @@ func (pc *ProcCache) Remove(pid uint32) (ProcSnapshot, bool) {
 	}
 	delete(pc.byPID, pid)
 	return old, true
+}
+
+// InodeInUse reports whether any cached PID still runs the binary with the
+// given inode. Callers use it to avoid tearing down per-binary uprobes while
+// other processes are still using them.
+func (pc *ProcCache) InodeInUse(inode uint64) bool {
+	pc.mu.RLock()
+	defer pc.mu.RUnlock()
+	for _, snap := range pc.byPID {
+		if snap.Inode == inode {
+			return true
+		}
+	}
+	return false
 }
 
 // Size returns the number of tracked PIDs (for logging).

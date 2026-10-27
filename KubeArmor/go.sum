@@ -14,8 +14,8 @@ github.com/Microsoft/go-winio v0.6.3-0.20251027160822-ad3df93bed29 h1:0kQAzHq8vL
 github.com/Microsoft/go-winio v0.6.3-0.20251027160822-ad3df93bed29/go.mod h1:ZWa7ssZJT30CCDGJ7fk/2SBTq9BIQrrVjrcss0UW2s0=
 github.com/Microsoft/hcsshim v0.15.0-rc.1 h1:FbbwtQmiD+BVHynGkx5S65JkLyhkEiiTP8nrpmg2SZw=
 github.com/Microsoft/hcsshim v0.15.0-rc.1/go.mod h1:HWvvUPIy9HF6LotILj1G4VyS065rcLQ6tqj6tMUdOfI=
-github.com/accuknox/SentryFlow/protobuf/golang v0.0.0-20260514050050-22a4d4f04e17 h1:7jturMtAx/IZKRy4uvEgZSlLArrUJkDXjELGm1Juzoo=
-github.com/accuknox/SentryFlow/protobuf/golang v0.0.0-20260514050050-22a4d4f04e17/go.mod h1:9DwSy8aPlq2d01FSpYOCXHlMx2CNWhTwdO7SelLpod0=
+github.com/accuknox/SentryFlow/protobuf/golang v0.0.0-20261014051530-d4a39aa4093b h1:2HLpJ3RsBbUYMEPAgUtUYA+zp5kXwzX5HJSm38XfJn0=
+github.com/accuknox/SentryFlow/protobuf/golang v0.0.0-20261014051530-d4a39aa4093b/go.mod h1:9DwSy8aPlq2d01FSpYOCXHlMx2CNWhTwdO7SelLpod0=
 github.com/beorn7/perks v1.0.1 h1:VlbKKnNfV8bJzeqoa4cOKqO6bYr3WgKZxO8Z16+hsOM=
 github.com/beorn7/perks v1.0.1/go.mod h1:G2ZrVWU2WbWT9wwq4/hrbKbnv/1ERSJQ0ibhJ6rlkpw=
 github.com/blang/semver/v4 v4.0.0 h1:1PFHFE6yCCTv8C1TeyNNarDzntLi7wMI5i/pzqYIsAM=
