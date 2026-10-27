@@ -520,7 +520,7 @@ func (fd *BaseFeeder) DestroyFeeder() error {
 // Neither path blocks the caller — the ring-buffer processing goroutine in
 // apiObserver.go must never stall on a slow network client.
 func (fd *BaseFeeder) PushAPIEvent(event *apipb.APIEvent) {
-	// Primary: gRPC service fan-out 
+	// Primary: gRPC service fan-out
 	if fd.APIObserverService != nil {
 		fd.APIObserverService.PublishEvent(event)
 	}
