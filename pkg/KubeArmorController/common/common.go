@@ -7,13 +7,37 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync/atomic"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
 
-const k8sVisibility = "process,file,network,capabilities"
+// VisibilityAnnotation is the pod annotation KubeArmor reads to decide which
+// events (process, file, network, capabilities) to trace for the pod.
+const VisibilityAnnotation = "kubearmor-visibility"
+
+// defaultVisibility is the visibility set on pods that have no visibility
+// annotation. It starts with the KubeArmor default and is replaced with the
+// "visibility" value of the kubearmor-config ConfigMap once that is read.
+var defaultVisibility atomic.Value
+
+func init() {
+	defaultVisibility.Store("process,file,network,capabilities")
+}
+
+// GetDefaultVisibility returns the visibility currently set on new pods.
+func GetDefaultVisibility() string {
+	return defaultVisibility.Load().(string)
+}
+
+// SetDefaultVisibility sets the visibility for new pods and returns the
+// previous value.
+func SetDefaultVisibility(visibility string) string {
+	return defaultVisibility.Swap(visibility).(string)
+}
+
 const appArmorAnnotation = "container.apparmor.security.beta.kubernetes.io/"
 const KubeArmorRestartedAnnotation = "kubearmor.kubernetes.io/restartedAt"
 
@@ -115,8 +139,8 @@ func AddCommonAnnotations(obj *metav1.ObjectMeta) {
 
 	// == Visibility == //
 
-	if _, ok := obj.Annotations["kubearmor-visibility"]; !ok {
-		obj.Annotations["kubearmor-visibility"] = k8sVisibility
+	if _, ok := obj.Annotations[VisibilityAnnotation]; !ok {
+		obj.Annotations[VisibilityAnnotation] = GetDefaultVisibility()
 	}
 }
 
