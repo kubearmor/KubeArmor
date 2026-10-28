@@ -62,6 +62,7 @@ const (
 	SocketCreate  = 461
 	SocketConnect = 462
 	SocketAccept  = 463
+	SocketBind    = 466
 
 	Capable   = 464
 	DropAlert = 0
@@ -384,4 +385,5 @@ var syscalls = map[int32]string{
 	463: "SOCKET_ACCEPT",
 	464: "CAPABLE",
 	465: "SOCKET_SENDMSG",
+	466: "SOCKET_BIND",
 }
