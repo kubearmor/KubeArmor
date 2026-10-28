@@ -14,7 +14,7 @@ require (
 	github.com/containerd/containerd/v2 v2.3.6
 	github.com/kubearmor/KubeArmor/KubeArmor v0.0.0-20260406102335-87edc770f8bf
 	github.com/kubearmor/KubeArmor/deployments v0.0.0-20260406102335-87edc770f8bf
-	github.com/kubearmor/KubeArmor/pkg/KubeArmorController v0.0.0-20260406102335-87edc770f8bf
+	github.com/kubearmor/KubeArmor/pkg/KubeArmorController v0.0.0-20261028074209-3b5c8f74476e
 	github.com/moby/moby/client v0.4.1
 	github.com/opencontainers/runtime-spec v1.3.0
 	github.com/spf13/cobra v1.10.2
