@@ -120,68 +120,62 @@ jobs:
 
   matrix-tests:
     name: "Ginkgo Tests - K8s"
-    needs: [detect-changes, go-tests, ebpf-tests, ka-multiarch-img-build-test]
+    needs: [detect-changes, go-tests, ebpf-tests]
     if: |
       !cancelled() &&
       (needs.go-tests.result == 'success' || needs.go-tests.result == 'skipped') &&
       (needs.ebpf-tests.result == 'success' || needs.ebpf-tests.result == 'skipped') &&
-      (needs.go-tests.result == 'success' || needs.ebpf-tests.result == 'success') && 
-      (needs.ka-multiarch-img-build-test.result == 'success')
+      (needs.go-tests.result == 'success' || needs.ebpf-tests.result == 'success')
     uses: ./.github/workflows/ci-test-ginkgo.yml
 
   matrix-tests-ubi:
     name: "Ginkgo Tests (UBI) - K8s"
-    needs: [detect-changes, go-tests, ebpf-tests, ka-multiarch-img-build-test]
+    needs: [detect-changes, go-tests, ebpf-tests]
     if: |
       !cancelled() &&
       (needs.go-tests.result == 'success' || needs.go-tests.result == 'skipped') &&
       (needs.ebpf-tests.result == 'success' || needs.ebpf-tests.result == 'skipped') &&
-      (needs.go-tests.result == 'success' || needs.ebpf-tests.result == 'success') && 
-      (needs.ka-multiarch-img-build-test.result == 'success')
+      (needs.go-tests.result == 'success' || needs.ebpf-tests.result == 'success')
     uses: ./.github/workflows/ci-test-ubi-image.yml
 
   matrix-tests-systemd:
     name: "Ginkgo Tests - Systemd"
-    needs: [detect-changes, go-tests, ebpf-tests, ka-multiarch-img-build-test]
+    needs: [detect-changes, go-tests, ebpf-tests]
     if: |
       !cancelled() &&
       (needs.go-tests.result == 'success' || needs.go-tests.result == 'skipped') &&
       (needs.ebpf-tests.result == 'success' || needs.ebpf-tests.result == 'skipped') &&
-      (needs.go-tests.result == 'success' || needs.ebpf-tests.result == 'success') && 
-      (needs.ka-multiarch-img-build-test.result == 'success')
+      (needs.go-tests.result == 'success' || needs.ebpf-tests.result == 'success')
     uses: ./.github/workflows/ci-test-systemd.yml
   
   matrix-tests-network:
     name: "Ginkgo Tests (Network) - K8s"
-    needs: [detect-changes, go-tests, ebpf-tests, ka-multiarch-img-build-test]
+    needs: [detect-changes, go-tests, ebpf-tests]
     if: |
       !cancelled() &&
       (needs.go-tests.result == 'success' || needs.go-tests.result == 'skipped') &&
       (needs.ebpf-tests.result == 'success' || needs.ebpf-tests.result == 'skipped') &&
-      (needs.go-tests.result == 'success' || needs.ebpf-tests.result == 'success') && 
-      (needs.ka-multiarch-img-build-test.result == 'success')
+      (needs.go-tests.result == 'success' || needs.ebpf-tests.result == 'success')
     uses: ./.github/workflows/ci-network-tests.yml
 
   matrix-tests-controller:
     name: "Ginkgo Tests (Controller) - K8s"
-    needs: [detect-changes, go-tests, ebpf-tests, ka-multiarch-img-build-test]
+    needs: [detect-changes, go-tests, ebpf-tests]
     if: |
       !cancelled() &&
       (needs.go-tests.result == 'success' || needs.go-tests.result == 'skipped') &&
       (needs.ebpf-tests.result == 'success' || needs.ebpf-tests.result == 'skipped') &&
-      (needs.go-tests.result == 'success' || needs.ebpf-tests.result == 'success') && 
-      (needs.ka-multiarch-img-build-test.result == 'success')
+      (needs.go-tests.result == 'success' || needs.ebpf-tests.result == 'success')
     uses: ./.github/workflows/ci-test-controllers.yml
 
   build-test-operator:
     name: "Build Test - Operator"
-    needs: [detect-changes, go-tests, ebpf-tests, ka-multiarch-img-build-test]
+    needs: [detect-changes, go-tests, ebpf-tests]
     if: |
       !cancelled() &&
       (needs.go-tests.result == 'success' || needs.go-tests.result == 'skipped') &&
       (needs.ebpf-tests.result == 'success' || needs.ebpf-tests.result == 'skipped') &&
-      (needs.go-tests.result == 'success' || needs.ebpf-tests.result == 'success') && 
-      (needs.ka-multiarch-img-build-test.result == 'success')
+      (needs.go-tests.result == 'success' || needs.ebpf-tests.result == 'success')
     uses: ./.github/workflows/ci-test-operator.yaml
 
   matrix-composite-result:
