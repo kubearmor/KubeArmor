@@ -559,6 +559,9 @@ func (mon *SystemMonitor) UpdateLogs() {
 				log.Type = "SystemEvent"
 				log.MaxAlertsPerSec = cfg.GlobalCfg.MaxAlertPerSec
 				log.DroppingAlertsInterval = cfg.GlobalCfg.ThrottleSec
+				if mon.Logger != nil {
+					log.Enforcer = mon.Logger.GetEnforcer()
+				}
 
 			default:
 				continue

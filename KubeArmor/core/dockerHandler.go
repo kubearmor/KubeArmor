@@ -471,10 +471,12 @@ func (dm *KubeArmorDaemon) GetAlreadyDeployedDockerContainers() {
 
 				if dm.SystemMonitor != nil && cfg.GlobalCfg.Policy {
 					// for throttling
+					dm.SystemMonitor.Logger.ContainerNsKeyLock.Lock()
 					dm.SystemMonitor.Logger.ContainerNsKey[container.ContainerID] = common.OuterKey{
 						MntNs: container.MntNS,
 						PidNs: container.PidNS,
 					}
+					dm.SystemMonitor.Logger.ContainerNsKeyLock.Unlock()
 
 					// update NsMap
 					dm.SystemMonitor.AddContainerIDToNsMap(container.ContainerID, container.NamespaceName, container.PidNS, container.MntNS)
@@ -672,10 +674,12 @@ func (dm *KubeArmorDaemon) UpdateDockerContainer(containerID, action string) {
 
 		if dm.SystemMonitor != nil && cfg.GlobalCfg.Policy {
 			// for throttling
+			dm.SystemMonitor.Logger.ContainerNsKeyLock.Lock()
 			dm.SystemMonitor.Logger.ContainerNsKey[containerID] = common.OuterKey{
 				MntNs: container.MntNS,
 				PidNs: container.PidNS,
 			}
+			dm.SystemMonitor.Logger.ContainerNsKeyLock.Unlock()
 
 			// update NsMap
 			dm.SystemMonitor.AddContainerIDToNsMap(containerID, container.NamespaceName, container.PidNS, container.MntNS)
@@ -766,9 +770,11 @@ func (dm *KubeArmorDaemon) UpdateDockerContainer(containerID, action string) {
 		}
 
 		if dm.SystemMonitor != nil && cfg.GlobalCfg.Policy {
+			dm.SystemMonitor.Logger.ContainerNsKeyLock.Lock()
 			outkey := dm.SystemMonitor.Logger.ContainerNsKey[containerID]
-			dm.Logger.DeleteAlertMapKey(outkey)
 			delete(dm.SystemMonitor.Logger.ContainerNsKey, containerID)
+			dm.SystemMonitor.Logger.ContainerNsKeyLock.Unlock()
+			dm.Logger.DeleteAlertMapKey(outkey)
 			// update NsMap
 			dm.SystemMonitor.DeleteContainerIDFromNsMap(containerID, container.NamespaceName, container.PidNS, container.MntNS)
 			dm.RuntimeEnforcer.UnregisterContainer(containerID)
