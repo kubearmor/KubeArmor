@@ -527,10 +527,9 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 						endpoint.SecurityPolicies = append(endpoint.SecurityPolicies, secPolicy)
 					}
 				}
-
-				endpoints = append(newendpoints, endpoint)
+				newendpoints = append(newendpoints, endpoint)
 			}
-
+			endpoints = newendpoints
 			dm.EndPointsLock.Lock()
 
 			for nidx := 0; nidx < len(endpoints); nidx++ {
