@@ -498,6 +498,10 @@ func (dm *KubeArmorDaemon) GetAlreadyDeployedDockerContainers() {
 					}
 				}
 
+				if !dm.K8sEnabled && cfg.GlobalCfg.NetworkPolicyEnforcer && dm.NetworkPolicyEnforcer != nil {
+					dm.UpdateNetworkSecurityPolicies()
+				}
+
 				dm.Logger.Printf("Detected a container (added/%.12s)", container.ContainerID)
 			}
 		}
@@ -707,6 +711,10 @@ func (dm *KubeArmorDaemon) UpdateDockerContainer(containerID, action string) {
 			go dm.StateAgent.PushContainerEvent(container, state.EventAdded)
 		}
 
+		if !dm.K8sEnabled && cfg.GlobalCfg.NetworkPolicyEnforcer && dm.NetworkPolicyEnforcer != nil {
+			dm.UpdateNetworkSecurityPolicies()
+		}
+
 		dm.Logger.Printf("Detected a container (added/%.12s)", containerID)
 
 	} else if action == "stop" || action == "destroy" {
@@ -781,6 +789,10 @@ func (dm *KubeArmorDaemon) UpdateDockerContainer(containerID, action string) {
 			if dm.Presets != nil {
 				dm.Presets.UnregisterContainer(containerID)
 			}
+		}
+
+		if !dm.K8sEnabled && cfg.GlobalCfg.NetworkPolicyEnforcer && dm.NetworkPolicyEnforcer != nil {
+			dm.UpdateNetworkSecurityPolicies()
 		}
 
 		dm.Logger.Printf("Detected a container (removed/%.12s)", containerID)
