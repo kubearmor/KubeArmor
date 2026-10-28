@@ -77,19 +77,34 @@ jobs:
           STABLE_VERSION=`cat STABLE-RELEASE`
 
           sed -i -e "s/appVersion:.*/appVersion: $STABLE_VERSION/g" deployments/helm/*/Chart.yaml
-          sed -i -e "s/version:.*/version: $STABLE_VERSION/g" deployments/helm/*/Chart.yaml
 
-          echo "STABLE_VERSION=$STABLE_VERSION" >> $GITHUB_OUTPUT
+          # chart version is bumped independently of appVersion, a chart-only
+          # patch release should not be overwritten by the next app release
+          CHART_VERSION=""
+          for chart in deployments/helm/*/Chart.yaml; do
+            current_version=$(grep "^version:" "$chart" | awk '{print $2}')
+            bumped_version=$(echo "$current_version" | awk -F. '{OFS="."; $NF+=1; print}')
+            sed -i -e "s/version:.*/version: $bumped_version/g" "$chart"
+
+            if [ -z "$CHART_VERSION" ]; then
+              CHART_VERSION="$bumped_version"
+            elif [ "$CHART_VERSION" != "$bumped_version" ]; then
+              echo "charts bumped to different versions: $CHART_VERSION vs $bumped_version ($chart)" >&2
+              exit 1
+            fi
+          done
+
+          echo "CHART_VERSION=$CHART_VERSION" >> $GITHUB_OUTPUT
 
       - name: Create PR to update Helm chart version in KubeArmor repo
         uses: peter-evans/create-pull-request@4e1beaa7521e8b457b572c090b25bd3db56bf1c5 # v5
         with:
-          branch: update-helm-${{ steps.update.outputs.STABLE_VERSION }}
+          branch: update-helm-${{ steps.update.outputs.CHART_VERSION }}
           add-paths: "deployments/helm/*/Chart.yaml"
-          commit-message: "Update Helm Chart To ${{ steps.update.outputs.STABLE_VERSION }}"
+          commit-message: "Update Helm Chart To ${{ steps.update.outputs.CHART_VERSION }}"
           committer: "github-actions[bot] <github-actions[bot]@users.noreply.github.com>"
           author: "github-actions[bot] <github-actions[bot]@users.noreply.github.com>"
-          title: "Update Helm Chart To ${{ steps.update.outputs.STABLE_VERSION }}"
+          title: "Update Helm Chart To ${{ steps.update.outputs.CHART_VERSION }}"
           base: main
           signoff: true
           delete-branch: true
