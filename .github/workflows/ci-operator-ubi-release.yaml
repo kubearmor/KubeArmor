@@ -112,7 +112,7 @@ jobs:
         run: PLATFORM=$PLATFORM make docker-buildx-ubi TAG=${{ steps.vars.outputs.tag }} BUILD_MODE=--push
 
       - name: Install Cosign
-        uses: sigstore/cosign-installer@828df1e55de306ba29db814d6057ddae71883cda # main
+        uses: sigstore/cosign-installer@b9c35392b7c1401bcc77d30c9b07cf4b1c7a7b07 # main
 
       - name: Get Image Digest
         id: digest
