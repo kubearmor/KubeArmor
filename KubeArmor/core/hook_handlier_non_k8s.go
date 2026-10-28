@@ -238,7 +238,6 @@ func (dm *KubeArmorDaemon) UpdateContainer(containerID string, container tp.Cont
 				break
 			}
 		}
-		dm.EndPointsLock.Unlock()
 		// delete endpoint if no security rules and containers
 		idx := 0
 		endpointsLength := len(dm.EndPoints)
@@ -252,6 +251,7 @@ func (dm *KubeArmorDaemon) UpdateContainer(containerID string, container tp.Cont
 			}
 			idx++
 		}
+		dm.EndPointsLock.Unlock()
 
 		if dm.SystemMonitor != nil && cfg.GlobalCfg.Policy {
 			dm.SystemMonitor.Logger.ContainerNsKeyLock.Lock()
