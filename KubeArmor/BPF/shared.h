@@ -40,6 +40,8 @@ char LICENSE[] SEC("license") = "Dual BSD/GPL";
 
 enum
 {
+  AF_INET = 2,
+  AF_INET6 = 10,
   IPPROTO_ICMPV6 = 58
 };
 
@@ -61,8 +63,10 @@ enum deny_by_default
 enum network_check_type
 {
   sock_type = 2,
-  sock_proto
-}; // configure to check for network protocol or socket type
+  sock_proto,
+  sock_port,
+  sock_ip
+}; // configure to check for network protocol, socket type, port, or ip
 typedef struct buffers
 {
   char buf[MAX_BUFFER_SIZE];
@@ -643,7 +647,7 @@ static __always_inline bool should_drop_alerts_per_container(struct outer_key ok
   }
   else
   {
-    state->event_count++;
+    __sync_fetch_and_add(&state->event_count, 1);
   }
 
   if (state->event_count > maxAlert)
