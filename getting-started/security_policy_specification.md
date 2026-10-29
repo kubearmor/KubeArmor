@@ -30,6 +30,7 @@ spec:
     matchPaths:
     - path: [absolute executable path]
       ownerOnly: [true|false]              # --> optional
+      allowedArgs: [argument(,)]           # --> optional
       fromSource:                          # --> optional
       - path: [absolute executable path]
     matchDirectories:
@@ -181,6 +182,7 @@ Now, we will briefly explain how to define a security policy.
       matchPaths:
       - path: [absolute executable path]
         ownerOnly: [true|false]            # --> optional
+        allowedArgs: [argument(,)]         # --> optional
         fromSource:                        # --> optional
         - path: [absolute executable path]
       matchDirectories:
@@ -194,7 +196,7 @@ Now, we will briefly explain how to define a security policy.
         ownerOnly: [true|false]            # --> optional
   ```
 
-  In each match, there are three options.
+  In each match, there are the following options.
 
   * ownerOnly \(static action: allow owner only; otherwise block all\)
 
@@ -214,6 +216,19 @@ Now, we will briefly explain how to define a security policy.
         - path: /bin/sleep
           fromSource:
           - path: /bin/bash
+    ```
+
+  * allowedArgs
+
+    Argument matching adds the command-line arguments of a process to the matchPaths rule, so that only executions of the executable carrying the listed arguments are allowed; any other argument combination is handled by the rule action (e.g., blocked). The field is supported with matchPaths only and accepts up to 20 arguments, each of them at most 104 characters long (longer arguments are blocked when argument matching is enabled). Argument matching needs to be enabled with matchArgs=true in the KubeArmor configuration (it is enabled by default). See [Process Argument Matching](process_arguments.md) for the configuration details and a complete example.
+
+    ```text
+      process:
+        matchPaths:
+        - path: /usr/bin/python3.6
+          allowedArgs:
+          - -m
+          - random
     ```
 
 ### File
