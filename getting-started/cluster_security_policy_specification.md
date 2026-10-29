@@ -27,12 +27,14 @@ spec:
     matchPaths:
     - path: [absolute executable path]
       ownerOnly: [true|false]              # --> optional
+      pts: [true|false]                    # --> optional
       fromSource:                          # --> optional
       - path: [absolute executable path]
     matchDirectories:
     - dir: [absolute directory path]
       recursive: [true|false]              # --> optional
       ownerOnly: [true|false]              # --> optional
+      pts: [true|false]                    # --> optional
       fromSource:                          # --> optional
       - path: [absolute executable path]
     matchPatterns:
@@ -44,6 +46,7 @@ spec:
     - path: [absolute file path]
       readOnly: [true|false]               # --> optional
       ownerOnly: [true|false]              # --> optional
+      pts: [true|false]                    # --> optional
       fromSource:                          # --> optional
       - path: [absolute executable path]
     matchDirectories:
@@ -51,6 +54,7 @@ spec:
       recursive: [true|false]              # --> optional
       readOnly: [true|false]               # --> optional
       ownerOnly: [true|false]              # --> optional
+      pts: [true|false]                    # --> optional
       fromSource:                          # --> optional
       - path: [absolute executable path]
     matchPatterns:
@@ -61,6 +65,7 @@ spec:
   network:
     matchProtocols:
     - protocol: [TCP|tcp|UDP|udp|ICMP|icmp]
+      pts: [true|false]                    # --> optional
       fromSource:                          # --> optional
       - path: [absolute executable path]
 
@@ -169,12 +174,14 @@ Now, we will briefly explain how to define a cluster security policy.
       matchPaths:
       - path: [absolute executable path]
         ownerOnly: [true|false]            # --> optional
+        pts: [true|false]                  # --> optional
         fromSource:                        # --> optional
         - path: [absolute executable path]
       matchDirectories:
       - dir: [absolute directory path]
         recursive: [true|false]            # --> optional
         ownerOnly: [true|false]            # --> optional
+        pts: [true|false]                  # --> optional
         fromSource:                        # --> optional
         - path: [absolute executable path]
       matchPatterns:
@@ -182,7 +189,7 @@ Now, we will briefly explain how to define a cluster security policy.
         ownerOnly: [true|false]            # --> optional
   ```
 
-  In each match, there are three options.
+  In each match, there are the following options.
 
   * ownerOnly \(static action: allow owner only; otherwise block all\)
 
@@ -204,6 +211,17 @@ Now, we will briefly explain how to define a cluster security policy.
           - path: /bin/bash
     ```
 
+  * pts
+
+    The pts option scopes a rule to actions that originate from a pseudo-terminal (TTY), such as commands entered in an interactive shell. If pts is set to false, only actions performed by processes that have a pseudo-terminal attached are matched; actions without an attached TTY (e.g., processes started directly by a container runtime or a system daemon) are not matched. If pts is set to true or omitted, the rule applies regardless of whether a pseudo-terminal is attached.
+
+    ```text
+      process:
+        matchPaths:
+        - path: /bin/sleep
+          pts: false
+    ```
+
 ### File
 
   The file section is quite similar to the process section.
@@ -214,6 +232,7 @@ Now, we will briefly explain how to define a cluster security policy.
       - path: [absolute file path]
         readOnly: [true|false]             # --> optional
         ownerOnly: [true|false]            # --> optional
+        pts: [true|false]                  # --> optional
         fromSource:                        # --> optional
         - path: [absolute file path]
       matchDirectories:
@@ -221,6 +240,7 @@ Now, we will briefly explain how to define a cluster security policy.
         recursive: [true|false]            # --> optional
         readOnly: [true|false]             # --> optional
         ownerOnly: [true|false]            # --> optional
+        pts: [true|false]                  # --> optional
         fromSource:                        # --> optional
         - path: [absolute file path]
       matchPatterns:
@@ -235,6 +255,10 @@ Now, we will briefly explain how to define a cluster security policy.
 
     If this is enabled, the read operation will be only allowed, and any other operations \(e.g., write\) will be blocked.  
 
+  * pts
+
+    As with process executions, pts: false scopes the file rule to operations performed by processes that have a pseudo-terminal attached.
+
 ### Network
 
   In the case of network, there is currently one match type: matchProtocols. You can define specific protocols among TCP, UDP, and ICMP.
@@ -243,9 +267,14 @@ Now, we will briefly explain how to define a cluster security policy.
     network:
       matchProtocols:
       - protocol: [protocol]               # --> [ TCP | tcp | UDP | udp | ICMP | icmp ]
+        pts: [true|false]                  # --> optional
         fromSource:                        # --> optional
         - path: [absolute file path]
   ```
+
+  * pts
+
+    As with process executions, pts: false scopes the protocol rule to connections made by processes that have a pseudo-terminal attached.
 
 ### Capabilities
 
