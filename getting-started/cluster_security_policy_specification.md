@@ -63,6 +63,10 @@ spec:
     - protocol: [TCP|tcp|UDP|udp|ICMP|icmp]
       fromSource:                          # --> optional
       - path: [absolute executable path]
+    matchDNSQueries:                       # --> optional
+    - domain: [domain name]
+      fromSource:                          # --> optional
+      - path: [absolute executable path]
 
   capabilities:
     matchCapabilities:
@@ -237,15 +241,70 @@ Now, we will briefly explain how to define a cluster security policy.
 
 ### Network
 
-  In the case of network, there is currently one match type: matchProtocols. You can define specific protocols among TCP, UDP, and ICMP.
+  In the case of network, there are two match types: matchProtocols and matchDNSQueries. With matchProtocols, you can define specific protocols among TCP, UDP, and ICMP; with matchDNSQueries, you can match the DNS queries that the selected workloads issue.
 
   ```text
     network:
       matchProtocols:
       - protocol: [protocol]               # --> [ TCP | tcp | UDP | udp | ICMP | icmp ]
         fromSource:                        # --> optional
-        - path: [absolute file path]
+        - path: [absolute executable path]
+      matchDNSQueries:                     # --> optional
+      - domain: [domain name]
+        fromSource:                        # --> optional
+        - path: [absolute executable path]
   ```
+
+### DNS Queries
+
+  matchDNSQueries matches DNS queries by the domain name that is being resolved. KubeArmor inspects the DNS queries at the kernel level, thus a rule applies to the DNS lookups made by the selected workloads, not to the network traffic toward the resolved addresses.
+
+  ```text
+    network:
+      matchDNSQueries:
+      - domain: [domain name]              # e.g., example.com
+        fromSource:                        # --> optional
+        - path: [absolute executable path]
+  ```
+
+  In each match, there are two options.
+
+  * domain
+
+    The domain name to match. A rule for `example.com` also matches its subdomains such as `api.example.com` if `api.example.com` is resolved, because KubeArmor matches the domain suffix by stripping the leading subdomain labels from the queried name. Leading and trailing dots of the value are ignored.
+
+    The BPF-based enforcer matches at most 10 nested subdomain labels (MAX_NESTED_DNS_LABELS = 10) and extracts at most 63 characters of the queried domain name; any characters beyond that limit are not considered.
+
+  * fromSource
+
+    If a path is specified in fromSource, only the DNS queries issued by the executable at the path are matched. Otherwise, the DNS queries from all the executables in the selected namespaces are matched.
+
+  A DNS query rule supports the Allow, Audit, and Block actions like the other match types. With an Allow rule, the domains that are not covered by any Allow rule follow the default posture of the workloads, which makes DNS filtering with a whitelist possible.
+
+  For example, the following policy blocks the DNS lookups for `google.com` issued by `/usr/bin/curl` in the `multiubuntu` namespace, so curl fails to resolve the domain while the other executables can still resolve it.
+
+  ```yaml
+  apiVersion: security.kubearmor.com/v1
+  kind: KubeArmorClusterPolicy
+  metadata:
+    name: block-dns-query-of-curl
+  spec:
+    severity: 10
+    selector:
+      matchExpressions:
+        - key: namespace
+          operator: In
+          values:
+            - multiubuntu
+    network:
+      matchDNSQueries:
+      - domain: google.com
+        fromSource:
+        - path: /usr/bin/curl
+    action: Block
+  ```
+
+  > **Note** DNS query matching is only supported by the BPF LSM enforcer, and it inspects the DNS queries that are sent to port 53 (both UDP and TCP). DNS over TLS and DNS over HTTPS are not inspected. For a complete guide with the alert format, see [KubeArmor DNS Enforcement Guide](kubearmor_dns_enforcement.md).
 
 ### Capabilities
 
