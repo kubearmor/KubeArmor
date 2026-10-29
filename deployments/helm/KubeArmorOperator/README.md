@@ -139,3 +139,18 @@ Uninstalling the Operator will also uninstall KubeArmor from all your nodes. To 
 ```bash
 helm uninstall kubearmor-operator -n kubearmor
 ```
+
+### recommendedPolicies
+
+The `recommendedPolicies` configuration object allows users to manage and filter automated policy generation.
+
+**Sub-fields:**
+* **`enable`** (boolean): Activates the policy recommendation engine.
+* **`matchExpressions`** (array): Kubernetes label selector expressions used to define which specific workloads or namespaces the recommendation engine should monitor.
+* **`excludePolicy`** (array of strings): A list of specific policy names to explicitly omit from being generated or recommended.
+
+    # Recommended Policies Configuration
+    recommendedPolicies:
+        enable: false                                           # DEFAULT - false
+        matchExpressions: []                                    # Target Namespaces/labels for recommended policies
+        excludePolicy: []                                       # Exclude policies from recommended policies
