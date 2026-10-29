@@ -72,6 +72,20 @@ spec:
     # it will be based on the runtime present. This happens because operator won't get KubearmorConfig event(initially).
     enableNRI: [true|false] # DEFAULT - false
 
+    # global scheduling and environment settings, applied to the kubearmor daemonset
+    # (and its init container), relay and controller (see below for precedence rules)
+    globalImagePullSecrets:                                    # DEFAULT - []
+        - name: [secret name]
+    globalTolerations:                                         # DEFAULT - []
+        - key: [taint key]
+          operator: Exists|Equal
+          effect: NoSchedule|PreferNoSchedule|NoExecute
+    globalNodeSelector:                                        # DEFAULT - {}
+        [label key]: [label value]
+    globalEnv:                                                 # DEFAULT - []
+        - name: [env name]
+          value: [env value]
+
     # KubeArmor image and pull policy
     kubearmorImage:
         image: [image-repo:tag]                                # DEFAULT - kubearmor/kubearmor:stable
@@ -96,6 +110,41 @@ spec:
     kubeRbacProxyImage:
         image: [image-repo:tag]                                # DEFAULT - gcr.io/kubebuilder/kube-rbac-proxy:v0.15.0
         imagePullPolicy: [image pull policy]                   # DEFAULT - Always
+```
+
+### Global scheduling and environment configuration
+
+These fields let you set scheduling and environment options once for all KubeArmor components that the operator deploys: the `kubearmor` daemonset (including its `kubearmor-init` init container), the relay server and the KubeArmor controller.
+
+| Field | Type | Applied to | Precedence |
+|-------|------|------------|------------|
+| `globalImagePullSecrets` | list of `LocalObjectReference` (`- name: <secret>`) | Pod spec of every component | Fallback only: used for a component whose own `imagePullSecrets` (for example `kubearmorImage.imagePullSecrets`) is empty. A component-level list replaces the global list instead of being merged with it. |
+| `globalTolerations` | list of `Toleration` | Pod spec of every component | Fallback only: used for a component whose own `tolerations` is empty. A component-level list replaces the global list. |
+| `globalNodeSelector` | map of label key to value | Pod `nodeSelector` of every component | Merged: global labels are added first, then the component-level `nodeSelector` is applied on top, so a component value wins for the same key. |
+| `globalEnv` | list of `EnvVar` (`name`/`value`) | `kubearmor`, `kubearmor-init`, relay and controller containers | Merged: global variables are added first, then the component-level `env` is applied on top, so a component value wins for the same name. |
+
+Notes:
+
+- The operator watches the `KubeArmorConfig`, so changing any of these fields updates the existing daemonset and deployments in place.
+- Removing a key from `globalNodeSelector` or a variable from `globalEnv` also removes it from the components on the next update.
+- For the `kubearmor` daemonset, `globalNodeSelector` is combined with the node labels the operator uses to match each node's enforcer, runtime and socket, so set only labels that the target nodes actually carry.
+
+Example:
+
+```yaml
+spec:
+    globalImagePullSecrets:
+        - name: my-registry-secret
+    globalTolerations:
+        - key: dedicated
+          operator: Equal
+          value: security
+          effect: NoSchedule
+    globalNodeSelector:
+        example.com/pool: security
+    globalEnv:
+        - name: HTTPS_PROXY
+          value: http://proxy.example.com:3128
 ```
 
 ## Verify if all the resources are up and running
