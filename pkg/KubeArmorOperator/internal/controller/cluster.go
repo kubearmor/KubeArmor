@@ -454,6 +454,7 @@ func (clusterWatcher *ClusterWatcher) WatchConfigCrd() {
 					// mark it as current operating config crd
 					if cfg.Status.Phase == common.RUNNING {
 						common.OperatorConfigCrd = &cfg
+						UpdateImages(&cfg.Spec)
 						if firstRun {
 							go clusterWatcher.WatchRequiredResources()
 							firstRun = false
