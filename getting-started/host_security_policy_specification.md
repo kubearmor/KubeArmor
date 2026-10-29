@@ -26,6 +26,7 @@ spec:
       ownerOnly: [true|false]              # --> optional
       execname: [binary name]              # --> optional
       pts: [true|false]                    # --> optional
+      allowedArgs: [argument(,)]           # --> optional
       fromSource:                          # --> optional
       - path: [absolute executable path]
     matchDirectories:
@@ -216,6 +217,7 @@ Now, we will briefly explain how to define a host security policy.
         ownerOnly: [true|false]            # --> optional
         execname: [binary name]            # --> optional
         pts: [true|false]                  # --> optional
+        allowedArgs: [argument(,)]         # --> optional
         fromSource:                        # --> optional
         - path: [absolute executable path]
       matchDirectories:
@@ -257,9 +259,14 @@ Now, we will briefly explain how to define a host security policy.
     Besides an absolute path, matchPaths can select executables by their binary name using execname. The value is a binary name only, without any directory separator (e.g., sleep), and it matches the execution of any binary with that name, regardless of the directory it resides in. When execname is set, it takes precedence over path in the same matchPaths entry. A value that contains a `/` (for example `/bin/sleep` or `sbin/sleep`) is rejected by the CRD's OpenAPI schema, which allows only characters other than `/` in this field, so the policy is refused at admission time before KubeArmor ever sees it.
 
     > **NOTE** execname is not supported on a host where SELinux is the enforcing LSM: the SELinux enforcer ignores the field, so the rule falls back to matching the binary path alone. Use matchPaths with an absolute path on such hosts.
+
   * pts
 
     The pts option scopes a rule to actions that originate from a pseudo-terminal (TTY), such as commands entered in an interactive shell. If pts is set to false, only actions performed by processes that have a pseudo-terminal attached are matched; actions without an attached TTY (e.g., processes started directly by a container runtime or a system daemon) are not matched. If pts is set to true or omitted, the rule applies regardless of whether a pseudo-terminal is attached. Only the BPF-LSM enforcer implements `pts`: the AppArmor and SELinux enforcers ignore it, so on a host using either of those LSMs the rule applies to every matching action, whether or not a pseudo-terminal is attached.
+
+  * allowedArgs
+
+    Argument matching adds the command-line arguments of a process to the matchPaths rule, so that only executions of the executable carrying the listed arguments are allowed; any other argument combination is handled by the rule action (e.g., blocked). The field is supported with matchPaths only and accepts up to 20 arguments, each of them at most 104 characters long (longer arguments are blocked when argument matching is enabled). Argument matching needs to be enabled with matchArgs=true in the KubeArmor configuration (it is enabled by default). See [Process Argument Matching](process_arguments.md) for the configuration details and a complete example.
 
     ```text
       process:
@@ -267,6 +274,11 @@ Now, we will briefly explain how to define a host security policy.
         - execname: apt
         - path: /bin/sleep
           pts: false
+
+        - path: /usr/bin/python3.6
+          allowedArgs:
+          - -m
+          - random
     ```
 
 * File
