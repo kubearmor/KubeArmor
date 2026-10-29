@@ -57,7 +57,7 @@ spec:
 
   network:
     matchProtocols:
-    - protocol: [TCP|tcp|UDP|udp|ICMP|icmp]
+    - protocol: [protocol]                 # --> [ tcp | udp | raw | icmp | icmpv6 | sctp | stream | dgram | rdm | seqpacket | dccp | packet | all ]
       fromSource:
       - path: [absolute executable path]
 
@@ -229,14 +229,52 @@ Now, we will briefly explain how to define a host security policy.
 
 * Network
 
-  In the case of network, there is currently one match type: matchProtocols. You can define specific protocols among TCP, UDP, and ICMP.
+  In the case of network, there is currently one match type: matchProtocols. You can define the protocols or socket types that the workloads on the selected nodes are allowed or blocked to use.
 
   ```text
     network:
       matchProtocols:
-      - protocol: [protocol(,)]            # --> [ TCP | tcp | UDP | udp | ICMP | icmp ]
+      - protocol: [protocol(,)]            # --> [ tcp | udp | raw | icmp | icmpv6 | sctp | stream | dgram | rdm | seqpacket | dccp | packet | all ]
         fromSource:
         - path: [absolute file path]
+  ```
+
+  KubeArmor accepts the following values in `protocol`. Both the lowercase and the uppercase spellings are valid (e.g., `tcp` or `TCP`); mixed case such as `Tcp` is rejected by the policy validation.
+
+  | Value | Kind | Description |
+  | :--- | :--- | :--- |
+  | `tcp` | IP protocol | TCP connections (IP protocol 6). |
+  | `udp` | IP protocol | UDP datagrams (IP protocol 17). |
+  | `icmp` | IP protocol | ICMP messages (IP protocol 1). |
+  | `icmpv6` | IP protocol | ICMPv6 messages used by IPv6 (IP protocol 58). |
+  | `sctp` | IP protocol | SCTP associations (IP protocol 132). |
+  | `stream` | Socket type | Stream sockets (`SOCK_STREAM`), e.g., TCP sockets. |
+  | `dgram` | Socket type | Datagram sockets (`SOCK_DGRAM`), e.g., UDP sockets. |
+  | `raw` | Socket type | Raw sockets (`SOCK_RAW`), which give direct access to the network layer. |
+  | `rdm` | Socket type | Reliably-delivered message sockets (`SOCK_RDM`). |
+  | `seqpacket` | Socket type | Sequenced packet sockets (`SOCK_SEQPACKET`). |
+  | `dccp` | Socket type | Datagram Congestion Control Protocol sockets (`SOCK_DCCP`). |
+  | `packet` | Socket type | Legacy packet capture sockets (`SOCK_PACKET`). |
+  | `all` | Wildcard | Matches every protocol and socket type listed above. |
+
+  The IP protocol values (`tcp`, `udp`, `icmp`, `icmpv6`, `sctp`) match on the transport protocol of a socket, while the socket type values (`stream`, `dgram`, `raw`, `rdm`, `seqpacket`, `dccp`, `packet`) match on the socket type regardless of the transport protocol in use. Since a socket has both, you can combine the values to narrow down the traffic that a rule applies to. Note that `icmpv6` is handled the same way as `icmp` by the AppArmor enforcer.
+
+  For example, the following policy blocks all ICMP traffic on the selected nodes, which effectively stops `ping`.
+
+  ```yaml
+  apiVersion: security.kubearmor.com/v1
+  kind: KubeArmorHostPolicy
+  metadata:
+    name: block-icmp
+  spec:
+    severity: 5
+    nodeSelector:
+      matchLabels:
+        kubernetes.io/hostname: kubearmor-dev
+    network:
+      matchProtocols:
+      - protocol: icmp
+    action: Block
   ```
 
 * Device
