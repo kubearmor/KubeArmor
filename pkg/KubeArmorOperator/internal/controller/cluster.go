@@ -1016,9 +1016,9 @@ func AddOrUpdateEnv(dst *[]corev1.EnvVar, src []corev1.EnvVar) {
 func RemoveDeletedEntriesForNodeSelector(ns map[string]string) {
 	deletedEntries := []string{}
 
-	for _, v := range ns {
+	for k, v := range ns {
 		if v == "-" {
-			deletedEntries = append(deletedEntries, v)
+			deletedEntries = append(deletedEntries, k)
 		}
 	}
 
