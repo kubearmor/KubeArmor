@@ -96,6 +96,34 @@ spec:
     kubeRbacProxyImage:
         image: [image-repo:tag]                                # DEFAULT - gcr.io/kubebuilder/kube-rbac-proxy:v0.15.0
         imagePullPolicy: [image pull policy]                   # DEFAULT - Always
+
+    # TLS between KubeArmor and the relay server (see "TLS configuration" below)
+    tls:
+        enable: [true|false]                                   # DEFAULT - false
+        extraDnsNames: [list of DNS names]                     # DEFAULT - ["localhost"]
+        extraIpAddresses: [list of IP addresses]               # DEFAULT - ["127.0.0.1"]
+```
+
+### TLS configuration
+
+The `tls` object controls TLS for the gRPC connection between the KubeArmor daemonset and the KubeArmor relay server.
+
+* **`enable`** (boolean, default `false`): when `true`, the operator generates a CA, a client certificate for KubeArmor and a server certificate for the relay, stores them in secrets in the operator namespace, mounts them in the KubeArmor and relay pods and starts both with `-tlsEnabled=true`. When `false`, both run with `-tlsEnabled=false`.
+* **`extraDnsNames`** (list of strings, default `["localhost"]`): extra DNS names (SANs) to add to the relay server certificate. The relay service names (`kubearmor.<namespace>`, `kubearmor.<namespace>.svc` and `kubearmor.<namespace>.svc.cluster.local`) are always included. Use this when clients reach the relay through another name, for example an ingress or external load balancer hostname.
+* **`extraIpAddresses`** (list of strings, default `["127.0.0.1"]`): extra IP addresses (IP SANs) to add to the relay server certificate, for clients that connect to the relay by IP address.
+
+Setting `extraDnsNames` or `extraIpAddresses` replaces the default value (`localhost` / `127.0.0.1`) instead of adding to it, so include the defaults in the list if you still need them, for example when you port-forward to the relay. The extra names and addresses are used when the relay certificate is generated.
+
+```yaml
+spec:
+    tls:
+        enable: true
+        extraDnsNames:
+            - localhost
+            - kubearmor-relay.example.com
+        extraIpAddresses:
+            - 127.0.0.1
+            - 10.0.0.10
 ```
 
 ## Verify if all the resources are up and running
