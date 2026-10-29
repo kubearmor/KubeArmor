@@ -135,6 +135,42 @@ Now, we will briefly explain how to define a cluster security policy.
   message: [message]
   ```
 
+### Per-rule Overrides
+
+  `severity`, `tags`, `message` and `action` are not limited to the top of the spec. The same fields can be set on a match section (`process`, `file`, `network`, `capabilities`, `syscalls`) and on each individual match rule inside it, which allows a single cluster policy to raise alerts with different severities and messages. Each field is resolved independently, using the most specific value that is set:
+
+  1. the value set on the individual match rule (for example `spec.process.matchPaths[0].severity`)
+  2. the value set on the match section (for example `spec.process.severity`)
+  3. the value set on the policy itself (for example `spec.severity`)
+
+  ```yaml
+  apiVersion: security.kubearmor.com/v1
+  kind: KubeArmorClusterPolicy
+  metadata:
+    name: per-rule-overrides
+  spec:
+    selector:
+      matchExpressions:
+        - key: namespace
+          operator: In
+          values:
+            - default
+    severity: 1
+    action: Block
+    process:
+      matchPaths:
+      - path: /bin/ls
+        severity: 5
+        message: "ls was executed"
+      - path: /bin/cat
+        tags: ["SENSITIVE"]
+        message: "cat was executed"
+  ```
+
+  Both rules in the example block the executables, because neither the rules nor the `process` section define an `action`, so the policy-level `action: Block` is inherited. The alert for `/bin/ls` is reported with severity 5, while the alert for `/bin/cat` keeps the inherited severity 1 and uses its own tag and message.
+
+  > **NOTE** `action` set below the policy level has to be capitalized (`Allow`, `Audit` or `Block`). Only the policy-level `action` accepts the lowercase aliases (`allow`, `audit`, `block`), which KubeArmor normalizes into their capitalized form.
+
 ### Selector
 
   In the selector section for cluster-based policies, we use matchExpressions to define the namespaces where the policy should be applied and labels to select/deselect the workloads in those namespaces. Currently, only namespaces and labels can be matched, so the key should be 'namespace' and 'label'. The operator will determine whether the policy should apply to the namespaces and its workloads specified in the values field or not. Both `matchExpressions`, `namespace` and `label` are an ANDed operation.
