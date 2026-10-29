@@ -90,6 +90,9 @@ spec:
       - dir: [absolute directory path]
         recursive: [true|false]              # --> optional
 
+  apparmor: |                              # --> optional
+    [apparmor rule]
+
   action: [Allow|Audit|Block] (Block by default)
 ```
 
@@ -258,6 +261,43 @@ Now, we will briefly explain how to define a cluster security policy.
         fromSource:                        # --> optional
         - path: [absolute file path]
   ```
+
+### AppArmor
+
+  The apparmor part is optional and lets you add raw AppArmor rules to the profile that KubeArmor generates for the selected containers. It is meant for restrictions that cannot be expressed with the process, file, network, capabilities, or syscalls parts of a policy.
+
+  ```text
+    apparmor: |
+      [apparmor rule]
+  ```
+
+  The value is a multiline string. Each line is trimmed of its surrounding spaces and copied as it is into the native policy block of the generated profile, so the lines have to be written in the AppArmor rule syntax, each one ending with a comma, and not in YAML.
+
+  ```yaml
+  apiVersion: security.kubearmor.com/v1
+  kind: KubeArmorClusterPolicy
+  metadata:
+    name: csp-apparmor
+  spec:
+    selector:
+      matchLabels:
+        group: group-1
+    apparmor: |
+      deny /etc/shadow rwklx,
+      deny /root/** rwklx,
+    severity: 5
+    message: "access to sensitive files is denied"
+  ```
+
+  Things to keep in mind when using the apparmor part.
+
+  * The rules are only used by the AppArmor enforcer. When KubeArmor runs with the BPFLSM or the SELinux enforcer, the apparmor part of a policy has no effect.
+
+  * The apparmor part is not the name of an existing profile, and it does not load or reuse one. The value is a set of AppArmor rules: a line such as `docker-default` would be inserted in the profile as a rule, not used as a profile name.
+
+  * The rules are added on top of the rules that KubeArmor generates from the other parts of the same policy; they are placed in a dedicated block of the profile and do not replace the generated ones.
+
+  * If a line is not valid AppArmor syntax, `apparmor_parser` rejects the whole profile, KubeArmor logs `Unable to register the AppArmor profile`, and the profile is not loaded. As a result, the other rules of that policy are not enforced through AppArmor either, so it is worth checking the KubeArmor log after applying a policy that uses the apparmor part.
 
 ### Syscalls
 
