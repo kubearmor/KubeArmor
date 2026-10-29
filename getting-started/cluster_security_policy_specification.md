@@ -27,6 +27,7 @@ spec:
     matchPaths:
     - path: [absolute executable path]
       ownerOnly: [true|false]              # --> optional
+      execname: [binary name]              # --> optional
       fromSource:                          # --> optional
       - path: [absolute executable path]
     matchDirectories:
@@ -169,6 +170,7 @@ Now, we will briefly explain how to define a cluster security policy.
       matchPaths:
       - path: [absolute executable path]
         ownerOnly: [true|false]            # --> optional
+        execname: [binary name]            # --> optional
         fromSource:                        # --> optional
         - path: [absolute executable path]
       matchDirectories:
@@ -182,7 +184,7 @@ Now, we will briefly explain how to define a cluster security policy.
         ownerOnly: [true|false]            # --> optional
   ```
 
-  In each match, there are three options.
+  In each match, there are the following options.
 
   * ownerOnly \(static action: allow owner only; otherwise block all\)
 
@@ -202,6 +204,16 @@ Now, we will briefly explain how to define a cluster security policy.
         - path: /bin/sleep
           fromSource:
           - path: /bin/bash
+    ```
+
+  * execname
+
+    Besides an absolute path, matchPaths can select executables by their binary name using execname. The value is a binary name only, without any directory separator (e.g., sleep), and it matches the execution of any binary with that name, regardless of the directory it resides in. When execname is set, it takes precedence over path in the same matchPaths entry.
+
+    ```text
+      process:
+        matchPaths:
+        - execname: apt
     ```
 
 ### File
