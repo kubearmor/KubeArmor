@@ -184,3 +184,30 @@ func TestAddorUpdateNodeSelector(t *testing.T) {
 		})
 	})
 }
+
+func TestRemoveDeletedEntriesForNodeSelector(t *testing.T) {
+	ns := map[string]string{
+		"keep":    "val",
+		"removed": "-",
+	}
+
+	RemoveDeletedEntriesForNodeSelector(ns)
+
+	assert.Equal(t, map[string]string{"keep": "val"}, ns)
+}
+
+func TestUpdateNodeSelectorIfDefinedAndUpdatedAfterRemoval(t *testing.T) {
+	commonNS := map[string]string{}
+
+	assert.True(t, UpdateNodeSelectorIfDefinedAndUpdated(commonNS, map[string]string{"a": "1", "b": "2"}))
+
+	// removing "b" marks it as deleted so components drop it
+	assert.True(t, UpdateNodeSelectorIfDefinedAndUpdated(commonNS, map[string]string{"a": "1"}))
+	assert.Equal(t, "-", commonNS["b"])
+
+	// once the deletion has been propagated the marker must be cleaned up,
+	// otherwise every later reconcile reports a spurious change
+	RemoveDeletedEntriesForNodeSelector(commonNS)
+	assert.Equal(t, map[string]string{"a": "1"}, commonNS)
+	assert.False(t, UpdateNodeSelectorIfDefinedAndUpdated(commonNS, map[string]string{"a": "1"}))
+}
