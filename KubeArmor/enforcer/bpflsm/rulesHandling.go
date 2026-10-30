@@ -397,7 +397,9 @@ func (be *BPFEnforcer) buildRuleList(id string, securityPolicies []tp.SecurityPo
 		for _, dns := range secPolicy.Spec.Network.MatchDNSQueries {
 			var val [2]uint16
 			// If a user enters a TLD extension with a trailing or preceding dot, remove it.
-			dns.Domain = strings.Trim(dns.Domain, ".")
+			// DNS names are case-insensitive and the BPF side folds queried names to
+			// lower case, so store the rule key in lower case as well.
+			dns.Domain = strings.ToLower(strings.Trim(dns.Domain, "."))
 			if len(dns.FromSource) == 0 {
 				if dns.Action == "Allow" {
 					newrules.DNSNetWhiteListPosture = true
