@@ -26,7 +26,35 @@
 //     → grpcc_events ring buffer
 //
 
+// ARM64 compatibility wrapper:
+// If vmlinux.h is dumped from an ARM64 kernel, it defines struct user_pt_regs.
+// If vmlinux.h is from an x86 kernel (e.g. checked-in vmlinux.h used during Docker buildx),
+// struct user_pt_regs is missing.
+// By temporarily aliasing user_pt_regs during shared.h/vmlinux.h inclusion,
+// we avoid redefinition errors if it was present, while ensuring a complete definition
+// is always available for bpf_tracing.h and uprobe handlers.
+#if defined(__TARGET_ARCH_arm64) || defined(__aarch64__)
+#define user_pt_regs __vm_user_pt_regs
+#endif
+
 #include "shared.h"
+
+#if defined(__TARGET_ARCH_arm64) || defined(__aarch64__)
+#undef user_pt_regs
+
+#undef __PT_REGS_CAST
+#define __PT_REGS_CAST(x) ((const struct user_pt_regs *)(x))
+
+#ifndef __USER_PT_REGS_DEFINED
+#define __USER_PT_REGS_DEFINED
+struct user_pt_regs {
+    unsigned long long regs[31];
+    unsigned long long sp;
+    unsigned long long pc;
+    unsigned long long pstate;
+};
+#endif
+#endif
 
 #include "apiobserver/common/macros.h"
 #include "apiobserver/common/structs.h"
