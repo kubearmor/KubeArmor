@@ -25,19 +25,6 @@
 //     uprobe on grpc_chttp2_maybe_complete_recv_initial_metadata
 //     → grpcc_events ring buffer
 //
-// ARM64 cross-compilation: must come before shared.h because bpf_tracing.h
-// uses struct user_pt_regs when bpf_target_arm64 is defined.
-#if defined(__TARGET_ARCH_arm64) || defined(__aarch64__)
-#ifndef __USER_PT_REGS_DEFINED
-#define __USER_PT_REGS_DEFINED
-struct user_pt_regs {
-    unsigned long long regs[31];
-    unsigned long long sp;
-    unsigned long long pc;
-    unsigned long long pstate;
-};
-#endif
-#endif
 
 #include "shared.h"
 
