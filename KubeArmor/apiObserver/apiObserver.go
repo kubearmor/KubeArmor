@@ -39,7 +39,7 @@ import (
 	probe "github.com/kubearmor/KubeArmor/KubeArmor/utils/bpflsmprobe"
 )
 
-//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -target amd64,arm64 -cc clang apiObserver ../BPF/api_observer.bpf.c
+//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -target native -cc clang apiObserver ../BPF/api_observer.bpf.c
 
 // ServiceResolver maps a ClusterIP to a K8s service FQDN (e.g.
 // "cartservice.online-boutique.svc.cluster.local"). Returns empty
