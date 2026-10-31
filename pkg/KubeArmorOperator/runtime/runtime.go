@@ -155,15 +155,14 @@ func runtimeSockHasContainer(containerID, sockPath string) (bool, string) {
 	return false, ""
 }
 
-func DetectRuntimeViaMap(pathPrefix string, k8sRuntime string, explicitSocket string, log zap.SugaredLogger, cl *kubernetes.Clientset) (string, string, string) {
-
+func DetectRuntimeViaMap(pathPrefix string, k8sRuntime string, explicitSocket string, log zap.SugaredLogger, cl *kubernetes.Clientset) (string, string) {
 	// get container ID of snitch
 	podName := os.Getenv("POD_NAME")
 	namespace := os.Getenv("POD_NAMESPACE")
 	pod, err := cl.CoreV1().Pods(namespace).Get(context.TODO(), podName, metav1.GetOptions{})
 	if err != nil {
 		log.Errorf("Error in getting pod info: %v\n", err)
-		return "NA", "NA", "NA"
+		return "NA", "NA"
 	}
 
 	var id string
@@ -171,7 +170,7 @@ func DetectRuntimeViaMap(pathPrefix string, k8sRuntime string, explicitSocket st
 		id = pod.Status.ContainerStatuses[0].ContainerID // <type>://<container_id>, for example containerd://abcdef123456.....
 	} else {
 		log.Errorf("Error in getting pod info: %v\n", err)
-		return "NA", "NA", "NA"
+		return "NA", "NA"
 	}
 
 	containerID := id
@@ -179,7 +178,7 @@ func DetectRuntimeViaMap(pathPrefix string, k8sRuntime string, explicitSocket st
 		containerID = id[idx+3:]
 	} else {
 		log.Errorf("Unexpected ContainerID format: %s", id)
-		return "NA", "NA", "NA"
+		return "NA", "NA"
 	}
 
 	if explicitSocket != "" {
@@ -188,7 +187,7 @@ func DetectRuntimeViaMap(pathPrefix string, k8sRuntime string, explicitSocket st
 		hostPath := strings.TrimPrefix(explicitSocket, "unix://")
 		if !filepath.IsAbs(hostPath) {
 			log.Errorf("Explicit socket path must be absolute: %s", explicitSocket)
-			return "NA", "NA", "NA"
+			return "NA", "NA"
 		}
 
 		hostPath = filepath.Clean(hostPath)
@@ -199,17 +198,17 @@ func DetectRuntimeViaMap(pathPrefix string, k8sRuntime string, explicitSocket st
 			if found {
 				if (runtime == "docker" && strings.Contains(hostPath, "containerd")) || runtime == "containerd" {
 					if nriPath, err := DetectNRI(pathPrefix); err == nil {
-						return runtime, hostPath, nriPath
+						return "nri", nriPath
 					} else {
 						log.Warnf("NRI detection failed: %s", err)
 					}
 				}
 
-				return runtime, hostPath, ""
+				return runtime, hostPath
 			}
 		} else {
 			log.Errorf("Explicit socket file not accessible: %s", err)
-			return "NA", "NA", "NA"
+			return "NA", "NA"
 		}
 	}
 
@@ -222,12 +221,12 @@ func DetectRuntimeViaMap(pathPrefix string, k8sRuntime string, explicitSocket st
 				if found {
 					if (detectedRuntime == "docker" && strings.Contains(path, "containerd")) || detectedRuntime == "containerd" {
 						if nriPath, err := DetectNRI(pathPrefix); err == nil {
-							return detectedRuntime, path, nriPath
+							return detectedRuntime, nriPath
 						} else {
 							log.Warnf("%s", err)
 						}
 					}
-					return detectedRuntime, path, ""
+					return detectedRuntime, path
 				}
 			} else {
 				log.Warnf("%s", err)
@@ -240,7 +239,7 @@ func DetectRuntimeViaMap(pathPrefix string, k8sRuntime string, explicitSocket st
 			if _, err := os.Stat(pathPrefix + path); err == nil || os.IsPermission(err) {
 				found, k8sRuntime := runtimeSockHasContainer(containerID, pathPrefix+path)
 				if found {
-					return k8sRuntime, path, ""
+					return k8sRuntime, path
 				}
 			} else {
 				log.Warnf("%s", err)
@@ -248,5 +247,5 @@ func DetectRuntimeViaMap(pathPrefix string, k8sRuntime string, explicitSocket st
 		}
 	}
 	log.Warn("Couldn't detect runtime")
-	return "NA", "NA", "NA"
+	return "NA", "NA"
 }

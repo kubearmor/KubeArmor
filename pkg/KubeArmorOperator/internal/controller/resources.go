@@ -33,13 +33,13 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
-func generateDaemonset(name, enforcer, runtime, socket, nriSocket, btfPresent, apparmorfs, seccompPresent string, initDeploy bool, ociHooks string) *appsv1.DaemonSet {
+func generateDaemonset(name, enforcer, runtime, socket, btfPresent, apparmorfs, seccompPresent string, initDeploy bool, ociHooks string) *appsv1.DaemonSet {
 	enforcerVolumes := []corev1.Volume{}
 	enforcerVolumeMounts := []corev1.VolumeMount{}
 	if !(enforcer == "apparmor" && apparmorfs == "no") {
 		enforcerVolumes, enforcerVolumeMounts = genEnforcerVolumes(enforcer)
 	}
-	runtimeVolumes, runtimeVolumeMounts := genRuntimeVolumes(runtime, socket, nriSocket)
+	runtimeVolumes, runtimeVolumeMounts := genRuntimeVolumes(runtime, socket)
 	vols := []corev1.Volume{}
 	volMnts := []corev1.VolumeMount{}
 	vols = append(vols, enforcerVolumes...)
@@ -87,15 +87,6 @@ func generateDaemonset(name, enforcer, runtime, socket, nriSocket, btfPresent, a
 		daemonset.Spec.Template.Spec.InitContainers = []corev1.Container{}
 	}
 
-	if nriSocket != "" && common.NRIEnabled {
-		name = strings.Join([]string{
-			"kubearmor",
-			strings.ReplaceAll(enforcer, ".", "-"),
-			"nri",
-			common.ShortSHA(nriSocket),
-		}, "-")
-	}
-
 	daemonset.Name = name
 	labels := map[string]string{
 		common.EnforcerLabel: enforcer,
@@ -109,9 +100,6 @@ func generateDaemonset(name, enforcer, runtime, socket, nriSocket, btfPresent, a
 	AddOrUpdateNodeSelector(labels, common.GlobalNodeSelectors)
 	AddOrUpdateNodeSelector(labels, common.KubeArmorNodeSelector)
 
-	if nriSocket != "" {
-		labels[common.NRISocketLabel] = nriSocket
-	}
 	daemonset.Spec.Template.Spec.NodeSelector = common.CopyStrMap(labels)
 	labels["kubearmor-app"] = "kubearmor"
 	daemonset.Spec.Template.Labels = labels
@@ -202,7 +190,7 @@ func generateDaemonset(name, enforcer, runtime, socket, nriSocket, btfPresent, a
 	daemonset.Spec.Template.Spec.InitContainers[0].ImagePullPolicy = corev1.PullPolicy(common.KubeArmorInitImagePullPolicy)
 
 	// force socket
-	setCriSocket(runtime, socket, &daemonset.Spec.Template.Spec.Containers[0].Args)
+	setSocket(runtime, socket, &daemonset.Spec.Template.Spec.Containers[0].Args)
 
 	daemonset = addOwnership(daemonset).(*appsv1.DaemonSet)
 	fmt.Printf("generated daemonset: %v", daemonset)
@@ -221,23 +209,51 @@ func runtimeSocketPath(runtime, socketLabel string) (string, bool) {
 	return "", false
 }
 
-// setCriSocket forces -criSocket to the socket the snitch detected. The socket
+func socketFlagFromRuntime(runtime string) string {
+	mapping := map[string]string{
+		"nri":        "-nriSocket=",
+		"containerd": "-criSocket=",
+		"cri-o":      "-criSocket=",
+		"docker":     "-criSocket=",
+	}
+	if flag, ok := mapping[runtime]; ok {
+		return flag
+	}
+	return ""
+}
+
+func socketPrefixFromRuntime(runtime string) string {
+	mapping := map[string]string{
+		"containerd": "unix://",
+		"cri-o":      "unix://",
+		"docker":     "unix://",
+	}
+	if flag, ok := mapping[runtime]; ok {
+		return flag
+	}
+	return ""
+}
+
+// setSocket forces -criSocket/-nriSocket to the socket the snitch detected. The socket
 // directory is mounted at the same path inside the container (genRuntimeVolumes),
 // so the host path is valid there.
-func setCriSocket(runtime, socketLabel string, args *[]string) {
+func setSocket(runtime, socketLabel string, args *[]string) {
 	socket, ok := runtimeSocketPath(runtime, socketLabel)
 	if args == nil || !ok {
 		return
 	}
-	const CriSocketFlag = "-criSocket="
-	criSocketArg := CriSocketFlag + "unix://" + socket
+
+	socketFlag := socketFlagFromRuntime(runtime)
+	socketPrefix := socketPrefixFromRuntime(runtime)
+	socketArg := socketFlag + socketPrefix + socket
+
 	for idx := range *args {
-		if strings.HasPrefix((*args)[idx], CriSocketFlag) {
-			(*args)[idx] = criSocketArg
+		if strings.HasPrefix((*args)[idx], socketFlag) {
+			(*args)[idx] = socketArg
 			return
 		}
 	}
-	*args = append(*args, criSocketArg)
+	*args = append(*args, socketArg)
 }
 
 func genEnforcerVolumes(enforcer string) (vol []corev1.Volume, volMnt []corev1.VolumeMount) {
@@ -251,7 +267,7 @@ func genEnforcerVolumes(enforcer string) (vol []corev1.Volume, volMnt []corev1.V
 	return
 }
 
-func genRuntimeVolumes(runtime, runtimeSocket, nriSocket string) (vol []corev1.Volume, volMnt []corev1.VolumeMount) {
+func genRuntimeVolumes(runtime, runtimeSocket string) (vol []corev1.Volume, volMnt []corev1.VolumeMount) {
 	// lookup socket
 	if socket, ok := runtimeSocketPath(runtime, runtimeSocket); ok {
 		// Mount the socket's parent directory instead of the file.
@@ -274,31 +290,6 @@ func genRuntimeVolumes(runtime, runtimeSocket, nriSocket string) (vol []corev1.V
 			MountPath: socketDir,
 			ReadOnly:  true,
 		})
-	}
-	if nriSocket != "" && common.NRIEnabled {
-		runtime = "nri"
-		for _, socket := range common.ContainerRuntimeSocketMap[runtime] {
-			if strings.ReplaceAll(socket[1:], "/", "_") == nriSocket {
-				socketDir := filepath.Dir(socket)
-				vol = append(vol, corev1.Volume{
-					Name: runtime + "-socket",
-					VolumeSource: corev1.VolumeSource{
-						HostPath: &corev1.HostPathVolumeSource{
-							Path: socketDir,
-							Type: &common.HostPathDirectory,
-						},
-					},
-				})
-
-				mountDir := filepath.Dir(common.RuntimeSocketLocation[runtime])
-				volMnt = append(volMnt, corev1.VolumeMount{
-					Name:      runtime + "-socket",
-					MountPath: mountDir,
-					ReadOnly:  true,
-				})
-				break
-			}
-		}
 	}
 	return
 }

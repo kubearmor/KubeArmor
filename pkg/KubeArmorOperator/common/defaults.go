@@ -260,8 +260,6 @@ var ContainerRuntimeSocketMap = map[string][]string{
 	},
 }
 
-var NRIEnabled = false
-
 var HostPathDirectory = corev1.HostPathDirectory
 var HostPathDirectoryOrCreate = corev1.HostPathDirectoryOrCreate
 var HostPathSocket = corev1.HostPathSocket
@@ -288,13 +286,6 @@ var EnforcerVolumes = map[string][]corev1.Volume{
 			},
 		},
 	},
-}
-
-var RuntimeSocketLocation = map[string]string{
-	"docker":     "/var/run/docker.sock",
-	"containerd": "/var/run/containerd/containerd.sock",
-	"cri-o":      "/var/run/crio/crio.sock",
-	"nri":        "/var/run/nri/nri.sock",
 }
 
 func ShortSHA(s string) string {
@@ -669,31 +660,4 @@ func ParseArgument(arg string) (key string, value string, found bool) {
 	}
 
 	return parts[0], parts[1], true
-}
-
-func GenerateNRIvol(nriSocket string) (vol []corev1.Volume, volMnt []corev1.VolumeMount) {
-	if nriSocket != "" {
-		for _, socket := range ContainerRuntimeSocketMap["nri"] {
-			if strings.ReplaceAll(socket[1:], "/", "_") == nriSocket {
-				vol = append(vol, corev1.Volume{
-					Name: "nri-socket",
-					VolumeSource: corev1.VolumeSource{
-						HostPath: &corev1.HostPathVolumeSource{
-							Path: socket,
-							Type: &HostPathSocket,
-						},
-					},
-				})
-
-				socket = RuntimeSocketLocation["nri"]
-				volMnt = append(volMnt, corev1.VolumeMount{
-					Name:      "nri-socket",
-					MountPath: socket,
-					ReadOnly:  true,
-				})
-				break
-			}
-		}
-	}
-	return
 }
