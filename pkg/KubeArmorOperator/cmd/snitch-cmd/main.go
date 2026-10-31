@@ -61,7 +61,7 @@ var Cmd = &cobra.Command{
 		log, _ := config.Build()
 		Logger = log.Sugar()
 		K8sClient = k8s.NewClient(*Logger, o.KubeConfig)
-		//Initialise k8sClient for all child commands to inherit
+		// Initialise k8sClient for all child commands to inherit
 		if K8sClient == nil {
 			return errors.New("couldn't create k8s client")
 		}
@@ -74,7 +74,6 @@ var Cmd = &cobra.Command{
 		Logger.Infof("k8s runtime=%s", o.Runtime)
 		Logger.Infof("KubeConfig path=%s", o.KubeConfig)
 		snitch()
-
 	},
 	Use:   "snitch",
 	Short: "A CLI Utility to Detect node related information for KubeArmor",
@@ -194,7 +193,6 @@ func snitch() {
 	}
 
 	patch, err := json.Marshal(patchNode)
-
 	if err != nil {
 		Logger.Errorf("Error while marshaling json, error=%s", err.Error())
 		os.Exit(1)

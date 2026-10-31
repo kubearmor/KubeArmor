@@ -162,7 +162,6 @@ func (clusterWatcher *ClusterWatcher) checkJobStatus(job, runtime, nodename stri
 			podsList, err := clusterWatcher.Client.CoreV1().Pods(common.Namespace).List(context.TODO(), v1.ListOptions{
 				LabelSelector: fmt.Sprintf("job-name=%s", job),
 			})
-
 			if err != nil {
 				clusterWatcher.Log.Warnf("Cannot get job pod: %s err: %s", job, err)
 				return
@@ -271,7 +270,6 @@ func (clusterWatcher *ClusterWatcher) WatchNodes() {
 			}
 		},
 		UpdateFunc: func(oldObj, newObj any) {
-
 			if node, ok := newObj.(*corev1.Node); ok {
 				oldRand := ""
 				if old, ok := oldObj.(*corev1.Node); ok {
@@ -418,11 +416,9 @@ func (clusterWatcher *ClusterWatcher) UpdateDaemonsets(action, enforcer, runtime
 			clusterWatcher.Log.Warnf("Cannot Create daemonset %s, error=%s", daemonsetName, err.Error())
 		}
 	}
-
 }
 
 func (clusterWatcher *ClusterWatcher) WatchConfigCrd() {
-
 	factory := opv1Informer.NewSharedInformerFactoryWithOptions(clusterWatcher.Opv1Client,
 		time.Duration(5*time.Second),
 		opv1Informer.WithNamespace(common.Namespace))
@@ -434,7 +430,7 @@ func (clusterWatcher *ClusterWatcher) WatchConfigCrd() {
 		return
 	}
 
-	var firstRun = true
+	firstRun := true
 
 	informer.AddEventHandler(
 		cache.ResourceEventHandlerFuncs{
@@ -887,7 +883,7 @@ func UpdateIfDefinedAndUpdated(common *string, in string) bool {
 }
 
 func UpdateNodeSelectorIfDefinedAndUpdated(common map[string]string, in map[string]string) bool {
-	var deleted = false
+	deleted := false
 	// mark deleted entries
 	for k := range common {
 		if _, ok := in[k]; !ok {
@@ -911,7 +907,7 @@ func UpdateNodeSelectorIfDefinedAndUpdated(common map[string]string, in map[stri
 
 func UpdateEnvIfDefinedAndUpdated(defaultEnv *[]corev1.EnvVar, in []corev1.EnvVar) bool {
 	// mark deleted entries
-	var deleted = false
+	deleted := false
 
 	for i, env := range *defaultEnv {
 		if idx := slices.IndexFunc(in, func(e corev1.EnvVar) bool {
@@ -926,7 +922,7 @@ func UpdateEnvIfDefinedAndUpdated(defaultEnv *[]corev1.EnvVar, in []corev1.EnvVa
 		return false || deleted
 	}
 
-	var changed = false
+	changed := false
 	// update or add
 	for _, env := range in {
 		if idx := slices.IndexFunc(*defaultEnv, func(e corev1.EnvVar) bool {
@@ -966,7 +962,6 @@ func AddOrUpdateNodeSelector(dst map[string]string, src map[string]string) {
 }
 
 func AddOrUpdateEnv(dst *[]corev1.EnvVar, src []corev1.EnvVar) {
-
 	if dst == nil {
 		return
 	}
@@ -1018,7 +1013,6 @@ func RemoveDeletedEntriesForEnv(env *[]corev1.EnvVar) {
 }
 
 func UpdateArgsIfDefinedAndUpdated(defaultArgs *[]string, in []string) bool {
-
 	// If no user arguments provided, return defaults
 	if len(in) == 0 {
 		return false
@@ -1188,7 +1182,6 @@ func (clusterWatcher *ClusterWatcher) UpdateKubeArmorConfigMap(cfg *opv1.KubeArm
 		}
 		return true, nil
 	})
-
 	if err != nil {
 		clusterWatcher.Log.Errorf("Error updating the KubeArmor Configmap %s", err)
 		go clusterWatcher.UpdateCrdStatus(cfg.Name, common.ERROR, common.UPDATION_FAILED_ERR_MSG)
@@ -1243,13 +1236,13 @@ func (clusterWatcher *ClusterWatcher) WatchTlsState(tlsEnabled bool) error {
 		} else {
 			update = true
 		}
-
 	}
 	if update {
 		return clusterWatcher.UpdateTlsConfigurations(tlsEnabled)
 	}
 	return nil
 }
+
 func (clusterWatcher *ClusterWatcher) UpdateWebhookSvcPort(port int) {
 	// update webhook service port
 	svc, err := clusterWatcher.Client.CoreV1().Services(common.Namespace).Get(context.Background(), common.KubeArmorControllerWebhookServiceName, v1.GetOptions{})

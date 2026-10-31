@@ -101,7 +101,7 @@ var (
 	GlobalTolerations      []corev1.Toleration           = []corev1.Toleration{}
 	GlobalNodeSelectors                                  = map[string]string{}
 	GlobalEnv                                            = []corev1.EnvVar{}
-	//KubearmorRelayEnvVariables
+	// KubearmorRelayEnvVariables
 
 	EnableStdOutAlerts string = "enableStdOutAlerts"
 	EnableStdOutLogs   string = "enableStdOutLogs"
@@ -172,7 +172,7 @@ var (
 	DefaultMaxAlertPerSec string = "10"
 	DefaultThrottleSec    string = "30"
 
-	//Match Args
+	// Match Args
 	MatchArgs bool = true
 
 	// recommend policies
@@ -260,10 +260,12 @@ var ContainerRuntimeSocketMap = map[string][]string{
 	},
 }
 
-var HostPathDirectory = corev1.HostPathDirectory
-var HostPathDirectoryOrCreate = corev1.HostPathDirectoryOrCreate
-var HostPathSocket = corev1.HostPathSocket
-var HostPathFile = corev1.HostPathFile
+var (
+	HostPathDirectory         = corev1.HostPathDirectory
+	HostPathDirectoryOrCreate = corev1.HostPathDirectoryOrCreate
+	HostPathSocket            = corev1.HostPathSocket
+	HostPathFile              = corev1.HostPathFile
+)
 
 var EnforcerVolumesMounts = map[string][]corev1.VolumeMount{
 	"apparmor": {

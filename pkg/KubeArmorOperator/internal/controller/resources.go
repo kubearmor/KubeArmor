@@ -414,7 +414,6 @@ func deploySnitch(nodename string, runtime string) *batchv1.Job {
 						},
 						ImagePullPolicy: corev1.PullIfNotPresent,
 						VolumeMounts: []corev1.VolumeMount{
-
 							{
 								Name:      "var-path",
 								MountPath: "/rootfs/var/",
@@ -461,7 +460,7 @@ func deploySnitch(nodename string, runtime string) *batchv1.Job {
 									"ALL",
 								},
 							},
-							Privileged: &(common.Privileged),
+							Privileged: &common.Privileged,
 						},
 						Resources: resourcesConstraints,
 					},
@@ -627,7 +626,6 @@ func (clusterWatcher *ClusterWatcher) AreAllNodesProcessed() bool {
 		LabelSelector: "kubearmor-app=kubearmor",
 	})
 	return len(kaPodsList.Items) == dsCount
-
 }
 
 func (clusterWatcher *ClusterWatcher) deployControllerDeployment(deployment *appsv1.Deployment) error {
@@ -895,7 +893,6 @@ func (clusterWatcher *ClusterWatcher) WatchRequiredResources() {
 	kubearmorControllerWebhookSvc := deployments.GetKubeArmorControllerWebhookService(common.Namespace)
 	kubearmorControllerWebhookSvc.Spec.Ports[0].TargetPort = intstr.FromInt(int(common.KubeArmorControllerPort))
 	svcs := []*corev1.Service{
-
 		addOwnership(kubearmorControllerWebhookSvc).(*corev1.Service),
 		addOwnership(deployments.GetRelayService(common.Namespace)).(*corev1.Service),
 	}
@@ -1066,10 +1063,8 @@ func (clusterWatcher *ClusterWatcher) WatchRequiredResources() {
 		})
 	}
 	if common.EnableTls {
-		relayServer.Spec.Template.Spec.Containers[0].VolumeMounts =
-			append(relayServer.Spec.Template.Spec.Containers[0].VolumeMounts, common.KubeArmorRelayTlsVolumeMount...)
-		relayServer.Spec.Template.Spec.Volumes =
-			append(relayServer.Spec.Template.Spec.Volumes, common.KubeArmorRelayTlsVolume...)
+		relayServer.Spec.Template.Spec.Containers[0].VolumeMounts = append(relayServer.Spec.Template.Spec.Containers[0].VolumeMounts, common.KubeArmorRelayTlsVolumeMount...)
+		relayServer.Spec.Template.Spec.Volumes = append(relayServer.Spec.Template.Spec.Volumes, common.KubeArmorRelayTlsVolume...)
 		common.AddOrReplaceArg("-tlsEnabled=true", "-tlsEnabled=false", &relayServer.Spec.Template.Spec.Containers[0].Args)
 	} else {
 		common.AddOrReplaceArg("-tlsEnabled=false", "-tlsEnabled=true", &relayServer.Spec.Template.Spec.Containers[0].Args)
@@ -1131,7 +1126,7 @@ func (clusterWatcher *ClusterWatcher) WatchRequiredResources() {
 			}
 		}
 
-		//rbac
+		// rbac
 		for _, role := range roles {
 			_, err = clusterWatcher.Client.RbacV1().Roles(common.Namespace).Get(context.Background(), role.Name, metav1.GetOptions{})
 			if utils.IsNotfound(err) {
@@ -1188,7 +1183,7 @@ func (clusterWatcher *ClusterWatcher) WatchRequiredResources() {
 			}
 		}
 
-		//configmap
+		// configmap
 		_, err := clusterWatcher.Client.CoreV1().ConfigMaps(common.Namespace).Get(context.Background(), configmap.Name, metav1.GetOptions{})
 		if utils.IsNotfound(err) {
 			clusterWatcher.Log.Infof("Creating ConfigMap %s", configmap.Name)
@@ -1215,7 +1210,7 @@ func (clusterWatcher *ClusterWatcher) WatchRequiredResources() {
 		// watchTlsState
 		clusterWatcher.WatchTlsState(common.GetTlsState())
 
-		//secret
+		// secret
 		s, err := clusterWatcher.Client.CoreV1().Secrets(common.Namespace).Get(context.Background(), secret.Name, metav1.GetOptions{})
 		if utils.IsNotfound(err) {
 			clusterWatcher.Log.Infof("Creating secret %s", secret.Name)
@@ -1250,7 +1245,7 @@ func (clusterWatcher *ClusterWatcher) WatchRequiredResources() {
 			installErr = err
 		}
 
-		//mutation webhook
+		// mutation webhook
 		hook, err := clusterWatcher.Client.AdmissionregistrationV1().MutatingWebhookConfigurations().Get(context.Background(), mutationhook.Name, metav1.GetOptions{})
 		if utils.IsNotfound(err) {
 			clusterWatcher.Log.Infof("Creating mutation webhook %s", mutationhook.Name)
