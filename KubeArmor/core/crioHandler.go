@@ -329,6 +329,11 @@ func (dm *KubeArmorDaemon) UpdateCrioContainer(ctx context.Context, containerID,
 		}
 
 		dm.Logger.Printf("Detected a container (added/%.12s)", containerID)
+
+		// Notify API Observer of new container for namespace filtering.
+		if dm.APIObserver != nil && container.PidNS > 0 {
+			dm.APIObserver.OnContainerAdded(container.ContainerID, container.NamespaceName, container.PidNS)
+		}
 	} else if action == "destroy" {
 		dm.ContainersLock.Lock()
 		container, ok := dm.Containers[containerID]
@@ -375,6 +380,11 @@ func (dm *KubeArmorDaemon) UpdateCrioContainer(ctx context.Context, containerID,
 		}
 
 		dm.Logger.Printf("Detected a container (removed/%.12s)", containerID)
+
+		// Notify API Observer of removed container for namespace filtering.
+		if dm.APIObserver != nil {
+			dm.APIObserver.OnContainerRemoved(containerID)
+		}
 	}
 
 	return nil

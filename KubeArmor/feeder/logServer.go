@@ -6,6 +6,7 @@ package feeder
 import (
 	"context"
 	"fmt"
+	"sync/atomic"
 
 	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
 	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
@@ -16,7 +17,9 @@ import (
 type LogService struct {
 	QueueSize    int
 	EventStructs *EventStructs
-	Running      *bool
+	// Running is a pointer to the feeder's atomic Running flag.
+	// Accessed via Load() — safe for concurrent use from gRPC handler goroutines.
+	Running *atomic.Bool
 }
 
 // HealthCheck Function
@@ -43,7 +46,7 @@ func (ls *LogService) WatchMessages(req *pb.RequestMessage, svr pb.LogService_Wa
 		kg.Printf("Deleted the client (%s) for WatchMessages", uid)
 	}()
 
-	for *ls.Running {
+	for ls.Running.Load() {
 		select {
 		case <-svr.Context().Done():
 			return nil
@@ -79,7 +82,7 @@ func (ls *LogService) WatchAlerts(req *pb.RequestMessage, svr pb.LogService_Watc
 		kg.Printf("Deleted the client (%s) for WatchAlerts", uid)
 	}()
 
-	for *ls.Running {
+	for ls.Running.Load() {
 		select {
 		case <-svr.Context().Done():
 			return nil
@@ -115,7 +118,7 @@ func (ls *LogService) WatchLogs(req *pb.RequestMessage, svr pb.LogService_WatchL
 		kg.Printf("Deleted the client (%s) for WatchLogs", uid)
 	}()
 
-	for *ls.Running {
+	for ls.Running.Load() {
 		select {
 		case <-svr.Context().Done():
 			return nil
