@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	containerd "github.com/containerd/containerd/v2/client"
@@ -29,15 +30,13 @@ const (
 	containerdDockerNs = "moby"
 )
 
-func DetectNRI(pathPrefix string) (string, error) {
-	for _, path := range common.ContainerRuntimeSocketMap["nri"] {
-		if _, err := os.Stat(filepath.Clean(pathPrefix + path)); err == nil || os.IsPermission(err) {
-			return path, nil
-		} else {
-			log.Warnf("%s", err)
-		}
+func validatePath(path string) error {
+	_, err := os.Stat(filepath.Clean(path))
+	if err != nil && !os.IsPermission(err) {
+		return err
 	}
-	return "NA", fmt.Errorf("NRI not available")
+
+	return nil
 }
 
 func dockerSockHasContainer(containerID, sockPath string) bool {
@@ -135,7 +134,6 @@ func crioSockHasContainer(containerID, sockPath string) bool {
 
 func runtimeSockHasContainer(containerID, sockPath string) (bool, string) {
 	// try all in case custom runtime wrapper is used
-
 	if containerdSockHasContainer(containerID, sockPath) {
 		return true, "containerd"
 	}
@@ -153,6 +151,16 @@ func runtimeSockHasContainer(containerID, sockPath string) (bool, string) {
 	}
 
 	return false, ""
+}
+
+func getContainerRuntimePriority(first string) []string {
+	priority := slices.Clone(common.ContainerRuntimeDefaultPriority)
+	if i := slices.Index(priority, first); i > 0 {
+		priority = slices.Delete(priority, i, i+1)
+		priority = slices.Insert(priority, 1, first)
+	}
+
+	return priority
 }
 
 func DetectRuntimeViaMap(pathPrefix string, k8sRuntime string, explicitSocket string, log zap.SugaredLogger, cl *kubernetes.Clientset) (string, string) {
@@ -196,14 +204,6 @@ func DetectRuntimeViaMap(pathPrefix string, k8sRuntime string, explicitSocket st
 		if _, err := os.Stat(checkPath); err == nil || os.IsPermission(err) {
 			found, runtime := runtimeSockHasContainer(containerID, checkPath)
 			if found {
-				if (runtime == "docker" && strings.Contains(hostPath, "containerd")) || runtime == "containerd" {
-					if nriPath, err := DetectNRI(pathPrefix); err == nil {
-						return "nri", nriPath
-					} else {
-						log.Warnf("NRI detection failed: %s", err)
-					}
-				}
-
 				return runtime, hostPath
 			}
 		} else {
@@ -214,32 +214,11 @@ func DetectRuntimeViaMap(pathPrefix string, k8sRuntime string, explicitSocket st
 
 	log.Infof("Checking for %s socket\n", k8sRuntime)
 
-	if k8sRuntime != "" {
-		for _, path := range common.ContainerRuntimeSocketMap[k8sRuntime] {
-			if _, err := os.Stat(pathPrefix + path); err == nil || os.IsPermission(err) {
-				found, detectedRuntime := runtimeSockHasContainer(containerID, pathPrefix+path)
-				if found {
-					if (detectedRuntime == "docker" && strings.Contains(path, "containerd")) || detectedRuntime == "containerd" {
-						if nriPath, err := DetectNRI(pathPrefix); err == nil {
-							return detectedRuntime, nriPath
-						} else {
-							log.Warnf("%s", err)
-						}
-					}
-					return detectedRuntime, path
-				}
-			} else {
-				log.Warnf("%s", err)
-			}
-		}
-	}
-	log.Warn("Couldn't detect k8s runtime location, searching for other runtime sockets")
-	for _, paths := range common.ContainerRuntimeSocketMap {
-		for _, path := range paths {
-			if _, err := os.Stat(pathPrefix + path); err == nil || os.IsPermission(err) {
-				found, k8sRuntime := runtimeSockHasContainer(containerID, pathPrefix+path)
-				if found {
-					return k8sRuntime, path
+	for _, runtime := range getContainerRuntimePriority(k8sRuntime) {
+		for _, path := range common.ContainerRuntimeSocketMap[runtime] {
+			if err := validatePath(pathPrefix + path); err == nil {
+				if found, _ := runtimeSockHasContainer(containerID, pathPrefix+path); found {
+					return runtime, path
 				}
 			} else {
 				log.Warnf("%s", err)

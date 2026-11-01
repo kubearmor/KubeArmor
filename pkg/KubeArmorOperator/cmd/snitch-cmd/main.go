@@ -105,7 +105,7 @@ func init() {
 	Cmd.PersistentFlags().StringVar(&o.Runtime, "runtime", "", "runtime detected by k8s")
 	Cmd.PersistentFlags().BoolVar(&o.EnableOCIHooks, "oci-hooks", false, "enable oci hooks")
 	Cmd.PersistentFlags().StringVar(&o.LogLevel, "loglevel", "info", "log level, e.g., debug, info, warn, error")
-	Cmd.PersistentFlags().StringVar(&SocketFile, "socket-file", "", "explicit path to CRI socket file")
+	Cmd.PersistentFlags().StringVar(&SocketFile, "socket-file", "", "explicit path to CRI/NRI socket file")
 	// For now we are controlling snitch's EnableOCIHooks flag from operator's EnableOCIHooks flag, we could change this when we start support snitch flags from operator CRD.
 	cmdFlag := Cmd.PersistentFlags().Lookup("oci-hooks")
 	if !cmdFlag.Changed {

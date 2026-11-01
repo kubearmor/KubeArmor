@@ -235,6 +235,13 @@ var KubearmorRelayEnvMap = map[string]string{
 	EnableStdOutMsgs:   "false",
 }
 
+var ContainerRuntimeDefaultPriority = []string{
+	"nri",
+	"containerd",
+	"cri-o",
+	"docker",
+}
+
 var ContainerRuntimeSocketMap = map[string][]string{
 	"docker": {
 		"/run/containerd/containerd.sock",
