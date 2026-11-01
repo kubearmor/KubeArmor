@@ -213,10 +213,10 @@ func snitch() {
 func applyCRIOHook(socket string) error {
 	// TODO: hook path should be fetched from container runtime. This is the default path. As of now, both cri-o and containerd use the same path.
 	hookDir := "/usr/share/containers/oci/hooks.d/"
-	if err := os.MkdirAll(hookDir, 0750); err != nil {
+	if err := os.MkdirAll(hookDir, 0o750); err != nil {
 		return err
 	}
-	dst, err := os.OpenFile(filepath.Join(hookDir, "ka.json"), os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0644)
+	dst, err := os.OpenFile(filepath.Join(hookDir, "ka.json"), os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o644)
 	if err != nil {
 		return err
 	}
@@ -249,10 +249,10 @@ func applyCRIOHook(socket string) error {
 	}
 
 	kaDir := "/usr/share/kubearmor"
-	if err := os.MkdirAll(kaDir, 0750); err != nil {
+	if err := os.MkdirAll(kaDir, 0o750); err != nil {
 		return err
 	}
-	dstBin, err := os.OpenFile(filepath.Join(kaDir, "hook"), os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0755)
+	dstBin, err := os.OpenFile(filepath.Join(kaDir, "hook"), os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o755)
 	if err != nil {
 		return err
 	}
