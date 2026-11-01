@@ -5,11 +5,12 @@ package runtime
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"os"
 	"path/filepath"
 	"slices"
 	"strings"
+	"time"
 
 	containerd "github.com/containerd/containerd/v2/client"
 	"github.com/containerd/containerd/v2/pkg/namespaces"
@@ -37,6 +38,35 @@ func validatePath(path string) error {
 	}
 
 	return nil
+}
+
+func nriSocksHasContainer(containerID, sockPath string) bool {
+	ctx, cancel := context.WithTimeout(
+		context.Background(),
+		5*time.Second,
+	)
+	defer cancel()
+
+	plugin, err := NewNRIPugin(containerID, sockPath)
+	if err != nil {
+		log.Warnf("Failed to create NRI stub: %s", err)
+		return false
+	}
+
+	plugin.Start(ctx)
+	defer plugin.Stop()
+
+	found, err := plugin.WaitForContainer(ctx)
+	if err != nil {
+		if errors.Is(err, context.DeadlineExceeded) {
+			log.Debugf("Timed out waiting for container %s in NRI", containerID)
+		} else if !errors.Is(err, context.Canceled) {
+			log.Warnf("Failed to find container %s through NRI: %v", containerID, err)
+		}
+		return false
+	}
+
+	return found
 }
 
 func dockerSockHasContainer(containerID, sockPath string) bool {
@@ -134,6 +164,10 @@ func crioSockHasContainer(containerID, sockPath string) bool {
 
 func runtimeSockHasContainer(containerID, sockPath string) (bool, string) {
 	// try all in case custom runtime wrapper is used
+	if nriSocksHasContainer(containerID, sockPath) {
+		return true, "nri"
+	}
+
 	if containerdSockHasContainer(containerID, sockPath) {
 		return true, "containerd"
 	}
@@ -217,8 +251,8 @@ func DetectRuntimeViaMap(pathPrefix string, k8sRuntime string, explicitSocket st
 	for _, runtime := range getContainerRuntimePriority(k8sRuntime) {
 		for _, path := range common.ContainerRuntimeSocketMap[runtime] {
 			if err := validatePath(pathPrefix + path); err == nil {
-				if found, _ := runtimeSockHasContainer(containerID, pathPrefix+path); found {
-					return runtime, path
+				if found, detectedRuntime := runtimeSockHasContainer(containerID, pathPrefix+path); found {
+					return detectedRuntime, path
 				}
 			} else {
 				log.Warnf("%s", err)
