@@ -101,7 +101,7 @@ var (
 	GlobalTolerations      []corev1.Toleration           = []corev1.Toleration{}
 	GlobalNodeSelectors                                  = map[string]string{}
 	GlobalEnv                                            = []corev1.EnvVar{}
-	//KubearmorRelayEnvVariables
+	// KubearmorRelayEnvVariables
 
 	EnableStdOutAlerts string = "enableStdOutAlerts"
 	EnableStdOutLogs   string = "enableStdOutLogs"
@@ -172,7 +172,7 @@ var (
 	DefaultMaxAlertPerSec string = "10"
 	DefaultThrottleSec    string = "30"
 
-	//Match Args
+	// Match Args
 	MatchArgs bool = true
 
 	// recommend policies
@@ -235,6 +235,13 @@ var KubearmorRelayEnvMap = map[string]string{
 	EnableStdOutMsgs:   "false",
 }
 
+var ContainerRuntimeDefaultPriority = []string{
+	"nri",
+	"containerd",
+	"cri-o",
+	"docker",
+}
+
 var ContainerRuntimeSocketMap = map[string][]string{
 	"docker": {
 		"/run/containerd/containerd.sock",
@@ -260,12 +267,12 @@ var ContainerRuntimeSocketMap = map[string][]string{
 	},
 }
 
-var NRIEnabled = false
-
-var HostPathDirectory = corev1.HostPathDirectory
-var HostPathDirectoryOrCreate = corev1.HostPathDirectoryOrCreate
-var HostPathSocket = corev1.HostPathSocket
-var HostPathFile = corev1.HostPathFile
+var (
+	HostPathDirectory         = corev1.HostPathDirectory
+	HostPathDirectoryOrCreate = corev1.HostPathDirectoryOrCreate
+	HostPathSocket            = corev1.HostPathSocket
+	HostPathFile              = corev1.HostPathFile
+)
 
 var EnforcerVolumesMounts = map[string][]corev1.VolumeMount{
 	"apparmor": {
@@ -288,13 +295,6 @@ var EnforcerVolumes = map[string][]corev1.Volume{
 			},
 		},
 	},
-}
-
-var RuntimeSocketLocation = map[string]string{
-	"docker":     "/var/run/docker.sock",
-	"containerd": "/var/run/containerd/containerd.sock",
-	"cri-o":      "/var/run/crio/crio.sock",
-	"nri":        "/var/run/nri/nri.sock",
 }
 
 func ShortSHA(s string) string {
@@ -669,31 +669,4 @@ func ParseArgument(arg string) (key string, value string, found bool) {
 	}
 
 	return parts[0], parts[1], true
-}
-
-func GenerateNRIvol(nriSocket string) (vol []corev1.Volume, volMnt []corev1.VolumeMount) {
-	if nriSocket != "" {
-		for _, socket := range ContainerRuntimeSocketMap["nri"] {
-			if strings.ReplaceAll(socket[1:], "/", "_") == nriSocket {
-				vol = append(vol, corev1.Volume{
-					Name: "nri-socket",
-					VolumeSource: corev1.VolumeSource{
-						HostPath: &corev1.HostPathVolumeSource{
-							Path: socket,
-							Type: &HostPathSocket,
-						},
-					},
-				})
-
-				socket = RuntimeSocketLocation["nri"]
-				volMnt = append(volMnt, corev1.VolumeMount{
-					Name:      "nri-socket",
-					MountPath: socket,
-					ReadOnly:  true,
-				})
-				break
-			}
-		}
-	}
-	return
 }

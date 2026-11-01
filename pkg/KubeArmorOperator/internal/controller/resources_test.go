@@ -20,6 +20,13 @@ func TestSetCriSocket(t *testing.T) {
 		want    []string
 	}{
 		{
+			name:    "nri socket is passed with its host path",
+			runtime: "nri",
+			label:   "var_run_nri_nri.sock",
+			args:    []string{"-gRPC=32767"},
+			want:    []string{"-gRPC=32767", "-nriSocket=/var/run/nri/nri.sock"},
+		},
+		{
 			name:    "k3s socket is passed with its host path",
 			runtime: "containerd",
 			label:   "run_k3s_containerd_containerd.sock",
@@ -32,6 +39,13 @@ func TestSetCriSocket(t *testing.T) {
 			label:   "var_run_crio_crio.sock",
 			args:    []string{"-criSocket=unix:///run/other.sock", "-gRPC=32767"},
 			want:    []string{"-criSocket=unix:///var/run/crio/crio.sock", "-gRPC=32767"},
+		},
+		{
+			name:    "docker socket is passed with its host path",
+			runtime: "docker",
+			label:   "var_run_docker.sock",
+			args:    []string{"-gRPC=32767"},
+			want:    []string{"-gRPC=32767", "-criSocket=unix:///var/run/docker.sock"},
 		},
 		{
 			name:    "unknown socket leaves args untouched",
@@ -51,33 +65,35 @@ func TestSetCriSocket(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			args := tt.args
-			setCriSocket(tt.runtime, tt.label, &args)
+			setSocket(tt.runtime, tt.label, &args)
 			assert.Equal(t, tt.want, args)
 		})
 	}
 
-	assert.NotPanics(t, func() { setCriSocket("containerd", "run_k3s_containerd_containerd.sock", nil) })
+	assert.NotPanics(t, func() { setSocket("containerd", "run_k3s_containerd_containerd.sock", nil) })
 }
 
 // The path passed via -criSocket must exist inside the container, i.e. it has to
 // live under the directory that genRuntimeVolumes mounts.
 func TestCriSocketIsUnderMountedDir(t *testing.T) {
 	for runtime, sockets := range common.ContainerRuntimeSocketMap {
-		if runtime == "nri" {
-			continue
-		}
 		for _, socket := range sockets {
 			label := strings.ReplaceAll(socket[1:], "/", "_")
 
-			vols, mounts := genRuntimeVolumes(runtime, label, "")
+			vols, mounts := genRuntimeVolumes(runtime, label)
 			if assert.Len(t, vols, 1, socket) && assert.Len(t, mounts, 1, socket) {
 				assert.Equal(t, vols[0].HostPath.Path, mounts[0].MountPath, "%s: mounted at a different path than the host path", socket)
 				assert.True(t, strings.HasPrefix(socket, mounts[0].MountPath+"/"), "%s is not under %s", socket, mounts[0].MountPath)
 			}
 
 			var args []string
-			setCriSocket(runtime, label, &args)
-			assert.Equal(t, []string{"-criSocket=unix://" + socket}, args)
+			setSocket(runtime, label, &args)
+
+			socketFlag := socketFlagFromRuntime(runtime)
+			socketPrefix := socketPrefixFromRuntime(runtime)
+			socketArg := []string{socketFlag + socketPrefix + socket}
+
+			assert.Equal(t, socketArg, args)
 		}
 	}
 }

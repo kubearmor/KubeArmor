@@ -73,16 +73,15 @@ type ClusterWatcher struct {
 	DaemonsetsLock *sync.Mutex
 }
 type Node struct {
-	Name             string
-	Enforcer         string
-	Runtime          string
-	RuntimeSocket    string
-	NRIRuntimeSocket string
-	Arch             string
-	BTF              string
-	ApparmorFs       string
-	Seccomp          string
-	OCIHooks         string
+	Name          string
+	Enforcer      string
+	Runtime       string
+	RuntimeSocket string
+	Arch          string
+	BTF           string
+	ApparmorFs    string
+	Seccomp       string
+	OCIHooks      string
 }
 
 func NewClusterWatcher(o *cmd.OperatorOptions) *ClusterWatcher {
@@ -163,7 +162,6 @@ func (clusterWatcher *ClusterWatcher) checkJobStatus(job, runtime, nodename stri
 			podsList, err := clusterWatcher.Client.CoreV1().Pods(common.Namespace).List(context.TODO(), v1.ListOptions{
 				LabelSelector: fmt.Sprintf("job-name=%s", job),
 			})
-
 			if err != nil {
 				clusterWatcher.Log.Warnf("Cannot get job pod: %s err: %s", job, err)
 				return
@@ -272,7 +270,6 @@ func (clusterWatcher *ClusterWatcher) WatchNodes() {
 			}
 		},
 		UpdateFunc: func(oldObj, newObj any) {
-
 			if node, ok := newObj.(*corev1.Node); ok {
 				oldRand := ""
 				if old, ok := oldObj.(*corev1.Node); ok {
@@ -310,9 +307,6 @@ func (clusterWatcher *ClusterWatcher) WatchNodes() {
 					if val, ok := node.Labels[common.SocketLabel]; ok {
 						newNode.RuntimeSocket = val
 					}
-					if val, ok := node.Labels[common.NRISocketLabel]; ok {
-						newNode.NRIRuntimeSocket = val
-					}
 					if val, ok := node.Labels[common.BTFLabel]; ok {
 						newNode.BTF = val
 					}
@@ -341,7 +335,6 @@ func (clusterWatcher *ClusterWatcher) WatchNodes() {
 							clusterWatcher.Nodes[i].Name != newNode.Name ||
 							clusterWatcher.Nodes[i].Runtime != newNode.Runtime ||
 							clusterWatcher.Nodes[i].RuntimeSocket != newNode.RuntimeSocket ||
-							clusterWatcher.Nodes[i].NRIRuntimeSocket != newNode.NRIRuntimeSocket ||
 							clusterWatcher.Nodes[i].BTF != newNode.BTF ||
 							clusterWatcher.Nodes[i].Seccomp != newNode.Seccomp ||
 							clusterWatcher.Nodes[i].OCIHooks != newNode.OCIHooks {
@@ -352,9 +345,9 @@ func (clusterWatcher *ClusterWatcher) WatchNodes() {
 					}
 					clusterWatcher.NodesLock.Unlock()
 					if nodeModified {
-						clusterWatcher.UpdateDaemonsets(common.DeleteAction, newNode.Enforcer, newNode.Runtime, newNode.RuntimeSocket, newNode.NRIRuntimeSocket, newNode.BTF, newNode.ApparmorFs, newNode.Seccomp, newNode.OCIHooks)
+						clusterWatcher.UpdateDaemonsets(common.DeleteAction, newNode.Enforcer, newNode.Runtime, newNode.RuntimeSocket, newNode.BTF, newNode.ApparmorFs, newNode.Seccomp, newNode.OCIHooks)
 					}
-					clusterWatcher.UpdateDaemonsets(common.AddAction, newNode.Enforcer, newNode.Runtime, newNode.RuntimeSocket, newNode.NRIRuntimeSocket, newNode.BTF, newNode.ApparmorFs, newNode.Seccomp, newNode.OCIHooks)
+					clusterWatcher.UpdateDaemonsets(common.AddAction, newNode.Enforcer, newNode.Runtime, newNode.RuntimeSocket, newNode.BTF, newNode.ApparmorFs, newNode.Seccomp, newNode.OCIHooks)
 				}
 			} else {
 				log.Errorf("Cannot convert object to node struct")
@@ -373,7 +366,7 @@ func (clusterWatcher *ClusterWatcher) WatchNodes() {
 					}
 				}
 				clusterWatcher.NodesLock.Unlock()
-				clusterWatcher.UpdateDaemonsets(common.DeleteAction, deletedNode.Enforcer, deletedNode.Runtime, deletedNode.RuntimeSocket, deletedNode.NRIRuntimeSocket, deletedNode.BTF, deletedNode.ApparmorFs, deletedNode.Seccomp, deletedNode.OCIHooks)
+				clusterWatcher.UpdateDaemonsets(common.DeleteAction, deletedNode.Enforcer, deletedNode.Runtime, deletedNode.RuntimeSocket, deletedNode.BTF, deletedNode.ApparmorFs, deletedNode.Seccomp, deletedNode.OCIHooks)
 			}
 		},
 	})
@@ -381,7 +374,7 @@ func (clusterWatcher *ClusterWatcher) WatchNodes() {
 	nodeInformer.Run(wait.NeverStop)
 }
 
-func (clusterWatcher *ClusterWatcher) UpdateDaemonsets(action, enforcer, runtime, socket, nriSocket, btfPresent, apparmorfs, seccompPresent, ociHooks string) {
+func (clusterWatcher *ClusterWatcher) UpdateDaemonsets(action, enforcer, runtime, socket, btfPresent, apparmorfs, seccompPresent, ociHooks string) {
 	clusterWatcher.Log.Info("updating daemonset")
 	daemonsetName := strings.Join([]string{
 		"kubearmor",
@@ -417,17 +410,15 @@ func (clusterWatcher *ClusterWatcher) UpdateDaemonsets(action, enforcer, runtime
 		}
 	}
 	if newDaemonSet {
-		daemonset := generateDaemonset(daemonsetName, enforcer, runtime, socket, nriSocket, btfPresent, apparmorfs, seccompPresent, initDeploy, ociHooks)
+		daemonset := generateDaemonset(daemonsetName, enforcer, runtime, socket, btfPresent, apparmorfs, seccompPresent, initDeploy, ociHooks)
 		_, err := clusterWatcher.Client.AppsV1().DaemonSets(common.Namespace).Create(context.Background(), daemonset, v1.CreateOptions{})
 		if err != nil {
 			clusterWatcher.Log.Warnf("Cannot Create daemonset %s, error=%s", daemonsetName, err.Error())
 		}
 	}
-
 }
 
 func (clusterWatcher *ClusterWatcher) WatchConfigCrd() {
-
 	factory := opv1Informer.NewSharedInformerFactoryWithOptions(clusterWatcher.Opv1Client,
 		time.Duration(5*time.Second),
 		opv1Informer.WithNamespace(common.Namespace))
@@ -439,7 +430,7 @@ func (clusterWatcher *ClusterWatcher) WatchConfigCrd() {
 		return
 	}
 
-	var firstRun = true
+	firstRun := true
 
 	informer.AddEventHandler(
 		cache.ResourceEventHandlerFuncs{
@@ -606,17 +597,6 @@ func (clusterWatcher *ClusterWatcher) UpdateKubeArmorImages(images []string) err
 					if len(common.KubeArmorInitEnv) > 0 {
 						defer RemoveDeletedEntriesForEnv(&common.KubeArmorInitEnv)
 						AddOrUpdateEnv(&ds.Spec.Template.Spec.InitContainers[0].Env, common.KubeArmorInitEnv)
-					}
-
-					NRIVolume, NRIVolumeMount := common.GenerateNRIvol(ds.Spec.Selector.MatchLabels["kubearmor.io/nri-socket"])
-					if common.NRIEnabled {
-						// update daemonset volumeMount and volumes
-						common.AddOrRemoveVolumeMount(&NRIVolumeMount, &ds.Spec.Template.Spec.Containers[0].VolumeMounts, common.AddAction)
-						common.AddOrRemoveVolume(&NRIVolume, &ds.Spec.Template.Spec.Volumes, common.AddAction)
-					} else {
-						// update daemonset volumeMount and volumes
-						common.AddOrRemoveVolumeMount(&NRIVolumeMount, &ds.Spec.Template.Spec.Containers[0].VolumeMounts, common.DeleteAction)
-						common.AddOrRemoveVolume(&NRIVolume, &ds.Spec.Template.Spec.Volumes, common.DeleteAction)
 					}
 
 					_, err = clusterWatcher.Client.AppsV1().DaemonSets(common.Namespace).Update(context.Background(), &ds, v1.UpdateOptions{})
@@ -903,7 +883,7 @@ func UpdateIfDefinedAndUpdated(common *string, in string) bool {
 }
 
 func UpdateNodeSelectorIfDefinedAndUpdated(common map[string]string, in map[string]string) bool {
-	var deleted = false
+	deleted := false
 	// mark deleted entries
 	for k := range common {
 		if _, ok := in[k]; !ok {
@@ -927,7 +907,7 @@ func UpdateNodeSelectorIfDefinedAndUpdated(common map[string]string, in map[stri
 
 func UpdateEnvIfDefinedAndUpdated(defaultEnv *[]corev1.EnvVar, in []corev1.EnvVar) bool {
 	// mark deleted entries
-	var deleted = false
+	deleted := false
 
 	for i, env := range *defaultEnv {
 		if idx := slices.IndexFunc(in, func(e corev1.EnvVar) bool {
@@ -942,7 +922,7 @@ func UpdateEnvIfDefinedAndUpdated(defaultEnv *[]corev1.EnvVar, in []corev1.EnvVa
 		return false || deleted
 	}
 
-	var changed = false
+	changed := false
 	// update or add
 	for _, env := range in {
 		if idx := slices.IndexFunc(*defaultEnv, func(e corev1.EnvVar) bool {
@@ -982,7 +962,6 @@ func AddOrUpdateNodeSelector(dst map[string]string, src map[string]string) {
 }
 
 func AddOrUpdateEnv(dst *[]corev1.EnvVar, src []corev1.EnvVar) {
-
 	if dst == nil {
 		return
 	}
@@ -1034,7 +1013,6 @@ func RemoveDeletedEntriesForEnv(env *[]corev1.EnvVar) {
 }
 
 func UpdateArgsIfDefinedAndUpdated(defaultArgs *[]string, in []string) bool {
-
 	// If no user arguments provided, return defaults
 	if len(in) == 0 {
 		return false
@@ -1105,14 +1083,6 @@ func UpdateTolerationsIfDefinedAndUpdated(common *[]corev1.Toleration, in []core
 	return false
 }
 
-func UpdateNRIAvailabilityIfDefinedAndUpdated(common *bool, in bool) bool {
-	if in != *common {
-		*common = in
-		return true
-	}
-	return false
-}
-
 func UpdateImages(config *opv1.KubeArmorConfigSpec) []string {
 	updatedImages := []string{}
 	// if kubearmor image or imagePullPolicy got updated
@@ -1121,7 +1091,6 @@ func UpdateImages(config *opv1.KubeArmorConfigSpec) []string {
 		UpdateArgsIfDefinedAndUpdated(&common.KubeArmorArgs, config.KubeArmorImage.Args) ||
 		UpdateImagePullSecretsIfDefinedAndUpdated(&common.KubeArmorImagePullSecrets, config.KubeArmorImage.ImagePullSecrets) ||
 		UpdateTolerationsIfDefinedAndUpdated(&common.KubeArmorTolerations, config.KubeArmorImage.Tolerations) ||
-		UpdateNRIAvailabilityIfDefinedAndUpdated(&common.NRIEnabled, config.EnableNRI) ||
 		UpdateNodeSelectorIfDefinedAndUpdated(common.KubeArmorNodeSelector, config.KubeArmorImage.NodeSelector) ||
 		UpdateEnvIfDefinedAndUpdated(&common.KubeArmorEnv, config.KubeArmorImage.Env) {
 		updatedImages = append(updatedImages, "kubearmor")
@@ -1213,7 +1182,6 @@ func (clusterWatcher *ClusterWatcher) UpdateKubeArmorConfigMap(cfg *opv1.KubeArm
 		}
 		return true, nil
 	})
-
 	if err != nil {
 		clusterWatcher.Log.Errorf("Error updating the KubeArmor Configmap %s", err)
 		go clusterWatcher.UpdateCrdStatus(cfg.Name, common.ERROR, common.UPDATION_FAILED_ERR_MSG)
@@ -1268,13 +1236,13 @@ func (clusterWatcher *ClusterWatcher) WatchTlsState(tlsEnabled bool) error {
 		} else {
 			update = true
 		}
-
 	}
 	if update {
 		return clusterWatcher.UpdateTlsConfigurations(tlsEnabled)
 	}
 	return nil
 }
+
 func (clusterWatcher *ClusterWatcher) UpdateWebhookSvcPort(port int) {
 	// update webhook service port
 	svc, err := clusterWatcher.Client.CoreV1().Services(common.Namespace).Get(context.Background(), common.KubeArmorControllerWebhookServiceName, v1.GetOptions{})

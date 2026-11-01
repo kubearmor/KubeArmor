@@ -61,7 +61,7 @@ var Cmd = &cobra.Command{
 		log, _ := config.Build()
 		Logger = log.Sugar()
 		K8sClient = k8s.NewClient(*Logger, o.KubeConfig)
-		//Initialise k8sClient for all child commands to inherit
+		// Initialise k8sClient for all child commands to inherit
 		if K8sClient == nil {
 			return errors.New("couldn't create k8s client")
 		}
@@ -74,7 +74,6 @@ var Cmd = &cobra.Command{
 		Logger.Infof("k8s runtime=%s", o.Runtime)
 		Logger.Infof("KubeConfig path=%s", o.KubeConfig)
 		snitch()
-
 	},
 	Use:   "snitch",
 	Short: "A CLI Utility to Detect node related information for KubeArmor",
@@ -106,7 +105,7 @@ func init() {
 	Cmd.PersistentFlags().StringVar(&o.Runtime, "runtime", "", "runtime detected by k8s")
 	Cmd.PersistentFlags().BoolVar(&o.EnableOCIHooks, "oci-hooks", false, "enable oci hooks")
 	Cmd.PersistentFlags().StringVar(&o.LogLevel, "loglevel", "info", "log level, e.g., debug, info, warn, error")
-	Cmd.PersistentFlags().StringVar(&SocketFile, "socket-file", "", "explicit path to CRI socket file")
+	Cmd.PersistentFlags().StringVar(&SocketFile, "socket-file", "", "explicit path to CRI/NRI socket file")
 	// For now we are controlling snitch's EnableOCIHooks flag from operator's EnableOCIHooks flag, we could change this when we start support snitch flags from operator CRD.
 	cmdFlag := Cmd.PersistentFlags().Lookup("oci-hooks")
 	if !cmdFlag.Changed {
@@ -146,7 +145,7 @@ func snitch() {
 	}
 
 	// Detecting runtime
-	runtime, socket, nriSocket := runtimepkg.DetectRuntimeViaMap(PathPrefix, o.Runtime, SocketFile, *Logger, K8sClient)
+	runtime, socket := runtimepkg.DetectRuntimeViaMap(PathPrefix, o.Runtime, SocketFile, *Logger, K8sClient)
 	if runtime != "NA" {
 		Logger.Infof("Detected %s as node runtime, runtime socket=%s", runtime, socket)
 	} else {
@@ -181,9 +180,6 @@ func snitch() {
 	patchNode.Metadata.Labels[common.RuntimeLabel] = runtime
 	patchNode.Metadata.Labels[common.SeccompLabel] = seccomp.CheckIfSeccompProfilePresent()
 	patchNode.Metadata.Labels[common.SocketLabel] = strings.ReplaceAll(socket[1:], "/", "_")
-	if len(nriSocket) > 0 {
-		patchNode.Metadata.Labels[common.NRISocketLabel] = strings.ReplaceAll(nriSocket[1:], "/", "_")
-	}
 	patchNode.Metadata.Labels[common.EnforcerLabel] = nodeEnforcer
 	patchNode.Metadata.Labels[common.RandLabel] = rand.String(4)
 	patchNode.Metadata.Labels[common.BTFLabel] = btfPresent
@@ -197,7 +193,6 @@ func snitch() {
 	}
 
 	patch, err := json.Marshal(patchNode)
-
 	if err != nil {
 		Logger.Errorf("Error while marshaling json, error=%s", err.Error())
 		os.Exit(1)
@@ -218,10 +213,10 @@ func snitch() {
 func applyCRIOHook(socket string) error {
 	// TODO: hook path should be fetched from container runtime. This is the default path. As of now, both cri-o and containerd use the same path.
 	hookDir := "/usr/share/containers/oci/hooks.d/"
-	if err := os.MkdirAll(hookDir, 0750); err != nil {
+	if err := os.MkdirAll(hookDir, 0o750); err != nil {
 		return err
 	}
-	dst, err := os.OpenFile(filepath.Join(hookDir, "ka.json"), os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0644)
+	dst, err := os.OpenFile(filepath.Join(hookDir, "ka.json"), os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o644)
 	if err != nil {
 		return err
 	}
@@ -254,10 +249,10 @@ func applyCRIOHook(socket string) error {
 	}
 
 	kaDir := "/usr/share/kubearmor"
-	if err := os.MkdirAll(kaDir, 0750); err != nil {
+	if err := os.MkdirAll(kaDir, 0o750); err != nil {
 		return err
 	}
-	dstBin, err := os.OpenFile(filepath.Join(kaDir, "hook"), os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0755)
+	dstBin, err := os.OpenFile(filepath.Join(kaDir, "hook"), os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o755)
 	if err != nil {
 		return err
 	}
