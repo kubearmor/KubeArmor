@@ -22,37 +22,6 @@ type SelectorType struct {
 	MatchExpressions []MatchExpressionsType `json:"matchExpressions,omitempty"`
 }
 
-type MatchVolumeMountType struct {
-	// +kubebuilder:validation:Optional
-	Path MatchPathType `json:"path,omitempty"`
-	// +kubebuilder:validation:Optional
-	Directory MatchDirectoryType `json:"dir,omitempty"`
-	// +kubebuilder:validation:Optional
-	ReadOnly bool `json:"readOnly,omitempty"`
-
-	// +kubebuilder:validation:optional
-	Severity SeverityType `json:"severity,omitempty"`
-	// +kubebuilder:validation:optional
-	Tags []string `json:"tags,omitempty"`
-	// +kubebuilder:validation:optional
-	Message string `json:"message,omitempty"`
-	// +kubebuilder:validation:optional
-	Action ActionType `json:"action,omitempty"`
-}
-
-type SELinuxType struct {
-	MatchVolumeMounts []MatchVolumeMountType `json:"matchVolumeMounts"`
-
-	// +kubebuilder:validation:optional
-	Severity SeverityType `json:"severity,omitempty"`
-	// +kubebuilder:validation:optional
-	Tags []string `json:"tags,omitempty"`
-	// +kubebuilder:validation:optional
-	Message string `json:"message,omitempty"`
-	// +kubebuilder:validation:optional
-	Action ActionType `json:"action,omitempty"`
-}
-
 // KubeArmorPolicySpec defines the desired state of KubeArmorPolicy
 type KubeArmorPolicySpec struct {
 	Selector SelectorType `json:"selector,omitempty"`
