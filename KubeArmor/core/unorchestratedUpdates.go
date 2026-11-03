@@ -50,6 +50,27 @@ func (dm *KubeArmorDaemon) SetContainerNSVisibility() {
 // == Config Update == //
 // =================== //
 
+// getEndPointNamespaces returns the distinct namespaces of the current endpoints
+// in the order they are first seen. dm.EndPoints is only read while holding
+// EndPointsLock, and the lock is released before returning so that callers can
+// invoke functions which acquire it themselves.
+func (dm *KubeArmorDaemon) getEndPointNamespaces() []string {
+	dm.EndPointsLock.RLock()
+	defer dm.EndPointsLock.RUnlock()
+
+	namespaces := []string{}
+	seen := make(map[string]struct{}, len(dm.EndPoints))
+	for _, ep := range dm.EndPoints {
+		if _, ok := seen[ep.NamespaceName]; ok {
+			continue
+		}
+		seen[ep.NamespaceName] = struct{}{}
+		namespaces = append(namespaces, ep.NamespaceName)
+	}
+
+	return namespaces
+}
+
 // WatchConfigChanges watches for configuration changes and updates the default posture
 func (dm *KubeArmorDaemon) WatchConfigChanges() {
 	viper.OnConfigChange(func(e fsnotify.Event) {
@@ -76,11 +97,11 @@ func (dm *KubeArmorDaemon) WatchConfigChanges() {
 		// Apply the changes to the daemon
 		dm.UpdateGlobalPosture(globalPosture)
 
-		// Update default posture for endpoints
-		for _, ep := range dm.EndPoints {
-			dm.Logger.Printf("Updating Default Posture for endpoint %s", ep.EndPointName)
-			dm.UpdateDefaultPosture("MODIFIED", ep.NamespaceName, globalPosture, false)
-			dm.UpdateVisibility("MODIFIED", ep.NamespaceName, visibility)
+		// Update default posture and visibility for the namespaces of all endpoints
+		for _, namespace := range dm.getEndPointNamespaces() {
+			dm.Logger.Printf("Updating Default Posture for namespace %s", namespace)
+			dm.UpdateDefaultPosture("MODIFIED", namespace, globalPosture, false)
+			dm.UpdateVisibility("MODIFIED", namespace, visibility)
 		}
 
 		// Update throttling configs
