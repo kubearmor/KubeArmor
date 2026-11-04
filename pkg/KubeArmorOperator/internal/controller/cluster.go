@@ -563,7 +563,15 @@ func (clusterWatcher *ClusterWatcher) UpdateKubeArmorImages(images []string) err
 				for _, ds := range dsList.Items {
 					ds.Spec.Template.Spec.Containers[0].Image = common.GetApplicationImage(common.KubeArmorName)
 					ds.Spec.Template.Spec.Containers[0].ImagePullPolicy = corev1.PullPolicy(common.KubeArmorImagePullPolicy)
-					ds.Spec.Template.Spec.Containers[0].Args = common.KubeArmorArgs
+					ds.Spec.Template.Spec.Containers[0].Args = append([]string(nil), common.KubeArmorArgs...)
+					if LsmFlagString != "" {
+						ds.Spec.Template.Spec.Containers[0].Args = append(ds.Spec.Template.Spec.Containers[0].Args, LsmFlagString)
+					}
+					setCriSocket(
+						ds.Spec.Selector.MatchLabels[common.RuntimeLabel],
+						ds.Spec.Selector.MatchLabels[common.SocketLabel],
+						&ds.Spec.Template.Spec.Containers[0].Args,
+					)
 					ds.Spec.Template.Spec.ImagePullSecrets = common.KubeArmorImagePullSecrets
 					if len(ds.Spec.Template.Spec.ImagePullSecrets) < 1 {
 						utils.UpdateImagePullSecretFromGlobal(common.GlobalImagePullSecrets, &ds.Spec.Template.Spec.ImagePullSecrets)

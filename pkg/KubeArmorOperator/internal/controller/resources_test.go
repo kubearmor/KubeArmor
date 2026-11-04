@@ -4,6 +4,7 @@
 package controller
 
 import (
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -71,8 +72,18 @@ func TestCriSocketIsUnderMountedDir(t *testing.T) {
 
 			vols, mounts := genRuntimeVolumes(runtime, label, "")
 			if assert.Len(t, vols, 1, socket) && assert.Len(t, mounts, 1, socket) {
-				assert.Equal(t, vols[0].HostPath.Path, mounts[0].MountPath, "%s: mounted at a different path than the host path", socket)
-				assert.True(t, strings.HasPrefix(socket, mounts[0].MountPath+"/"), "%s is not under %s", socket, mounts[0].MountPath)
+				if isSharedRunDir(filepath.Dir(socket)) {
+					// never mount /run or /var/run wholesale, mount the socket file itself
+					assert.Equal(t, socket, vols[0].HostPath.Path, socket)
+					assert.Equal(t, socket, mounts[0].MountPath, socket)
+					assert.Equal(t, common.HostPathSocket, *vols[0].HostPath.Type, socket)
+				} else {
+					assert.Equal(t, vols[0].HostPath.Path, mounts[0].MountPath, "%s: mounted at a different path than the host path", socket)
+					assert.True(t, strings.HasPrefix(socket, mounts[0].MountPath+"/"), "%s is not under %s", socket, mounts[0].MountPath)
+				}
+				for _, m := range mounts {
+					assert.NotContains(t, []string{"/run", "/var/run", "/var", "/"}, m.MountPath, "%s: shared dir mounted", socket)
+				}
 			}
 
 			var args []string
