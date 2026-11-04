@@ -96,7 +96,45 @@ spec:
     kubeRbacProxyImage:
         image: [image-repo:tag]                                # DEFAULT - gcr.io/kubebuilder/kube-rbac-proxy:v0.15.0
         imagePullPolicy: [image pull policy]                   # DEFAULT - Always
+
+    # run the KubeArmor containers with their own seccomp profiles
+    seccompEnabled: [true|false]                               # DEFAULT - false
+
+    # port the kubearmor-controller webhook server listens on
+    controllerPort: [port]                                     # DEFAULT - 9443
 ```
+
+### Seccomp profiles for KubeArmor
+
+`seccompEnabled` restricts the system calls available to KubeArmor's own containers. It does not apply seccomp to your workloads.
+
+```yaml
+spec:
+  seccompEnabled: true
+```
+
+When it is `true`, the main container of the KubeArmor DaemonSet runs with the `Localhost` seccomp profile `kubearmor-seccomp.json`, and its init container, when deployed, with `kubearmor-init-seccomp.json`. Changing the value on a running `KubeArmorConfig` updates the existing DaemonSets, so the change rolls out to the KubeArmor pods.
+
+**Prerequisites:** the profiles must exist on the node. The operator's snitch job writes them to `/var/lib/kubelet/seccomp` and labels the node `kubearmor.io/seccomp=yes` only if both files are present. On a node without that label, KubeArmor still runs, but without the profiles and without an error, even when `seccompEnabled` is `true`. To check a node:
+
+```bash
+kubectl get nodes -L kubearmor.io/seccomp
+```
+
+### Controller webhook port
+
+`controllerPort` sets the port on which the `kubearmor-controller` webhook server listens. Change it when the default of `9443` is not usable in your cluster.
+
+```yaml
+spec:
+  controllerPort: 8443
+```
+
+The operator passes the port to the controller as `webhook-port`, sets it as the container port, and points the `targetPort` of the `kubearmor-controller-webhook-service` Service at it. The Service itself keeps listening on port 443. Changing the value on a running `KubeArmorConfig` redeploys the controller with the new port.
+
+**Prerequisites:** the Kubernetes API server must be able to reach the controller pods on this port, so any firewall rules between the control plane and the nodes must allow it.
+
+A value of `0`, or leaving the field out, is ignored rather than treated as a reset. Removing `controllerPort` from a running `KubeArmorConfig` therefore keeps the current port; set it to `9443` explicitly to go back to the default.
 
 ## Verify if all the resources are up and running
 If a valid configuration is received, the operator will deploy jobs to your nodes to get the environment information and then start installing KubeArmor components.
