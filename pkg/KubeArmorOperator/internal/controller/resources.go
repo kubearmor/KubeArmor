@@ -251,6 +251,16 @@ func genEnforcerVolumes(enforcer string) (vol []corev1.Volume, volMnt []corev1.V
 	return
 }
 
+// isSharedRunDir reports whether dir is a top-level runtime directory that also holds
+// unrelated container paths (e.g. /var/run/secrets) and so must not be bind mounted.
+func isSharedRunDir(dir string) bool {
+	switch filepath.Clean(dir) {
+	case "/run", "/var/run", "/var", "/":
+		return true
+	}
+	return false
+}
+
 func genRuntimeVolumes(runtime, runtimeSocket, nriSocket string) (vol []corev1.Volume, volMnt []corev1.VolumeMount) {
 	// lookup socket
 	if socket, ok := runtimeSocketPath(runtime, runtimeSocket); ok {
@@ -260,20 +270,40 @@ func genRuntimeVolumes(runtime, runtimeSocket, nriSocket string) (vol []corev1.V
 		// The directory is mounted at its host path so that the socket path
 		// passed via -criSocket is the same on the host and in the container.
 		socketDir := filepath.Dir(socket)
-		vol = append(vol, corev1.Volume{
-			Name: runtime + "-socket",
-			VolumeSource: corev1.VolumeSource{
-				HostPath: &corev1.HostPathVolumeSource{
-					Path: socketDir,
-					Type: &common.HostPathDirectory,
+		if isSharedRunDir(socketDir) {
+			// The socket lives directly in /run or /var/run. Mounting that whole directory
+			// (read-only) would shadow /var/run/secrets/kubernetes.io/serviceaccount and make
+			// the container fail to start, so mount only the socket file.
+			vol = append(vol, corev1.Volume{
+				Name: runtime + "-socket",
+				VolumeSource: corev1.VolumeSource{
+					HostPath: &corev1.HostPathVolumeSource{
+						Path: socket,
+						Type: &common.HostPathSocket,
+					},
 				},
-			},
-		})
-		volMnt = append(volMnt, corev1.VolumeMount{
-			Name:      runtime + "-socket",
-			MountPath: socketDir,
-			ReadOnly:  true,
-		})
+			})
+			volMnt = append(volMnt, corev1.VolumeMount{
+				Name:      runtime + "-socket",
+				MountPath: socket,
+				ReadOnly:  true,
+			})
+		} else {
+			vol = append(vol, corev1.Volume{
+				Name: runtime + "-socket",
+				VolumeSource: corev1.VolumeSource{
+					HostPath: &corev1.HostPathVolumeSource{
+						Path: socketDir,
+						Type: &common.HostPathDirectory,
+					},
+				},
+			})
+			volMnt = append(volMnt, corev1.VolumeMount{
+				Name:      runtime + "-socket",
+				MountPath: socketDir,
+				ReadOnly:  true,
+			})
+		}
 	}
 	if nriSocket != "" && common.NRIEnabled {
 		runtime = "nri"

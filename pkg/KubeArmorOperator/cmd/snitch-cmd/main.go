@@ -148,6 +148,10 @@ func snitch() {
 	// Detecting runtime
 	runtime, socket, nriSocket := runtimepkg.DetectRuntimeViaMap(PathPrefix, o.Runtime, SocketFile, *Logger, K8sClient)
 	if runtime != "NA" {
+		if err := runtimepkg.ValidateDetection(runtime, socket); err != nil {
+			Logger.Errorf("Detected runtime/socket cannot be used by KubeArmor: %s", err.Error())
+			os.Exit(1)
+		}
 		Logger.Infof("Detected %s as node runtime, runtime socket=%s", runtime, socket)
 	} else {
 		// don't throw an error instead print info that no lsm is present
