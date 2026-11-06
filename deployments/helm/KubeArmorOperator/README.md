@@ -72,6 +72,12 @@ spec:
     # it will be based on the runtime present. This happens because operator won't get KubearmorConfig event(initially).
     enableNRI: [true|false] # DEFAULT - false
 
+    # TLS configuration for the relay server
+    tls:
+        enable: [true|false]                                   # DEFAULT - false
+        extraDnsNames: [additional DNS names for relay cert]   # DEFAULT - []
+        extraIpAddresses: [additional IP SANs for relay cert]  # DEFAULT - []
+
     # KubeArmor image and pull policy
     kubearmorImage:
         image: [image-repo:tag]                                # DEFAULT - kubearmor/kubearmor:stable
@@ -96,6 +102,47 @@ spec:
     kubeRbacProxyImage:
         image: [image-repo:tag]                                # DEFAULT - gcr.io/kubebuilder/kube-rbac-proxy:v0.15.0
         imagePullPolicy: [image pull policy]                   # DEFAULT - Always
+```
+
+## TLS configuration
+
+KubeArmor components talk to the relay server over gRPC. This traffic is unencrypted by default; set `spec.tls.enable` to `true` to secure it.
+
+When TLS is enabled, the operator:
+
+- generates a self-signed CA and the client and relay server certificates, and stores them in the `kubearmor-ca`, `kubearmor-client-certs` and `kubearmor-relay-server-certs` secrets in the KubeArmor namespace,
+- mounts the certificates into the relay deployment and the KubeArmor daemonset at `/var/lib/kubearmor/tls`, and
+- restarts both workloads with `-tlsEnabled=true`.
+
+Disabling TLS (`enable: false`) removes the volumes and the `-tlsEnabled` argument from the workloads and deletes the generated secrets.
+
+### TLS fields
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `tls.enable` | bool | `false` | enable TLS for gRPC traffic between KubeArmor and the relay server |
+| `tls.extraDnsNames` | []string | `[]` | additional DNS names to add as Subject Alternative Names (SANs) to the relay server certificate |
+| `tls.extraIpAddresses` | []string | `[]` | additional IP addresses to add as SANs to the relay server certificate |
+
+The relay server certificate includes the in-cluster names of the relay service (`kubearmor.<namespace>`, `kubearmor.<namespace>.svc`, `kubearmor.<namespace>.svc.cluster.local`). By default, `localhost` and `127.0.0.1` are added as well.
+
+`extraDnsNames` and `extraIpAddresses` are only needed when clients reach the relay server through a name or address that is not covered by the defaults, for example when the relay is exposed outside the cluster through a NodePort or LoadBalancer service, or through an ingress. Without a matching SAN, the client rejects the certificate during the TLS handshake. The values must match exactly what the client uses to connect (no wildcards, no scheme or port).
+
+### Example
+
+```yaml
+apiVersion: operator.kubearmor.com/v1
+kind: KubeArmorConfig
+metadata:
+    name: kubearmorconfig
+    namespace: kubearmor
+spec:
+    tls:
+        enable: true
+        extraDnsNames:
+            - kubearmor.example.com
+        extraIpAddresses:
+            - 203.0.113.10
 ```
 
 ## Verify if all the resources are up and running
