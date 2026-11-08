@@ -90,6 +90,10 @@ spec:
       - dir: [absolute directory path]
         recursive: [true|false]              # --> optional
 
+  presets:
+  - name: [anonymousMapExec | filelessExec | protectEnv | exec | protectProc]
+    action: [Allow|Audit|Block]               # --> optional (Block by default)
+
   action: [Allow|Audit|Block] (Block by default)
 ```
 
@@ -304,6 +308,63 @@ There is one options in each match.
   * recursive
 
     If this is enabled, the coverage will extend to the subdirectories of the directory.
+
+### Presets
+
+  The `presets` field lets you use ready-made security rules for common attack techniques instead of writing rules from scratch. A preset list entry consists of a `name` and an `action`.
+
+  ```text
+    presets:
+    - name: [preset name]
+      action: [Allow|Audit|Block]              # --> optional (Block by default)
+  ```
+
+  The available presets are:
+
+    * anonymousMapExec
+
+      Denies/audits execution of code loaded from anonymous memory mappings (`mmap()` with `PROT_EXEC` and `MAP_ANONYMOUS`), typically payloads injected directly into memory. This catches fileless attacks that run code without an on-disk binary.
+
+    * filelessExec
+
+      Denies/audits execution of fileless payloads, i.e. programs executed from memory-backed filesystem objects such as `memfd`, `/run/shm` or `/dev/shm`, where there is nothing on disk to scan.
+
+    * exec
+
+      Denies/audits execution of binaries launched from an interactive, TTY-attached session. Used to restrict interactive command execution inside containers.
+
+    * protectEnv
+
+      Denies/audits reads of `/proc/<pid>/environ` for processes other than the caller. Environment variables often contain secrets (tokens, API keys, passwords), so this prevents a process from stealing the environment of another process.
+
+    * protectProc
+
+      Denies/audits access to the `/proc/<pid>` filesystem entries of processes other than the caller. Protects other processes' information (cmdline, memory maps, etc.) from other processes.
+
+  Example
+
+  ```text
+    apiVersion: security.kubearmor.com/v1
+    kind: KubeArmorClusterPolicy
+    metadata:
+      name: preset-example
+    spec:
+      selector:
+        matchLabels:
+          app: nginx
+      presets:
+      - name: anonymousMapExec
+        action: Block
+      - name: filelessExec
+        action: Block
+  ```
+
+  Preset specifics
+
+    * `Block` denies the operation and `Audit` only logs it.
+    * Presets are implemented with BPF LSM hooks (`lsm/bprm_check_security`, `lsm/file_open`, `lsm/mmap_file`, `lsm/file_mprotect`), so they are only available with the BPF LSM enforcer on a kernel that supports BPF LSM. Other enforcers (AppArmor, SELinux) do not support presets.
+    * Presets can be used in KubeArmorPolicy, KubeArmorClusterPolicy and KubeArmorHostPolicy, and apply to all workloads matched by the policy selector.
+    * The KubeArmor Operator ships recommended preset policies as `preset-exec`, `preset-fileexec` and `preset-proc-env` custom resources.
 
 * Action
 
