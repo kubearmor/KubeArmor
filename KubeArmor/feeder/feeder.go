@@ -260,7 +260,7 @@ type Feeder struct {
 
 	// DefaultPosture (namespace -> postures)
 	DefaultPostures     map[string]tp.DefaultPosture
-	DefaultPosturesLock *sync.Mutex
+	DefaultPosturesLock *sync.RWMutex
 
 	AlertMap     map[OuterKey]AlertThrottleState
 	AlertMapLock sync.RWMutex
@@ -403,7 +403,7 @@ func NewFeeder(node *tp.Node, nodeLock **sync.RWMutex) (feeder *Feeder) {
 
 	// initialize default postures
 	fd.DefaultPostures = map[string]tp.DefaultPosture{}
-	fd.DefaultPosturesLock = new(sync.Mutex)
+	fd.DefaultPosturesLock = new(sync.RWMutex)
 
 	fd.UserNameMap = UserNameMap{
 		usernames: make(map[uint32]cachedUserName),
