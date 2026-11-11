@@ -159,6 +159,12 @@ func (dm *KubeArmorDaemon) checkAndUpdateNode(item *corev1.Node) {
 
 	// update node info
 	dm.NodeLock.Lock()
+	// the kubelet reports the host machine-id, which isn't readable from inside the pod;
+	// keep the previous ID if it's missing so node updates don't wipe it
+	node.NodeID = item.Status.NodeInfo.MachineID
+	if node.NodeID == "" {
+		node.NodeID = dm.Node.NodeID
+	}
 	dm.Node = node
 	dm.NodeLock.Unlock()
 }
