@@ -225,7 +225,7 @@ Now, we will briefly explain how to define a security policy.
 
   * pts
 
-    The pts option scopes a rule to actions that originate from a pseudo-terminal (TTY), such as commands entered in an interactive shell. If pts is set to false, only actions performed by processes that have a pseudo-terminal attached are matched; actions without an attached TTY (e.g., processes started directly by a container runtime or a system daemon) are not matched. If pts is set to true or omitted, the rule applies regardless of whether a pseudo-terminal is attached.
+    The pts option scopes a rule to actions that originate from a pseudo-terminal (TTY), such as commands entered in an interactive shell. If pts is set to false, only actions performed by processes that have a pseudo-terminal attached are matched; actions without an attached TTY (e.g., processes started directly by a container runtime or a system daemon) are not matched. If pts is set to true or omitted, the rule applies regardless of whether a pseudo-terminal is attached. Only the BPF-LSM enforcer implements `pts`: the AppArmor and SELinux enforcers ignore it, so on a host using either of those LSMs the rule applies to every matching action, whether or not a pseudo-terminal is attached.
 
     ```text
       process:
@@ -269,7 +269,7 @@ Now, we will briefly explain how to define a security policy.
 
   * pts
 
-    As with process executions, pts: false scopes the file rule to operations performed by processes that have a pseudo-terminal attached.
+    As with process executions, pts: false scopes the file rule to operations performed by processes that have a pseudo-terminal attached. Only the BPF-LSM enforcer implements `pts`: the AppArmor and SELinux enforcers ignore it, so on a host using either of those LSMs the rule applies to every matching action, whether or not a pseudo-terminal is attached.
 
 ### Network
 
@@ -286,7 +286,7 @@ Now, we will briefly explain how to define a security policy.
 
   * pts
 
-    As with process executions, pts: false scopes the protocol rule to connections made by processes that have a pseudo-terminal attached.
+    As with process executions, pts: false scopes the protocol rule to connections made by processes that have a pseudo-terminal attached. Only the BPF-LSM enforcer implements `pts`: the AppArmor and SELinux enforcers ignore it, so on a host using either of those LSMs the rule applies to every matching action, whether or not a pseudo-terminal is attached.
 
 ### Capabilities
 

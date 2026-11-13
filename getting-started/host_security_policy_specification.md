@@ -62,7 +62,6 @@ spec:
   network:
     matchProtocols:
     - protocol: [TCP|tcp|UDP|udp|ICMP|icmp]
-      pts: [true|false]                    # --> optional
       fromSource:
       - path: [absolute executable path]
 
@@ -205,7 +204,7 @@ Now, we will briefly explain how to define a host security policy.
 
   * pts
 
-    The pts option scopes a rule to actions that originate from a pseudo-terminal (TTY), such as commands entered in an interactive shell. If pts is set to false, only actions performed by processes that have a pseudo-terminal attached are matched; actions without an attached TTY (e.g., processes started directly by a container runtime or a system daemon) are not matched. If pts is set to true or omitted, the rule applies regardless of whether a pseudo-terminal is attached.
+    The pts option scopes a rule to actions that originate from a pseudo-terminal (TTY), such as commands entered in an interactive shell. If pts is set to false, only actions performed by processes that have a pseudo-terminal attached are matched; actions without an attached TTY (e.g., processes started directly by a container runtime or a system daemon) are not matched. If pts is set to true or omitted, the rule applies regardless of whether a pseudo-terminal is attached. Only the BPF-LSM enforcer implements `pts`: the AppArmor and SELinux enforcers ignore it, so on a host using either of those LSMs the rule applies to every matching action, whether or not a pseudo-terminal is attached.
 
     ```text
       process:
@@ -249,7 +248,7 @@ Now, we will briefly explain how to define a host security policy.
 
   * pts
 
-    As with process executions, pts: false scopes the file rule to operations performed by processes that have a pseudo-terminal attached.
+    As with process executions, pts: false scopes the file rule to operations performed by processes that have a pseudo-terminal attached. Only the BPF-LSM enforcer implements `pts`: the AppArmor and SELinux enforcers ignore it, so on a host using either of those LSMs the rule applies to every matching action, whether or not a pseudo-terminal is attached.
 
 * Network
 
@@ -259,14 +258,11 @@ Now, we will briefly explain how to define a host security policy.
     network:
       matchProtocols:
       - protocol: [protocol(,)]            # --> [ TCP | tcp | UDP | udp | ICMP | icmp ]
-        pts: [true|false]                  # --> optional
         fromSource:
         - path: [absolute file path]
   ```
 
-  * pts
-
-    As with process executions, pts: false scopes the protocol rule to connections made by processes that have a pseudo-terminal attached.
+  A host network rule does not support `pts`: the host network match type has no such field, so a `pts` key there is rejected by the CRD's OpenAPI schema. Use `pts` on `process` and `file` rules instead.
 
 * Device
 
