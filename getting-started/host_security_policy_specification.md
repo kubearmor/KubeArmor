@@ -124,11 +124,13 @@ Now, we will briefly explain how to define a host security policy.
 
 * Per-rule Overrides
 
-  `severity`, `tags`, `message` and `action` are not limited to the top of the spec. The same fields can be set on a match section (`process`, `file`, `network`, `device`, `capabilities`, `syscalls`) and on each individual match rule inside it, which allows a single host policy to raise alerts with different severities and messages. Each field is resolved independently, using the most specific value that is set:
+  `severity`, `tags`, `message` and `action` are not limited to the top of the spec. The same fields can be set on a match section (`process`, `file`, `network`, `capabilities`) and on each individual match rule inside it, which allows a single host policy to raise alerts with different severities and messages. The `syscalls` section is the one exception: it accepts `severity`, `tags` and `message`, but not `action`, because syscall rules are always audit-only. Each field is resolved independently, using the most specific value that is set:
 
   1. the value set on the individual match rule (for example `spec.process.matchPaths[0].severity`)
   2. the value set on the match section (for example `spec.process.severity`)
   3. the value set on the policy itself (for example `spec.severity`)
+
+  `tags` is a whole-value override: the most specific non-empty `tags` list replaces the outer list, and the lists are not merged.
 
   ```yaml
   apiVersion: security.kubearmor.com/v1
@@ -140,20 +142,32 @@ Now, we will briefly explain how to define a host security policy.
       matchLabels:
         kubernetes.io/hostname: node-1
     severity: 1
+    tags: ["POLICY"]
     action: Block
     process:
+      severity: 2
+      tags: ["PROCESS"]
+      action: Block
       matchPaths:
       - path: /bin/ls
         severity: 5
-        message: "ls was executed"
-      - path: /bin/cat
         tags: ["SENSITIVE"]
+        message: "ls was executed"
+        action: Audit
+      - path: /bin/cat
         message: "cat was executed"
+      - path: /bin/rm
+        message: "rm was executed"
+    file:
+      severity: 4
+      matchPaths:
+      - path: /etc/shadow
+        message: "shadow was read"
   ```
 
-  Both rules in the example block the executables, because neither the rules nor the `process` section define an `action`, so the policy-level `action: Block` is inherited. The alert for `/bin/ls` is reported with severity 5, while the alert for `/bin/cat` keeps the inherited severity 1 and uses its own tag and message.
+  In the example, the `/bin/ls` rule sets `action: Audit`, so it overrides the `Block` action inherited from the `process` section and the policy, while `/bin/cat` and `/bin/rm` remain blocked. The `tags: ["SENSITIVE"]` on `/bin/ls` also replaces the `PROCESS` tags from the section, so that alert carries `SENSITIVE` alone; tags are replaced as a whole and are not merged. `/bin/cat` and `/bin/rm` inherit severity 2 and the `PROCESS` tag from the `process` section. The `/etc/shadow` rule inherits severity 4 from the `file` section and falls back to the policy-level `Block` action and `POLICY` tag.
 
-  > **NOTE** `action` set below the policy level has to be capitalized (`Allow`, `Audit` or `Block`). Only the policy-level `action` accepts the lowercase aliases (`allow`, `audit`, `block`), which KubeArmor normalizes into their capitalized form.
+  > **NOTE** Write `action` in its capitalized form (`Allow`, `Audit` or `Block`) everywhere, at the policy level as well as below it. A `KubeArmorPolicy` or `KubeArmorClusterPolicy` is validated against the CRD's OpenAPI schema before KubeArmor's Go code ever sees the policy, and that schema accepts only `Allow`, `Audit` and `Block`. The lowercase aliases (`allow`, `audit`, `block`) are accepted only for the policy-level `action`, and only in non-Kubernetes (VM or bare-metal) mode, where KubeArmor normalizes them into the capitalized form.
 
 * NodeSelector
 
