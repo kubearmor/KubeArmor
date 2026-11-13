@@ -24,7 +24,7 @@ The following policy demonstrates how to allow specific arguments for a process 
 **Scenario:** Allow `/usr/bin/python3.6` to execute only if it is accompanied by the arguments `-m` and `random`.
 
 ```yaml 
-apiVersion: [security.kubearmor.com/v1](https://security.kubearmor.com/v1)
+apiVersion: security.kubearmor.com/v1
 kind: KubeArmorPolicy
 metadata:
   name: ksp-ubuntu-1-allow-proc-args
