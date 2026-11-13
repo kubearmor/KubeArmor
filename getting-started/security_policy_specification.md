@@ -142,7 +142,7 @@ Now, we will briefly explain how to define a security policy.
 
 ### Per-rule Overrides
 
-  `severity`, `tags`, `message` and `action` are not limited to the top of the spec. The same fields can be set on a match section (`process`, `file`, `network`, `capabilities`, `syscalls`) and on each individual match rule inside it, which allows a single policy to raise alerts with different severities and messages. Each field is resolved independently, using the most specific value that is set:
+  `severity`, `tags`, `message` and `action` are not limited to the top of the spec. The same fields can be set on a match section (`process`, `file`, `network`, `capabilities`) and on each individual match rule inside it, which allows a single policy to raise alerts with different severities and messages. The `syscalls` section is the one exception: it accepts `severity`, `tags` and `message`, but not `action`, because syscall rules are always audit-only. Each field is resolved independently, using the most specific value that is set:
 
   1. the value set on the individual match rule (for example `spec.process.matchPaths[0].severity`)
   2. the value set on the match section (for example `spec.process.severity`)
@@ -172,7 +172,7 @@ Now, we will briefly explain how to define a security policy.
 
   Both rules in the example block the executables, because neither the rules nor the `process` section define an `action`, so the policy-level `action: Block` is inherited. The alert for `/bin/ls` is reported with severity 5, while the alert for `/bin/cat` keeps the inherited severity 1 and uses its own tag and message.
 
-  > **NOTE** `action` set below the policy level has to be capitalized (`Allow`, `Audit` or `Block`). Only the policy-level `action` accepts the lowercase aliases (`allow`, `audit`, `block`), which KubeArmor normalizes into their capitalized form.
+  > **NOTE** Write `action` in its capitalized form (`Allow`, `Audit` or `Block`) everywhere, at the policy level as well as below it. A `KubeArmorPolicy` or `KubeArmorClusterPolicy` is validated against the CRD's OpenAPI schema before KubeArmor's Go code ever sees it, and that schema accepts only `Allow`, `Audit` and `Block`. The lowercase aliases (`allow`, `audit`, `block`) are accepted only for the policy-level `action`, and only in non-Kubernetes (VM/bare-metal) mode, where KubeArmor normalizes them into the capitalized form.
 
 ### Selector
 
