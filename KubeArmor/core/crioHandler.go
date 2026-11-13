@@ -172,12 +172,23 @@ func (ch *CrioHandler) GetContainerInfo(ctx context.Context, containerID, nodeID
 // == CRIO Events == //
 // ================= //
 
-// GetCrioContainers Function gets IDs of all containers
+// GetCrioContainers Function gets IDs of all running containers
 func (ch *CrioHandler) GetCrioContainers() (map[string]struct{}, error) {
 	containers := make(map[string]struct{})
 	var err error
 
-	req := pb.ListContainersRequest{}
+	// Only list running containers. Without a state filter CRI-O also returns
+	// exited containers (finished init containers, completed Jobs, ...). Their
+	// PID no longer exists, so GetContainerInfo always fails for them, and
+	// MonitorCrioEvents would drop and retry them every 50ms forever.
+	// This matches the Docker handler, whose ContainerList defaults to running
+	// containers. A container that exits disappears from this list and goes
+	// through the normal "destroy" path.
+	req := pb.ListContainersRequest{
+		Filter: &pb.ContainerFilter{
+			State: &pb.ContainerStateValue{State: pb.ContainerState_CONTAINER_RUNNING},
+		},
+	}
 
 	if containerList, err := ch.client.ListContainers(context.Background(), &req, grpc.MaxCallRecvMsgSize(kl.DefaultMaxRecvMaxSize)); err == nil {
 		if containerList != nil {
