@@ -96,6 +96,20 @@ spec:
     kubeRbacProxyImage:
         image: [image-repo:tag]                                # DEFAULT - gcr.io/kubebuilder/kube-rbac-proxy:v0.15.0
         imagePullPolicy: [image pull policy]                   # DEFAULT - Always
+
+    # adapters for forwarding alerts to external systems
+    adapters:
+        elasticsearch:
+            enabled: [true|false]                             # DEFAULT - false
+            url: [elasticsearch endpoint]                     # e.g. https://elasticsearch:9200
+            alertsIndex: [index name for KubeArmor alerts]     # DEFAULT - kubearmor
+            auth:
+                secretName: [k8s secret name with credentials]
+                usernameKey: [key for username in secret]      # DEFAULT - username
+                passwordKey: [key for password in secret]      # DEFAULT - password
+                allowInsecureTLS: [true|false]                # DEFAULT - false
+                caCertSecretName: [secret with CA cert]
+                caCertKey: [key for CA cert in secret]        # DEFAULT - ca.crt
 ```
 
 ## Verify if all the resources are up and running

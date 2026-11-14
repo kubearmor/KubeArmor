@@ -50,20 +50,43 @@ type RecommendedPolicies struct {
 	ExcludePolicy []string `json:"excludePolicy,omitempty"`
 }
 
+// ElasticSearchAuth configures credentials and TLS for the Elasticsearch adapter.
 type ElasticSearchAuth struct {
-	SecretName       string `json:"secretName,omitempty"`
-	UserNameKey      string `json:"usernameKey,omitempty"`
-	PasswordKey      string `json:"passwordKey,omitempty"`
-	AllowTlsInsecure bool   `json:"allowInsecureTLS,omitempty"`
+	// SecretName is the name of the Kubernetes Secret holding Elasticsearch
+	// credentials.
+	SecretName string `json:"secretName,omitempty"`
+
+	// UserNameKey is the key within the secret containing the username.
+	UserNameKey string `json:"usernameKey,omitempty"`
+
+	// PasswordKey is the key within the secret containing the password.
+	PasswordKey string `json:"passwordKey,omitempty"`
+
+	// AllowTlsInsecure disables TLS certificate verification when connecting to
+	// Elasticsearch. Defaults to false; enable only for testing.
+	AllowTlsInsecure bool `json:"allowInsecureTLS,omitempty"`
+
+	// CACertSecretName is the name of the Secret holding the CA certificate used
+	// to verify the Elasticsearch TLS certificate.
 	CAcertSecretName string `json:"caCertSecretName,omitempty"`
-	CaCertKey        string `json:"caCertKey,omitempty"`
+
+	// CACertKey is the key within that secret containing the CA certificate.
+	CaCertKey string `json:"caCertKey,omitempty"`
 }
 
+// ElasticSearchAdapter configures forwarding of KubeArmor alerts to Elasticsearch.
 type ElasticSearchAdapter struct {
-	Enabled         bool              `json:"enabled,omitempty"`
-	Url             string            `json:"url,omitempty"`
-	AlertsIndexName string            `json:"alertsIndex,omitempty"`
-	Auth            ElasticSearchAuth `json:"auth,omitempty"`
+	// Enabled turns the Elasticsearch adapter on or off. Defaults to false.
+	Enabled bool `json:"enabled,omitempty"`
+
+	// Url is the Elasticsearch endpoint (e.g. https://elasticsearch:9200).
+	Url string `json:"url,omitempty"`
+
+	// AlertsIndexName is the index name where KubeArmor alerts are stored.
+	AlertsIndexName string `json:"alertsIndex,omitempty"`
+
+	// Auth holds the credentials and TLS settings for the connection.
+	Auth ElasticSearchAuth `json:"auth,omitempty"`
 }
 
 type Adapters struct {
