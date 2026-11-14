@@ -26,7 +26,7 @@ Here, we demonstrate how to define security policies using our example microserv
 
     * Verification: After applying this policy, please get into one of the containers with the 'group-1' \(using "kubectl -n multiubuntu exec -it ubuntu-X-deployment-... -- bash"\) and run '/bin/sleep'. You will see that /bin/sleep is blocked.
 
-  * Block accessing specific executable matching labels, In & NotIn operator \([ksp-match-expression-in-notin-block-process.yaml](../examples/nginx-csp/cluster-security-policies/ksp-match-expression-in-notin-block-process.yaml)\)
+  * Block accessing specific executable matching labels, In & NotIn operator \([ksp-match-expression-in-notin-block-process.yaml](../examples/multiubuntu/security-policies/ksp-match-expression-in-notin-block-process.yaml)\)
 
     ```yaml
     apiVersion: security.kubearmor.com/v1
@@ -58,7 +58,7 @@ Here, we demonstrate how to define security policies using our example microserv
 
     * Verification: After applying this policy, please exec into any container who contains label `container=ubuntu-1` within the namespace 'multiubuntu' and run 'apt'. You can see the binary is blocked. Then try to do same in other workloads who doesn't contains label `container=ubuntu-1`, the binary won't be blocked.
 
-  * Block accessing specific executable matching labels, NotIn operator \([ksp-match-expression-notin-block-process.yaml](../examples/nginx-csp/cluster-security-policies/ksp-match-expression-notin-block-process.yaml)\)
+  * Block accessing specific executable matching labels, NotIn operator \([ksp-match-expression-notin-block-process.yaml](../examples/multiubuntu/security-policies/ksp-match-expression-notin-block-process.yaml)\)
 
     ```yaml
     apiVersion: security.kubearmor.com/v1
