@@ -113,6 +113,9 @@ type KubeArmorConfigSpec struct {
 
 	EnableStdOutMsgs bool `json:"enableStdOutMsgs,omitempty"`
 
+	// SeccompEnabled controls whether a localhost seccomp profile is applied to
+	// the KubeArmor pods. Requires the node to expose a seccomp profile (seccomp
+	// present). Defaults to false.
 	SeccompEnabled bool `json:"seccompEnabled,omitempty"`
 
 	AlertThrottling bool `json:"alertThrottling,omitempty"`
@@ -125,6 +128,9 @@ type KubeArmorConfigSpec struct {
 
 	EnableNRI bool `json:"enableNRI,omitempty"`
 
+	// ControllerPort is the port on which the KubeArmor controller webhook
+	// listens. Defaults to 9443. Change only if it conflicts with another
+	// service in the cluster.
 	ControllerPort int `json:"controllerPort,omitempty"`
 
 	DropResourceFromProcessLogs bool `json:"dropResourceFromProcessLogs,omitempty"`

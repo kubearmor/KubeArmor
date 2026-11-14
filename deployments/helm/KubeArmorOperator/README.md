@@ -72,6 +72,12 @@ spec:
     # it will be based on the runtime present. This happens because operator won't get KubearmorConfig event(initially).
     enableNRI: [true|false] # DEFAULT - false
 
+    # seccomp profile for KubeArmor pods (requires seccomp present on node)
+    seccompEnabled: [true|false] # DEFAULT - false
+
+    # port for the KubeArmor controller webhook
+    controllerPort: [port number] # DEFAULT - 9443
+
     # KubeArmor image and pull policy
     kubearmorImage:
         image: [image-repo:tag]                                # DEFAULT - kubearmor/kubearmor:stable
