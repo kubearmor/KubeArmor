@@ -32,13 +32,24 @@ type ImageSpec struct {
 	Tolerations []corev1.Toleration `json:"tolerations,omitempty"`
 }
 
+// Tls configures TLS for KubeArmor and KubeArmor Relay communication.
 type Tls struct {
 
+	// Enable controls whether TLS (mTLS) is enabled for communication between
+	// KubeArmor and KubeArmor Relay. Defaults to false.
 	// +kubebuilder:default:=false
 	Enable bool `json:"enable,omitempty"`
 
+	// RelayExtraDnsNames lists additional DNS names to include in the relay TLS
+	// certificate's SAN. Useful when reaching the relay via extra hostnames, e.g.
+	// port-forwarding to localhost. localhost and 127.0.0.1 are included by
+	// default.
 	RelayExtraDnsNames []string `json:"extraDnsNames,omitempty"`
 
+	// RelayExtraIpAddresses lists additional IP addresses to include in the relay
+	// TLS certificate's SAN. Useful when reaching the relay via extra IPs, e.g.
+	// port-forwarding to 127.0.0.1. localhost and 127.0.0.1 are included by
+	// default.
 	RelayExtraIpAddresses []string `json:"extraIpAddresses,omitempty"`
 }
 

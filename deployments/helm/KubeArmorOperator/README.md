@@ -96,6 +96,12 @@ spec:
     kubeRbacProxyImage:
         image: [image-repo:tag]                                # DEFAULT - gcr.io/kubebuilder/kube-rbac-proxy:v0.15.0
         imagePullPolicy: [image pull policy]                   # DEFAULT - Always
+
+    # TLS configuration for KubeArmor and KubeArmor Relay communication
+    tls:
+        enable: [true|false]                                   # DEFAULT - false
+        extraDnsNames: [additional DNS names for relay TLS cert SAN]  # DEFAULT - []
+        extraIpAddresses: [additional IP addresses for relay TLS cert SAN]  # DEFAULT - []
 ```
 
 ## Verify if all the resources are up and running
