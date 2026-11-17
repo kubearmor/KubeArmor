@@ -157,6 +157,11 @@ func generateDaemonset(name, enforcer, runtime, socket, nriSocket, btfPresent, a
 	daemonset.Spec.Template.Spec.Containers[0].VolumeMounts = volMnts
 
 	if btfPresent == "no" || initDeploy {
+		if len(daemonset.Spec.Template.Spec.InitContainers) > 0 {
+			if len(common.KubeArmorInitResources.Limits) > 0 || len(common.KubeArmorInitResources.Requests) > 0 {
+				daemonset.Spec.Template.Spec.InitContainers[0].Resources = common.KubeArmorInitResources
+			}
+		}
 		daemonset.Spec.Template.Spec.InitContainers[0].VolumeMounts = commonVolMnts
 		daemonset.Spec.Template.Spec.InitContainers[0].Image = common.GetApplicationImage(common.KubeArmorInitName)
 		daemonset.Spec.Template.Spec.InitContainers[0].ImagePullPolicy = corev1.PullPolicy(common.KubeArmorInitImagePullPolicy)
@@ -186,6 +191,9 @@ func generateDaemonset(name, enforcer, runtime, socket, nriSocket, btfPresent, a
 	daemonset.Spec.Template.Spec.Containers[0].ImagePullPolicy = corev1.PullPolicy(common.KubeArmorImagePullPolicy)
 	UpdateArgsIfDefinedAndUpdated(&daemonset.Spec.Template.Spec.Containers[0].Args, common.KubeArmorArgs)
 	UpdateImagePullSecretsIfDefinedAndUpdated(&daemonset.Spec.Template.Spec.ImagePullSecrets, common.KubeArmorImagePullSecrets)
+	if len(common.KubeArmorResources.Limits) > 0 || len(common.KubeArmorResources.Requests) > 0 {
+		daemonset.Spec.Template.Spec.Containers[0].Resources = common.KubeArmorResources
+	}
 	UpdateTolerationsIfDefinedAndUpdated(&daemonset.Spec.Template.Spec.Tolerations, common.KubeArmorInitTolerations)
 	if len(daemonset.Spec.Template.Spec.ImagePullSecrets) < 1 {
 		utils.UpdateImagePullSecretFromGlobal(common.GlobalImagePullSecrets, &daemonset.Spec.Template.Spec.ImagePullSecrets)
@@ -943,8 +951,13 @@ func (clusterWatcher *ClusterWatcher) WatchRequiredResources() {
 	}
 	// kubearmor-controller and relay-server deployments
 	controller := deployments.GetKubeArmorControllerDeployment(common.Namespace)
-
+	if len(common.KubeArmorControllerResources.Limits) > 0 || len(common.KubeArmorControllerResources.Requests) > 0 {
+		controller.Spec.Template.Spec.Containers[0].Resources = common.KubeArmorControllerResources
+	}
 	relayServer := deployments.GetRelayDeployment(common.Namespace)
+	if len(common.KubeArmorRelayResources.Limits) > 0 || len(common.KubeArmorRelayResources.Requests) > 0 {
+		relayServer.Spec.Template.Spec.Containers[0].Resources = common.KubeArmorRelayResources
+	}
 	// update args, imagePullSecrets and tolerations
 	UpdateArgsIfDefinedAndUpdated(&controller.Spec.Template.Spec.Containers[0].Args, common.KubeArmorControllerArgs)
 
