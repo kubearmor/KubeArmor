@@ -118,29 +118,24 @@ int sys_exit_setns(struct tracepoint_raw_sys_exit *ctx)
     return 0;
 }
 
-struct tracepoint_sched_process_fork
+// child_pid is CO-RE relocated against the running kernel's BTF: since
+// Linux 6.16 (commit 155fd6c3e2f0) parent_comm and child_comm are __data_loc
+// strings (4 bytes each), so child_pid moved from offset 44 to 20.
+struct trace_event_raw_sched_process_fork___ka
 {
-    unsigned short common_type;
-    unsigned char common_flags;
-    unsigned char common_preempt_count;
-    int common_pid;
-
-    char parent_comm[16];
-    pid_t parent_pid;
-    char child_comm[16];
     pid_t child_pid;
-};
+} __attribute__((preserve_access_index));
 
 SEC("tracepoint/sched/sched_process_fork")
-int sched_process_fork(struct tracepoint_sched_process_fork *ctx)
+int sched_process_fork(struct trace_event_raw_sched_process_fork___ka *ctx)
 {
     u32 parent_pid = bpf_get_current_pid_tgid() >> 32;
     u32 child_pid = ctx->child_pid;
 
-    u32 *exists = bpf_map_lookup_elem(&kubearmor_exec_pids, &parent_pid);
+    u64 *exists = bpf_map_lookup_elem(&kubearmor_exec_pids, &parent_pid);
     if (exists)
     {
-        u32 val = *exists;
+        u64 val = *exists;
         bpf_map_update_elem(&kubearmor_exec_pids, &child_pid, &val, BPF_ANY);
     }
 
