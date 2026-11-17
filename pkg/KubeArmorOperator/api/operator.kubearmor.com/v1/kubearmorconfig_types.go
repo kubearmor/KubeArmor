@@ -21,6 +21,8 @@ type ImageSpec struct {
 
 	Image string `json:"image,omitempty"`
 
+	Resources corev1.ResourceRequirements `json:"resources,omitempty"`
+
 	// +kubebuilder:validation:Enum=Always;IfNotPresent;Never
 	// +kubebuilder:default:=Always
 	ImagePullPolicy string `json:"imagePullPolicy,omitempty"`

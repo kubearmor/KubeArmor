@@ -565,6 +565,9 @@ func (clusterWatcher *ClusterWatcher) UpdateKubeArmorImages(images []string) err
 					ds.Spec.Template.Spec.Containers[0].ImagePullPolicy = corev1.PullPolicy(common.KubeArmorImagePullPolicy)
 					ds.Spec.Template.Spec.Containers[0].Args = common.KubeArmorArgs
 					ds.Spec.Template.Spec.ImagePullSecrets = common.KubeArmorImagePullSecrets
+					if len(common.KubeArmorResources.Limits) > 0 || len(common.KubeArmorResources.Requests) > 0 { 
+						ds.Spec.Template.Spec.Containers[0].Resources = common.KubeArmorResources
+					}
 					if len(ds.Spec.Template.Spec.ImagePullSecrets) < 1 {
 						utils.UpdateImagePullSecretFromGlobal(common.GlobalImagePullSecrets, &ds.Spec.Template.Spec.ImagePullSecrets)
 					}
@@ -598,6 +601,9 @@ func (clusterWatcher *ClusterWatcher) UpdateKubeArmorImages(images []string) err
 						ds.Spec.Template.Spec.InitContainers[0].Args = common.KubeArmorInitArgs
 						ds.Spec.Template.Spec.ImagePullSecrets = append(ds.Spec.Template.Spec.ImagePullSecrets, common.KubeArmorInitImagePullSecrets...)
 						ds.Spec.Template.Spec.Tolerations = append(ds.Spec.Template.Spec.Tolerations, common.KubeArmorInitTolerations...)
+						if len(common.KubeArmorInitResources.Limits) > 0 || len(common.KubeArmorInitResources.Requests) > 0 {
+							ds.Spec.Template.Spec.InitContainers[0].Resources = common.KubeArmorInitResources
+						}
 					}
 
 					// update with global env
@@ -638,6 +644,9 @@ func (clusterWatcher *ClusterWatcher) UpdateKubeArmorImages(images []string) err
 				relay.Spec.Template.Spec.Containers[0].ImagePullPolicy = corev1.PullPolicy(common.KubeArmorRelayImagePullPolicy)
 				relay.Spec.Template.Spec.Containers[0].Args = common.KubeArmorRelayArgs
 				relay.Spec.Template.Spec.ImagePullSecrets = common.KubeArmorRelayImagePullSecrets
+				if len(common.KubeArmorRelayResources.Limits) > 0 || len(common.KubeArmorRelayResources.Requests) > 0 {
+					relay.Spec.Template.Spec.Containers[0].Resources = common.KubeArmorRelayResources
+				}
 				if len(relay.Spec.Template.Spec.ImagePullSecrets) < 1 {
 					utils.UpdateImagePullSecretFromGlobal(common.GlobalImagePullSecrets, &relay.Spec.Template.Spec.ImagePullSecrets)
 				}
@@ -698,6 +707,9 @@ func (clusterWatcher *ClusterWatcher) UpdateKubeArmorImages(images []string) err
 				containers := &controller.Spec.Template.Spec.Containers
 				for i, container := range *containers {
 					if container.Name == "manager" {
+						if len(common.KubeArmorControllerResources.Limits) > 0 || len(common.KubeArmorControllerResources.Requests) > 0 {
+							(*containers)[i].Resources = common.KubeArmorControllerResources
+						}
 						(*containers)[i].Image = common.GetApplicationImage(common.KubeArmorControllerName)
 						(*containers)[i].ImagePullPolicy = corev1.PullPolicy(common.KubeArmorControllerImagePullPolicy)
 						(*containers)[i].Args = common.KubeArmorControllerArgs
@@ -1113,6 +1125,17 @@ func UpdateNRIAvailabilityIfDefinedAndUpdated(common *bool, in bool) bool {
 	return false
 }
 
+func UpdateResourceRequirementsIfDefinedAndUpdated(common *corev1.ResourceRequirements, in corev1.ResourceRequirements) bool {
+	if len(in.Limits) == 0 && len(in.Requests) == 0 && len(common.Limits) == 0 && len(common.Requests) == 0 {
+		return false
+	}
+	if !reflect.DeepEqual(in, *common) {
+		*common = in
+		return true
+	}
+	return false
+}
+
 func UpdateImages(config *opv1.KubeArmorConfigSpec) []string {
 	updatedImages := []string{}
 	// if kubearmor image or imagePullPolicy got updated
@@ -1123,7 +1146,8 @@ func UpdateImages(config *opv1.KubeArmorConfigSpec) []string {
 		UpdateTolerationsIfDefinedAndUpdated(&common.KubeArmorTolerations, config.KubeArmorImage.Tolerations) ||
 		UpdateNRIAvailabilityIfDefinedAndUpdated(&common.NRIEnabled, config.EnableNRI) ||
 		UpdateNodeSelectorIfDefinedAndUpdated(common.KubeArmorNodeSelector, config.KubeArmorImage.NodeSelector) ||
-		UpdateEnvIfDefinedAndUpdated(&common.KubeArmorEnv, config.KubeArmorImage.Env) {
+		UpdateEnvIfDefinedAndUpdated(&common.KubeArmorEnv, config.KubeArmorImage.Env) ||
+		UpdateResourceRequirementsIfDefinedAndUpdated(&common.KubeArmorResources, config.KubeArmorImage.Resources) {
 		updatedImages = append(updatedImages, "kubearmor")
 	}
 	// if kubearmor-init image or imagePullPolicy got updated
@@ -1132,7 +1156,8 @@ func UpdateImages(config *opv1.KubeArmorConfigSpec) []string {
 		UpdateArgsIfDefinedAndUpdated(&common.KubeArmorInitArgs, config.KubeArmorInitImage.Args) ||
 		UpdateImagePullSecretsIfDefinedAndUpdated(&common.KubeArmorInitImagePullSecrets, config.KubeArmorInitImage.ImagePullSecrets) ||
 		UpdateTolerationsIfDefinedAndUpdated(&common.KubeArmorInitTolerations, config.KubeArmorInitImage.Tolerations) ||
-		UpdateEnvIfDefinedAndUpdated(&common.KubeArmorInitEnv, config.KubeArmorInitImage.Env) {
+		UpdateEnvIfDefinedAndUpdated(&common.KubeArmorInitEnv, config.KubeArmorInitImage.Env) ||
+		UpdateResourceRequirementsIfDefinedAndUpdated(&common.KubeArmorInitResources, config.KubeArmorInitImage.Resources) {
 		updatedImages = append(updatedImages, "init")
 	}
 	// kubearmor-relay image or imagePullPolicy got updated
@@ -1142,7 +1167,8 @@ func UpdateImages(config *opv1.KubeArmorConfigSpec) []string {
 		UpdateImagePullSecretsIfDefinedAndUpdated(&common.KubeArmorRelayImagePullSecrets, config.KubeArmorRelayImage.ImagePullSecrets) ||
 		UpdateTolerationsIfDefinedAndUpdated(&common.KubeArmorRelayTolerations, config.KubeArmorRelayImage.Tolerations) ||
 		UpdateNodeSelectorIfDefinedAndUpdated(common.KubeArmorRelayNodeSelector, config.KubeArmorRelayImage.NodeSelector) ||
-		UpdateEnvIfDefinedAndUpdated(&common.KubeArmorRelayEnv, config.KubeArmorRelayImage.Env) {
+		UpdateEnvIfDefinedAndUpdated(&common.KubeArmorRelayEnv, config.KubeArmorRelayImage.Env) ||
+		UpdateResourceRequirementsIfDefinedAndUpdated(&common.KubeArmorRelayResources, config.KubeArmorRelayImage.Resources) {
 		updatedImages = append(updatedImages, "relay")
 	}
 	// if kubearmor-controller image or imagePullPolicy got updated
@@ -1152,7 +1178,8 @@ func UpdateImages(config *opv1.KubeArmorConfigSpec) []string {
 		UpdateImagePullSecretsIfDefinedAndUpdated(&common.KubeArmorControllerImagePullSecrets, config.KubeArmorControllerImage.ImagePullSecrets) ||
 		UpdateTolerationsIfDefinedAndUpdated(&common.KubeArmorControllerTolerations, config.KubeArmorControllerImage.Tolerations) ||
 		UpdateNodeSelectorIfDefinedAndUpdated(common.KubeArmorControllerNodeSelector, config.KubeArmorControllerImage.NodeSelector) ||
-		UpdateEnvIfDefinedAndUpdated(&common.KubeArmorControllerEnv, config.KubeArmorControllerImage.Env) {
+		UpdateEnvIfDefinedAndUpdated(&common.KubeArmorControllerEnv, config.KubeArmorControllerImage.Env) ||
+		UpdateResourceRequirementsIfDefinedAndUpdated(&common.KubeArmorControllerResources, config.KubeArmorControllerImage.Resources) {
 		updatedImages = append(updatedImages, "controller")
 	}
 
