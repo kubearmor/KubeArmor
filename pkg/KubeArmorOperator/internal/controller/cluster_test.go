@@ -184,3 +184,12 @@ func TestAddorUpdateNodeSelector(t *testing.T) {
 		})
 	})
 }
+
+func TestRemoveDeletedEntriesForNodeSelector(t *testing.T) {
+	ns := map[string]string{
+		"kubernetes.io/os": "linux",
+		"zone":             "-",
+	}
+	RemoveDeletedEntriesForNodeSelector(ns)
+	assert.Equal(t, map[string]string{"kubernetes.io/os": "linux"}, ns)
+}
