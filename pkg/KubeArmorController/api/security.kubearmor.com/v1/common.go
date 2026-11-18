@@ -213,8 +213,10 @@ type MatchNetworkProtocolType struct {
 }
 
 type MatchHostNetworkProtocolType struct {
-	Protocol   MatchNetworkProtocolStringType `json:"protocol"`
-	FromSource []MatchSourceType              `json:"fromSource"`
+	Protocol MatchNetworkProtocolStringType `json:"protocol"`
+	// +kubebuilder:validation:Optional
+	Pts        *bool             `json:"pts,omitempty"`
+	FromSource []MatchSourceType `json:"fromSource"`
 
 	// +kubebuilder:validation:optional
 	Severity SeverityType `json:"severity,omitempty"`

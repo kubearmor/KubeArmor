@@ -62,6 +62,7 @@ spec:
   network:
     matchProtocols:
     - protocol: [TCP|tcp|UDP|udp|ICMP|icmp]
+      pts: [true|false]                    # --> optional
       fromSource:
       - path: [absolute executable path]
 
@@ -258,11 +259,14 @@ Now, we will briefly explain how to define a host security policy.
     network:
       matchProtocols:
       - protocol: [protocol(,)]            # --> [ TCP | tcp | UDP | udp | ICMP | icmp ]
+        pts: [true|false]                  # --> optional
         fromSource:
         - path: [absolute file path]
   ```
 
-  A host network rule does not support `pts`: the host network match type has no such field, so a `pts` key there is rejected by the CRD's OpenAPI schema. Use `pts` on `process` and `file` rules instead.
+  * pts
+
+    As with process executions, pts: false scopes the protocol rule to connections made by processes that have a pseudo-terminal attached. Only the BPF-LSM enforcer implements `pts`: the AppArmor and SELinux enforcers ignore it, so on a host using either of those LSMs the rule applies to every matching connection, whether or not a pseudo-terminal is attached.
 
 * Device
 
