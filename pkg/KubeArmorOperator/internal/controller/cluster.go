@@ -137,6 +137,13 @@ func extractPathFromMessage(message string) (string, bool) {
 	return "", false
 }
 
+func resolveResources(custom, fallback corev1.ResourceRequirements) corev1.ResourceRequirements {
+	if len(custom.Limits) > 0 || len(custom.Requests) > 0 {
+		return custom
+	}
+	return fallback
+}
+
 func (clusterWatcher *ClusterWatcher) checkJobStatus(job, runtime, nodename string) {
 	defer func() {
 		clusterWatcher.Log.Infof("checkJobStatus completed for job: %s", job)
@@ -565,9 +572,8 @@ func (clusterWatcher *ClusterWatcher) UpdateKubeArmorImages(images []string) err
 					ds.Spec.Template.Spec.Containers[0].ImagePullPolicy = corev1.PullPolicy(common.KubeArmorImagePullPolicy)
 					ds.Spec.Template.Spec.Containers[0].Args = common.KubeArmorArgs
 					ds.Spec.Template.Spec.ImagePullSecrets = common.KubeArmorImagePullSecrets
-					if len(common.KubeArmorResources.Limits) > 0 || len(common.KubeArmorResources.Requests) > 0 { 
-						ds.Spec.Template.Spec.Containers[0].Resources = common.KubeArmorResources
-					}
+					ds.Spec.Template.Spec.Containers[0].Resources = resolveResources(common.KubeArmorResources,
+						deployments.GenerateDaemonSet("generic", common.Namespace).Spec.Template.Spec.Containers[0].Resources)
 					if len(ds.Spec.Template.Spec.ImagePullSecrets) < 1 {
 						utils.UpdateImagePullSecretFromGlobal(common.GlobalImagePullSecrets, &ds.Spec.Template.Spec.ImagePullSecrets)
 					}
@@ -601,9 +607,10 @@ func (clusterWatcher *ClusterWatcher) UpdateKubeArmorImages(images []string) err
 						ds.Spec.Template.Spec.InitContainers[0].Args = common.KubeArmorInitArgs
 						ds.Spec.Template.Spec.ImagePullSecrets = append(ds.Spec.Template.Spec.ImagePullSecrets, common.KubeArmorInitImagePullSecrets...)
 						ds.Spec.Template.Spec.Tolerations = append(ds.Spec.Template.Spec.Tolerations, common.KubeArmorInitTolerations...)
-						if len(common.KubeArmorInitResources.Limits) > 0 || len(common.KubeArmorInitResources.Requests) > 0 {
-							ds.Spec.Template.Spec.InitContainers[0].Resources = common.KubeArmorInitResources
-						}
+						ds.Spec.Template.Spec.InitContainers[0].Resources = resolveResources(
+							common.KubeArmorInitResources,
+							deployments.GenerateDaemonSet("generic", common.Namespace).Spec.Template.Spec.InitContainers[0].Resources,
+						)
 					}
 
 					// update with global env
@@ -644,9 +651,10 @@ func (clusterWatcher *ClusterWatcher) UpdateKubeArmorImages(images []string) err
 				relay.Spec.Template.Spec.Containers[0].ImagePullPolicy = corev1.PullPolicy(common.KubeArmorRelayImagePullPolicy)
 				relay.Spec.Template.Spec.Containers[0].Args = common.KubeArmorRelayArgs
 				relay.Spec.Template.Spec.ImagePullSecrets = common.KubeArmorRelayImagePullSecrets
-				if len(common.KubeArmorRelayResources.Limits) > 0 || len(common.KubeArmorRelayResources.Requests) > 0 {
-					relay.Spec.Template.Spec.Containers[0].Resources = common.KubeArmorRelayResources
-				}
+				relay.Spec.Template.Spec.Containers[0].Resources = resolveResources(
+					common.KubeArmorRelayResources,
+					deployments.GetRelayDeployment(common.Namespace).Spec.Template.Spec.Containers[0].Resources,
+				)
 				if len(relay.Spec.Template.Spec.ImagePullSecrets) < 1 {
 					utils.UpdateImagePullSecretFromGlobal(common.GlobalImagePullSecrets, &relay.Spec.Template.Spec.ImagePullSecrets)
 				}
@@ -707,9 +715,10 @@ func (clusterWatcher *ClusterWatcher) UpdateKubeArmorImages(images []string) err
 				containers := &controller.Spec.Template.Spec.Containers
 				for i, container := range *containers {
 					if container.Name == "manager" {
-						if len(common.KubeArmorControllerResources.Limits) > 0 || len(common.KubeArmorControllerResources.Requests) > 0 {
-							(*containers)[i].Resources = common.KubeArmorControllerResources
-						}
+						(*containers)[i].Resources = resolveResources(
+							common.KubeArmorControllerResources,
+							deployments.GetKubeArmorControllerDeployment(common.Namespace).Spec.Template.Spec.Containers[0].Resources,
+						)
 						(*containers)[i].Image = common.GetApplicationImage(common.KubeArmorControllerName)
 						(*containers)[i].ImagePullPolicy = corev1.PullPolicy(common.KubeArmorControllerImagePullPolicy)
 						(*containers)[i].Args = common.KubeArmorControllerArgs
