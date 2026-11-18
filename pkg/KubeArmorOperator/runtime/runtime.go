@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	containerd "github.com/containerd/containerd/v2/client"
 	"github.com/containerd/containerd/v2/pkg/namespaces"
@@ -18,6 +19,7 @@ import (
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	criV1 "k8s.io/cri-api/pkg/apis/runtime/v1"
@@ -109,28 +111,45 @@ func dockershimSockHasContainer(containerID, sockPath string) bool {
 	return true
 }
 
-func crioSockHasContainer(containerID, sockPath string) bool {
+// criSockHasContainer probes a CRI v1 endpoint. Several runtimes (cri-o, cri-dockerd)
+// answer CRI v1, so a successful ContainerStatus is not enough to call it cri-o:
+// the endpoint's reported RuntimeName decides ("docker" for cri-dockerd).
+func criSockHasContainer(containerID, sockPath string) (bool, string) {
 	conn, err := grpc.NewClient("unix://"+sockPath, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
-		log.Warnf("Error in creating crio client: %v", err)
-		return false
+		log.Warnf("Error in creating CRI client: %v", err)
+		return false, ""
 	}
 
 	defer conn.Close()
 
-	crioClient := criV1.NewRuntimeServiceClient(conn)
+	criClient := criV1.NewRuntimeServiceClient(conn)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 
 	req := &criV1.ContainerStatusRequest{
 		ContainerId: containerID,
 		Verbose:     true,
 	}
 
-	_, err = crioClient.ContainerStatus(context.Background(), req)
-	if err != nil {
-		return false
+	if _, err = criClient.ContainerStatus(ctx, req); err != nil {
+		return false, ""
 	}
 
-	return true
+	return true, criRuntimeNameToRuntime(criClient, ctx)
+}
+
+func criRuntimeNameToRuntime(c criV1.RuntimeServiceClient, ctx context.Context) string {
+	ver, err := c.Version(ctx, &criV1.VersionRequest{})
+	if err == nil && strings.Contains(strings.ToLower(ver.GetRuntimeName()), "docker") {
+		return "docker"
+	}
+	return "cri-o"
+}
+
+func isCriDockerdSocket(path string) bool {
+	return strings.Contains(filepath.Base(strings.TrimPrefix(path, "unix://")), "cri-dockerd")
 }
 
 func runtimeSockHasContainer(containerID, sockPath string) (bool, string) {
@@ -140,8 +159,8 @@ func runtimeSockHasContainer(containerID, sockPath string) (bool, string) {
 		return true, "containerd"
 	}
 
-	if crioSockHasContainer(containerID, sockPath) {
-		return true, "cri-o"
+	if found, name := criSockHasContainer(containerID, sockPath); found {
+		return true, name
 	}
 
 	if dockerSockHasContainer(containerID, sockPath) {
@@ -155,31 +174,96 @@ func runtimeSockHasContainer(containerID, sockPath string) (bool, string) {
 	return false, ""
 }
 
+const (
+	snitchContainerName = "snitch"
+	idRetryAttempts     = 15
+	idRetryInterval     = 2 * time.Second
+)
+
+// snitchContainerID picks the ID of the *currently running* snitch container from the
+// pod status. Terminated containers (stale IDs left over after a restart) and
+// containers that have no ID yet are ignored.
+func snitchContainerID(pod *corev1.Pod, name string) (string, error) {
+	statuses := pod.Status.ContainerStatuses
+	if len(statuses) == 0 {
+		return "", fmt.Errorf("pod %s/%s has no container statuses yet", pod.Namespace, pod.Name)
+	}
+	for _, cs := range statuses {
+		if cs.Name != name {
+			continue
+		}
+		if cs.State.Running == nil {
+			return "", fmt.Errorf("container %q is not running yet", name)
+		}
+		idx := strings.Index(cs.ContainerID, "://")
+		if idx == -1 || cs.ContainerID[idx+3:] == "" {
+			return "", fmt.Errorf("container %q has unexpected or empty ContainerID %q", name, cs.ContainerID)
+		}
+		return cs.ContainerID[idx+3:], nil
+	}
+	return "", fmt.Errorf("container %q not found in pod status", name)
+}
+
+// waitForSnitchContainerID polls the pod until snitchContainerID succeeds, because the
+// kubelet may not have published the container ID/state when snitch starts.
+func waitForSnitchContainerID(ctx context.Context, getPod func(context.Context) (*corev1.Pod, error), name string, attempts int, interval time.Duration, log zap.SugaredLogger) (string, error) {
+	var lastErr error
+	for i := 0; i < attempts; i++ {
+		pod, err := getPod(ctx)
+		if err == nil {
+			var id string
+			if id, err = snitchContainerID(pod, name); err == nil {
+				return id, nil
+			}
+		}
+		lastErr = err
+		log.Warnf("Snitch container ID not ready (attempt %d/%d): %v", i+1, attempts, err)
+		select {
+		case <-ctx.Done():
+			return "", ctx.Err()
+		case <-time.After(interval):
+		}
+	}
+	return "", fmt.Errorf("gave up after %d attempts: %w", attempts, lastErr)
+}
+
+// ValidateDetection makes sure the detected runtime/socket pair can be turned into a
+// DaemonSet by the operator (i.e. the socket is known for that runtime), so that snitch
+// fails loudly instead of labelling the node with a combination that crashes KubeArmor.
+func ValidateDetection(runtime, socket string) error {
+	paths, ok := common.ContainerRuntimeSocketMap[runtime]
+	if !ok || runtime == "nri" {
+		return fmt.Errorf("unsupported runtime %q", runtime)
+	}
+	for _, p := range paths {
+		if p == socket {
+			return nil
+		}
+	}
+	return fmt.Errorf("socket %q is not a supported socket for runtime %q (supported: %v)", socket, runtime, paths)
+}
+
 func DetectRuntimeViaMap(pathPrefix string, k8sRuntime string, explicitSocket string, log zap.SugaredLogger, cl *kubernetes.Clientset) (string, string, string) {
 
-	// get container ID of snitch
+	// get container ID of snitch (waits until the container is reported Running)
 	podName := os.Getenv("POD_NAME")
 	namespace := os.Getenv("POD_NAMESPACE")
-	pod, err := cl.CoreV1().Pods(namespace).Get(context.TODO(), podName, metav1.GetOptions{})
+
+	containerID, err := waitForSnitchContainerID(context.TODO(), func(ctx context.Context) (*corev1.Pod, error) {
+		return cl.CoreV1().Pods(namespace).Get(ctx, podName, metav1.GetOptions{})
+	}, snitchContainerName, idRetryAttempts, idRetryInterval, log)
 	if err != nil {
-		log.Errorf("Error in getting pod info: %v\n", err)
+		log.Errorf("Error in getting snitch container ID: %v\n", err)
 		return "NA", "NA", "NA"
 	}
 
-	var id string
-	if len(pod.Status.ContainerStatuses) > 0 {
-		id = pod.Status.ContainerStatuses[0].ContainerID // <type>://<container_id>, for example containerd://abcdef123456.....
-	} else {
-		log.Errorf("Error in getting pod info: %v\n", err)
-		return "NA", "NA", "NA"
-	}
-
-	containerID := id
-	if idx := strings.Index(id, "://"); idx != -1 {
-		containerID = id[idx+3:]
-	} else {
-		log.Errorf("Unexpected ContainerID format: %s", id)
-		return "NA", "NA", "NA"
+	// cri-dockerd.sock is a CRI shim in front of Docker, not a socket KubeArmor can
+	// monitor containers with. Treat it as a hint that the node runs Docker and
+	// resolve the real monitorable socket (containerd/docker) from the socket map.
+	if explicitSocket != "" && isCriDockerdSocket(explicitSocket) {
+		log.Warnf("Explicit socket %s is a cri-dockerd (Docker CRI shim) socket, resolving the Docker/containerd socket instead", explicitSocket)
+		explicitSocket = ""
+		k8sRuntime = "docker"
 	}
 
 	if explicitSocket != "" {
