@@ -105,7 +105,12 @@ func (dm *KubeArmorDaemon) MatchandUpdateContainerSecurityPolicies(cid string) {
 	container := dm.Containers[cid]
 	for idx, ep := range dm.EndPoints {
 		_, containerIdentities := kl.GetLabelsFromString(container.Labels)
-		if ep.EndPointName == dm.Containers[cid].ContainerName || kl.MatchIdentities(ep.Identities, containerIdentities) {
+		matched := false
+		if expr, err := regexp.CompilePOSIX(ep.EndPointName); err == nil {
+			matched = expr.MatchString(dm.Containers[cid].ContainerName)
+		}
+
+		if matched || kl.MatchIdentities(ep.Identities, containerIdentities) {
 			ep.Containers = append(ep.Containers, cid)
 			dm.EndPoints[idx] = ep
 			ctr := dm.Containers[cid]
@@ -134,7 +139,12 @@ func (dm *KubeArmorDaemon) MatchandRemoveContainerFromEndpoint(cid string) {
 	container := dm.Containers[cid]
 	for idx, ep := range dm.EndPoints {
 		_, containerIdentities := kl.GetLabelsFromString(container.Labels)
-		if ep.EndPointName == container.ContainerName || kl.MatchIdentities(ep.Identities, containerIdentities) {
+		matched := false
+		if expr, err := regexp.CompilePOSIX(ep.EndPointName); err == nil {
+			matched = expr.MatchString(container.ContainerName)
+		}
+
+		if matched || kl.MatchIdentities(ep.Identities, containerIdentities) {
 			for i, c := range ep.Containers {
 				if c != cid {
 					continue
@@ -323,13 +333,13 @@ func (dm *KubeArmorDaemon) ParseAndUpdateContainerSecurityPolicy(event tp.K8sKub
 	containername := ""
 	for k, v := range secPolicy.Spec.Selector.MatchLabels {
 		secPolicy.Spec.Selector.Identities = append(secPolicy.Spec.Selector.Identities, k+"="+v)
-		// TODO: regex based matching
+		// Regex based matching for labels
+		expr, err := regexp.CompilePOSIX(v)
+		if err != nil {
+			dm.Logger.Warnf("Failed to parse expression for \"%s\": %s", k, err.Error())
+			return pb.PolicyStatus_Invalid
+		}
 		if k == "kubearmor.io/container.name" {
-			expr, err := regexp.CompilePOSIX(v)
-			if err != nil {
-				dm.Logger.Warnf("Failed to parse expression for \"kubearmor.io/container.name\": %s", err.Error())
-				return pb.PolicyStatus_Invalid
-			}
 			containername = expr.String()
 		}
 	}
