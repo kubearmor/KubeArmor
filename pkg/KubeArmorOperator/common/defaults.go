@@ -120,6 +120,7 @@ var (
 	KubeArmorTolerations      []corev1.Toleration           = []corev1.Toleration{}
 	KubeArmorNodeSelector                                   = map[string]string{}
 	KubeArmorEnv                                            = []corev1.EnvVar{}
+	KubeArmorResources        corev1.ResourceRequirements   = corev1.ResourceRequirements{}
 
 	KubeArmorInitName             string                        = "kubearmor-init"
 	KubeArmorInitArgs             []string                      = []string{}
@@ -128,6 +129,7 @@ var (
 	KubeArmorInitImagePullSecrets []corev1.LocalObjectReference = []corev1.LocalObjectReference{}
 	KubeArmorInitTolerations      []corev1.Toleration           = []corev1.Toleration{}
 	KubeArmorInitEnv                                            = []corev1.EnvVar{}
+	KubeArmorInitResources        corev1.ResourceRequirements   = corev1.ResourceRequirements{}
 
 	KubeArmorRelayName string   = "kubearmor-relay"
 	KubeArmorRelayArgs []string = []string{
@@ -139,6 +141,7 @@ var (
 	KubeArmorRelayTolerations      []corev1.Toleration           = []corev1.Toleration{}
 	KubeArmorRelayNodeSelector                                   = map[string]string{}
 	KubeArmorRelayEnv                                            = []corev1.EnvVar{}
+	KubeArmorRelayResources        corev1.ResourceRequirements   = corev1.ResourceRequirements{}
 
 	KubeArmorControllerName string   = "kubearmor-controller"
 	KubeArmorControllerArgs []string = []string{
@@ -153,6 +156,7 @@ var (
 	KubeArmorControllerWebhookServiceName                               = "kubearmor-controller-webhook-service"
 	KubeArmorControllerNodeSelector                                     = map[string]string{}
 	KubeArmorControllerEnv                                              = []corev1.EnvVar{}
+	KubeArmorControllerResources          corev1.ResourceRequirements   = corev1.ResourceRequirements{}
 
 	SeccompProfile     = "kubearmor-seccomp.json"
 	SeccompInitProfile = "kubearmor-init-seccomp.json"
