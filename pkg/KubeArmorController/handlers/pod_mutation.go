@@ -25,7 +25,7 @@ type PodAnnotator struct {
 	Decoder   admission.Decoder
 	Logger    logr.Logger
 	Cluster   *types.Cluster
-	ClientSet *kubernetes.Clientset
+	ClientSet kubernetes.Interface
 }
 
 // +kubebuilder:webhook:path=/mutate-pods,mutating=true,failurePolicy=Ignore,groups="",resources=pods;pods/binding,verbs=create;update,versions=v1,name=annotation.kubearmor.com,admissionReviewVersions=v1,sideEffects=NoneOnDryRun
@@ -48,9 +48,10 @@ func (a *PodAnnotator) Handle(ctx context.Context, req admission.Request) admiss
 		// == common annotations == //
 		common.AddCommonAnnotations(&binding.ObjectMeta)
 
-		pod, err := a.ClientSet.CoreV1().Pods(binding.Namespace).Get(context.TODO(), binding.Name, metav1.GetOptions{})
+		pod, err := a.ClientSet.CoreV1().Pods(binding.Namespace).Get(ctx, binding.Name, metav1.GetOptions{})
 		if err != nil {
 			a.Logger.Error(err, "failed to get pod info")
+			return admission.Errored(http.StatusInternalServerError, err)
 		}
 		nodename := binding.Target.Name
 		annotate := false
