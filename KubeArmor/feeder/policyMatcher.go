@@ -1400,8 +1400,10 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 	existCapabilitiesAllowPolicy := false
 	existUSBDeviceAllowPolicy := false
 	existNetworkFirewallAllowPolicy := false
-	fd.DefaultPosturesLock.Lock()
-	defer fd.DefaultPosturesLock.Unlock()
+	fd.DefaultPosturesLock.RLock()
+	defaultPosture := fd.DefaultPostures[log.NamespaceName]
+	fd.DefaultPosturesLock.RUnlock()
+
 	if log.Result == "Passed" || log.Result == "Operation not permitted" || log.Result == "Permission denied" {
 		if log.Type == "SystemEvent" {
 			return log
@@ -1436,7 +1438,7 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 					existNetworkFirewallAllowPolicy = true
 				}
 
-				if fd.DefaultPostures[log.NamespaceName].FileAction == "allow" {
+				if defaultPosture.FileAction == "allow" {
 					continue
 				}
 			}
@@ -1640,9 +1642,9 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 
 						log.Enforcer = "eBPF Monitor"
 
-						if fd.DefaultPostures[log.NamespaceName].FileAction == "block" {
+						if defaultPosture.FileAction == "block" {
 							log.Action = "Audit (Block)"
-						} else { // fd.DefaultPostures[log.NamespaceName].FileAction == "audit"
+						} else { // defaultPosture.FileAction == "audit"
 							log.Action = "Audit"
 						}
 
@@ -1652,7 +1654,7 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 
 				// apply the default postures when log.type isn't yet known
 
-				if fd.DefaultPostures[log.NamespaceName].FileAction == "block" && secPolicy.Action == "Audit (Allow)" && log.Result == "Passed" && log.Type == "" {
+				if defaultPosture.FileAction == "block" && secPolicy.Action == "Audit (Allow)" && log.Result == "Passed" && log.Type == "" {
 					// defaultPosture = block + audit mode
 					log.Type = "MatchedPolicy"
 
@@ -1667,7 +1669,7 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 					log.Action = "Audit (Block)"
 				}
 
-				if fd.DefaultPostures[log.NamespaceName].FileAction == "audit" && (secPolicy.Action == "Allow" || secPolicy.Action == "Audit (Allow)") && log.Result == "Passed" && log.Type == "" {
+				if defaultPosture.FileAction == "audit" && (secPolicy.Action == "Allow" || secPolicy.Action == "Audit (Allow)") && log.Result == "Passed" && log.Type == "" {
 					// defaultPosture = audit
 					log.Type = "MatchedPolicy"
 
@@ -1865,9 +1867,9 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 
 						log.Enforcer = "eBPF Monitor"
 
-						if fd.DefaultPostures[log.NamespaceName].NetworkAction == "block" {
+						if defaultPosture.NetworkAction == "block" {
 							log.Action = "Audit (Block)"
-						} else { // fd.DefaultPostures[log.NamespaceName].NetworkAction == "audit"
+						} else { // defaultPosture.NetworkAction == "audit"
 							log.Action = "Audit"
 						}
 
@@ -1875,7 +1877,7 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 					}
 				}
 
-				if fd.DefaultPostures[log.NamespaceName].NetworkAction == "block" && secPolicy.Action == "Audit (Allow)" && log.Result == "Passed" {
+				if defaultPosture.NetworkAction == "block" && secPolicy.Action == "Audit (Allow)" && log.Result == "Passed" {
 					// defaultPosture = block + audit mode
 
 					log.Type = "MatchedPolicy"
@@ -1890,7 +1892,7 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 					log.Action = "Audit (Block)"
 				}
 
-				if fd.DefaultPostures[log.NamespaceName].NetworkAction == "audit" && (secPolicy.Action == "Allow" || secPolicy.Action == "Audit (Allow)") && log.Result == "Passed" {
+				if defaultPosture.NetworkAction == "audit" && (secPolicy.Action == "Allow" || secPolicy.Action == "Audit (Allow)") && log.Result == "Passed" {
 					// defaultPosture = audit
 
 					log.Type = "MatchedPolicy"
@@ -2181,9 +2183,9 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 
 						log.Enforcer = "eBPF Monitor"
 
-						if fd.DefaultPostures[log.NamespaceName].CapabilitiesAction == "block" {
+						if defaultPosture.CapabilitiesAction == "block" {
 							log.Action = "Audit (Block)"
-						} else { // fd.DefaultPostures[log.NamespaceName].CapabilitiesAction == "audit"
+						} else { // defaultPosture.CapabilitiesAction == "audit"
 							log.Action = "Audit"
 						}
 
@@ -2191,7 +2193,7 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 					}
 				}
 
-				if fd.DefaultPostures[log.NamespaceName].CapabilitiesAction == "block" && secPolicy.Action == "Audit (Allow)" && log.Result == "Passed" {
+				if defaultPosture.CapabilitiesAction == "block" && secPolicy.Action == "Audit (Allow)" && log.Result == "Passed" {
 					// defaultPosture = block + audit mode
 
 					log.Type = "MatchedPolicy"
@@ -2206,7 +2208,7 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 					log.Action = "Audit (Block)"
 				}
 
-				if fd.DefaultPostures[log.NamespaceName].CapabilitiesAction == "audit" && (secPolicy.Action == "Allow" || secPolicy.Action == "Audit (Allow)") && log.Result == "Passed" {
+				if defaultPosture.CapabilitiesAction == "audit" && (secPolicy.Action == "Allow" || secPolicy.Action == "Audit (Allow)") && log.Result == "Passed" {
 					// defaultPosture = audit
 
 					log.Type = "MatchedPolicy"
@@ -2273,29 +2275,31 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 		if log.Type == "" {
 			// defaultPosture (audit) or container log
 
+			fd.DefaultPosturesLock.Lock()
 			if _, ok := fd.DefaultPostures[log.NamespaceName]; !ok {
-				globalDefaultPosture := tp.DefaultPosture{
+				defaultPosture = tp.DefaultPosture{
 					FileAction:         cfg.GlobalCfg.DefaultFilePosture,
 					NetworkAction:      cfg.GlobalCfg.DefaultNetworkPosture,
 					CapabilitiesAction: cfg.GlobalCfg.DefaultCapabilitiesPosture,
 				}
-				fd.DefaultPostures[log.NamespaceName] = globalDefaultPosture
+				fd.DefaultPostures[log.NamespaceName] = defaultPosture
 			}
+			fd.DefaultPosturesLock.Unlock()
 
 			if log.Operation == "Process" {
-				if setLogFields(&log, existFileAllowPolicy, fd.DefaultPostures[log.NamespaceName].FileAction, log.ProcessVisibilityEnabled, true, false) {
+				if setLogFields(&log, existFileAllowPolicy, defaultPosture.FileAction, log.ProcessVisibilityEnabled, true, false) {
 					return log
 				}
 			} else if log.Operation == "File" {
-				if setLogFields(&log, existFileAllowPolicy, fd.DefaultPostures[log.NamespaceName].FileAction, log.FileVisibilityEnabled, true, false) {
+				if setLogFields(&log, existFileAllowPolicy, defaultPosture.FileAction, log.FileVisibilityEnabled, true, false) {
 					return log
 				}
 			} else if log.Operation == "Network" {
-				if setLogFields(&log, existNetworkAllowPolicy, fd.DefaultPostures[log.NamespaceName].NetworkAction, log.NetworkVisibilityEnabled, true, false) {
+				if setLogFields(&log, existNetworkAllowPolicy, defaultPosture.NetworkAction, log.NetworkVisibilityEnabled, true, false) {
 					return log
 				}
 			} else if log.Operation == "Capabilities" {
-				if setLogFields(&log, existCapabilitiesAllowPolicy, fd.DefaultPostures[log.NamespaceName].CapabilitiesAction, log.CapabilitiesVisibilityEnabled, true, false) {
+				if setLogFields(&log, existCapabilitiesAllowPolicy, defaultPosture.CapabilitiesAction, log.CapabilitiesVisibilityEnabled, true, false) {
 					return log
 				}
 			} else if log.Operation == "Syscall" {
