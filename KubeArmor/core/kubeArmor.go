@@ -633,7 +633,7 @@ func KubeArmor() {
 		// destroy the daemon
 		dm.DestroyKubeArmorDaemon()
 
-		return
+		os.Exit(1)
 	}
 	dm.Logger.Print("Initialized KubeArmor Logger")
 
@@ -643,17 +643,21 @@ func KubeArmor() {
 	healthLis, err := net.Listen("tcp", ":"+cfg.GlobalCfg.GRPCHealthPort) // #nosec G102
 	if err != nil {
 		dm.Logger.Errf("Failed to listen on plaintext health port %s: %v", cfg.GlobalCfg.GRPCHealthPort, err)
-	} else {
-		dm.GRPCHealthServer = health.NewServer()
-		healthServer := grpc.NewServer()
-		grpc_health_v1.RegisterHealthServer(healthServer, dm.GRPCHealthServer)
-		go func() {
-			dm.Logger.Printf("Started gRPC health probe on port %s", cfg.GlobalCfg.GRPCHealthPort)
-			if err := healthServer.Serve(healthLis); err != nil {
-				dm.Logger.Warnf("Plaintext health gRPC server exited: %v", err)
-			}
-		}()
+
+		// destroy the daemon
+		dm.DestroyKubeArmorDaemon()
+
+		os.Exit(1)
 	}
+	dm.GRPCHealthServer = health.NewServer()
+	healthServer := grpc.NewServer()
+	grpc_health_v1.RegisterHealthServer(healthServer, dm.GRPCHealthServer)
+	go func() {
+		dm.Logger.Printf("Started gRPC health probe on port %s", cfg.GlobalCfg.GRPCHealthPort)
+		if err := healthServer.Serve(healthLis); err != nil {
+			dm.Logger.Warnf("Plaintext health gRPC server exited: %v", err)
+		}
+	}()
 
 	// Init StateAgent
 	if !dm.K8sEnabled && cfg.GlobalCfg.StateAgent {
