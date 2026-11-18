@@ -6,6 +6,8 @@ package controller
 import (
 	"testing"
 
+	opv1 "github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/api/operator.kubearmor.com/v1"
+	"github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/common"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 )
@@ -183,4 +185,38 @@ func TestAddorUpdateNodeSelector(t *testing.T) {
 			"env": "test",
 		})
 	})
+}
+
+func TestUpdateTlsData(t *testing.T) {
+	origEnable, origDns, origIps := common.EnableTls, common.ExtraDnsNames, common.ExtraIpAddresses
+	t.Cleanup(func() {
+		common.EnableTls, common.ExtraDnsNames, common.ExtraIpAddresses = origEnable, origDns, origIps
+	})
+
+	common.EnableTls = false
+	common.ExtraDnsNames = []string{"localhost"}
+	common.ExtraIpAddresses = []string{"127.0.0.1"}
+
+	updated := UpdateTlsData(&opv1.KubeArmorConfigSpec{
+		Tls: opv1.Tls{
+			Enable:                true,
+			RelayExtraDnsNames:    []string{"relay.example.com"},
+			RelayExtraIpAddresses: []string{"10.0.0.10"},
+		},
+	})
+	assert.True(t, updated)
+	assert.True(t, common.EnableTls)
+	assert.Equal(t, []string{"relay.example.com"}, common.ExtraDnsNames)
+	assert.Equal(t, []string{"10.0.0.10"}, common.ExtraIpAddresses)
+
+	// only IP addresses set: DNS names must be left untouched
+	updated = UpdateTlsData(&opv1.KubeArmorConfigSpec{
+		Tls: opv1.Tls{
+			Enable:                true,
+			RelayExtraIpAddresses: []string{"10.0.0.11"},
+		},
+	})
+	assert.False(t, updated)
+	assert.Equal(t, []string{"relay.example.com"}, common.ExtraDnsNames)
+	assert.Equal(t, []string{"10.0.0.11"}, common.ExtraIpAddresses)
 }
