@@ -321,3 +321,19 @@ There is one options in each match.
   ```
   For System calls monitoring, we only support audit mode no matter what the action is set to.
   
+### Per-rule overrides
+
+  By default, the `severity`, `tags`, `message`, and `action` fields are defined once at the top level of the `spec` and apply to every rule in the policy. However, each individual match rule can also define its own `severity`, `tags`, `message`, and `action`. When set on a rule, these values override the top-level values for that rule only. This lets a single policy raise the severity or change the message for one sensitive path while leaving the defaults in place for everything else.
+
+  ```text
+    process:
+      matchPaths:
+      - path: /bin/sleep
+        severity: 3
+      - path: /usr/bin/ssh
+        severity: 9                        # --> this rule overrides the policy severity
+        message: "sensitive binary executed"
+        action: Block
+  ```
+
+  Per-rule `severity`, `tags`, `message`, and `action` are supported on the process and file match types.
