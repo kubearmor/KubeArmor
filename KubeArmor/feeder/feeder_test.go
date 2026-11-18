@@ -463,3 +463,143 @@ func TestAlertThrottlingAppArmor(t *testing.T) {
 		t.Fatalf("expected AlertThreshold to preserve PolicyName='ksp-block-shadow' and Enforcer='AppArmor', got PolicyName=%q Enforcer=%q", throttleAlert.PolicyName, throttleAlert.Enforcer)
 	}
 }
+
+func TestAlertThrottleKey(t *testing.T) {
+	fd := &Feeder{ContainerNsKey: map[string]common.OuterKey{
+		"resolved":  {PidNs: 1001, MntNs: 2002},
+		"zero-keys": {PidNs: 0, MntNs: 0},
+	}}
+
+	tests := []struct {
+		name      string
+		log       tp.Log
+		wantKey   OuterKey
+		wantThrot bool
+	}{
+		{
+			name:      "host alert is keyed by host process",
+			log:       tp.Log{Type: "MatchedHostPolicy", ProcessName: "/usr/bin/sleep"},
+			wantKey:   OuterKey{HostProcess: "/usr/bin/sleep"},
+			wantThrot: true,
+		},
+		{
+			name:      "container alert with known namespaces",
+			log:       tp.Log{Type: "MatchedPolicy", ContainerID: "resolved", ProcessName: "/usr/bin/sleep"},
+			wantKey:   OuterKey{PidNs: 1001, MntNs: 2002},
+			wantThrot: true,
+		},
+		{
+			name:      "container alert with unknown container ID is not throttled",
+			log:       tp.Log{Type: "MatchedPolicy", ContainerID: "unknown"},
+			wantKey:   OuterKey{},
+			wantThrot: false,
+		},
+		{
+			name:      "container alert with zero namespaces is not throttled",
+			log:       tp.Log{Type: "MatchedPolicy", ContainerID: "zero-keys"},
+			wantKey:   OuterKey{},
+			wantThrot: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotKey, gotThrot := fd.alertThrottleKey(tt.log)
+			if gotKey != tt.wantKey || gotThrot != tt.wantThrot {
+				t.Fatalf("alertThrottleKey() = (%+v, %v), want (%+v, %v)", gotKey, gotThrot, tt.wantKey, tt.wantThrot)
+			}
+		})
+	}
+}
+
+// A flood of host alerts from one process must not throttle host alerts from
+// another process, or alerts from a container (issue #3014).
+func TestAlertThrottlingHostPerProcess(t *testing.T) {
+	cfg.GlobalCfg = cloneConfig()
+	cfg.GlobalCfg.GRPC = "55557"
+	cfg.GlobalCfg.LogPath = "none"
+	cfg.GlobalCfg.AlertThrottling = true
+	cfg.GlobalCfg.MaxAlertPerSec = 3
+	cfg.GlobalCfg.ThrottleSec = 30
+	cfg.GlobalCfg.Host = "ubuntu-host-node"
+
+	node := tp.Node{NodeName: "ubuntu-host-node", PolicyEnabled: tp.KubeArmorPolicyEnabled}
+	nodeLock := new(sync.RWMutex)
+
+	fd := NewFeeder(&node, &nodeLock)
+	if fd == nil {
+		t.Fatalf("expected feeder to be created")
+	}
+	defer destroyFeederIfExists(fd, t)
+
+	fd.UpdateEnforcer("AppArmor")
+
+	fd.UpdateHostSecurityPolicies("ADDED", []tp.HostSecurityPolicy{
+		{
+			Metadata: map[string]string{"policyName": "hsp-block-sleep-curl"},
+			Spec: tp.HostSecuritySpec{
+				Action: "Block",
+				Process: tp.ProcessType{
+					MatchPaths: []tp.ProcessPathType{
+						{Path: "/usr/bin/sleep", Action: "Block"},
+						{Path: "/usr/bin/curl", Action: "Block"},
+					},
+				},
+			},
+		},
+	})
+
+	alertUID, alertCh := fd.EventStructs.AddAlertStruct("", 100)
+	defer fd.EventStructs.RemoveAlertStruct(alertUID)
+
+	hostAlert := func(proc string) tp.Log {
+		return tp.Log{
+			Operation:   "Process",
+			Resource:    proc,
+			Source:      "/usr/bin/bash",
+			ProcessName: proc,
+			Result:      "Permission denied",
+		}
+	}
+
+	drain := func() []*pb.Alert {
+		var out []*pb.Alert
+		for len(alertCh) > 0 {
+			out = append(out, <-alertCh)
+		}
+		return out
+	}
+
+	// flood from host process A: 3 alerts + 1 AlertThreshold, the rest dropped
+	for i := 0; i < 6; i++ {
+		fd.PushLog(hostAlert("/usr/bin/sleep"))
+	}
+	got := drain()
+	if len(got) != 4 {
+		t.Fatalf("expected 4 alerts for flooding host process (3 + AlertThreshold), got %d", len(got))
+	}
+	if got[3].Operation != "AlertThreshold" {
+		t.Fatalf("expected 4th alert to be AlertThreshold, got %q", got[3].Operation)
+	}
+
+	// host process B must still be alerted on
+	fd.PushLog(hostAlert("/usr/bin/curl"))
+	got = drain()
+	if len(got) != 1 {
+		t.Fatalf("expected alert for a different host process while another is throttled, got %d", len(got))
+	}
+	if got[0].Type != "MatchedHostPolicy" || got[0].ProcessName != "/usr/bin/curl" || got[0].PolicyName != "hsp-block-sleep-curl" {
+		t.Fatalf("unexpected alert: Type=%s ProcessName=%s PolicyName=%s", got[0].Type, got[0].ProcessName, got[0].PolicyName)
+	}
+
+	// host process A is still throttled
+	fd.PushLog(hostAlert("/usr/bin/sleep"))
+	if got = drain(); len(got) != 0 {
+		t.Fatalf("expected throttled host process to stay throttled, got %d alerts", len(got))
+	}
+
+	// a container alert must not share the host bucket
+	if alert, throttle := fd.ShouldDropAlertsPerContainer(0, 0); alert || throttle {
+		t.Fatalf("host flood leaked into the {0, 0} bucket: alert=%v throttle=%v", alert, throttle)
+	}
+}
