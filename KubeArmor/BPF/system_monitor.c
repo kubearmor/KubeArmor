@@ -1234,30 +1234,47 @@ int sys_exit_setns(struct tracepoint_raw_sys_exit *ctx)
     return 0;
 }
 
-struct tracepoint_sched_process_fork
+// Since Linux 6.16 (commit 155fd6c3e2f0) parent_comm and child_comm are
+// __data_loc strings (4 bytes each), so child_pid moved from offset 44 to 20.
+// Reading the old offset on a newer kernel makes the kernel refuse to attach
+// the program (EACCES: ctx access beyond the end of the event record).
+struct trace_event_raw_sched_process_fork___ka
 {
+#ifdef BTF_SUPPORTED
+    // child_pid is read through GET_FIELD_ADDR, so its offset is CO-RE
+    // relocated against the running kernel's BTF
+    pid_t child_pid;
+#else
     unsigned short common_type;
     unsigned char common_flags;
     unsigned char common_preempt_count;
     int common_pid;
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 16, 0)
+    u32 __data_loc_parent_comm;
+    pid_t parent_pid;
+    u32 __data_loc_child_comm;
+    pid_t child_pid;
+#else
     char parent_comm[16];
     pid_t parent_pid;
     char child_comm[16];
     pid_t child_pid;
+#endif
+#endif
 };
 
 SEC("tracepoint/sched/sched_process_fork")
-int sched_process_fork(struct tracepoint_sched_process_fork *ctx)
+int sched_process_fork(struct trace_event_raw_sched_process_fork___ka *ctx)
 {
     u32 parent_pid = bpf_get_current_pid_tgid() >> 32;
-    u32 child_pid = ctx->child_pid;
+    u32 child_pid = *GET_FIELD_ADDR(ctx->child_pid);
 
-    u32 *exists = bpf_map_lookup_elem(&kubearmor_exec_pids, &parent_pid);
+    u64 *exists = bpf_map_lookup_elem(&kubearmor_exec_pids, &parent_pid);
     if (exists)
     {
         // to make verifier happy on older kernel versions i.e. 4.15
-        u32 val = *exists;
+        u64 val = *exists;
         bpf_map_update_elem(&kubearmor_exec_pids, &child_pid, &val, BPF_ANY);
     }
 
