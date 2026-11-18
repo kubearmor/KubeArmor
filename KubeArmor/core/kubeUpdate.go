@@ -2436,14 +2436,7 @@ func (dm *KubeArmorDaemon) WatchSecurityPolicies(timeout time.Duration) cache.In
 						return
 					}
 
-					dm.SecurityPoliciesLock.Lock()
-					for idx, policy := range dm.SecurityPolicies {
-						if policy.Metadata["namespaceName"] == secPolicy.Metadata["namespaceName"] && policy.Metadata["policyName"] == secPolicy.Metadata["policyName"] {
-							dm.SecurityPolicies[idx] = secPolicy
-							break
-						}
-					}
-					dm.SecurityPoliciesLock.Unlock()
+					dm.upsertSecurityPolicy(secPolicy, false)
 
 					dm.Logger.Printf("Detected a Security Policy (modified/%s/%s)", secPolicy.Metadata["namespaceName"], secPolicy.Metadata["policyName"])
 
@@ -2543,14 +2536,7 @@ func (dm *KubeArmorDaemon) WatchClusterSecurityPolicies(timeout time.Duration) c
 						return
 					}
 
-					dm.SecurityPoliciesLock.Lock()
-					for idx, policy := range dm.SecurityPolicies {
-						if policy.Metadata["policyName"] == secPolicy.Metadata["policyName"] {
-							dm.SecurityPolicies[idx] = secPolicy
-							break
-						}
-					}
-					dm.SecurityPoliciesLock.Unlock()
+					dm.upsertSecurityPolicy(secPolicy, true)
 
 					dm.Logger.Printf("Detected a Cluster Security Policy (modified/%s)", secPolicy.Metadata["policyName"])
 
@@ -2593,6 +2579,37 @@ func (dm *KubeArmorDaemon) WatchClusterSecurityPolicies(timeout time.Duration) c
 // ================================= //
 // == Host Security Policy Update == //
 // ================================= //
+
+// upsertSecurityPolicy replaces the cached copy of a modified (cluster) security
+// policy, or caches it if it is not there yet, e.g. when its add event failed or
+// was missed. Cluster policies are matched by name only.
+func (dm *KubeArmorDaemon) upsertSecurityPolicy(secPolicy tp.SecurityPolicy, clusterScoped bool) {
+	dm.SecurityPoliciesLock.Lock()
+	defer dm.SecurityPoliciesLock.Unlock()
+
+	for idx, policy := range dm.SecurityPolicies {
+		if (clusterScoped || policy.Metadata["namespaceName"] == secPolicy.Metadata["namespaceName"]) && policy.Metadata["policyName"] == secPolicy.Metadata["policyName"] {
+			dm.SecurityPolicies[idx] = secPolicy
+			return
+		}
+	}
+	dm.SecurityPolicies = append(dm.SecurityPolicies, secPolicy)
+}
+
+// upsertHostSecurityPolicy replaces the cached copy of a modified host security
+// policy, or caches it if it is not there yet.
+func (dm *KubeArmorDaemon) upsertHostSecurityPolicy(secPolicy tp.HostSecurityPolicy) {
+	dm.HostSecurityPoliciesLock.Lock()
+	defer dm.HostSecurityPoliciesLock.Unlock()
+
+	for idx, policy := range dm.HostSecurityPolicies {
+		if policy.Metadata["policyName"] == secPolicy.Metadata["policyName"] {
+			dm.HostSecurityPolicies[idx] = secPolicy
+			return
+		}
+	}
+	dm.HostSecurityPolicies = append(dm.HostSecurityPolicies, secPolicy)
+}
 
 // UpdateHostSecurityPolicies Function
 func (dm *KubeArmorDaemon) UpdateHostSecurityPolicies() {
@@ -3113,6 +3130,7 @@ func (dm *KubeArmorDaemon) ParseAndUpdateHostSecurityPolicy(event tp.K8sKubeArmo
 			dm.HostSecurityPolicies = append(dm.HostSecurityPolicies, secPolicy)
 		}
 	} else if event.Type == updateEvent {
+		found := false
 		for idx, policy := range dm.HostSecurityPolicies {
 			if policy.Metadata["policyName"] == secPolicy.Metadata["policyName"] {
 				if reflect.DeepEqual(policy, secPolicy) {
@@ -3122,8 +3140,13 @@ func (dm *KubeArmorDaemon) ParseAndUpdateHostSecurityPolicy(event tp.K8sKubeArmo
 				}
 
 				dm.HostSecurityPolicies[idx] = secPolicy
+				found = true
 				break
 			}
+		}
+		// the policy was never cached (e.g. its add was missed), so keep it now
+		if !found {
+			dm.HostSecurityPolicies = append(dm.HostSecurityPolicies, secPolicy)
 		}
 	} else if event.Type == deleteEvent {
 		// check that a security policy should exist before performing delete operation
@@ -3227,14 +3250,7 @@ func (dm *KubeArmorDaemon) WatchHostSecurityPolicies(timeout time.Duration) cach
 						return
 					}
 
-					dm.HostSecurityPoliciesLock.Lock()
-					for idx, policy := range dm.HostSecurityPolicies {
-						if policy.Metadata["policyName"] == secPolicy.Metadata["policyName"] {
-							dm.HostSecurityPolicies[idx] = secPolicy
-							break
-						}
-					}
-					dm.HostSecurityPoliciesLock.Unlock()
+					dm.upsertHostSecurityPolicy(secPolicy)
 
 					dm.Logger.Printf("Detected a Host Security Policy (modified/%s)", secPolicy.Metadata["policyName"])
 
@@ -3461,6 +3477,7 @@ func (dm *KubeArmorDaemon) ParseAndUpdateNetworkSecurityPolicy(event tp.K8sKubeA
 			dm.NetworkSecurityPolicies = append(dm.NetworkSecurityPolicies, secPolicy)
 		}
 	} else if event.Type == updateEvent {
+		found := false
 		for idx, policy := range dm.NetworkSecurityPolicies {
 			if policy.Metadata["policyName"] == secPolicy.Metadata["policyName"] {
 				if reflect.DeepEqual(policy, secPolicy) {
@@ -3470,8 +3487,13 @@ func (dm *KubeArmorDaemon) ParseAndUpdateNetworkSecurityPolicy(event tp.K8sKubeA
 				}
 
 				dm.NetworkSecurityPolicies[idx] = secPolicy
+				found = true
 				break
 			}
+		}
+		// the policy was never cached (e.g. its add was missed), so keep it now
+		if !found {
+			dm.NetworkSecurityPolicies = append(dm.NetworkSecurityPolicies, secPolicy)
 		}
 	} else if event.Type == deleteEvent {
 		// check that a security policy should exist before performing delete operation
