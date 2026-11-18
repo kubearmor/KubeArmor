@@ -1404,7 +1404,12 @@ static __noinline int extract_dns_name(void *data, char *name)
     if (bi >= 256 || llen == 0 || llen > 63 || ni >= 63)
       break;
 
-    name[ni & 63] = payload->buf[bi & 255]; // copy one label character
+    // DNS names are case-insensitive (RFC 4343) and rule keys are stored in
+    // lower case, so fold ASCII upper case while copying the label character.
+    char c = payload->buf[bi & 255];
+    if (c >= 'A' && c <= 'Z')
+      c += 'a' - 'A';
+    name[ni & 63] = c;
     ni++;
     bi++;
     llen--;

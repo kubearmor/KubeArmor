@@ -311,6 +311,37 @@ var _ = Describe("Network Tests", func() {
 
 			})
 
+			It("it can block network traffic based on dns queries regardless of case", func() {
+				if !strings.Contains(K8sRuntimeEnforcer(), "bpf") {
+					Skip("Skipping due to policy only supported by bpflsm enforcer")
+				}
+
+				// Apply Policy
+				err := K8sApplyFile("res/ksp-ubuntu-1-block-dns.yaml")
+				Expect(err).To(BeNil())
+
+				// Start KubeArmor Logs
+				err = KarmorLogStart("policy", "multiubuntu", "Network", ub1)
+				Expect(err).To(BeNil())
+
+				// Blocked DNS Query, the policy says google.com but the query is upper case
+				AssertCommand(ub1, "multiubuntu", []string{"bash", "-c", "curl -m 3 GOOGLE.COM"},
+					MatchRegexp("(?i)Could not resolve host: google.com"), true,
+				)
+
+				expect := protobuf.Alert{
+					PolicyName: "block-dns-query-to-google",
+					Severity:   "10",
+					Action:     "Block",
+					Result:     "Permission denied",
+				}
+
+				res, err := KarmorGetTargetAlert(5*time.Second, &expect)
+				Expect(err).To(BeNil())
+				Expect(res.Found).To(BeTrue())
+
+			})
+
 		})
 
 	})
