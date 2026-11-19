@@ -163,6 +163,8 @@ func main() {
 	cluster := informer.InitCluster()
 	setupLog.Info("Starting node watcher")
 	go informer.NodeWatcher(client, &cluster, ctrl.Log.WithName("informer").WithName("NodeWatcher"))
+	setupLog.Info("Starting config watcher")
+	go informer.ConfigWatcher(client, ctrl.Log.WithName("informer").WithName("ConfigWatcher"))
 
 	setupLog.Info("Adding mutation webhook")
 	mgr.GetWebhookServer().Register("/mutate-pods", &webhook.Admission{
