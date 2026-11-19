@@ -589,8 +589,6 @@ func MatchIdentities(identities, superIdentities []string) bool {
 
 // MatchExpIdentities Function
 func MatchExpIdentities(selector tp.SelectorType, superIdentities []string) bool {
-	matched := false
-
 	identities := selector.MatchExpIdentities
 	nonIdentities := selector.NonIdentities
 
@@ -599,26 +597,30 @@ func MatchExpIdentities(selector tp.SelectorType, superIdentities []string) bool
 		return true
 	}
 
-	for _, identity := range identities {
-		if ContainsElement(superIdentities, identity) {
-			matched = true
-			break
+	// An In requirement, when one is given, has to be satisfied. Kubernetes
+	// selector semantics AND the requirements, so this cannot be overwritten
+	// by the NotIn result below.
+	if len(identities) > 0 {
+		matched := false
+		for _, identity := range identities {
+			if ContainsElement(superIdentities, identity) {
+				matched = true
+				break
+			}
+		}
+		if !matched {
+			return false
 		}
 	}
 
-	for i, nonIdentity := range nonIdentities {
+	// A NotIn requirement excludes as soon as one of its values is present.
+	for _, nonIdentity := range nonIdentities {
 		if ContainsElement(superIdentities, nonIdentity) {
-			matched = false
-			break
-		}
-		if i == len(nonIdentities)-1 {
-			// if nonIdentities are not matched, then return true
-			matched = true
+			return false
 		}
 	}
 
-	// otherwise, return false
-	return matched
+	return true
 }
 
 // WriteToFile writes given string to file as JSON
