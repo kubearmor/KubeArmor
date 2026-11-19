@@ -67,7 +67,9 @@ kubearmorConfig:
   maxAlertPerSec: 10
   throttleSec: 30
   matchArgs: true
-
+  globalNodeSelector: {}
+  globalTolerations: []
+  
 # DO NOT CHANGE THIS VALUES 
 # changing these values will require code changes with the operator
 # these secret names should match with the secrets managed by the operator
@@ -76,3 +78,7 @@ tlsSecrets:
   kubearmorClient: kubearmor-client-certs
   relayServer: kubearmor-relay-server-certs
   controllerWebhook: kubearmor-controller-webhook-server-cert
+
+global:
+  nodeSelector: {} # Node selector for scheduling the job --set nodeSelector."kubernetes.io/os"=linux
+  tolerations: [] # Tolerations for scheduling pods on tainted nodes e.g. --set global.tolerations[0].key=dedicated --set global.tolerations[0].operator=Equal --set global.tolerations[0].value=accuknox --set global.tolerations[0].effect=NoSchedule
