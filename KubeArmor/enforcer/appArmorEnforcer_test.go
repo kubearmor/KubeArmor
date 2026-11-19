@@ -265,3 +265,28 @@ func TestHostAppArmorProfile(t *testing.T) {
 	}
 	t.Log("[PASS] Destroyed logger")
 }
+
+func TestIsValidAppArmorProfileName(t *testing.T) {
+	tests := []struct {
+		name  string
+		valid bool
+	}{
+		{"kubearmor-default-nginx-nginx", true},
+		{"kubearmor_my-container.1", true},
+		{"default", true},
+		{"", false},
+		{"../evil", false},
+		{"a..b", false},
+		{"a/b", false},
+		{"a\\b", false},
+		{".hidden", false},
+		{"kubearmor-x flags=(unconfined) {", false},
+		{"cri-containerd.apparmor.d flags=(unconfined) {\n}\nprofile kubearmor-x", false},
+	}
+
+	for _, tt := range tests {
+		if got := isValidAppArmorProfileName(tt.name); got != tt.valid {
+			t.Errorf("isValidAppArmorProfileName(%q) = %v, want %v", tt.name, got, tt.valid)
+		}
+	}
+}
