@@ -16,6 +16,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"runtime"
 	"slices"
 	"strconv"
 	"strings"
@@ -367,6 +368,118 @@ func GetIPAddr(ifname string) string {
 func GetExternalIPAddr() string {
 	iface := GetExternalInterface()
 	return GetIPAddr(iface)
+}
+
+// GetContainerIPFromPid Function resolves a container's primary IP address by
+// entering its network namespace via /proc/<pid>/ns/net. Container runtimes
+// that don't expose an IP through their own API (e.g. containerd, CRI-O) rely
+// on this outside k8s, where no higher-level source (the K8s pod status)
+// already provides the address.
+func GetContainerIPFromPid(pid uint32) string {
+	if pid == 0 {
+		return ""
+	}
+
+	targetPath := filepath.Join(kc.GlobalCfg.ProcFsMount, strconv.Itoa(int(pid)), "ns", "net")
+	targetNS, err := os.Open(targetPath)
+	if err != nil {
+		kg.Warnf("Failed to open network namespace (%s): %s", targetPath, err.Error())
+		return ""
+	}
+	defer func() {
+		if err := targetNS.Close(); err != nil {
+			kg.Warnf("Failed to close network namespace handle (%s): %s", targetPath, err.Error())
+		}
+	}()
+
+	// Namespaces are per-thread on Linux. Lock this goroutine to its current
+	// OS thread so no other goroutine is scheduled onto it while we're inside
+	// the container's namespace, and so we restore the exact thread we moved.
+	runtime.LockOSThread()
+	restored := false
+	defer func() {
+		if !restored {
+			// We failed to move this thread back to the host namespace.
+			// Terminate it instead of unlocking it, so the Go runtime never
+			// reuses it to run unrelated goroutines from inside a
+			// container's network namespace. This also ends the calling
+			// goroutine, so only call this from a dedicated one (the
+			// container event monitors) - never from main.
+			runtime.Goexit()
+		}
+	}()
+
+	originalNS, err := os.Open("/proc/thread-self/ns/net")
+	if err != nil {
+		kg.Warnf("Failed to open current network namespace: %s", err.Error())
+		runtime.UnlockOSThread()
+		restored = true
+		return ""
+	}
+	defer func() {
+		if err := originalNS.Close(); err != nil {
+			kg.Warnf("Failed to close original network namespace handle: %s", err.Error())
+		}
+	}()
+
+	if err := unix.Setns(int(targetNS.Fd()), unix.CLONE_NEWNET); err != nil {
+		kg.Warnf("Failed to enter network namespace (%s): %s", targetPath, err.Error())
+		runtime.UnlockOSThread()
+		restored = true
+		return ""
+	}
+
+	ip := firstUsableAddr()
+
+	if err := unix.Setns(int(originalNS.Fd()), unix.CLONE_NEWNET); err != nil {
+		// Leave restored=false: the deferred cleanup above will terminate
+		// this thread rather than unlock it in a foreign namespace.
+		kg.Err("Failed to restore original network namespace: " + err.Error())
+		return ""
+	}
+	runtime.UnlockOSThread()
+	restored = true
+
+	return ip
+}
+
+// firstUsableAddr returns the first non-loopback, non-link-local address
+// visible on any up interface in the calling thread's current network
+// namespace, preferring IPv4. Meant to be called only after entering a
+// target namespace via GetContainerIPFromPid.
+func firstUsableAddr() string {
+	ifaces, err := net.Interfaces()
+	if err != nil {
+		kg.Warnf("Failed to list interfaces: %s", err.Error())
+		return ""
+	}
+
+	var ipv6Fallback string
+	for _, iface := range ifaces {
+		if iface.Flags&net.FlagLoopback != 0 || iface.Flags&net.FlagUp == 0 {
+			continue
+		}
+
+		addrs, err := iface.Addrs()
+		if err != nil {
+			continue
+		}
+
+		for _, addr := range addrs {
+			ipNet, ok := addr.(*net.IPNet)
+			if !ok || ipNet.IP.IsLoopback() || ipNet.IP.IsLinkLocalUnicast() {
+				continue
+			}
+			if ip4 := ipNet.IP.To4(); ip4 != nil {
+				return ip4.String()
+			}
+			if ipv6Fallback == "" {
+				ipv6Fallback = ipNet.IP.String()
+			}
+		}
+	}
+
+	return ipv6Fallback
 }
 
 // ================ //
