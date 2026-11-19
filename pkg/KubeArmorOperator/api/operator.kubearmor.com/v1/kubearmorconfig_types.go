@@ -130,6 +130,12 @@ type KubeArmorConfigSpec struct {
 	DropResourceFromProcessLogs bool `json:"dropResourceFromProcessLogs,omitempty"`
 
 	MatchArgs bool `json:"matchArgs,omitempty"`
+
+	// +kubebuilder:default:=false
+	AnnotateResources bool `json:"annotateResources,omitempty"`
+
+	// +kubebuilder:default:=false
+	AnnotateExisting bool `json:"annotateExisting,omitempty"`
 }
 
 // KubeArmorConfigStatus defines the observed state of KubeArmorConfig
