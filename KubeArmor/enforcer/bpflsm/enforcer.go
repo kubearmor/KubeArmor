@@ -9,6 +9,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"log"
+	"net"
 	"strconv"
 	"strings"
 	"sync"
@@ -174,6 +175,12 @@ func NewBPFEnforcer(node tp.Node, pinpath string, logger *fd.Feeder, monitor *mo
 	be.Probes[be.obj.EnforceNetConnect.String()], err = link.AttachLSM(link.LSMOptions{Program: be.obj.EnforceNetConnect})
 	if err != nil {
 		be.Logger.Errf("opening lsm %s: %s", be.obj.EnforceNetConnect.String(), err)
+		return be, err
+	}
+
+	be.Probes[be.obj.EnforceNetBind.String()], err = link.AttachLSM(link.LSMOptions{Program: be.obj.EnforceNetBind})
+	if err != nil {
+		be.Logger.Errf("opening lsm %s: %s", be.obj.EnforceNetBind.String(), err)
 		return be, err
 	}
 
@@ -424,7 +431,7 @@ func (be *BPFEnforcer) TraceEvents() {
 			log.Resource = string(bytes.Trim(event.Data.Path[:], "\x00"))
 			log.Data = "lsm=" + mon.GetSyscallName(int32(event.EventID))
 
-		case mon.SocketCreate, mon.SocketConnect, mon.SocketAccept:
+		case mon.SocketCreate, mon.SocketConnect, mon.SocketAccept, mon.SocketBind:
 			var sockProtocol int32
 			sockProtocol = int32(event.Data.Path[1])
 			log.Operation = "Network"
@@ -432,6 +439,18 @@ func (be *BPFEnforcer) TraceEvents() {
 				log.Resource = fd.GetProtocolFromType(int32(event.Data.Path[1]))
 			} else if event.Data.Path[0] == 3 {
 				log.Resource = fd.GetProtocolFromName(mon.GetProtocol(sockProtocol))
+			} else if event.Data.Path[0] == 4 {
+				port := binary.BigEndian.Uint16(event.Data.Path[1:3])
+				var proto string
+				if event.Data.Path[3] != 0 {
+					proto = mon.GetProtocol(int32(event.Data.Path[3]))
+				} else {
+					proto = "any"
+				}
+				log.Resource = "port=" + strconv.Itoa(int(port)) + " proto=" + proto
+			} else if event.Data.Path[0] == 5 {
+				ip := net.IPv4(event.Data.Path[1], event.Data.Path[2], event.Data.Path[3], event.Data.Path[4]).String()
+				log.Resource = "ip=" + ip
 			}
 			log.Data = "lsm=" + mon.GetSyscallName(int32(event.EventID)) + " " + log.Resource
 

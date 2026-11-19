@@ -466,7 +466,7 @@ ringbuf:
   return ret;
 }
 
-static inline int match_net_rules(int type, int protocol, u32 eventID)
+static inline int match_net_rules(int type, int protocol, u32 eventID, struct sockaddr *address, int addrlen)
 {
   event *task_info;
   int retval = 0;
@@ -500,8 +500,8 @@ static inline int match_net_rules(int type, int protocol, u32 eventID)
     return 0;
 
   bpf_map_update_elem(&bufk, &one, z, BPF_ANY);
-  int p0_t, p1_t;
-  int p0_p, p1_p;
+  int p0_t = 0, p1_t = 0;
+  int p0_p = 0, p1_p = 0;
   struct data_t *val = bpf_map_lookup_elem(inner, p);
   bool fromSourceCheck = true;
 
@@ -558,6 +558,30 @@ static inline int match_net_rules(int type, int protocol, u32 eventID)
   {
     p0_p = sock_proto;
     p1_p = protocol;
+  }
+
+  // extract address details (port, IP) if provided
+  u16 family = 0;
+  u16 port = 0;
+  u32 ipv4_addr = 0;
+  if (address && addrlen >= sizeof(struct sockaddr))
+  {
+    bpf_probe_read_kernel(&family, sizeof(family), &address->sa_family);
+    if (family == AF_INET && addrlen >= sizeof(struct sockaddr_in))
+    {
+      struct sockaddr_in *sin = (struct sockaddr_in *)address;
+      u16 sin_port = 0;
+      bpf_probe_read_kernel(&sin_port, sizeof(sin_port), &sin->sin_port);
+      bpf_probe_read_kernel(&ipv4_addr, sizeof(ipv4_addr), &sin->sin_addr.s_addr);
+      port = bpf_ntohs(sin_port);
+    }
+    else if (family == AF_INET6 && addrlen >= sizeof(struct sockaddr_in6))
+    {
+      struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)address;
+      u16 sin6_port = 0;
+      bpf_probe_read_kernel(&sin6_port, sizeof(sin6_port), &sin6->sin6_port);
+      port = bpf_ntohs(sin6_port);
+    }
   }
 
   // socket type fromsource check
@@ -618,9 +642,103 @@ static inline int match_net_rules(int type, int protocol, u32 eventID)
     goto decision;
   }
 
+  // port check with fromSource
+  if (fromSourceCheck && port != 0)
+  {
+    bpf_map_update_elem(&bufk, &one, z, BPF_ANY);
+    void *ptr = &src_buf->buf[*src_offset];
+    bpf_probe_read_str(p->source, MAX_STRING_SIZE, ptr);
+    p->path[0] = sock_port;
+    p->path[1] = (port >> 8) & 0xff;
+    p->path[2] = port & 0xff;
+    p->path[3] = p1_p;
+    bpf_probe_read_str(store->source, MAX_STRING_SIZE, p->source);
+    val = bpf_map_lookup_elem(inner, p);
+    if (val)
+    {
+      match = true;
+      goto decision;
+    }
+
+    // wildcard protocol port check with fromSource
+    p->path[3] = 0;
+    val = bpf_map_lookup_elem(inner, p);
+    if (val)
+    {
+      match = true;
+      goto decision;
+    }
+  }
+
+  // port check without fromSource
+  if (port != 0)
+  {
+    bpf_map_update_elem(&bufk, &one, z, BPF_ANY);
+    p->path[0] = sock_port;
+    p->path[1] = (port >> 8) & 0xff;
+    p->path[2] = port & 0xff;
+    p->path[3] = p1_p;
+
+    val = bpf_map_lookup_elem(inner, p);
+    if (val)
+    {
+      match = true;
+      goto decision;
+    }
+
+    // wildcard protocol port check without fromSource
+    p->path[3] = 0;
+    val = bpf_map_lookup_elem(inner, p);
+    if (val)
+    {
+      match = true;
+      goto decision;
+    }
+  }
+
+  // IPv4 IP check with fromSource
+  if (fromSourceCheck && ipv4_addr != 0)
+  {
+    bpf_map_update_elem(&bufk, &one, z, BPF_ANY);
+    void *ptr = &src_buf->buf[*src_offset];
+    bpf_probe_read_str(p->source, MAX_STRING_SIZE, ptr);
+    p->path[0] = sock_ip;
+    u32 ipv4_host = bpf_ntohl(ipv4_addr);
+    p->path[1] = (ipv4_host >> 24) & 0xff;
+    p->path[2] = (ipv4_host >> 16) & 0xff;
+    p->path[3] = (ipv4_host >> 8) & 0xff;
+    p->path[4] = ipv4_host & 0xff;
+    bpf_probe_read_str(store->source, MAX_STRING_SIZE, p->source);
+    val = bpf_map_lookup_elem(inner, p);
+    if (val)
+    {
+      match = true;
+      goto decision;
+    }
+  }
+
+  // IPv4 IP check without fromSource
+  if (ipv4_addr != 0)
+  {
+    bpf_map_update_elem(&bufk, &one, z, BPF_ANY);
+    p->path[0] = sock_ip;
+    u32 ipv4_host = bpf_ntohl(ipv4_addr);
+    p->path[1] = (ipv4_host >> 24) & 0xff;
+    p->path[2] = (ipv4_host >> 16) & 0xff;
+    p->path[3] = (ipv4_host >> 8) & 0xff;
+    p->path[4] = ipv4_host & 0xff;
+
+    val = bpf_map_lookup_elem(inner, p);
+    if (val)
+    {
+      match = true;
+      goto decision;
+    }
+  }
+
 decision:
 
-  bpf_probe_read_str(store->path, MAX_STRING_SIZE, p->path);
+  bpf_probe_read_kernel(store->path, MAX_STRING_SIZE, p->path);
   if (match)
   {
     if (val)
@@ -704,9 +822,9 @@ ringbuf:
   __builtin_memset(task_info->data.source, 0, sizeof(task_info->data.source));
 
   init_context(task_info);
-  bpf_probe_read_str(&task_info->data.path, MAX_STRING_SIZE, store->path);
-  bpf_probe_read_str(&task_info->data.source, MAX_STRING_SIZE, store->source);
   task_info->event_id = eventID;
+  bpf_probe_read_kernel(&task_info->data.path, MAX_STRING_SIZE, store->path);
+  bpf_probe_read_str(&task_info->data.source, MAX_STRING_SIZE, store->source);
 
   task_info->retval = retval;
   bpf_ringbuf_submit(task_info, 0);
@@ -718,24 +836,35 @@ ringbuf:
 SEC("lsm/socket_create")
 int BPF_PROG(enforce_net_create, int family, int type, int protocol)
 {
-  return match_net_rules(type, protocol, _SOCKET_CREATE);
+  return match_net_rules(type, protocol, _SOCKET_CREATE, NULL, 0);
 }
 
-#define LSM_NET(name, ID)                            \
-  int BPF_PROG(name, struct socket *sock)            \
-  {                                                  \
-    int sock_type = BPF_CORE_READ(sock, type);       \
-    struct sock *sk;                                 \
-    sk = BPF_CORE_READ(sock, sk);                    \
-    int protocol = BPF_CORE_READ(sk, sk_protocol);   \
-    return match_net_rules(sock_type, protocol, ID); \
-  }
-
 SEC("lsm/socket_connect")
-LSM_NET(enforce_net_connect, _SOCKET_CONNECT);
+int BPF_PROG(enforce_net_connect, struct socket *sock, struct sockaddr *address, int addrlen)
+{
+  int sock_type = BPF_CORE_READ(sock, type);
+  struct sock *sk = BPF_CORE_READ(sock, sk);
+  int protocol = BPF_CORE_READ(sk, sk_protocol);
+  return match_net_rules(sock_type, protocol, _SOCKET_CONNECT, address, addrlen);
+}
+
+SEC("lsm/socket_bind")
+int BPF_PROG(enforce_net_bind, struct socket *sock, struct sockaddr *address, int addrlen)
+{
+  int sock_type = BPF_CORE_READ(sock, type);
+  struct sock *sk = BPF_CORE_READ(sock, sk);
+  int protocol = BPF_CORE_READ(sk, sk_protocol);
+  return match_net_rules(sock_type, protocol, _SOCKET_BIND, address, addrlen);
+}
 
 SEC("lsm/socket_accept")
-LSM_NET(enforce_net_accept, _SOCKET_ACCEPT);
+int BPF_PROG(enforce_net_accept, struct socket *sock, struct socket *newsock)
+{
+  int sock_type = BPF_CORE_READ(sock, type);
+  struct sock *sk = BPF_CORE_READ(sock, sk);
+  int protocol = BPF_CORE_READ(sk, sk_protocol);
+  return match_net_rules(sock_type, protocol, _SOCKET_ACCEPT, NULL, 0);
+}
 
 SEC("lsm/file_open")
 int BPF_PROG(enforce_file, struct file *file)

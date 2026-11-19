@@ -5,6 +5,7 @@ package bpflsm
 
 import (
 	"errors"
+	"net"
 	"os"
 	"strings"
 
@@ -76,6 +77,8 @@ const (
 	FAMILY   uint16 = 1
 	TYPE     uint16 = 2
 	PROTOCOL uint16 = 3
+	PORT     uint16 = 4
+	IP       uint16 = 5
 )
 
 // Key for mapping capabilities in bpf maps
@@ -346,46 +349,66 @@ func (be *BPFEnforcer) buildRuleList(id string, securityPolicies []tp.SecurityPo
 		// handle protocol: all|ALL rules
 		handleAllNetworkRule(&secPolicy.Spec.Network.MatchProtocols)
 
-		for _, net := range secPolicy.Spec.Network.MatchProtocols {
+		for _, netRule := range secPolicy.Spec.Network.MatchProtocols {
 			var val [2]uint16
 			var key = InnerKey{Path: [200]byte{}, Source: [200]byte{}}
-			if val, ok := protocols[strings.ToUpper(net.Protocol)]; ok {
+			if netRule.Port != 0 {
+				key.Path[0] = byte(PORT)
+				key.Path[1] = byte((netRule.Port >> 8) & 0xff)
+				key.Path[2] = byte(netRule.Port & 0xff)
+				if protoVal, ok := protocols[strings.ToUpper(netRule.Protocol)]; ok {
+					key.Path[3] = byte(protoVal)
+				} else {
+					key.Path[3] = 0 // wildcard: matches any protocol on this port
+				}
+			} else if netRule.IP != "" {
+				parsedIP := net.ParseIP(netRule.IP)
+				if parsedIP != nil {
+					if ip4 := parsedIP.To4(); ip4 != nil {
+						key.Path[0] = byte(IP)
+						key.Path[1] = ip4[0]
+						key.Path[2] = ip4[1]
+						key.Path[3] = ip4[2]
+						key.Path[4] = ip4[3]
+					}
+				}
+			} else if pVal, ok := protocols[strings.ToUpper(netRule.Protocol)]; ok {
 				key.Path[0] = byte(PROTOCOL)
-				key.Path[1] = byte(val)
-			} else if val, ok := netType[strings.ToUpper(net.Protocol)]; ok {
+				key.Path[1] = byte(pVal)
+			} else if tVal, ok := netType[strings.ToUpper(netRule.Protocol)]; ok {
 				key.Path[0] = byte(TYPE)
-				key.Path[1] = byte(val)
+				key.Path[1] = byte(tVal)
 			}
 
-			if net.Pts != nil && !*net.Pts {
+			if netRule.Pts != nil && !*netRule.Pts {
 				val[NETWORK] = val[NETWORK] | PTS
 			}
 
-			if len(net.FromSource) == 0 {
-				if net.Action == "Allow" {
+			if len(netRule.FromSource) == 0 {
+				if netRule.Action == "Allow" {
 					newrules.NetWhiteListPosture = true
 					insertRule(NETWORK, newrules.NetworkRuleList, key, val)
 
-				} else if net.Action == "Block" {
+				} else if netRule.Action == "Block" {
 					val[NETWORK] = val[NETWORK] | DENY
 					insertRule(NETWORK, newrules.NetworkRuleList, key, val)
-				} else if net.Action == "Audit" {
+				} else if netRule.Action == "Audit" {
 					val[NETWORK] = val[NETWORK] | AUDIT
 					insertRule(NETWORK, newrules.NetworkRuleList, key, val)
 				}
 			} else {
-				for _, src := range net.FromSource {
+				for _, src := range netRule.FromSource {
 					var source [200]byte
 					copy(source[:], []byte(src.Path))
 					key.Source = source
-					if net.Action == "Allow" {
+					if netRule.Action == "Allow" {
 						newrules.NetWhiteListPosture = true
 						insertRule(NETWORK, newrules.NetworkRuleList, key, val)
 
-					} else if net.Action == "Block" {
+					} else if netRule.Action == "Block" {
 						val[NETWORK] = val[NETWORK] | DENY
 						insertRule(NETWORK, newrules.NetworkRuleList, key, val)
-					} else if net.Action == "Audit" {
+					} else if netRule.Action == "Audit" {
 						val[NETWORK] = val[NETWORK] | AUDIT
 						insertRule(NETWORK, newrules.NetworkRuleList, key, val)
 					}
