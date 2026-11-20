@@ -42,6 +42,12 @@ const (
 	ReplayInterval       = 1 * time.Second
 	ReplayTimeout        = 10 * time.Second
 	DefaultVisibilityKey = uint32(0xc0ffee)
+	// failed (non-Passed) file/network events whose process is not known yet are retried
+	// until the process shows up in the pid map. Events from per-CPU perf buffers can be read
+	// out of order, so an event may arrive before the execve that created its process.
+	UnresolvedRetryInterval = 100 * time.Millisecond
+	UnresolvedRetryTimeout  = 3 * time.Second
+	UnresolvedQueueSize     = SyscallChannelSize
 )
 
 // ======================= /=/

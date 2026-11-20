@@ -396,11 +396,17 @@ func (mon *SystemMonitor) CleanUpExitedHostPids() {
 			for pid, pidNode := range pidMap {
 				if pidNode.Exited && now.After(pidNode.ExitedTime.Add(time.Second*5)) {
 					cleanMaps(pidMap, mon.execLogMap, mon.execLogMapLock, pid)
-				} else if now.After(pidNode.ExitedTime.Add(time.Second * 30)) {
+				} else if !pidNode.Exited {
+					// the process is gone but its exit event has not been processed (yet). Its
+					// other events may still be queued (UpdateLogs can lag behind, and per-CPU
+					// perf buffers deliver out of order), so don't delete the node right away:
+					// mark it exited now and let the exited>5s rule remove it on a later pass
 					p, err := os.FindProcess(int(pid))
 					if err == nil && p != nil {
 						if p.Signal(syscall.Signal(0)) != nil {
-							cleanMaps(pidMap, mon.execLogMap, mon.execLogMapLock, pid)
+							pidNode.Exited = true
+							pidNode.ExitedTime = now
+							pidMap[pid] = pidNode
 						}
 					} else {
 						cleanMaps(pidMap, mon.execLogMap, mon.execLogMapLock, pid)
