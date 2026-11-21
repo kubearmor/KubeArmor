@@ -27,6 +27,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	"k8s.io/apimachinery/pkg/api/equality"
 	metav1errors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -672,10 +673,7 @@ func (clusterWatcher *ClusterWatcher) deployControllerDeployment(deployment *app
 			return err
 		}
 	} else {
-		if (common.IfNodeWithSecurtiyFs && controller.Spec.Template.Spec.NodeSelector == nil) ||
-			(!common.IfNodeWithSecurtiyFs && controller.Spec.Template.Spec.NodeSelector != nil) ||
-			!reflect.DeepEqual(controller.Spec.Template.Spec.Containers[0].Args, deployment.Spec.Template.Spec.Containers[0].Args) ||
-			!reflect.DeepEqual(controller.Spec.Template.Spec.Tolerations, controller.Spec.Template.Spec.Tolerations) {
+		if controllerDeploymentNeedsUpdate(controller, deployment) {
 			clusterWatcher.Log.Infof("Updating deployment %s", controller.Name)
 			controller.Spec.Template.Spec.NodeSelector = deployment.Spec.Template.Spec.NodeSelector
 			controller.Spec.Template.Spec.Containers = deployment.Spec.Template.Spec.Containers
@@ -689,6 +687,15 @@ func (clusterWatcher *ClusterWatcher) deployControllerDeployment(deployment *app
 		}
 	}
 	return nil
+}
+
+// controllerDeploymentNeedsUpdate reports whether the deployed controller differs from the desired one
+// in the fields the operator manages.
+func controllerDeploymentNeedsUpdate(deployed, desired *appsv1.Deployment) bool {
+	return (common.IfNodeWithSecurtiyFs && deployed.Spec.Template.Spec.NodeSelector == nil) ||
+		(!common.IfNodeWithSecurtiyFs && deployed.Spec.Template.Spec.NodeSelector != nil) ||
+		!reflect.DeepEqual(deployed.Spec.Template.Spec.Containers[0].Args, desired.Spec.Template.Spec.Containers[0].Args) ||
+		!equality.Semantic.DeepEqual(deployed.Spec.Template.Spec.Tolerations, desired.Spec.Template.Spec.Tolerations)
 }
 
 func (clusterWatcher *ClusterWatcher) getProvider(providerHostname, providerEndpoint string) (string, string, string) {
