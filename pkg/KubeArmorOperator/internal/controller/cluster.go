@@ -85,6 +85,20 @@ type Node struct {
 	OCIHooks         string
 }
 
+// imageTag returns the tag of a container image reference. It returns an empty string
+// when the image has no tag, for example when it is untagged or pinned by digest only.
+func imageTag(image string) string {
+	if i := strings.Index(image, "@"); i >= 0 {
+		image = image[:i]
+	}
+	i := strings.LastIndex(image, ":")
+	// a colon before the last path separator belongs to the registry port
+	if i < 0 || i < strings.LastIndex(image, "/") {
+		return ""
+	}
+	return image[i+1:]
+}
+
 func NewClusterWatcher(o *cmd.OperatorOptions) *ClusterWatcher {
 	if informer == nil {
 		informer = informers.NewSharedInformerFactory(o.K8sClient, 0)
@@ -96,7 +110,9 @@ func NewClusterWatcher(o *cmd.OperatorOptions) *ClusterWatcher {
 		} else {
 			deployment_uuid = deploy.GetUID()
 			operatorImage := deploy.Spec.Template.Spec.Containers[0].Image
-			common.SnitchImageTag = strings.Split(operatorImage, ":")[1]
+			if tag := imageTag(operatorImage); tag != "" {
+				common.SnitchImageTag = tag
+			}
 		}
 	}
 	PathPrefix = o.PathPrefix
