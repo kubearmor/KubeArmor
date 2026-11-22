@@ -66,6 +66,13 @@ spec:
     # optionally drop the Resource field (full cmdline) from process visibility logs
     dropResourceFromProcessLogs: false                         # DEFAULT - false
 
+    # global scheduling and environment configuration
+    # settings that apply across all KubeArmor components
+    globalTolerations: []                                     # pod tolerations applied globally
+    globalNodeSelector: {}                                    # node selector applied globally
+    globalEnv: []                                             # environment variables applied globally
+    globalImagePullSecrets: []                                 # image pull secrets applied globally
+
     # enabling NRI
     # Naming convention for kubearmor daemonset in case of NRI will be effective only when initially NRI is available & enabled. 
     # In case snitch service account token is already present before its deployment, the naming convention won't show NRI, 
