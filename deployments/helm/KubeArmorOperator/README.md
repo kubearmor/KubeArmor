@@ -76,6 +76,11 @@ spec:
     kubearmorImage:
         image: [image-repo:tag]                                # DEFAULT - kubearmor/kubearmor:stable
         imagePullPolicy: [image pull policy]                   # DEFAULT - Always
+        args: []                                              # additional container arguments
+        env: []                                               # additional environment variables
+        nodeSelector: {}                                      # node selector for scheduling
+        tolerations: []                                       # pod tolerations
+        imagePullSecrets: []                                  # image pull secrets
 
     # KubeArmor init image and pull policy
     kubearmorInitImage:
