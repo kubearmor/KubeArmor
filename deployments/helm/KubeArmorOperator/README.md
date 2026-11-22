@@ -72,6 +72,20 @@ spec:
     # it will be based on the runtime present. This happens because operator won't get KubearmorConfig event(initially).
     enableNRI: [true|false] # DEFAULT - false
 
+    # Adapters configuration
+    adapters:
+      elasticsearch:
+        enabled: false                                    # DEFAULT - false
+        url: ""                                           # Elasticsearch URL (e.g., http://elasticsearch:9200)
+        alertsIndex: "kubearmor-alerts"                    # DEFAULT - kubearmor-alerts
+        auth:
+          secretName: ""                                  # Kubernetes secret containing credentials
+          usernameKey: "username"                         # key in secret for username
+          passwordKey: "password"                         # key in secret for password
+          allowInsecureTLS: false                         # DEFAULT - false
+          caCertSecretName: ""                            # secret containing CA certificate
+          caCertKey: "ca.crt"                             # key in secret for CA certificate
+
     # KubeArmor image and pull policy
     kubearmorImage:
         image: [image-repo:tag]                                # DEFAULT - kubearmor/kubearmor:stable
