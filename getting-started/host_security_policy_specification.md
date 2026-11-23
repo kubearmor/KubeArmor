@@ -24,12 +24,14 @@ spec:
     matchPaths:
     - path: [absolute executable path]
       ownerOnly: [true|false]              # --> optional
+      pts: [true|false]                    # --> optional
       fromSource:                          # --> optional
       - path: [absolute executable path]
     matchDirectories:
     - dir: [absolute directory path]
       recursive: [true|false]              # --> optional
       ownerOnly: [true|false]              # --> optional
+      pts: [true|false]                    # --> optional
       fromSource:                          # --> optional
       - path: [absolute executable path]
     matchPatterns:
@@ -41,6 +43,7 @@ spec:
     - path: [absolute file path]
       readOnly: [true|false]               # --> optional
       ownerOnly: [true|false]              # --> optional
+      pts: [true|false]                    # --> optional
       fromSource:                          # --> optional
       - path: [absolute executable path]
     matchDirectories:
@@ -48,6 +51,7 @@ spec:
       recursive: [true|false]              # --> optional
       readOnly: [true|false]               # --> optional
       ownerOnly: [true|false]              # --> optional
+      pts: [true|false]                    # --> optional
       fromSource:                          # --> optional
       - path: [absolute executable path]
     matchPatterns:
@@ -195,6 +199,14 @@ Now, we will briefly explain how to define a host security policy.
           fromSource:
           - path: /bin/bash
     ```
+
+  * pts
+
+    This option is optional. If this is enabled (`pts: true`), the rule matches only
+    when the operation is performed from an interactive pseudo-terminal (PTS) — for
+    example, a shell opened via `kubectl exec -it`. This is useful to restrict or audit
+    interactive terminal access while leaving a workload's normal non-interactive
+    behavior untouched.
 
 * File
 
