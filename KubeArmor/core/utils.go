@@ -65,7 +65,8 @@ func (dm *KubeArmorDaemon) CreateEndpoint(endPoint *tp.EndPoint, container tp.Co
 		endPoint.SecurityPolicies = []tp.SecurityPolicy{}
 		dm.SecurityPoliciesLock.RLock()
 		for _, secPol := range dm.SecurityPolicies {
-			if kl.MatchIdentities(secPol.Spec.Selector.Identities, endPoint.Identities) {
+			if (kl.MatchIdentities(secPol.Spec.Selector.Identities, endPoint.Identities) && kl.MatchExpIdentities(secPol.Spec.Selector, endPoint.Identities)) ||
+				(kl.ContainsElement(secPol.Spec.Selector.NamespaceList, endPoint.NamespaceName) && kl.MatchExpIdentities(secPol.Spec.Selector, endPoint.Identities)) {
 				endPoint.SecurityPolicies = append(endPoint.SecurityPolicies, secPol)
 			}
 		}
