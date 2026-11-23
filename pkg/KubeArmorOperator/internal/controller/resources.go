@@ -132,8 +132,10 @@ func generateDaemonset(name, enforcer, runtime, socket, nriSocket, btfPresent, a
 
 	AddOrUpdateEnv(&daemonset.Spec.Template.Spec.Containers[0].Env, common.GlobalEnv)
 	AddOrUpdateEnv(&daemonset.Spec.Template.Spec.Containers[0].Env, common.KubeArmorEnv)
-	AddOrUpdateEnv(&daemonset.Spec.Template.Spec.InitContainers[0].Env, common.GlobalEnv)
-	AddOrUpdateEnv(&daemonset.Spec.Template.Spec.InitContainers[0].Env, common.KubeArmorInitEnv)
+	if len(daemonset.Spec.Template.Spec.InitContainers) != 0 {
+		AddOrUpdateEnv(&daemonset.Spec.Template.Spec.InitContainers[0].Env, common.GlobalEnv)
+		AddOrUpdateEnv(&daemonset.Spec.Template.Spec.InitContainers[0].Env, common.KubeArmorInitEnv)
+	}
 
 	// TODO: handle passing annotateResource flag to kubearmor
 	// ideally this configuration should be part of kubearmoconfig to avoid hardcoding version checks
@@ -198,8 +200,10 @@ func generateDaemonset(name, enforcer, runtime, socket, nriSocket, btfPresent, a
 	}
 	daemonset.Spec.Template.Spec.Containers[0].Args = append(daemonset.Spec.Template.Spec.Containers[0].Args, ociArgs...)
 	daemonset.Spec.Template.Spec.Containers[0].Args = append(daemonset.Spec.Template.Spec.Containers[0].Args, LsmFlagString)
-	daemonset.Spec.Template.Spec.InitContainers[0].Image = common.GetApplicationImage(common.KubeArmorInitName)
-	daemonset.Spec.Template.Spec.InitContainers[0].ImagePullPolicy = corev1.PullPolicy(common.KubeArmorInitImagePullPolicy)
+	if len(daemonset.Spec.Template.Spec.InitContainers) != 0 {
+		daemonset.Spec.Template.Spec.InitContainers[0].Image = common.GetApplicationImage(common.KubeArmorInitName)
+		daemonset.Spec.Template.Spec.InitContainers[0].ImagePullPolicy = corev1.PullPolicy(common.KubeArmorInitImagePullPolicy)
+	}
 
 	// force socket
 	setCriSocket(runtime, socket, &daemonset.Spec.Template.Spec.Containers[0].Args)
