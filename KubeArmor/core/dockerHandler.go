@@ -329,7 +329,7 @@ func (dm *KubeArmorDaemon) GetAlreadyDeployedDockerContainers() {
 					dm.ContainersLock.Unlock()
 
 					// create/update endpoint in non-k8s mode
-					if !dm.K8sEnabled {
+					if !dm.K8sEnabled || container.NamespaceName == "container_namespace" {
 						endPointEvent := "ADDED"
 						endPointIdx := -1
 
@@ -458,7 +458,7 @@ func (dm *KubeArmorDaemon) GetAlreadyDeployedDockerContainers() {
 				}
 
 				// check for unorchestrated docker containers
-				if !dm.K8sEnabled {
+				if !dm.K8sEnabled || container.NamespaceName == "container_namespace" {
 					dm.ContainersLock.Lock()
 					dm.SetContainerVisibility(dcontainer.ID)
 					container = dm.Containers[dcontainer.ID]
@@ -539,7 +539,7 @@ func (dm *KubeArmorDaemon) UpdateDockerContainer(containerID, action string) {
 			dm.ContainersLock.Unlock()
 
 			// create/update endpoint in non-k8s mode
-			if !dm.K8sEnabled {
+			if !dm.K8sEnabled || container.NamespaceName == "container_namespace" {
 				endPointEvent := "ADDED"
 				endPointIdx := -1
 
@@ -665,7 +665,7 @@ func (dm *KubeArmorDaemon) UpdateDockerContainer(containerID, action string) {
 			return
 		}
 
-		if !dm.K8sEnabled {
+		if !dm.K8sEnabled || container.NamespaceName == "container_namespace" {
 			dm.ContainersLock.Lock()
 			dm.SetContainerVisibility(containerID)
 			container = dm.Containers[containerID]
@@ -714,7 +714,7 @@ func (dm *KubeArmorDaemon) UpdateDockerContainer(containerID, action string) {
 		// case 2: kill -> die -> destroy
 		// case 3: destroy
 
-		if !dm.K8sEnabled {
+		if !dm.K8sEnabled || container.NamespaceName == "container_namespace" {
 			dm.ContainersLock.Lock()
 			dm.EndPointsLock.Lock()
 			dm.MatchandRemoveContainerFromEndpoint(containerID)
@@ -733,7 +733,7 @@ func (dm *KubeArmorDaemon) UpdateDockerContainer(containerID, action string) {
 
 		dm.EndPointsLock.Lock()
 		// delete endpoint if no security rules and containers
-		if !dm.K8sEnabled {
+		if !dm.K8sEnabled || container.NamespaceName == "container_namespace" {
 			idx := 0
 			endpointsLength := len(dm.EndPoints)
 			for idx < endpointsLength {

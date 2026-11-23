@@ -276,6 +276,8 @@ func (nh *NRIHandler) nriToKubeArmorContainer(nriContainer *api.Container) tp.Co
 		if _, ok := nriContainer.Labels["io.kubernetes.pod.name"]; ok {
 			container.EndPointName = nriContainer.Labels["io.kubernetes.pod.name"] // Pod name
 		}
+	} else {
+		container.NamespaceName = "container_namespace"
 	}
 
 	var podName string
@@ -411,7 +413,7 @@ func (dm *KubeArmorDaemon) MonitorNRIEvents() {
 			}
 		}
 
-		if !dm.K8sEnabled {
+		if !dm.K8sEnabled || container.NamespaceName == "container_namespace" {
 			dm.ContainersLock.Lock()
 			dm.EndPointsLock.Lock()
 			dm.MatchandUpdateContainerSecurityPolicies(container.ContainerID)
@@ -429,7 +431,7 @@ func (dm *KubeArmorDaemon) MonitorNRIEvents() {
 			dm.ContainersLock.Unlock()
 			return
 		}
-		if !dm.K8sEnabled {
+		if !dm.K8sEnabled || container.NamespaceName == "container_namespace" {
 			dm.EndPointsLock.Lock()
 			dm.MatchandRemoveContainerFromEndpoint(container.ContainerID)
 			dm.EndPointsLock.Unlock()
