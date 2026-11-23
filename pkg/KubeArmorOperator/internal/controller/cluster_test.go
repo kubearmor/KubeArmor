@@ -9,6 +9,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	opv1 "github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/api/operator.kubearmor.com/v1"
+	"github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/common"
 )
 
 func TestUpdateEnvIfDefinedAndUpdated(t *testing.T) {
@@ -264,4 +266,40 @@ func TestUpdateResourceRequirementsIfDefinedAndUpdated(t *testing.T) {
 		assert.True(t, updated)
 		assert.Equal(t, corev1.ResourceRequirements{}, commonRes)
 	})
+}
+
+func TestUpdateImagesWithImageAndResources(t *testing.T) {
+	origImage := common.KubeArmorImage
+	origRes := common.KubeArmorResources
+	t.Cleanup(func() {
+		common.KubeArmorImage = origImage
+		common.KubeArmorResources = origRes
+	})
+
+	common.KubeArmorImage = "kubearmor/kubearmor:v1.0.0"
+	common.KubeArmorResources = corev1.ResourceRequirements{}
+
+	expectedRes := corev1.ResourceRequirements{
+		Limits: corev1.ResourceList{
+			corev1.ResourceCPU:    resource.MustParse("500m"),
+			corev1.ResourceMemory: resource.MustParse("512Mi"),
+		},
+		Requests: corev1.ResourceList{
+			corev1.ResourceCPU:    resource.MustParse("100m"),
+			corev1.ResourceMemory: resource.MustParse("128Mi"),
+		},
+	}
+
+	cfg := &opv1.KubeArmorConfigSpec{
+		KubeArmorImage: opv1.ImageSpec{
+			Image:     "kubearmor/kubearmor:v2.0.0",
+			Resources: expectedRes,
+		},
+	}
+
+	updated := UpdateImages(cfg)
+
+	assert.Contains(t, updated, "kubearmor")
+	assert.Equal(t, "kubearmor/kubearmor:v2.0.0", common.KubeArmorImage)
+	assert.Equal(t, expectedRes, common.KubeArmorResources)
 }
