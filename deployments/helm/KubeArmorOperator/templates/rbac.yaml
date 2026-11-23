@@ -1,0 +1,114 @@
+{{- if .Values.rbac.create }}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: kubearmor-snitch
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "kubearmor-operator.labels" . | nindent 4 }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kubearmor-snitch-clusterrole
+  labels:
+    {{- include "kubearmor-operator.labels" . | nindent 4 }}
+rules:
+- apiGroups: [""]
+  resources: ["nodes"]
+  verbs: ["patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: kubearmor-snitch-clusterrole-binding
+  labels:
+    {{- include "kubearmor-operator.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: kubearmor-snitch-clusterrole
+subjects:
+- kind: ServiceAccount
+  name: kubearmor-snitch
+  namespace: {{ .Release.Namespace }}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: kubearmor-controller
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "kubearmor-operator.labels" . | nindent 4 }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kubearmor-controller-clusterrole
+  labels:
+    {{- include "kubearmor-operator.labels" . | nindent 4 }}
+rules:
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["list", "watch"]
+- apiGroups: ["security.kubearmor.com"]
+  resources:
+  - kubearmorhostpolicies
+  - kubearmorpolicies
+  verbs: ["list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: kubearmor-controller-clusterrole-binding
+  labels:
+    {{- include "kubearmor-operator.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: kubearmor-controller-clusterrole
+subjects:
+- kind: ServiceAccount
+  name: kubearmor-controller
+  namespace: {{ .Release.Namespace }}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: kubearmor
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "kubearmor-operator.labels" . | nindent 4 }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kubearmor-bpf-containerd-clusterrole
+  labels:
+    {{- include "kubearmor-operator.labels" . | nindent 4 }}
+rules:
+- apiGroups: [""]
+  resources:
+  - configmaps
+  - namespaces
+  - nodes
+  verbs: ["list", "watch"]
+- apiGroups: ["security.kubearmor.com"]
+  resources: ["kubearmorpolicies"]
+  verbs: ["list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: kubearmor-bpf-containerd-clusterrole-binding
+  labels:
+    {{- include "kubearmor-operator.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: kubearmor-bpf-containerd-clusterrole
+subjects:
+- kind: ServiceAccount
+  name: kubearmor
+  namespace: {{ .Release.Namespace }}
+{{- end }}
