@@ -153,3 +153,41 @@ Now, we will briefly explain how to define a host security policy.
   ```text
     action: [Allow|Audit|Block]
   ```
+
+* Per-rule Overrides
+
+  `severity`, `tags`, `message`, and `action` can be set on each ingress or egress rule. When a field is not set on the rule, it inherits the policy-level value. Unlike `KubeArmorPolicy`, `KubeArmorNetworkPolicy` has only two levels of precedence for ingress and egress rules: the value on the rule takes precedence over the value on the policy, and there is no section level in between. `tags` is replaced as a whole; a rule's tag list does not merge with the policy's tags.
+
+  ```yaml
+  apiVersion: security.kubearmor.com/v1
+  kind: KubeArmorNetworkPolicy
+  metadata:
+    name: network-per-rule-overrides
+  spec:
+    severity: 1
+    tags: ["POLICY"]
+    action: Block
+    nodeSelector:
+      matchLabels:
+        kubernetes.io/hostname: node-1
+    ingress:
+    - from:
+      - ipBlock:
+          cidr: 10.0.0.0/8
+      ports:
+      - protocol: TCP
+        port: "8080"
+      severity: 5
+      tags: ["INGRESS"]
+      message: "unexpected ingress"
+      action: Audit
+    egress:
+    - to:
+      - ipBlock:
+          cidr: 0.0.0.0/0
+      ports:
+      - protocol: TCP
+        port: "443"
+  ```
+
+  The ingress rule is audited with severity 5 and the `INGRESS` tag, and its tags replace the policy-level `POLICY` tag instead of merging with it. The egress rule has no rule-level values, so it inherits severity 1, the `POLICY` tag, and the `Block` action from the policy.
