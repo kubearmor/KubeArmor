@@ -473,6 +473,7 @@ func (clusterWatcher *ClusterWatcher) WatchConfigCrd() {
 						UpdatedSeccomp(&cfg.Spec)
 						UpdateRecommendedPolicyConfig(&cfg.Spec)
 						utils.UpdateControllerPort(&cfg.Spec)
+						utils.UpdateControllerNetworkConfig(&cfg.Spec)
 						// update status to (Installation) Created
 						go clusterWatcher.UpdateCrdStatus(cfg.Name, common.CREATED, common.CREATED_MSG)
 						go clusterWatcher.WatchRequiredResources()
@@ -494,13 +495,14 @@ func (clusterWatcher *ClusterWatcher) WatchConfigCrd() {
 						configChanged := UpdateConfigMapData(&cfg.Spec)
 						imageUpdated := UpdateImages(&cfg.Spec)
 						controllerPortUpdated := utils.UpdateControllerPort(&cfg.Spec)
+						controllerNetworkUpdated := utils.UpdateControllerNetworkConfig(&cfg.Spec)
 						relayEnvUpdated := UpdatedKubearmorRelayEnv(&cfg.Spec)
 						seccompEnabledUpdated := UpdatedSeccomp(&cfg.Spec)
 						tlsUpdated := UpdateTlsData(&cfg.Spec)
 						UpdateRecommendedPolicyConfig(&cfg.Spec)
 
 						// return if only status has been updated
-						if !tlsUpdated && !relayEnvUpdated && !configChanged && cfg.Status != oldObj.(*opv1.KubeArmorConfig).Status && len(imageUpdated) < 1 && !controllerPortUpdated {
+						if !tlsUpdated && !relayEnvUpdated && !configChanged && cfg.Status != oldObj.(*opv1.KubeArmorConfig).Status && len(imageUpdated) < 1 && !controllerPortUpdated && !controllerNetworkUpdated {
 							return
 						}
 						if tlsUpdated {
@@ -527,6 +529,9 @@ func (clusterWatcher *ClusterWatcher) WatchConfigCrd() {
 						if controllerPortUpdated {
 							clusterWatcher.UpdateKubeArmorImages([]string{"controller"})
 							clusterWatcher.UpdateWebhookSvcPort(cfg.Spec.ControllerPort)
+						}
+						if controllerNetworkUpdated {
+							clusterWatcher.UpdateKubeArmorImages([]string{"controller"})
 						}
 					}
 				}
@@ -705,6 +710,10 @@ func (clusterWatcher *ClusterWatcher) UpdateKubeArmorImages(images []string) err
 					}
 				}
 				UpdateArgsIfDefinedAndUpdated(&controller.Spec.Template.Spec.Containers[0].Args, []string{"webhook-port=" + strconv.Itoa(common.KubeArmorControllerPort)})
+
+				// apply hostNetwork/dnsPolicy changes
+				controller.Spec.Template.Spec.HostNetwork = common.KubeArmorControllerHostNetwork
+				controller.Spec.Template.Spec.DNSPolicy = corev1.DNSPolicy(common.KubeArmorControllerDNSPolicy)
 
 				// update with globalNodeSelector
 				AddOrUpdateNodeSelector(controller.Spec.Template.Spec.NodeSelector, common.GlobalNodeSelectors)
