@@ -744,17 +744,21 @@ func NormalizeIP(ipStr string) string {
 // errUnsafePathToRemove error
 var errUnsafePathToRemove = errors.New("unsafe path to remove")
 
-// isUnsafePathToRemove checks if path is empty or absolute root "/"
+// isUnsafePathToRemove checks if path is empty, relative root (., ..), or absolute root "/"
 // return true to mark the path unsafe to remove
 func isUnsafePathToRemove(path string) bool {
-	if path == "" {
+	trimmed := strings.TrimSpace(path)
+	if trimmed == "" {
 		return true
 	}
 
-	clean := filepath.Clean(path)
+	clean := filepath.Clean(trimmed)
 
-	// root /
-	if clean == string(filepath.Separator) {
+	if clean == "." || clean == ".." || clean == string(filepath.Separator) || clean == "/" {
+		return true
+	}
+
+	if vol := filepath.VolumeName(clean); vol != "" && (clean == vol || clean == vol+string(filepath.Separator)) {
 		return true
 	}
 
