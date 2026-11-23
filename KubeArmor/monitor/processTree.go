@@ -278,6 +278,21 @@ func (mon *SystemMonitor) GetParentExecPath(containerID string, ctx SyscallConte
 	return path
 }
 
+// HasActivePid reports whether the process is in the pid map
+func (mon *SystemMonitor) HasActivePid(containerID string, hostPid uint32) bool {
+	ActiveHostPidMap := *(mon.ActiveHostPidMap)
+	ActivePidMapLock := *(mon.ActivePidMapLock)
+
+	ActivePidMapLock.Lock()
+	defer ActivePidMapLock.Unlock()
+
+	if pidMap, ok := ActiveHostPidMap[containerID]; ok {
+		_, ok := pidMap[hostPid]
+		return ok
+	}
+	return false
+}
+
 // GetExecPath Function
 func (mon *SystemMonitor) GetExecPath(containerID string, ctx SyscallContext, readlink bool) string {
 	ActiveHostPidMap := *(mon.ActiveHostPidMap)
@@ -394,13 +409,14 @@ func (mon *SystemMonitor) CleanUpExitedHostPids() {
 
 		for containerID, pidMap := range ActiveHostPidMap {
 			for pid, pidNode := range pidMap {
-				if pidNode.Exited && now.After(pidNode.ExitedTime.Add(time.Second*5)) {
+				if pidNode.Exited && now.After(pidNode.ExitedTime.Add(ExitedNodeGracePeriod)) {
 					cleanMaps(pidMap, mon.execLogMap, mon.execLogMapLock, pid)
 				} else if !pidNode.Exited {
 					// the process is gone but its exit event has not been processed (yet). Its
 					// other events may still be queued (UpdateLogs can lag behind, and per-CPU
 					// perf buffers deliver out of order), so don't delete the node right away:
-					// mark it exited now and let the exited>5s rule remove it on a later pass
+					// mark it exited now and let the ExitedNodeGracePeriod rule above remove it
+					// on a later pass
 					p, err := os.FindProcess(int(pid))
 					if err == nil && p != nil {
 						if p.Signal(syscall.Signal(0)) != nil {

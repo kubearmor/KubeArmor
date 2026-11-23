@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
@@ -152,19 +153,30 @@ func (mon *SystemMonitor) UpdateLogs() {
 				continue
 			}
 
-			pending := unresolved[:0]
-			for _, ev := range unresolved {
-				mon.resolveProcessInfo(&ev.log, ev.msg)
+			// entries are queued in arrival order with the same timeout and keep that order,
+			// so the expired ones are always at the front: drop them without any lookup
+			expired := 0
+			for expired < len(unresolved) && now.After(unresolved[expired].deadline) {
+				mon.Logger.Debugf("%s Event dropped: process information still missing after %s", unresolved[expired].log.Operation, UnresolvedRetryTimeout)
+				expired++
+			}
 
-				if ev.log.ProcessName == "" && ev.log.Source == "" {
-					if now.After(ev.deadline) {
-						mon.Logger.Debugf("%s Event dropped: process information still missing after %s", ev.log.Operation, UnresolvedRetryTimeout)
-						continue
-					}
+			// retry at most UnresolvedRetryBatch entries per tick, so a long queue can't stall
+			// this goroutine (and the ContextChan consumer with it); the rest wait for the next tick
+			pending := unresolved[:0]
+			for i, ev := range unresolved[expired:] {
+				if i >= UnresolvedRetryBatch {
+					pending = append(pending, unresolved[expired+i:]...)
+					break
+				}
+
+				// one cheap lookup first; the full resolution only once the process is known
+				if !mon.HasActivePid(ev.msg.ContainerID, ev.msg.ContextSys.HostPID) {
 					pending = append(pending, ev)
 					continue
 				}
 
+				mon.resolveProcessInfo(&ev.log, ev.msg)
 				if mon.isProcessInformationMissing(&ev.log) {
 					continue
 				}
@@ -608,9 +620,13 @@ func (mon *SystemMonitor) UpdateLogs() {
 			}
 
 			if mon.isProcessInformationMissing(&log) {
-				// a failed (non-Passed) file/network event is a potential alert: instead of
-				// dropping it, wait for the (possibly late) execve of its process
-				if msg.ContextSys.Retval < 0 && (log.Operation == "File" || log.Operation == "Network") {
+				// a file/network event denied by an enforcer is a potential alert: instead of
+				// dropping it, wait for the (possibly late) execve of its process. Only EPERM
+				// (BPF-LSM) and EACCES (AppArmor, SELinux) are queued: the policy matcher only
+				// turns "Passed", "Operation not permitted" and "Permission denied" into
+				// alerts, so other failures (ENOENT, ECONNREFUSED, ...) can never be one
+				if (msg.ContextSys.Retval == -int64(syscall.EPERM) || msg.ContextSys.Retval == -int64(syscall.EACCES)) &&
+					(log.Operation == "File" || log.Operation == "Network") {
 					if len(unresolved) >= UnresolvedQueueSize {
 						mon.Logger.Debugf("%s Event dropped: process information missing and retry queue is full", log.Operation)
 						continue
