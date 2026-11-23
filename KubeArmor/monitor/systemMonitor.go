@@ -42,6 +42,20 @@ const (
 	ReplayInterval       = 1 * time.Second
 	ReplayTimeout        = 10 * time.Second
 	DefaultVisibilityKey = uint32(0xc0ffee)
+	// failed (non-Passed) file/network events whose process is not known yet are retried
+	// until the process shows up in the pid map. Events from per-CPU perf buffers can be read
+	// out of order, so an event may arrive before the execve that created its process.
+	// The retries run on the UpdateLogs goroutine, so the work per tick is bounded: at most
+	// UnresolvedRetryBatch entries are looked up per tick and the queue holds at most
+	// UnresolvedQueueSize entries.
+	UnresolvedRetryInterval = 100 * time.Millisecond
+	UnresolvedRetryTimeout  = 3 * time.Second
+	UnresolvedRetryBatch    = 256
+	UnresolvedQueueSize     = 1024
+	// ExitedNodeGracePeriod is how long an exited process stays in the pid map before it is
+	// removed. It must be longer than UnresolvedRetryTimeout: a queued event can only be
+	// resolved while its process is still in the pid map.
+	ExitedNodeGracePeriod = 5 * time.Second
 )
 
 // ======================= /=/

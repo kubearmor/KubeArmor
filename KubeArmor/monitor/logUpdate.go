@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"syscall"
+	"time"
 
 	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
 	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
@@ -128,10 +130,60 @@ func (mon *SystemMonitor) UpdateLogBase(ctx SyscallContext, log tp.Log) tp.Log {
 
 // UpdateLogs Function
 func (mon *SystemMonitor) UpdateLogs() {
+	// failed file/network events (potential alerts) whose process is not in the pid map yet.
+	// The perf buffer is per-CPU and gives no ordering across CPUs, so such an event can be
+	// read before the execve enter of its own process; it is retried until that arrives.
+	type unresolvedLog struct {
+		msg      ContextCombined
+		log      tp.Log
+		deadline time.Time
+	}
+
+	unresolved := make([]unresolvedLog, 0)
+	retryTicker := time.NewTicker(UnresolvedRetryInterval)
+	defer retryTicker.Stop()
+
 	for {
 		select {
 		case <-StopChan:
 			return
+
+		case now := <-retryTicker.C:
+			if len(unresolved) == 0 {
+				continue
+			}
+
+			// entries are queued in arrival order with the same timeout and keep that order,
+			// so the expired ones are always at the front: drop them without any lookup
+			expired := 0
+			for expired < len(unresolved) && now.After(unresolved[expired].deadline) {
+				mon.Logger.Debugf("%s Event dropped: process information still missing after %s", unresolved[expired].log.Operation, UnresolvedRetryTimeout)
+				expired++
+			}
+
+			// retry at most UnresolvedRetryBatch entries per tick, so a long queue can't stall
+			// this goroutine (and the ContextChan consumer with it); the rest wait for the next tick
+			pending := unresolved[:0]
+			for i, ev := range unresolved[expired:] {
+				if i >= UnresolvedRetryBatch {
+					pending = append(pending, unresolved[expired+i:]...)
+					break
+				}
+
+				// one cheap lookup first; the full resolution only once the process is known
+				if !mon.HasActivePid(ev.msg.ContainerID, ev.msg.ContextSys.HostPID) {
+					pending = append(pending, ev)
+					continue
+				}
+
+				mon.resolveProcessInfo(&ev.log, ev.msg)
+				if mon.isProcessInformationMissing(&ev.log) {
+					continue
+				}
+				mon.finalizeAndPushLog(ev.msg, ev.log)
+			}
+			clear(unresolved[len(pending):])
+			unresolved = pending
 
 		case msg, valid := <-mon.ContextChan:
 			if !valid {
@@ -568,44 +620,75 @@ func (mon *SystemMonitor) UpdateLogs() {
 			}
 
 			if mon.isProcessInformationMissing(&log) {
+				// a file/network event denied by an enforcer is a potential alert: instead of
+				// dropping it, wait for the (possibly late) execve of its process. Only EPERM
+				// (BPF-LSM) and EACCES (AppArmor, SELinux) are queued: the policy matcher only
+				// turns "Passed", "Operation not permitted" and "Permission denied" into
+				// alerts, so other failures (ENOENT, ECONNREFUSED, ...) can never be one
+				if (msg.ContextSys.Retval == -int64(syscall.EPERM) || msg.ContextSys.Retval == -int64(syscall.EACCES)) &&
+					(log.Operation == "File" || log.Operation == "Network") {
+					if len(unresolved) >= UnresolvedQueueSize {
+						mon.Logger.Debugf("%s Event dropped: process information missing and retry queue is full", log.Operation)
+						continue
+					}
+					unresolved = append(unresolved, unresolvedLog{
+						msg:      msg,
+						log:      log,
+						deadline: time.Now().Add(UnresolvedRetryTimeout),
+					})
+				}
 				continue
 			}
 
-			// fallback logic: in case we get relative path in log.Resource for file and process event
-			// then we join cwd + resource to get pull path
-			if log.Operation == "Process" || log.Operation == "File" {
-				if !strings.HasPrefix(strings.Split(log.Resource, " ")[0], "/") && log.Cwd != "/" {
-					log.Resource = filepath.Join(log.Cwd, log.Resource)
-				}
-			}
+			mon.finalizeAndPushLog(msg, log)
+		}
+	}
+}
 
-			// get error message
-			if msg.ContextSys.Retval < 0 {
-				message := getErrorMessage(msg.ContextSys.Retval)
-				if message != "" {
-					log.Result = message
-				} else {
-					log.Result = fmt.Sprintf("Unknown (%d)", msg.ContextSys.Retval)
-				}
-			} else {
-				log.Result = "Passed"
-			}
+// resolveProcessInfo re-reads the process fields of a non-exec log from the pid map
+func (mon *SystemMonitor) resolveProcessInfo(log *tp.Log, msg ContextCombined) {
+	// readlink is false: the process has usually exited already, and if it were still
+	// alive the first (readlink) attempt would have resolved it
+	log.ProcessName = mon.GetExecPath(msg.ContainerID, msg.ContextSys, false)
+	log.ParentProcessName = mon.GetParentExecPath(msg.ContainerID, msg.ContextSys, false, false)
+	log.Source = mon.GetCommand(msg.ContainerID, msg.ContextSys, false)
+}
 
-			// exec event
-			log.ExecEvent.ExecID = strconv.FormatUint(msg.ContextSys.ExecID, 10)
-			if comm := strings.TrimRight(string(msg.ContextSys.Comm[:]), "\x00"); len(comm) > 0 {
-				log.ExecEvent.ExecutableName = comm
-			}
+// finalizeAndPushLog fills the remaining fields of a log and pushes it to the feeder
+func (mon *SystemMonitor) finalizeAndPushLog(msg ContextCombined, log tp.Log) {
+	// fallback logic: in case we get relative path in log.Resource for file and process event
+	// then we join cwd + resource to get pull path
+	if log.Operation == "Process" || log.Operation == "File" {
+		if !strings.HasPrefix(strings.Split(log.Resource, " ")[0], "/") && log.Cwd != "/" {
+			log.Resource = filepath.Join(log.Cwd, log.Resource)
+		}
+	}
 
-			// push the generated log
-			if mon.Logger != nil {
-				go mon.Logger.PushLog(log)
-				if isAuditedSyscall(msg.ContextSys.EventID) && log.Operation != "Syscall" {
-					log.Action = "Audit"
-					log.Operation = "Syscall"
-					go mon.Logger.PushLog(log)
-				}
-			}
+	// get error message
+	if msg.ContextSys.Retval < 0 {
+		message := getErrorMessage(msg.ContextSys.Retval)
+		if message != "" {
+			log.Result = message
+		} else {
+			log.Result = fmt.Sprintf("Unknown (%d)", msg.ContextSys.Retval)
+		}
+	} else {
+		log.Result = "Passed"
+	}
+
+	// exec event
+	log.ExecEvent.ExecID = strconv.FormatUint(msg.ContextSys.ExecID, 10)
+	if comm := strings.TrimRight(string(msg.ContextSys.Comm[:]), "\x00"); len(comm) > 0 {
+		log.ExecEvent.ExecutableName = comm
+	}
+
+	// push the generated log
+	if mon.Logger != nil {
+		go mon.Logger.PushLog(log)
+		if isAuditedSyscall(msg.ContextSys.EventID) && log.Operation != "Syscall" {
+			log.Action = "Audit"
+			log.Operation = "Syscall"
+			go mon.Logger.PushLog(log)
 		}
 	}
 }
