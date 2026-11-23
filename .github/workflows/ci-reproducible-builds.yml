@@ -1,0 +1,95 @@
+name: ci-reproducible-builds
+
+on:
+  push:
+    branches:
+      - main
+      - "v*"
+    paths:
+      - "KubeArmor/**"
+      - "protobuf/**"
+      - "scripts/verify-reproducible-build.sh"
+      - ".github/workflows/ci-reproducible-builds.yml"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "KubeArmor/**"
+      - "protobuf/**"
+      - "scripts/verify-reproducible-build.sh"
+      - ".github/workflows/ci-reproducible-builds.yml"
+
+# Declare default permissions as read only.
+permissions: read-all
+
+jobs:
+  # Validates the local/developer reproducible build path (make build-reproducible),
+  # which is the same path documented for contributors verifying a release.
+  verify-make-build:
+    name: Verify make build-reproducible
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: KubeArmor/go.mod
+
+      # Builds twice and compares checksums. Delegates to the Makefile so the
+      # deterministic flags are not duplicated here.
+      - name: Verify reproducibility
+        run: bash scripts/verify-reproducible-build.sh
+
+  # Validates the ACTUAL release pipeline (.goreleaser.yaml). This is what produces
+  # the binaries published on GitHub releases, so reproducibility must hold here.
+  verify-release-build:
+    name: Verify GoReleaser release build
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    env:
+      ARCH: amd64
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: KubeArmor/go.mod
+
+      - name: GoReleaser build (run 1)
+        uses: goreleaser/goreleaser-action@v5
+        with:
+          distribution: goreleaser
+          version: latest
+          args: build --config=KubeArmor/.goreleaser.yaml --snapshot --single-target --clean
+      - name: Save run 1 binary
+        run: |
+          mkdir -p /tmp/repro
+          cp "$(find dist -type f -name kubearmor | head -1)" /tmp/repro/run1
+
+      - name: GoReleaser build (run 2)
+        uses: goreleaser/goreleaser-action@v5
+        with:
+          distribution: goreleaser
+          version: latest
+          args: build --config=KubeArmor/.goreleaser.yaml --snapshot --single-target --clean
+      - name: Save run 2 binary
+        run: cp "$(find dist -type f -name kubearmor | head -1)" /tmp/repro/run2
+
+      - name: Compare release-build checksums
+        run: |
+          SUM1=$(sha256sum /tmp/repro/run1 | awk '{print $1}')
+          SUM2=$(sha256sum /tmp/repro/run2 | awk '{print $1}')
+          echo "Release build run 1 SHA-256: $SUM1"
+          echo "Release build run 2 SHA-256: $SUM2"
+          if [ "$SUM1" = "$SUM2" ]; then
+            echo "VERIFICATION SUCCESS: the release pipeline is reproducible."
+          else
+            echo "VERIFICATION FAILED: release builds differ."
+            echo "See docs/build-reproducibility/verification-guide.md for troubleshooting."
+            exit 1
+          fi
