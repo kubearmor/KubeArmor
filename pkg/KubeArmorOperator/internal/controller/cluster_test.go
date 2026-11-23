@@ -6,6 +6,7 @@ package controller
 import (
 	"testing"
 
+	"github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/common"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 )
@@ -183,4 +184,19 @@ func TestAddorUpdateNodeSelector(t *testing.T) {
 			"env": "test",
 		})
 	})
+}
+
+func TestDeploySnitchTolerations(t *testing.T) {
+	// Preserve and restore the global tolerations so we don't leak state into other tests.
+	saved := common.GlobalTolerations
+	defer func() { common.GlobalTolerations = saved }()
+
+	common.GlobalTolerations = []corev1.Toleration{
+		{Operator: corev1.TolerationOpExists},
+	}
+
+	job := deploySnitch("test-node", "containerd")
+
+	assert.Equal(t, common.GlobalTolerations, job.Spec.Template.Spec.Tolerations,
+		"snitch Job should apply the configured globalTolerations so it can schedule onto tainted nodes")
 }
