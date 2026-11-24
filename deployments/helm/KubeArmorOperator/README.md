@@ -72,6 +72,18 @@ spec:
     # it will be based on the runtime present. This happens because operator won't get KubearmorConfig event(initially).
     enableNRI: [true|false] # DEFAULT - false
 
+    # Global scheduling and environment defaults, applied to every
+    # KubeArmor component (daemonset, relay server, controller).
+    # A component-specific value takes precedence: imagePullSecrets
+    # and tolerations fall back to the global value only when the
+    # component sets none; nodeSelector and env are merged, with the
+    # component value winning on a conflicting key. All four default
+    # to empty.
+    globalTolerations: []                                 # DEFAULT - []
+    globalNodeSelector: {}                                # DEFAULT - {}
+    globalEnv: []                                          # DEFAULT - []
+    globalImagePullSecrets: []                             # DEFAULT - []
+
     # KubeArmor image and pull policy
     kubearmorImage:
         image: [image-repo:tag]                                # DEFAULT - kubearmor/kubearmor:stable
@@ -97,6 +109,8 @@ spec:
         image: [image-repo:tag]                                # DEFAULT - gcr.io/kubebuilder/kube-rbac-proxy:v0.15.0
         imagePullPolicy: [image pull policy]                   # DEFAULT - Always
 ```
+
+Global scheduling and environment fields (`globalTolerations`, `globalNodeSelector`, `globalEnv`, `globalImagePullSecrets`) act as defaults for every KubeArmor component. A component-specific setting takes precedence: `imagePullSecrets` and `tolerations` fall back to the global value only when the component defines none, while `nodeSelector` and `env` are merged, with the component value winning on a conflicting key. All four default to empty, so omitting them changes nothing.
 
 ## Verify if all the resources are up and running
 If a valid configuration is received, the operator will deploy jobs to your nodes to get the environment information and then start installing KubeArmor components.
