@@ -58,7 +58,7 @@ spec:
 
   network:
     matchProtocols:
-    - protocol: [TCP|tcp|UDP|udp|ICMP|icmp]
+    - protocol: [TCP|tcp|UDP|udp|ICMP|icmp|ICMPV6|icmpv6|SCTP|sctp|RAW|raw|STREAM|stream|DGRAM|dgram|RDM|rdm|SEQPACKET|seqpacket|DCCP|dccp|PACKET|packet|ALL|all]
       fromSource:
       - path: [absolute executable path]
 
@@ -290,12 +290,12 @@ Now, we will briefly explain how to define a host security policy.
 
 * Network
 
-  In the case of network, there is currently one match type: matchProtocols. You can define specific protocols among TCP, UDP, and ICMP.
+  In the case of network, there is currently one match type: matchProtocols. You can match an IP protocol (`tcp`, `udp`, `icmp`, `icmpv6`, `sctp`), a socket type (`raw`, `stream`, `dgram`, `rdm`, `seqpacket`, `dccp`, `packet`), or `all` to match every protocol. Values are accepted in either lowercase or uppercase.
 
   ```text
     network:
       matchProtocols:
-      - protocol: [protocol(,)]            # --> [ TCP | tcp | UDP | udp | ICMP | icmp ]
+      - protocol: [protocol(,)]            # --> see the protocol values above
         fromSource:
         - path: [absolute file path]
   ```
