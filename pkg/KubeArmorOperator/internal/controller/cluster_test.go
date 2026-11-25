@@ -6,8 +6,10 @@ package controller
 import (
 	"testing"
 
+	"github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/common"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func TestUpdateEnvIfDefinedAndUpdated(t *testing.T) {
@@ -183,4 +185,39 @@ func TestAddorUpdateNodeSelector(t *testing.T) {
 			"env": "test",
 		})
 	})
+}
+
+func TestNodeMatchesGlobalSelector(t *testing.T) {
+	origSelectors := common.GlobalNodeSelectors
+	defer func() { common.GlobalNodeSelectors = origSelectors }()
+
+	node := &corev1.Node{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"env": "prod", "zone": "us-east"}}}
+
+	// empty selector should match any node
+	common.GlobalNodeSelectors = map[string]string{}
+	assert.True(t, nodeMatchesGlobalSelector(node))
+
+	// matching selector
+	common.GlobalNodeSelectors = map[string]string{"env": "prod"}
+	assert.True(t, nodeMatchesGlobalSelector(node))
+
+	// multiple selectors all match
+	common.GlobalNodeSelectors = map[string]string{"env": "prod", "zone": "us-east"}
+	assert.True(t, nodeMatchesGlobalSelector(node))
+
+	// missing label
+	common.GlobalNodeSelectors = map[string]string{"tier": "frontend"}
+	assert.False(t, nodeMatchesGlobalSelector(node))
+
+	// value mismatch
+	common.GlobalNodeSelectors = map[string]string{"env": "staging"}
+	assert.False(t, nodeMatchesGlobalSelector(node))
+
+	// partial mismatch with multiple selectors
+	common.GlobalNodeSelectors = map[string]string{"env": "prod", "zone": "eu-west"}
+	assert.False(t, nodeMatchesGlobalSelector(node))
+
+	// deleted entry should be skipped
+	common.GlobalNodeSelectors = map[string]string{"env": "-", "zone": "us-east"}
+	assert.True(t, nodeMatchesGlobalSelector(node))
 }
