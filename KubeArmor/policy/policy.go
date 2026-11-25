@@ -5,6 +5,7 @@
 package policy
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 
@@ -66,7 +67,10 @@ func (p *PolicyServer) HostPolicy(c context.Context, data *pb.Policy) (*pb.Respo
 	}
 	policyEvent := tp.K8sKubeArmorHostPolicyEvent{}
 
-	err := json.Unmarshal(data.Policy, &policyEvent)
+	// Use strict decoding to reject unknown/misspelled fields
+	decoder := json.NewDecoder(bytes.NewReader(data.Policy))
+	decoder.DisallowUnknownFields()
+	err := decoder.Decode(&policyEvent)
 	if err == nil {
 
 		if policyEvent.Object.Metadata.Name != "" {
