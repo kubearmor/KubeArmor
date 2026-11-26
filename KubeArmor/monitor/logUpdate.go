@@ -58,7 +58,9 @@ func (mon *SystemMonitor) UpdateContainerInfoByContainerID(log tp.Log) tp.Log {
 func (mon *SystemMonitor) BuildLogBase(eventID int32, msg ContextCombined, readlink bool) tp.Log {
 	log := tp.Log{}
 
-	timestamp, updatedTime := kl.GetDateTimeNow()
+	// stamp the log with the time the event happened in the kernel, not the time
+	// it is processed here (events can wait in queues and are pushed concurrently)
+	timestamp, updatedTime := kl.GetDateTimeFromKernelTime(msg.ContextSys.Ts)
 
 	log.Timestamp = timestamp
 	log.UpdatedTime = updatedTime

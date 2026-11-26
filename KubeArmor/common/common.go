@@ -198,6 +198,40 @@ func GetDateTimeNow() (int64, string) {
 	return utc.Unix(), ret
 }
 
+// monotonicNowNs returns the current CLOCK_MONOTONIC time in nanoseconds. This is
+// the clock behind bpf_ktime_get_ns(), which stamps kernel events.
+var monotonicNowNs = func() (int64, error) {
+	var ts unix.Timespec
+	if err := unix.ClockGettime(unix.CLOCK_MONOTONIC, &ts); err != nil {
+		return 0, err
+	}
+	return ts.Nano(), nil
+}
+
+// GetDateTimeFromKernelTime converts a kernel event timestamp taken with
+// bpf_ktime_get_ns() (nanoseconds of CLOCK_MONOTONIC) into wall-clock time, in the
+// same format as GetDateTimeNow. The offset between the two clocks is read at
+// conversion time, so wall-clock adjustments (e.g. NTP) are followed. Without a
+// kernel timestamp, or if the monotonic clock can't be read, it falls back to the
+// current time.
+func GetDateTimeFromKernelTime(ktimeNs uint64) (int64, string) {
+	if ktimeNs == 0 {
+		return GetDateTimeNow()
+	}
+
+	monoNow, err := monotonicNowNs()
+	if err != nil {
+		return GetDateTimeNow()
+	}
+	now := time.Now()
+
+	// how long ago the event happened; never place an event in the future
+	elapsed := max(monoNow-int64(ktimeNs), 0)
+
+	utc := now.Add(-time.Duration(elapsed)).UTC()
+	return utc.Unix(), utc.Format(TimeFormUTC)
+}
+
 // GetUptimeTimestamp Function
 func GetUptimeTimestamp() float64 {
 	now := time.Now().UTC()
