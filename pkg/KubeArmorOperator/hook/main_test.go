@@ -106,7 +106,7 @@ func TestRunKata_LifecycleAndEdgeCases(t *testing.T) {
 	t.Run("out-of-order startup, subsequent container, and poststop", func(t *testing.T) {
 		env := setupKataTestEnv(t)
 
-		// 1. App container starts before KubeArmor
+		// App container starts before KubeArmor
 		if err := runKata(specs.State{
 			ID:     "app-1",
 			Status: specs.StateCreated,
@@ -132,7 +132,7 @@ func TestRunKata_LifecycleAndEdgeCases(t *testing.T) {
 			t.Fatalf("did not expect rootfs output file before kubearmor starts")
 		}
 
-		// 2. KubeArmor starts with annotation + config.json Root.Path
+		// KubeArmor starts with annotation + config.json Root.Path
 		kaBundle := filepath.Join(env.root, "ka-bundle")
 		writeBundleConfig(t, kaBundle, specs.Spec{
 			Root: &specs.Root{Path: env.kaRootfs},
@@ -166,7 +166,7 @@ func TestRunKata_LifecycleAndEdgeCases(t *testing.T) {
 			t.Fatalf("kubearmor itself must not be in synced container map")
 		}
 
-		// 3. Second app container starts after KubeArmor
+		// Second app container starts after KubeArmor
 		if err := runKata(specs.State{
 			ID:     "app-2",
 			Status: specs.StateCreated,
@@ -183,7 +183,7 @@ func TestRunKata_LifecycleAndEdgeCases(t *testing.T) {
 			t.Fatalf("expected 2 containers in buffer (%d) and rootfs (%d)", len(buf), len(rootfsMap))
 		}
 
-		// 4. Poststop app-1
+		// Poststop app-1
 		if err := runKata(specs.State{ID: "app-1", Status: specs.StateStopped}); err != nil {
 			t.Fatalf("poststop app-1 failed: %v", err)
 		}
@@ -196,7 +196,7 @@ func TestRunKata_LifecycleAndEdgeCases(t *testing.T) {
 			t.Fatalf("expected only app-2 in rootfs after stopping app-1, got %v", rootfsMap)
 		}
 
-		// 5. Poststop unknown ID -> no error, files unchanged
+		// Poststop unknown ID -> no error, files unchanged
 		if err := runKata(specs.State{ID: "unknown-id", Status: specs.StateStopped}); err != nil {
 			t.Fatalf("poststop unknown-id failed: %v", err)
 		}
@@ -204,7 +204,7 @@ func TestRunKata_LifecycleAndEdgeCases(t *testing.T) {
 			t.Fatalf("expected rootfs map unchanged after unknown poststop")
 		}
 
-		// 6. Poststop app-2 -> valid {} written
+		// Poststop app-2 -> valid {} written
 		if err := runKata(specs.State{ID: "app-2", Status: specs.StateStopped}); err != nil {
 			t.Fatalf("poststop app-2 failed: %v", err)
 		}
@@ -216,7 +216,7 @@ func TestRunKata_LifecycleAndEdgeCases(t *testing.T) {
 			t.Fatalf("expected exact {} when last container stopped, got %q", string(raw))
 		}
 
-		// 7. Re-buffer app-3 then stop kubearmor -> removes id.json, leaves buffer untouched
+		// Re-buffer app-3 then stop kubearmor -> removes id.json, leaves buffer untouched
 		if err := runKata(specs.State{ID: "app-3", Status: specs.StateCreated, Pid: os.Getpid()}); err != nil {
 			t.Fatalf("runKata app-3 failed: %v", err)
 		}
@@ -274,8 +274,8 @@ func TestRunKata_LifecycleAndEdgeCases(t *testing.T) {
 			Bundle: bundle,
 			Pid:    os.Getpid(),
 			Annotations: map[string]string{
-				"io.kubernetes.cri.container-name":                       "web",
-				"container.apparmor.security.beta.kubernetes.io/web":     "localhost/should-not-use",
+				"io.kubernetes.cri.container-name":                   "web",
+				"container.apparmor.security.beta.kubernetes.io/web": "localhost/should-not-use",
 			},
 		}); err != nil {
 			t.Fatalf("runKata c-spec failed: %v", err)
@@ -474,4 +474,3 @@ func TestWriteFileAtomic(t *testing.T) {
 		}
 	}
 }
-
