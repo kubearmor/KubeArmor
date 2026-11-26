@@ -311,7 +311,7 @@ Now, we will briefly explain how to define a cluster security policy.
 
 ### Capabilities
 
-  In the case of capabilities, there is currently one match type: matchCapabilities. You can define specific capability names to allow or block using matchCapabilities. You can check available capabilities in [Capability List](supported_capability_list.md).
+  In the case of capabilities, there is currently one match type: matchCapabilities. You can define specific capability names to allow or block using matchCapabilities. The available capabilities are the Linux capability names in lowercase, without the `CAP_` prefix (see [capabilities(7)](https://man7.org/linux/man-pages/man7/capabilities.7.html)): `chown`, `dac_override`, `dac_read_search`, `fowner`, `fsetid`, `kill`, `setgid`, `setuid`, `setpcap`, `linux_immutable`, `net_bind_service`, `net_broadcast`, `net_admin`, `net_raw`, `ipc_lock`, `ipc_owner`, `sys_module`, `sys_rawio`, `sys_chroot`, `sys_ptrace`, `sys_pacct`, `sys_admin`, `sys_boot`, `sys_nice`, `sys_resource`, `sys_time`, `sys_tty_config`, `mknod`, `lease`, `audit_write`, `audit_control`, `setfcap`, `mac_override` and `mac_admin`.
 
   ```text
     capabilities:
