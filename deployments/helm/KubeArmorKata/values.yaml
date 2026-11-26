@@ -1,0 +1,47 @@
+# RuntimeClass installed on your cluster (e.g., kata-qemu, kata-clh, kata-qemu-coco-dev)
+runtimeClassName: kata-qemu
+
+serviceAccount:
+  create: true
+  name: ""
+
+rbac:
+  create: true
+
+initContainer:
+  image:
+    repository: docker.io/kubearmor/kubearmor-init
+    tag: stable
+    pullPolicy: IfNotPresent
+
+kubearmor:
+  image:
+    repository: docker.io/kubearmor/kubearmor
+    tag: stable
+    pullPolicy: IfNotPresent
+  args:
+    - "-untrackedNs="
+    - "-useOCIHooks=true"
+    - "-hookFilePath=/opt/kubearmor_hook_output.json"
+  grpcPort: 32767
+  healthPort: 32766
+
+# Set to false to install only the shared RBAC/ServiceAccount prerequisites
+sampleWorkload:
+  enabled: true
+  replicas: 1
+  name: nginx
+  image:
+    repository: nginx
+    tag: latest
+    pullPolicy: IfNotPresent
+  port: 80
+
+terminationGracePeriodSeconds: 60
+
+nodeSelector:
+  katacontainers.io/kata-runtime: "true"
+  kubernetes.io/os: linux
+
+tolerations: []
+

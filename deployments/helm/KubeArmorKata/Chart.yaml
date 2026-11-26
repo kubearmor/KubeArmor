@@ -1,0 +1,8 @@
+apiVersion: v2
+appVersion: v1.7.6
+description: A Helm chart for deploying KubeArmor as a sidecar inside Kata Containers
+home: https://github.com/kubearmor/KubeArmor
+icon: https://github.com/kubearmor/KubeArmor/blob/main/.gitbook/assets/logo.png?raw=true
+name: kubearmor-kata
+type: application
+version: 1.7.6

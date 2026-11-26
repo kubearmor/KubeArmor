@@ -1,0 +1,109 @@
+{{- if .Values.sampleWorkload.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "kubearmor-kata.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "kubearmor-kata.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.sampleWorkload.replicas }}
+  selector:
+    matchLabels:
+      app: {{ include "kubearmor-kata.fullname" . }}
+  template:
+    metadata:
+      labels:
+        app: {{ include "kubearmor-kata.fullname" . }}
+        # Allows kubearmor-relay to discover Kata sidecar pods without triggering kubearmor-app controller exemptions
+        kubearmor.io/kata-sidecar: "true"
+        {{- include "kubearmor-kata.labels" . | nindent 8 }}
+    spec:
+      runtimeClassName: {{ .Values.runtimeClassName }}
+      hostPID: true
+      serviceAccountName: {{ include "kubearmor-kata.serviceAccountName" . }}
+      terminationGracePeriodSeconds: {{ .Values.terminationGracePeriodSeconds }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      initContainers:
+        - name: init
+          image: "{{ .Values.initContainer.image.repository }}:{{ .Values.initContainer.image.tag }}"
+          imagePullPolicy: {{ .Values.initContainer.image.pullPolicy }}
+          securityContext:
+            privileged: true
+            runAsUser: 0
+          volumeMounts:
+            - name: bpf
+              mountPath: /opt/kubearmor/BPF
+            - name: lib-modules-path
+              mountPath: /lib/modules
+              readOnly: true
+            - name: sys-fs-bpf-path
+              mountPath: /sys/fs/bpf
+            - name: usr-src-path
+              mountPath: /usr/src
+              readOnly: true
+      containers:
+        - name: {{ .Values.sampleWorkload.name }}
+          image: "{{ .Values.sampleWorkload.image.repository }}:{{ .Values.sampleWorkload.image.tag }}"
+          imagePullPolicy: {{ .Values.sampleWorkload.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.sampleWorkload.port }}
+        # Keep this name: the guest hook uses it to identify KubeArmor.
+        - name: kubearmor
+          image: "{{ .Values.kubearmor.image.repository }}:{{ .Values.kubearmor.image.tag }}"
+          imagePullPolicy: {{ .Values.kubearmor.image.pullPolicy }}
+          {{- with .Values.kubearmor.args }}
+          args:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          env:
+            - name: KUBEARMOR_NODENAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+          ports:
+            - containerPort: {{ .Values.kubearmor.grpcPort }}
+              name: grpc
+            - containerPort: {{ .Values.kubearmor.healthPort }}
+              name: health
+          securityContext:
+            privileged: true
+            runAsUser: 0
+          volumeMounts:
+            - name: bpf
+              mountPath: /opt/kubearmor/BPF
+            - name: lib-modules-path
+              mountPath: /lib/modules
+              readOnly: true
+            - name: sys-fs-bpf-path
+              mountPath: /sys/fs/bpf
+            - name: sys-kernel-debug-path
+              mountPath: /sys/kernel/debug
+      volumes:
+        - name: bpf
+          emptyDir: {}
+        - name: lib-modules-path
+          hostPath:
+            path: /lib/modules
+            type: DirectoryOrCreate
+        - name: sys-fs-bpf-path
+          hostPath:
+            path: /sys/fs/bpf
+            type: Directory
+        - name: sys-kernel-debug-path
+          hostPath:
+            path: /sys/kernel/debug
+            type: Directory
+        - name: usr-src-path
+          hostPath:
+            path: /usr/src
+            type: DirectoryOrCreate
+{{- end }}
+
