@@ -13,3 +13,8 @@ type handler interface {
 	listContainers(ctx context.Context) ([]types.Container, error)
 	close() error
 }
+
+type kataKubeArmorInfo struct {
+	ContainerID string `json:"containerID"`
+	Rootfs      string `json:"rootfs"`
+}

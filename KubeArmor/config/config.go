@@ -206,7 +206,7 @@ func readCmdLineParams() {
 
 	useOCIHooks := flag.Bool(UseOCIHooks, false, "Use OCI hooks to get new containers instead of using container runtime socket")
 
-	hookFilePath := flag.String(HookFilePath, "/opt/kubearmor_hook_output.json", "OCI hook container info output file path to use")
+	hookFilePath := flag.String(HookFilePath, "", "OCI hook container info output file path to use")
 
 	restorePath := flag.String(RestorePath, PolicyDir, "Path to restore policies from")
 

@@ -59,6 +59,8 @@ spec:
     metadata:
       labels:
         app: kubearmor-kata
+        # Allows kubearmor-relay to discover Kata sidecar pods without triggering kubearmor-app controller exemptions
+        kubearmor.io/kata-sidecar: "true"
     spec:
       # Match the RuntimeClass installed on your cluster.
       runtimeClassName: kata-qemu
@@ -73,8 +75,8 @@ spec:
       initContainers:
       - name: init
         # Replace with your Kata-compatible KubeArmor init image.
-        image: aryan1126/kubearmor-init:kata
-        imagePullPolicy: Always
+        image: docker.io/kubearmor/kubearmor-init:stable
+        imagePullPolicy: IfNotPresent
         securityContext:
           privileged: true
           runAsUser: 0
@@ -98,11 +100,12 @@ spec:
       # Keep this name: the guest hook uses it to identify KubeArmor.
       - name: kubearmor
         # Replace with your KubeArmor image containing Kata hook support.
-        image: aryan1126/kubearmor:kata
-        imagePullPolicy: Always
+        image: docker.io/kubearmor/kubearmor:stable
+        imagePullPolicy: IfNotPresent
         args:
         - "-untrackedNs="
         - "-useOCIHooks=true"
+        - "-hookFilePath=/opt/kubearmor_hook_output.json"
         env:
         - name: KUBEARMOR_NODENAME
           valueFrom:

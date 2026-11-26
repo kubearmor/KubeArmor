@@ -16,6 +16,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/kubearmor/KubeArmor/KubeArmor/types"
@@ -36,27 +37,29 @@ func main() {
 	flag.BoolVar(&detached, "detached", false, "run detached")
 	flag.Parse()
 
-	// Auto-detect Kata Containers microVM environment by checking for the Kata shared root directory
-	if _, err := os.Stat("/var/run/kata-containers/shared"); err == nil {
-		input, err := io.ReadAll(os.Stdin)
-		if err != nil {
-			log.Println(err)
-			os.Exit(1)
-		}
-		flagRetrieved, containerNS := kubearmorIdRetrieved(input)
-		state := specs.State{}
-		err = json.Unmarshal(input, &state)
-		if err != nil {
-			log.Println(err)
-			os.Exit(1)
-		}
-		if err := runKata(state, flagRetrieved, containerNS); err != nil {
-			log.Println(err)
-			os.Exit(1)
-		}
-		os.Exit(0)
-	}
+	// Auto-detect Kata Containers microVM environment by checking
+	// for the Kata shared root directory
+	if runtimeSocket == "" && !detached {
+		if _, err := os.Stat("/var/run/kata-containers/shared"); err == nil {
+			input, err := io.ReadAll(os.Stdin)
+			if err != nil {
+				log.Printf("kata hook: failed to read stdin: %v", err)
+				os.Exit(0)
+			}
 
+			var state specs.State
+			if err := json.Unmarshal(input, &state); err != nil {
+				log.Printf("kata hook: failed to unmarshal OCI state: %v", err)
+				os.Exit(0)
+			}
+
+			if err := runKata(state); err != nil {
+				log.Printf("kata hook: %v", err)
+			}
+			// Fail-open so hook issues never block container lifecycle
+			os.Exit(0)
+		}
+	}
 	if runtimeSocket == "" && detached {
 		log.Println("runtime socket must be set for detached mode")
 		os.Exit(1)
@@ -86,83 +89,271 @@ func main() {
 	}
 }
 
-func kubearmorIdRetrieved(input []byte) (bool, string) {
-	var info map[string]interface{}
+var (
+	kataHookLockFile      = "/tmp/kubearmor_kata_hook.lock"
+	kataOutputBufferFile  = "/tmp/output.json"
+	kataKubeArmorInfoFile = "/tmp/id.json"
+)
 
-	if err := json.Unmarshal(input, &info); err != nil {
-		log.Fatal(err)
+func isKataPoststop(state specs.State) bool {
+	if strings.EqualFold(string(state.Status), string(specs.StateStopped)) {
+		return true
+	}
+	if isPoststopHookPath(os.Args[0]) {
+		return true
+	}
+	if execPath, err := os.Executable(); err == nil && isPoststopHookPath(execPath) {
+		return true
+	}
+	return false
+}
+
+func isPoststopHookPath(p string) bool {
+	if p == "" {
+		return false
+	}
+	return filepath.Base(filepath.Dir(filepath.Clean(p))) == "poststop"
+}
+
+func runKata(state specs.State) error {
+	// Skip CRI pod sandbox (pause) containers
+	if state.Annotations["io.kubernetes.cri.container-type"] == "sandbox" {
+		return nil
 	}
 
-	dataMap, _ := info["annotations"].(map[string]interface{})
-	containerName, _ := dataMap["io.kubernetes.cri.container-name"].(string)
-	containerNS, _ := dataMap["io.kubernetes.cri.sandbox-namespace"].(string)
-	if containerName == "kubearmor" {
-		id, ok := info["id"].(string)
-		if !ok {
-			return false, containerNS
+	lockFile, err := os.OpenFile(kataHookLockFile, os.O_CREATE|os.O_RDWR, 0600)
+	if err != nil {
+		return fmt.Errorf("failed to open lock file: %w", err)
+	}
+	defer lockFile.Close()
+
+	if err := syscall.Flock(int(lockFile.Fd()), syscall.LOCK_EX); err != nil {
+		return fmt.Errorf("failed to acquire lock: %w", err)
+	}
+	defer func() {
+		_ = syscall.Flock(int(lockFile.Fd()), syscall.LOCK_UN)
+	}()
+
+	containerName := firstNonEmpty(
+		state.Annotations["io.kubernetes.cri.container-name"],
+		state.Annotations["io.kubernetes.container.name"],
+	)
+	containerNS := firstNonEmpty(
+		state.Annotations["io.kubernetes.cri.sandbox-namespace"],
+		state.Annotations["io.kubernetes.pod.namespace"],
+	)
+	endPointName := firstNonEmpty(
+		state.Annotations["io.kubernetes.cri.sandbox-name"],
+		state.Annotations["io.kubernetes.pod.name"],
+	)
+
+	var spec specs.Spec
+	specLoaded := false
+	if state.Bundle != "" {
+		if specBytes, err := os.ReadFile(filepath.Join(state.Bundle, "config.json")); err == nil {
+			if err := json.Unmarshal(specBytes, &spec); err == nil {
+				specLoaded = true
+			}
 		}
-		id = strings.Trim(id, `"`)
-		_ = os.WriteFile("/tmp/id.json", []byte(id), 0600)
-		return true, containerNS
-	} else if _, err := os.Stat("/tmp/id.json"); err == nil {
-		return true, containerNS
 	}
-	return false, containerNS
-}
 
-func runKata(state specs.State, flag bool, containerNS string) error {
-	var container types.Container
-	container = types.Container{
-		ContainerID:   state.ID,
-		NamespaceName: containerNS,
+	isKubeArmor := containerName == "kubearmor"
+	if !isKubeArmor && specLoaded && spec.Process != nil && len(spec.Process.Args) > 0 {
+		isKubeArmor = spec.Process.Args[0] == "/KubeArmor/kubearmor"
 	}
-	container.PidNS, container.MntNS = getNS(state.Pid)
-	return sendContainerKata(container, flag)
-}
 
-func sendContainerKata(container types.Container, flag bool) error {
-	dataJSON, err := json.Marshal(container)
+	kaInfo, kaKnown := loadKataKubeArmorInfo()
+
+	// Handle poststop (container stopped)
+	if isKataPoststop(state) {
+		if isKubeArmor || (kaKnown && kaInfo.ContainerID == state.ID) {
+			_ = os.Remove(kataKubeArmorInfoFile)
+			return nil
+		}
+
+		containers, err := loadKataContainers()
+		if err != nil {
+			return err
+		}
+		if _, exists := containers[state.ID]; !exists {
+			return nil
+		}
+		delete(containers, state.ID)
+
+		return persistAndSyncKataContainers(containers, kaInfo, kaKnown)
+	}
+
+	// Handle prestart (container starting)
+	containers, err := loadKataContainers()
 	if err != nil {
 		return err
 	}
 
-	srcFile, err := os.OpenFile("/tmp/output.json", os.O_CREATE|os.O_APPEND|os.O_RDWR, 0600)
+	if isKubeArmor {
+		kaInfo = kataKubeArmorInfo{
+			ContainerID: state.ID,
+			Rootfs:      resolveKataRootfs(state, spec, specLoaded),
+		}
+		if err := saveKataKubeArmorInfo(kaInfo); err != nil {
+			return fmt.Errorf("failed to save kubearmor info: %w", err)
+		}
+		// Don't monitor KubeArmor itself; sync any already-buffered containers into its rootfs
+		return syncKataContainersToRootfs(containers, kaInfo.Rootfs)
+	}
+
+	var appArmorProfile string
+	if specLoaded && spec.Process != nil {
+		appArmorProfile = spec.Process.ApparmorProfile
+	} else if containerName != "" {
+		appArmorProfile = strings.TrimPrefix(
+			state.Annotations[fmt.Sprintf("container.apparmor.security.beta.kubernetes.io/%s", containerName)],
+			"localhost/",
+		)
+	}
+
+	if containerName == "" {
+		containerName = state.ID
+	}
+
+	container := types.Container{
+		ContainerID:     state.ID,
+		ContainerName:   containerName,
+		EndPointName:    endPointName,
+		NamespaceName:   containerNS,
+		AppArmorProfile: appArmorProfile,
+	}
+	if state.Pid > 0 {
+		container.PidNS, container.MntNS = getNS(state.Pid)
+	}
+
+	containers[state.ID] = container
+	return persistAndSyncKataContainers(containers, kaInfo, kaKnown)
+}
+
+func resolveKataRootfs(state specs.State, spec specs.Spec, specLoaded bool) string {
+	if specLoaded && spec.Root != nil && spec.Root.Path != "" {
+		if filepath.IsAbs(spec.Root.Path) {
+			return spec.Root.Path
+		}
+		if state.Bundle != "" {
+			return filepath.Join(state.Bundle, spec.Root.Path)
+		}
+	}
+	if state.Bundle != "" {
+		candidate := filepath.Join(state.Bundle, "rootfs")
+		if _, err := os.Stat(candidate); err == nil {
+			return candidate
+		}
+	}
+	return filepath.Join("/var/run/kata-containers/shared/containers", state.ID, "rootfs")
+}
+
+func loadKataKubeArmorInfo() (kataKubeArmorInfo, bool) {
+	data, err := os.ReadFile(kataKubeArmorInfoFile)
+	if err != nil {
+		return kataKubeArmorInfo{}, false
+	}
+	var info kataKubeArmorInfo
+	if err := json.Unmarshal(data, &info); err != nil || info.Rootfs == "" {
+		return kataKubeArmorInfo{}, false
+	}
+	return info, true
+}
+
+func saveKataKubeArmorInfo(info kataKubeArmorInfo) error {
+	data, err := json.Marshal(info)
 	if err != nil {
 		return err
 	}
-	defer srcFile.Close()
+	return writeFileAtomic(kataKubeArmorInfoFile, data, 0600)
+}
 
-	if _, err := srcFile.Write(dataJSON); err != nil {
-		return err
-	}
-
-	if _, err := srcFile.Seek(0, io.SeekStart); err != nil {
-		return err
-	}
-
-	if flag {
-		val, err := os.ReadFile("/tmp/id.json")
-		if err != nil {
-			log.Printf("failed to read id.json: %v\n", err)
-			return err
+func loadKataContainers() (map[string]types.Container, error) {
+	containers := make(map[string]types.Container)
+	data, err := os.ReadFile(kataOutputBufferFile)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return containers, nil
 		}
-		id := strings.TrimSpace(string(val))
-		targetPath := filepath.Join("/var/run/kata-containers/shared/containers/"+id+"/rootfs", hookOutputFile)
-		_ = os.MkdirAll(filepath.Dir(targetPath), 0755)
-
-		dstFile, err := os.OpenFile(targetPath, os.O_CREATE|os.O_RDWR, 0600)
-		if err != nil {
-			log.Printf("failed to open rootfs output file (%s) for container %s: %v\n", targetPath, id, err)
-			return err
-		}
-		defer dstFile.Close()
-
-		if _, err := io.Copy(dstFile, srcFile); err != nil {
-			return err
-		}
+		return nil, fmt.Errorf("failed to read %s: %w", kataOutputBufferFile, err)
 	}
+	if len(bytes.TrimSpace(data)) == 0 {
+		return containers, nil
+	}
+	if err := json.Unmarshal(data, &containers); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal %s: %w", kataOutputBufferFile, err)
+	}
+	return containers, nil
+}
 
+func persistAndSyncKataContainers(containers map[string]types.Container, kaInfo kataKubeArmorInfo, kaKnown bool) error {
+	data, err := json.Marshal(containers)
+	if err != nil {
+		return fmt.Errorf("failed to marshal containers: %w", err)
+	}
+	if err := writeFileAtomic(kataOutputBufferFile, data, 0600); err != nil {
+		return fmt.Errorf("failed to write %s: %w", kataOutputBufferFile, err)
+	}
+	if kaKnown {
+		return syncKataContainersToRootfs(containers, kaInfo.Rootfs)
+	}
 	return nil
+}
+
+func syncKataContainersToRootfs(containers map[string]types.Container, rootfs string) error {
+	data, err := json.Marshal(containers)
+	if err != nil {
+		return fmt.Errorf("failed to marshal containers: %w", err)
+	}
+	targetPath := filepath.Join(rootfs, hookOutputFile)
+	if err := writeFileAtomic(targetPath, data, 0600); err != nil {
+		return fmt.Errorf("failed to write hook output (%s): %w", targetPath, err)
+	}
+	return nil
+}
+
+func writeFileAtomic(path string, data []byte, perm os.FileMode) error {
+	dir := filepath.Dir(path)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return err
+	}
+	tmpFile, err := os.CreateTemp(dir, ".kubearmor-hook-*.tmp")
+	if err != nil {
+		return err
+	}
+	tmpPath := tmpFile.Name()
+	cleanup := true
+	defer func() {
+		if cleanup {
+			_ = os.Remove(tmpPath)
+		}
+	}()
+
+	if _, err := tmpFile.Write(data); err != nil {
+		_ = tmpFile.Close()
+		return err
+	}
+	if err := tmpFile.Chmod(perm); err != nil {
+		_ = tmpFile.Close()
+		return err
+	}
+	if err := tmpFile.Close(); err != nil {
+		return err
+	}
+	if err := os.Rename(tmpPath, path); err != nil {
+		return err
+	}
+	cleanup = false
+	return nil
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, v := range values {
+		if v != "" {
+			return v
+		}
+	}
+	return ""
 }
 
 func runDetached() error {
