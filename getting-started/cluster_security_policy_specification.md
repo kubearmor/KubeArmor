@@ -28,12 +28,14 @@ spec:
     - path: [absolute executable path]
       ownerOnly: [true|false]              # --> optional
       execname: [binary name]              # --> optional
+      pts: [true|false]                    # --> optional
       fromSource:                          # --> optional
       - path: [absolute executable path]
     matchDirectories:
     - dir: [absolute directory path]
       recursive: [true|false]              # --> optional
       ownerOnly: [true|false]              # --> optional
+      pts: [true|false]                    # --> optional
       fromSource:                          # --> optional
       - path: [absolute executable path]
     matchPatterns:
@@ -45,6 +47,7 @@ spec:
     - path: [absolute file path]
       readOnly: [true|false]               # --> optional
       ownerOnly: [true|false]              # --> optional
+      pts: [true|false]                    # --> optional
       fromSource:                          # --> optional
       - path: [absolute executable path]
     matchDirectories:
@@ -52,6 +55,7 @@ spec:
       recursive: [true|false]              # --> optional
       readOnly: [true|false]               # --> optional
       ownerOnly: [true|false]              # --> optional
+      pts: [true|false]                    # --> optional
       fromSource:                          # --> optional
       - path: [absolute executable path]
     matchPatterns:
@@ -62,6 +66,7 @@ spec:
   network:
     matchProtocols:
     - protocol: [TCP|tcp|UDP|udp|ICMP|icmp]
+      pts: [true|false]                    # --> optional
       fromSource:                          # --> optional
       - path: [absolute executable path]
 
@@ -221,12 +226,14 @@ Now, we will briefly explain how to define a cluster security policy.
       - path: [absolute executable path]
         ownerOnly: [true|false]            # --> optional
         execname: [binary name]            # --> optional
+        pts: [true|false]                  # --> optional
         fromSource:                        # --> optional
         - path: [absolute executable path]
       matchDirectories:
       - dir: [absolute directory path]
         recursive: [true|false]            # --> optional
         ownerOnly: [true|false]            # --> optional
+        pts: [true|false]                  # --> optional
         fromSource:                        # --> optional
         - path: [absolute executable path]
       matchPatterns:
@@ -259,11 +266,16 @@ Now, we will briefly explain how to define a cluster security policy.
   * execname
 
     Besides an absolute path, matchPaths can select executables by their binary name using execname. The value is a binary name only, without any directory separator (e.g., sleep), and it matches the execution of any binary with that name, regardless of the directory it resides in. When execname is set, it takes precedence over path in the same matchPaths entry. A value that contains a `/` (for example `/bin/sleep` or `sbin/sleep`) is rejected by the CRD's OpenAPI schema, which allows only characters other than `/` in this field, so the policy is refused at admission time before KubeArmor ever sees it.
+  * pts
+
+    The pts option scopes a rule to actions that originate from a pseudo-terminal (TTY), such as commands entered in an interactive shell. If pts is set to false, only actions performed by processes that have a pseudo-terminal attached are matched; actions without an attached TTY (e.g., processes started directly by a container runtime or a system daemon) are not matched. If pts is set to true or omitted, the rule applies regardless of whether a pseudo-terminal is attached. Only the BPF-LSM enforcer implements `pts`: the AppArmor and SELinux enforcers ignore it, so on a host using either of those LSMs the rule applies to every matching action, whether or not a pseudo-terminal is attached.
 
     ```text
       process:
         matchPaths:
         - execname: apt
+        - path: /bin/sleep
+          pts: false
     ```
 
 ### File
@@ -276,6 +288,7 @@ Now, we will briefly explain how to define a cluster security policy.
       - path: [absolute file path]
         readOnly: [true|false]             # --> optional
         ownerOnly: [true|false]            # --> optional
+        pts: [true|false]                  # --> optional
         fromSource:                        # --> optional
         - path: [absolute file path]
       matchDirectories:
@@ -283,6 +296,7 @@ Now, we will briefly explain how to define a cluster security policy.
         recursive: [true|false]            # --> optional
         readOnly: [true|false]             # --> optional
         ownerOnly: [true|false]            # --> optional
+        pts: [true|false]                  # --> optional
         fromSource:                        # --> optional
         - path: [absolute file path]
       matchPatterns:
@@ -297,6 +311,10 @@ Now, we will briefly explain how to define a cluster security policy.
 
     If this is enabled, the read operation will be only allowed, and any other operations \(e.g., write\) will be blocked.  
 
+  * pts
+
+    As with process executions, pts: false scopes the file rule to operations performed by processes that have a pseudo-terminal attached. Only the BPF-LSM enforcer implements `pts`: the AppArmor and SELinux enforcers ignore it, so on a host using either of those LSMs the rule applies to every matching action, whether or not a pseudo-terminal is attached.
+
 ### Network
 
   In the case of network, there is currently one match type: matchProtocols. You can define specific protocols among TCP, UDP, and ICMP.
@@ -305,9 +323,14 @@ Now, we will briefly explain how to define a cluster security policy.
     network:
       matchProtocols:
       - protocol: [protocol]               # --> [ TCP | tcp | UDP | udp | ICMP | icmp ]
+        pts: [true|false]                  # --> optional
         fromSource:                        # --> optional
         - path: [absolute file path]
   ```
+
+  * pts
+
+    As with process executions, pts: false scopes the protocol rule to connections made by processes that have a pseudo-terminal attached. Only the BPF-LSM enforcer implements `pts`: the AppArmor and SELinux enforcers ignore it, so on a host using either of those LSMs the rule applies to every matching action, whether or not a pseudo-terminal is attached.
 
 ### Capabilities
 
