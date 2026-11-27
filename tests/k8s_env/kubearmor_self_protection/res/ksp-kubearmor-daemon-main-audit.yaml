@@ -1,0 +1,26 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: ksp-kubearmor-daemon-main-audit
+  namespace: kubearmor
+spec:
+  severity: 5
+  message: "KubeArmor daemon self-protection (audit phase — intentionally permissive)"
+  tags:
+  - KubeArmor-SelfProtection
+  - ZeroTrust
+  - AuditPhase
+  selector:
+    matchLabels:
+      kubearmor-app: kubearmor
+      kubearmor.io/container.name: "[kubearmor]"
+  file:
+    matchDirectories:
+    - dir: /
+      recursive: true
+      action: Allow
+  process:
+    matchPaths:
+    - path: /KubeArmor/kubearmor
+      action: Allow
+  action: Allow
