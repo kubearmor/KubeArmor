@@ -1670,7 +1670,7 @@ func UpdateTlsData(config *opv1.KubeArmorConfigSpec) bool {
 	}
 
 	if len(config.Tls.RelayExtraIpAddresses) > 0 {
-		common.ExtraDnsNames = config.Tls.RelayExtraIpAddresses
+		common.ExtraIpAddresses = config.Tls.RelayExtraIpAddresses
 	}
 
 	return updated
