@@ -398,3 +398,32 @@ There is one options in each match.
   ```text
     action: [Allow|Audit|Block]
   ```
+
+
+### Native AppArmor Rules (`spec.apparmor`)
+
+The `spec.apparmor` field accepts a multi-line string containing **native AppArmor rule fragments** (not an AppArmor profile name).
+
+KubeArmor reads the supplied string line by line, trims surrounding whitespace, and appends each line to `NativeRules` in the generated AppArmor profile (`## == NATIVE POLICY START == ##`).
+
+> **Note:** Do not pass a profile name such as `apparmor: docker-default`—KubeArmor treats the string as raw AppArmor rule text to embed into the generated profile.
+
+You can combine `spec.apparmor` with standard KubeArmor policy fields:
+
+```yaml
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorClusterPolicy
+metadata:
+  name: cluster-native-apparmor-example
+spec:
+  selector:
+    matchLabels:
+      app: demo
+  apparmor: |
+    deny /etc/shadow r,
+    deny /proc/sysrq-trigger rwklx,
+  file:
+    matchPaths:
+      - path: /etc/passwd
+        action: Block
+```
