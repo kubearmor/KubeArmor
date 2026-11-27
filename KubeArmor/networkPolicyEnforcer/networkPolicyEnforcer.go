@@ -74,7 +74,9 @@ type NetworkPolicyEnforcer struct {
 
 	ActiveRules  []NetworkRule
 	ActiveQuotas []QuotaObj
-	Initialized  bool
+	// ActiveChainPolicy is the base chain policy (accept/drop) of the last successful apply
+	ActiveChainPolicy string
+	Initialized       bool
 
 	// Quota Log Silencer
 	// Key: "<podIP>-<logPrefix>", Value: struct{}{}
@@ -662,9 +664,9 @@ func (ne *NetworkPolicyEnforcer) UpdateNetworkSecurityPolicies(secPolicies []tp.
 
 	ne.Rules = newRules
 
-	if err := ne.applyNFTables(hasAllowPolicy, allQuotas); err != nil {
+	if applied, err := ne.applyNFTables(hasAllowPolicy, allQuotas); err != nil {
 		ne.Logger.Errf("Failed to apply network policies: %v", err)
-	} else {
+	} else if applied {
 		for podName := range matchedPods {
 			ne.Logger.Printf("Successfully updated and applied network security rule for pod %s", podName)
 		}
@@ -1039,7 +1041,59 @@ func generateRules(direction string, peers []tp.NetworkPeer, ports []tp.PortType
 	return rules
 }
 
-func (ne *NetworkPolicyEnforcer) applyNFTables(hasAllowPolicy bool, quotas []QuotaObj) error {
+// rulesEqual reports whether two rule sets are equal, ignoring order.
+// Ordering is ignored only for comparison; the applied order is untouched.
+func rulesEqual(a, b []NetworkRule) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	sa := append([]NetworkRule(nil), a...)
+	sb := append([]NetworkRule(nil), b...)
+	less := func(s []NetworkRule) func(i, j int) bool {
+		return func(i, j int) bool {
+			if s[i].TableFamily != s[j].TableFamily {
+				return s[i].TableFamily < s[j].TableFamily
+			}
+			if s[i].Chain != s[j].Chain {
+				return s[i].Chain < s[j].Chain
+			}
+			return s[i].RuleContent < s[j].RuleContent
+		}
+	}
+	sort.Slice(sa, less(sa))
+	sort.Slice(sb, less(sb))
+	for i := range sa {
+		if sa[i] != sb[i] {
+			return false
+		}
+	}
+	return true
+}
+
+// quotasEqual reports whether two quota sets are equal, ignoring order.
+func quotasEqual(a, b []QuotaObj) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	m := make(map[string]string, len(a))
+	for _, q := range a {
+		m[q.Name] = q.Limit
+	}
+	if len(m) != len(a) {
+		return false
+	}
+	for _, q := range b {
+		if limit, ok := m[q.Name]; !ok || limit != q.Limit {
+			return false
+		}
+	}
+	return true
+}
+
+// applyNFTables applies the current rules via nft. It returns applied=false
+// (and no error) when nothing changed since the last successful apply, in which
+// case nft is not executed.
+func (ne *NetworkPolicyEnforcer) applyNFTables(hasAllowPolicy bool, quotas []QuotaObj) (bool, error) {
 	chainPolicy := "accept"
 	if hasAllowPolicy {
 		if cfg.GlobalCfg.HostDefaultNetworkPosture == "audit" {
@@ -1047,6 +1101,12 @@ func (ne *NetworkPolicyEnforcer) applyNFTables(hasAllowPolicy bool, quotas []Quo
 		} else {
 			chainPolicy = "drop"
 		}
+	}
+
+	// Nothing changed since the last successful apply: avoid re-running nft
+	if ne.Initialized && chainPolicy == ne.ActiveChainPolicy &&
+		rulesEqual(ne.Rules, ne.ActiveRules) && quotasEqual(quotas, ne.ActiveQuotas) {
+		return false, nil
 	}
 
 	// 1. Compute Quota change
@@ -1224,39 +1284,40 @@ table ip6 kubearmor {
 		InetOutput:         inetOutput,
 	}
 
-	// Update Delta Engine Cache
-	ne.ActiveRules = make([]NetworkRule, len(ne.Rules))
-	copy(ne.ActiveRules, ne.Rules)
-	ne.ActiveQuotas = make([]QuotaObj, len(quotas))
-	copy(ne.ActiveQuotas, quotas)
-	ne.Initialized = true
-
 	t := template.Must(template.New("nft").Parse(nftTemplate))
 
 	tmpFile, err := os.CreateTemp("", "ka-nft-rules-*.nft")
 	if err != nil {
-		return err
+		return false, err
 	}
 	defer os.Remove(tmpFile.Name())
 
 	if err := t.Execute(tmpFile, data); err != nil {
 		if closeError := tmpFile.Close(); closeError != nil {
-			return closeError
+			return false, closeError
 		}
-		return err
+		return false, err
 	}
 
 	if err := tmpFile.Close(); err != nil {
-		return err
+		return false, err
 	}
 
 	// Apply using nft -f
 	cmd := exec.Command("nft", "-f", tmpFile.Name()) // #nosec G204
 	if output, err := cmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("nft apply error: %v\nnft apply output: %s", err, string(output))
+		return false, fmt.Errorf("nft apply error: %v\nnft apply output: %s", err, string(output))
 	}
 
-	return nil
+	// Update Delta Engine Cache (only after a successful apply)
+	ne.ActiveRules = make([]NetworkRule, len(ne.Rules))
+	copy(ne.ActiveRules, ne.Rules)
+	ne.ActiveQuotas = make([]QuotaObj, len(quotas))
+	copy(ne.ActiveQuotas, quotas)
+	ne.ActiveChainPolicy = chainPolicy
+	ne.Initialized = true
+
+	return true, nil
 }
 
 func (ne *NetworkPolicyEnforcer) setupQuotaTimer(quotaName string, durationSeconds uint32) {

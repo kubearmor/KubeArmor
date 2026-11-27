@@ -218,3 +218,55 @@ func TestGenerateRules(t *testing.T) {
 		})
 	}
 }
+
+func TestRulesEqualIgnoresOrder(t *testing.T) {
+	a := []NetworkRule{
+		{TableFamily: "ip", Chain: "INPUT", RuleContent: "r1"},
+		{TableFamily: "ip", Chain: "OUTPUT", RuleContent: "r2"},
+	}
+	b := []NetworkRule{a[1], a[0]}
+	if !rulesEqual(a, b) {
+		t.Fatal("expected rules to be equal regardless of order")
+	}
+	if a[0].RuleContent != "r1" || b[0].RuleContent != "r2" {
+		t.Fatal("rulesEqual must not mutate its inputs")
+	}
+	if rulesEqual(a, []NetworkRule{a[0], {TableFamily: "ip", Chain: "OUTPUT", RuleContent: "changed"}}) {
+		t.Fatal("expected changed rule to be detected")
+	}
+	if rulesEqual(a, a[:1]) {
+		t.Fatal("expected length difference to be detected")
+	}
+	if !rulesEqual(nil, []NetworkRule{}) {
+		t.Fatal("nil and empty should be equal")
+	}
+}
+
+func TestQuotasEqual(t *testing.T) {
+	a := []QuotaObj{{Name: "q1", Limit: "1 mbytes"}, {Name: "q2", Limit: "2 mbytes"}}
+	if !quotasEqual(a, []QuotaObj{a[1], a[0]}) {
+		t.Fatal("expected equal regardless of order")
+	}
+	if quotasEqual(a, []QuotaObj{a[0], {Name: "q2", Limit: "3 mbytes"}}) {
+		t.Fatal("expected limit change to be detected")
+	}
+	if quotasEqual(a, []QuotaObj{a[0], {Name: "q3", Limit: "2 mbytes"}}) {
+		t.Fatal("expected name change to be detected")
+	}
+}
+
+func TestApplyNFTablesSkipsWhenUnchanged(t *testing.T) {
+	rules := []NetworkRule{{TableFamily: "ip", Chain: "INPUT", RuleContent: "r1"}}
+	quotas := []QuotaObj{{Name: "q1", Limit: "1 mbytes"}}
+	ne := &NetworkPolicyEnforcer{
+		Rules:             rules,
+		ActiveRules:       append([]NetworkRule(nil), rules...),
+		ActiveQuotas:      append([]QuotaObj(nil), quotas...),
+		ActiveChainPolicy: "accept",
+		Initialized:       true,
+	}
+	applied, err := ne.applyNFTables(false, quotas)
+	if err != nil || applied {
+		t.Fatalf("expected skip without error, got applied=%v err=%v", applied, err)
+	}
+}
