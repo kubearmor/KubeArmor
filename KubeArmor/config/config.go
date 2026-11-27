@@ -74,6 +74,8 @@ type KubearmorConfig struct {
 
 	DropResourceFromProcessLogs bool // optionally drop resource field from process logs
 
+	ProcessExitEvents bool // emit a log when a monitored process exits
+
 	MachineIDPath string // path to machine-id
 
 	USBDeviceHandler bool // enable USB device observability and enforcement
@@ -137,6 +139,7 @@ const (
 	ConfigAnnotateResources              string = "annotateResources"
 	ConfigProcFsMount                    string = "procfsMount"
 	ConfigDropResourceFromProcessLogs    string = "dropResourceFromProcessLogs"
+	ConfigProcessExitEvents              string = "enableProcessExitEvents"
 	ConfigMachineIDPath                  string = "machineIDPath"
 	UseOCIHooks                          string = "useOCIHooks"
 	ConfigEnableIma                      string = "enableIMA"
@@ -218,6 +221,8 @@ func readCmdLineParams() {
 	usbDeviceHandler := flag.Bool(ConfigUSBDeviceHandler, false, "Enable USB device observability and enforcement")
 
 	dropResourceFromProcessLogs := flag.Bool(ConfigDropResourceFromProcessLogs, false, "drop resource field from process logs")
+
+	processExitEvents := flag.Bool(ConfigProcessExitEvents, false, "emit a log when a monitored process exits (with its exit code)")
 
 	matchArgs := flag.Bool(ConfigArgMatching, true, "enabling Argument matching")
 
@@ -306,6 +311,8 @@ func readCmdLineParams() {
 	viper.SetDefault(ConfigUSBDeviceHandler, *usbDeviceHandler)
 
 	viper.SetDefault(ConfigDropResourceFromProcessLogs, *dropResourceFromProcessLogs)
+
+	viper.SetDefault(ConfigProcessExitEvents, *processExitEvents)
 
 	viper.SetDefault(ConfigArgMatching, *matchArgs)
 
@@ -403,6 +410,8 @@ func LoadConfig() error {
 	GlobalCfg.USBDeviceHandler = viper.GetBool(ConfigUSBDeviceHandler)
 
 	GlobalCfg.DropResourceFromProcessLogs = viper.GetBool(ConfigDropResourceFromProcessLogs)
+
+	GlobalCfg.ProcessExitEvents = viper.GetBool(ConfigProcessExitEvents)
 
 	GlobalCfg.MatchArgs = viper.GetBool(ConfigArgMatching)
 

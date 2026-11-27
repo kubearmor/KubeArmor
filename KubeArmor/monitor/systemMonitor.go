@@ -38,6 +38,9 @@ const (
 	visibilityOn     = uint32(0)
 	// how many event the channel can hold
 	SyscallChannelSize = 1 << 13 //8192
+
+	// ExitChannelSize is the buffer of the dedicated process exit channel
+	ExitChannelSize = 1 << 12 // 4096
 	// how often and for how long events with an unknown container are replayed
 	ReplayInterval       = 1 * time.Second
 	ReplayTimeout        = 10 * time.Second
@@ -180,6 +183,9 @@ type SystemMonitor struct {
 	// context + args
 	ContextChan chan ContextCombined
 
+	// process exit events (separate from ContextChan so they never block alerts)
+	ExitChan chan ContextCombined
+
 	// system events
 	SyscallChannel chan []byte
 	SyscallPerfMap *perf.Reader
@@ -217,6 +223,7 @@ func NewSystemMonitor(node *tp.Node, nodeLock **sync.RWMutex, logger *fd.Feeder,
 	mon.NsMapLock = new(sync.RWMutex)
 
 	mon.ContextChan = make(chan ContextCombined, 4096)
+	mon.ExitChan = make(chan ContextCombined, ExitChannelSize)
 
 	mon.MonitorLock = monitorLock
 
@@ -766,6 +773,10 @@ func (mon *SystemMonitor) DestroySystemMonitor() error {
 		close(mon.ContextChan)
 	}
 
+	if mon.ExitChan != nil {
+		close(mon.ExitChan)
+	}
+
 	for _, link := range mon.Probes {
 		if err := link.Close(); err != nil {
 			return err
@@ -1155,7 +1166,23 @@ func (mon *SystemMonitor) TraceSyscall() {
 
 				continue
 			} else if ctx.EventID == DoExit {
+				// marks the pid as exited; the node stays in the map for a few
+				// seconds, so UpdateExitLogs can still resolve the exec path
 				mon.DeleteActivePid(containerID, ctx)
+				if cfg.GlobalCfg.ProcessExitEvents {
+					// same guard as the ContextChan send below: DestroySystemMonitor closes
+					// ExitChan under MonitorLock after setting Status to false
+					MonitorLock.Lock()
+					if mon.Status {
+						// non-blocking: exit events must never stall this loop (and alerts with it)
+						select {
+						case mon.ExitChan <- ContextCombined{ContainerID: containerID, ContextSys: ctx}:
+						default:
+							mon.Logger.Debug("Process exit event dropped: exit channel is full")
+						}
+					}
+					MonitorLock.Unlock()
+				}
 				continue
 			} else if ctx.EventID == SecurityBprmCheck {
 				if val, ok := args[0].(string); ok {

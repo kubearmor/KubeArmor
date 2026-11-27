@@ -128,6 +128,35 @@ func (mon *SystemMonitor) UpdateLogBase(ctx SyscallContext, log tp.Log) tp.Log {
 	return log
 }
 
+// UpdateExitLogs Function
+// Builds and pushes process exit logs. Exit events have their own channel and
+// goroutine (fed by TraceSyscall with a non-blocking send), so a burst of
+// exits can never delay the ContextChan consumer that produces alerts.
+func (mon *SystemMonitor) UpdateExitLogs() {
+	for {
+		select {
+		case <-StopChan:
+			return
+
+		case msg, valid := <-mon.ExitChan:
+			if !valid {
+				return
+			}
+
+			log := mon.BuildLogBase(msg.ContextSys.EventID, msg, true)
+			log.Operation = "Process"
+			log.Resource = log.ProcessName
+			log.Data = processExitData(msg.ContextSys.Retval)
+
+			if mon.isProcessInformationMissing(&log) {
+				continue
+			}
+
+			mon.finalizeAndPushLog(msg, log)
+		}
+	}
+}
+
 // UpdateLogs Function
 func (mon *SystemMonitor) UpdateLogs() {
 	// failed file/network events (potential alerts) whose process is not in the pid map yet.
@@ -717,6 +746,17 @@ func (mon *SystemMonitor) isProcessInformationMissing(log *tp.Log) bool {
 		}
 	}
 	return false
+}
+
+// processExitData builds the Data field of a process exit event.
+// do_exit() receives the exit code in wait-status format: the exit status is in
+// bits 8-15, the terminating signal in bits 0-6, and bit 7 is set on a core dump.
+func processExitData(code int64) string {
+	data := fmt.Sprintf("%s exitCode=%d signal=%d", tp.ProcessExitDataPrefix, (code>>8)&0xff, code&0x7f)
+	if code&0x80 != 0 {
+		data += " coreDumped=true"
+	}
+	return data
 }
 
 func updateHashData(log *tp.Log, hash HashContext) {

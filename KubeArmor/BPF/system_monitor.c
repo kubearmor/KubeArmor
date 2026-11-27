@@ -1606,6 +1606,19 @@ int kprobe__do_exit(struct pt_regs *ctx)
         return 0;
     }
 
+    // do_exit() runs once per thread, but the event describes the whole process
+    // (context.host_pid is the tgid). Only report the exit of the last live thread,
+    // otherwise any thread exit would mark a still-running process as exited.
+    // signal->live is decremented later in do_exit(), so the last thread sees 1 here.
+    struct task_struct *task = (struct task_struct *)bpf_get_current_task();
+    struct signal_struct *signal = READ_KERN(task->signal);
+    if (signal != NULL)
+    {
+        int live = READ_KERN(signal->live.counter);
+        if (live > 1)
+            return 0;
+    }
+
     set_buffer_offset(DATA_BUF_TYPE, sizeof(sys_context_t));
 
     bufs_t *bufs_p = get_buffer(DATA_BUF_TYPE);

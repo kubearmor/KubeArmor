@@ -1404,7 +1404,9 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 	defaultPosture := fd.DefaultPostures[log.NamespaceName]
 	fd.DefaultPosturesLock.RUnlock()
 
-	if log.Result == "Passed" || log.Result == "Operation not permitted" || log.Result == "Permission denied" {
+	// process exit events are telemetry only: they must not match process rules
+	// (that would raise a second alert for an already-reported exec)
+	if !tp.IsProcessExitLog(log) && (log.Result == "Passed" || log.Result == "Operation not permitted" || log.Result == "Permission denied") {
 		if log.Type == "SystemEvent" {
 			return log
 		}

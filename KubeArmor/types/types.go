@@ -6,6 +6,7 @@ package types
 
 import (
 	"regexp"
+	"strings"
 	"time"
 
 	pb "github.com/kubearmor/KubeArmor/protobuf"
@@ -321,6 +322,15 @@ type Log struct {
 	FileVisibilityEnabled         bool `json:"fileVisibilityEnabled,omitempty"`
 	NetworkVisibilityEnabled      bool `json:"networkVisibilityEnabled,omitempty"`
 	CapabilitiesVisibilityEnabled bool `json:"capabilitiesVisibilityEnabled,omitempty"`
+}
+
+// ProcessExitDataPrefix is the prefix of Log.Data for process exit events.
+// Exit events are telemetry only and are never matched against security policies.
+const ProcessExitDataPrefix = "kprobe=do_exit"
+
+// IsProcessExitLog reports whether a log describes a process exit
+func IsProcessExitLog(log Log) bool {
+	return log.Operation == "Process" && strings.HasPrefix(log.Data, ProcessExitDataPrefix)
 }
 
 // MatchPolicy Structure
