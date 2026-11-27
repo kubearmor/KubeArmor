@@ -1,3 +1,6 @@
+//go:build linux
+// +build linux
+
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2026 Authors of KubeArmor
 
@@ -187,29 +190,7 @@ func run(state specs.State) error {
 	homeDir = os.Getenv("HOME")
 
 	if homeDir == "" {
-		passwdFile, err := os.Open("/etc/passwd")
-		if err != nil {
-			log.Printf("Failed to open /etc/passwd: %v", err)
-		}
-		defer passwdFile.Close()
-
-		scanner := bufio.NewScanner(passwdFile)
-
-		// Iterate through /etc/passwd to find the user with the desired directory
-		for scanner.Scan() {
-			fields := strings.Split(scanner.Text(), ":")
-			if len(fields) < 6 {
-				continue // skip malformed lines
-			}
-
-			userHomeDir := fields[5]
-			potentialPath := filepath.Join(userHomeDir, ".local/share/containers/storage/overlay-containers/containers.json")
-
-			if _, err := os.Stat(potentialPath); err == nil {
-				homeDir = userHomeDir
-				break
-			}
-		}
+		homeDir = findHomeDirFromPasswd("/etc/passwd")
 	}
 
 	if homeDir == "" {
@@ -313,6 +294,39 @@ func fetchContainerDetails(containerID, metadataPath string) (MetadataDetails, e
 	}
 
 	return MetadataDetails{}, fmt.Errorf("container with ID %s not found", containerID)
+}
+
+// findHomeDirFromPasswd searches for the user home directory containing the overlay-containers storage path.
+func findHomeDirFromPasswd(passwdPath string) string {
+	passwdFile, err := os.Open(passwdPath)
+	if err != nil {
+		log.Printf("Failed to open %s: %v", passwdPath, err)
+		return ""
+	}
+	defer passwdFile.Close()
+
+	scanner := bufio.NewScanner(passwdFile)
+
+	// Iterate through passwd to find the user with the desired directory
+	for scanner.Scan() {
+		fields := strings.Split(scanner.Text(), ":")
+		if len(fields) < 6 {
+			continue // skip malformed lines
+		}
+
+		userHomeDir := fields[5]
+		potentialPath := filepath.Join(userHomeDir, ".local/share/containers/storage/overlay-containers/containers.json")
+
+		if _, err := os.Stat(potentialPath); err == nil {
+			return userHomeDir
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		log.Printf("Error scanning %s: %v", passwdPath, err)
+	}
+
+	return ""
 }
 
 func getNS(pid int) (uint32, uint32) {
