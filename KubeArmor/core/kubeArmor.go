@@ -546,7 +546,7 @@ func KubeArmor() {
 			// destroy the daemon
 			dm.DestroyKubeArmorDaemon()
 
-			return
+			os.Exit(1)
 		}
 
 		kg.Print("Initialized Kubernetes client")
@@ -580,7 +580,7 @@ func KubeArmor() {
 				// destroy the daemon
 				dm.DestroyKubeArmorDaemon()
 
-				return
+				os.Exit(1)
 			}
 
 			kg.Print("The node information is not available")
@@ -633,7 +633,7 @@ func KubeArmor() {
 		// destroy the daemon
 		dm.DestroyKubeArmorDaemon()
 
-		return
+		os.Exit(1)
 	}
 	dm.Logger.Print("Initialized KubeArmor Logger")
 
@@ -643,17 +643,21 @@ func KubeArmor() {
 	healthLis, err := net.Listen("tcp", ":"+cfg.GlobalCfg.GRPCHealthPort) // #nosec G102
 	if err != nil {
 		dm.Logger.Errf("Failed to listen on plaintext health port %s: %v", cfg.GlobalCfg.GRPCHealthPort, err)
-	} else {
-		dm.GRPCHealthServer = health.NewServer()
-		healthServer := grpc.NewServer()
-		grpc_health_v1.RegisterHealthServer(healthServer, dm.GRPCHealthServer)
-		go func() {
-			dm.Logger.Printf("Started gRPC health probe on port %s", cfg.GlobalCfg.GRPCHealthPort)
-			if err := healthServer.Serve(healthLis); err != nil {
-				dm.Logger.Warnf("Plaintext health gRPC server exited: %v", err)
-			}
-		}()
+
+		// destroy the daemon
+		dm.DestroyKubeArmorDaemon()
+
+		os.Exit(1)
 	}
+	dm.GRPCHealthServer = health.NewServer()
+	healthServer := grpc.NewServer()
+	grpc_health_v1.RegisterHealthServer(healthServer, dm.GRPCHealthServer)
+	go func() {
+		dm.Logger.Printf("Started gRPC health probe on port %s", cfg.GlobalCfg.GRPCHealthPort)
+		if err := healthServer.Serve(healthLis); err != nil {
+			dm.Logger.Warnf("Plaintext health gRPC server exited: %v", err)
+		}
+	}()
 
 	// Init StateAgent
 	if !dm.K8sEnabled && cfg.GlobalCfg.StateAgent {
@@ -668,7 +672,7 @@ func KubeArmor() {
 			// destroy the daemon
 			dm.DestroyKubeArmorDaemon()
 
-			return
+			os.Exit(1)
 		}
 		dm.Logger.Print("Initialized State Agent Server")
 
@@ -693,7 +697,7 @@ func KubeArmor() {
 			// destroy the daemon
 			dm.DestroyKubeArmorDaemon()
 
-			return
+			os.Exit(1)
 		}
 		if cfg.GlobalCfg.SystemMonitor {
 			dm.Logger.Print("Initialized KubeArmor Monitor")
@@ -818,7 +822,7 @@ func KubeArmor() {
 
 				// destroy the daemon
 				dm.DestroyKubeArmorDaemon()
-				return
+				os.Exit(1)
 			}
 
 			// monitor containers
@@ -837,7 +841,7 @@ func KubeArmor() {
 				dm.Logger.Errf("Failed to monitor containers: %s is not a supported CRI socket.", cfg.GlobalCfg.CRISocket)
 				// destroy the daemon
 				dm.DestroyKubeArmorDaemon()
-				return
+				os.Exit(1)
 			}
 
 			dm.Logger.Printf("Using %s for monitoring containers", cfg.GlobalCfg.CRISocket)
@@ -871,7 +875,7 @@ func KubeArmor() {
 					// destroy the daemon
 					dm.DestroyKubeArmorDaemon()
 
-					return
+					os.Exit(1)
 				}
 			case "containerd":
 				if _, err := os.Stat(socketFilePath); err == nil {
@@ -883,7 +887,7 @@ func KubeArmor() {
 					// destroy the daemon
 					dm.DestroyKubeArmorDaemon()
 
-					return
+					os.Exit(1)
 				}
 			case "cri-o":
 				if _, err := os.Stat(socketFilePath); err == nil {
@@ -895,7 +899,7 @@ func KubeArmor() {
 					// destroy the daemon
 					dm.DestroyKubeArmorDaemon()
 
-					return
+					os.Exit(1)
 				}
 			}
 
@@ -929,7 +933,7 @@ func KubeArmor() {
 						// destroy the daemon
 						dm.DestroyKubeArmorDaemon()
 
-						return
+						os.Exit(1)
 					}
 				}
 			} else if strings.HasPrefix(dm.Node.ContainerRuntimeVersion, "containerd") { // containerd
@@ -946,7 +950,7 @@ func KubeArmor() {
 					// destroy the daemon
 					dm.DestroyKubeArmorDaemon()
 
-					return
+					os.Exit(1)
 				}
 			} else if strings.HasPrefix(dm.Node.ContainerRuntimeVersion, "cri-o") { // cri-o
 				socketFile := kl.GetCRISocket("cri-o")
@@ -962,7 +966,7 @@ func KubeArmor() {
 					// destroy the daemon
 					dm.DestroyKubeArmorDaemon()
 
-					return
+					os.Exit(1)
 				}
 			}
 		}
@@ -983,7 +987,7 @@ func KubeArmor() {
 			// destroy the daemon
 			dm.DestroyKubeArmorDaemon()
 
-			return
+			os.Exit(1)
 		}
 		dm.Logger.Print("Initialized KubeArmor USB Device Handler")
 	}
@@ -1025,7 +1029,7 @@ func KubeArmor() {
 				// destroy the daemon
 				dm.DestroyKubeArmorDaemon()
 
-				return
+				os.Exit(1)
 			}
 			dm.Logger.Print("Started to monitor security policies")
 			syncFuncs = append(syncFuncs, securityPoliciesSynced)
@@ -1045,7 +1049,7 @@ func KubeArmor() {
 				// destroy the daemon
 				dm.DestroyKubeArmorDaemon()
 
-				return
+				os.Exit(1)
 			}
 			dm.Logger.Print("Started to monitor per-namespace default posture")
 			syncFuncs = append(syncFuncs, defaultPostureSynced)
@@ -1056,7 +1060,7 @@ func KubeArmor() {
 				// destroy the daemon
 				dm.DestroyKubeArmorDaemon()
 
-				return
+				os.Exit(1)
 			}
 			dm.Logger.Print("Watching for posture changes")
 			syncFuncs = append(syncFuncs, configMapSynced)
@@ -1095,7 +1099,7 @@ func KubeArmor() {
 				// destroy the daemon
 				dm.DestroyKubeArmorDaemon()
 
-				return
+				os.Exit(1)
 			}
 			dm.Logger.Print("All Kubernetes informer caches synced successfully")
 		}
@@ -1170,7 +1174,7 @@ func KubeArmor() {
 			// destroy the daemon
 			dm.DestroyKubeArmorDaemon()
 
-			return
+			os.Exit(1)
 		}
 		dm.Logger.Print("Initialized KVM Agent")
 
