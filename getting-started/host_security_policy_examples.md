@@ -3,7 +3,7 @@
 Here, we demonstrate how to define host security policies.
 
 * Process Execution Restriction
-  * Block a specific executable \([hsp-kubearmor-dev-proc-path-block.yaml](../examples/host-security-policies/hsp-kubearmor-dev-proc-path-block.yaml)\)
+  * Block a specific executable \([hsp-kubearmor-dev-proc-path-block.yaml](../examples/host-security-policies/hsp-k8s-kubearmor-dev-proc-path-block.yaml)\)
 
     ```text
     apiVersion: security.kubearmor.com/v1
@@ -36,7 +36,7 @@ Here, we demonstrate how to define host security policies.
     ---
 
 * File Access Restriction
-  * Audit a critical file access \([hsp-kubearmor-dev-file-path-audit.yaml](../examples/multiubuntu/security-policies/hsp-kubearmor-dev-file-path-audit.yaml)\)
+  * Audit a critical file access \([hsp-kubearmor-dev-file-path-audit.yaml](../examples/host-security-policies/hsp-k8s-kubearmor-dev-file-path-audit.yaml)\)
 
     ```text
     apiVersion: security.kubearmor.com/v1

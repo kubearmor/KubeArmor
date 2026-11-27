@@ -5,7 +5,7 @@ If you are interested in contributing to KubeArmor then you probably would be wo
 2. KubeArmor Controller
 3. KubeArmor Core
 
-You may feel the need to test the changes locally before committing, which will be advantageous for both; Contributors and Reviewers. If you have made any change in Operator or Controller then follow this guide and if changes are in KubeArmor core then follow the [Testing Guide](testing_guide)
+You may feel the need to test the changes locally before committing, which will be advantageous for both; Contributors and Reviewers. If you have made any change in Operator or Controller then follow this guide and if changes are in KubeArmor core then follow the [Testing Guide](testing_guide.md)
 
 # Testing Operator/Controller
 
@@ -43,6 +43,6 @@ You can skip this if kubearmor images (core and init) are already built!
 
 2. These steps are for building both operator and controller but it may be possible that you just want to rebuild only one of them.
 
-3. After building operator and controller locally, run the automated `ginkgo tests` by following the steps from [Testing Guide](testing_guide)
+3. After building operator and controller locally, run the automated `ginkgo tests` by following the steps from [Testing Guide](testing_guide.md)
 
 4. Tests may fail due to flakiness! we are trying our best to reduce flakiness, so do manual testing also and add screenshots/videos to the pull request.
