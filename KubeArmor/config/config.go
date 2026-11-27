@@ -62,8 +62,10 @@ type KubearmorConfig struct {
 	InitTimeout        string       // Timeout for main thread init stages
 
 	SystemMonitor bool // enable system monitor
-	StateAgent    bool // enable KubeArmor state agent
-	UseOCIHooks   bool
+	UseOCIHooks bool   // Use OCI hooks for container visibility instead of CRI socket
+	HookFilePath    string // OCI hook path to use
+	StateAgent  bool   // enable KubeArmor state agent
+	RestorePath string // Path to restore policies from
 
 	AlertThrottling   bool  // Enable/Disable Alert Throttling
 	MaxAlertPerSec    int32 // Maximum alerts allowed per second
@@ -123,6 +125,9 @@ const (
 	ConfigCoverageTest                   string = "coverageTest"
 	ConfigK8sEnv                         string = "k8s"
 	ConfigDebug                          string = "debug"
+	UseOCIHooks                          string = "useOCIHooks"
+	HookFilePath                         string = "hookFilePath"
+	RestorePath                          string = "restorePath"
 	ConfigUntrackedNs                    string = "untrackedNs"
 	LsmOrder                             string = "lsm"
 	BPFFsPath                            string = "bpfFsPath"
@@ -138,7 +143,6 @@ const (
 	ConfigProcFsMount                    string = "procfsMount"
 	ConfigDropResourceFromProcessLogs    string = "dropResourceFromProcessLogs"
 	ConfigMachineIDPath                  string = "machineIDPath"
-	UseOCIHooks                          string = "useOCIHooks"
 	ConfigEnableIma                      string = "enableIMA"
 	ConfigUSBDeviceHandler               string = "enableUSBDeviceHandler"
 	ConfigArgMatching                    string = "matchArgs"
@@ -200,6 +204,12 @@ func readCmdLineParams() {
 
 	stateAgent := flag.Bool(ConfigStateAgent, false, "enabling KubeArmor State Agent client")
 
+	useOCIHooks := flag.Bool(UseOCIHooks, false, "Use OCI hooks to get new containers instead of using container runtime socket")
+
+	hookFilePath := flag.String(HookFilePath, "", "OCI hook container info output file path to use")
+
+	restorePath := flag.String(RestorePath, PolicyDir, "Path to restore policies from")
+
 	alertThrottling := flag.Bool(ConfigAlertThrottling, true, "enabling Alert Throttling")
 
 	maxAlertPerSec := flag.Int(ConfigMaxAlertPerSec, 10, "Maximum alerts allowed per second")
@@ -211,8 +221,6 @@ func readCmdLineParams() {
 	procFsMount := flag.String(ConfigProcFsMount, "/proc", "Path to the BPF filesystem to use for storing maps")
 
 	machineIDPath := flag.String(ConfigMachineIDPath, "/etc/machine-id", "Path to machine-id file")
-
-	useOCIHooks := flag.Bool(UseOCIHooks, false, "Use OCI hooks to get new containers instead of using container runtime socket")
 
 	enableIMA := flag.Bool(ConfigEnableIma, false, "to enable/disable file integrity IMA hash using bpf_file_ima_hash")
 	usbDeviceHandler := flag.Bool(ConfigUSBDeviceHandler, false, "Enable USB device observability and enforcement")
@@ -287,6 +295,12 @@ func readCmdLineParams() {
 
 	viper.SetDefault(ConfigStateAgent, *stateAgent)
 
+	viper.SetDefault(UseOCIHooks, *useOCIHooks)
+
+	viper.SetDefault(HookFilePath, *hookFilePath)
+
+	viper.SetDefault(RestorePath, *restorePath)
+
 	viper.SetDefault(ConfigAlertThrottling, *alertThrottling)
 
 	viper.SetDefault(ConfigMaxAlertPerSec, *maxAlertPerSec)
@@ -298,8 +312,6 @@ func readCmdLineParams() {
 	viper.SetDefault(ConfigProcFsMount, *procFsMount)
 
 	viper.SetDefault(ConfigMachineIDPath, *machineIDPath)
-
-	viper.SetDefault(UseOCIHooks, *useOCIHooks)
 
 	viper.SetDefault(ConfigEnableIma, *enableIMA)
 
@@ -445,10 +457,19 @@ func LoadDynamicConfig() {
 	GlobalCfg.EnforcerAlerts = viper.GetBool(EnforcerAlerts)
 	GlobalCfg.DefaultPostureLogs = viper.GetBool(ConfigDefaultPostureLogs)
 
+	GlobalCfg.InitTimeout = viper.GetString(ConfigInitTimeout)
+
+	GlobalCfg.StateAgent = viper.GetBool(ConfigStateAgent)
+
+	GlobalCfg.UseOCIHooks = viper.GetBool(UseOCIHooks)
+
+	GlobalCfg.HookFilePath = viper.GetString(HookFilePath)
+
+	GlobalCfg.RestorePath = viper.GetString(RestorePath)
+
 	GlobalCfg.AlertThrottling = viper.GetBool(ConfigAlertThrottling)
 	GlobalCfg.MaxAlertPerSec = int32(viper.GetInt(ConfigMaxAlertPerSec))
 	GlobalCfg.ThrottleSec = int32(viper.GetInt(ConfigThrottleSec))
-	GlobalCfg.InitTimeout = viper.GetString(ConfigInitTimeout)
 
 	GlobalCfg.SystemMonitor = viper.GetBool(ConfigSystemMonitor)
 

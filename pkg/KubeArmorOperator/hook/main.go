@@ -16,6 +16,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/kubearmor/KubeArmor/KubeArmor/types"
@@ -25,17 +26,42 @@ import (
 var (
 	kubeArmorSocket string
 	runtimeSocket   string
+	hookOutputFile  string
 	detached        bool
 )
 
 func main() {
 	flag.StringVar(&kubeArmorSocket, "kubearmor-socket", "/var/run/kubearmor/ka.sock", "KubeArmor socket")
 	flag.StringVar(&runtimeSocket, "runtime-socket", "", "container runtime socket")
+	flag.StringVar(&hookOutputFile, "hook-output", "/opt/kubearmor_hook_output.json", "output file path for Kata container events")
 	flag.BoolVar(&detached, "detached", false, "run detached")
 	flag.Parse()
 
-	if runtimeSocket == "" {
-		log.Println("runtime socket must be set")
+	// Auto-detect Kata Containers microVM environment by checking
+	// for the Kata shared root directory
+	if runtimeSocket == "" && !detached {
+		if _, err := os.Stat("/var/run/kata-containers/shared"); err == nil {
+			input, err := io.ReadAll(os.Stdin)
+			if err != nil {
+				log.Printf("kata hook: failed to read stdin: %v", err)
+				os.Exit(0)
+			}
+
+			var state specs.State
+			if err := json.Unmarshal(input, &state); err != nil {
+				log.Printf("kata hook: failed to unmarshal OCI state: %v", err)
+				os.Exit(0)
+			}
+
+			if err := runKata(state); err != nil {
+				log.Printf("kata hook: %v", err)
+			}
+			// Fail-open so hook issues never block container lifecycle
+			os.Exit(0)
+		}
+	}
+	if runtimeSocket == "" && detached {
+		log.Println("runtime socket must be set for detached mode")
 		os.Exit(1)
 	}
 	if detached {
@@ -61,7 +87,121 @@ func main() {
 		log.Println(err)
 		os.Exit(1)
 	}
+}
 
+func runKata(state specs.State) error {
+	// Skip CRI pod sandbox (pause) containers
+	if state.Annotations["io.kubernetes.cri.container-type"] == "sandbox" {
+		return nil
+	}
+
+	lockFile, err := os.OpenFile(kataHookLockFile, os.O_CREATE|os.O_RDWR, 0600)
+	if err != nil {
+		return fmt.Errorf("failed to open lock file: %w", err)
+	}
+	defer lockFile.Close()
+
+	if err := syscall.Flock(int(lockFile.Fd()), syscall.LOCK_EX); err != nil {
+		return fmt.Errorf("failed to acquire lock: %w", err)
+	}
+	defer func() {
+		_ = syscall.Flock(int(lockFile.Fd()), syscall.LOCK_UN)
+	}()
+
+	containerName := firstNonEmpty(
+		state.Annotations["io.kubernetes.cri.container-name"],
+		state.Annotations["io.kubernetes.container.name"],
+	)
+	containerNS := firstNonEmpty(
+		state.Annotations["io.kubernetes.cri.sandbox-namespace"],
+		state.Annotations["io.kubernetes.pod.namespace"],
+	)
+	endPointName := firstNonEmpty(
+		state.Annotations["io.kubernetes.cri.sandbox-name"],
+		state.Annotations["io.kubernetes.pod.name"],
+	)
+
+	var spec specs.Spec
+	specLoaded := false
+	if state.Bundle != "" {
+		if specBytes, err := os.ReadFile(filepath.Join(state.Bundle, "config.json")); err == nil {
+			if err := json.Unmarshal(specBytes, &spec); err == nil {
+				specLoaded = true
+			}
+		}
+	}
+
+	isKubeArmor := containerName == "kubearmor"
+	if !isKubeArmor && specLoaded && spec.Process != nil && len(spec.Process.Args) > 0 {
+		isKubeArmor = spec.Process.Args[0] == "/KubeArmor/kubearmor"
+	}
+
+	kaInfo, kaKnown := loadKataKubeArmorInfo()
+
+	// Handle poststop (container stopped)
+	if isKataPoststop(state) {
+		if isKubeArmor || (kaKnown && kaInfo.ContainerID == state.ID) {
+			_ = os.Remove(kataKubeArmorInfoFile)
+			return nil
+		}
+
+		containers, err := loadKataContainers()
+		if err != nil {
+			return err
+		}
+		if _, exists := containers[state.ID]; !exists {
+			return nil
+		}
+		delete(containers, state.ID)
+
+		return persistAndSyncKataContainers(containers, kaInfo, kaKnown)
+	}
+
+	// Handle prestart (container starting)
+	containers, err := loadKataContainers()
+	if err != nil {
+		return err
+	}
+
+	if isKubeArmor {
+		kaInfo = kataKubeArmorInfo{
+			ContainerID: state.ID,
+			Rootfs:      resolveKataRootfs(state, spec, specLoaded),
+		}
+		if err := saveKataKubeArmorInfo(kaInfo); err != nil {
+			return fmt.Errorf("failed to save kubearmor info: %w", err)
+		}
+		// Don't monitor KubeArmor itself; sync any already-buffered containers into its rootfs
+		return syncKataContainersToRootfs(containers, kaInfo.Rootfs)
+	}
+
+	var appArmorProfile string
+	if specLoaded && spec.Process != nil {
+		appArmorProfile = spec.Process.ApparmorProfile
+	} else if containerName != "" {
+		appArmorProfile = strings.TrimPrefix(
+			state.Annotations[fmt.Sprintf("container.apparmor.security.beta.kubernetes.io/%s", containerName)],
+			"localhost/",
+		)
+	}
+
+	if containerName == "" {
+		containerName = state.ID
+	}
+
+	container := types.Container{
+		ContainerID:     state.ID,
+		ContainerName:   containerName,
+		EndPointName:    endPointName,
+		NamespaceName:   containerNS,
+		AppArmorProfile: appArmorProfile,
+	}
+	if state.Pid > 0 {
+		container.PidNS, container.MntNS = getNS(state.Pid)
+	}
+
+	containers[state.ID] = container
+	return persistAndSyncKataContainers(containers, kaInfo, kaKnown)
 }
 
 func runDetached() error {
@@ -116,13 +256,14 @@ func run(state specs.State) error {
 	operation := types.HookContainerCreate
 	// we try to connect to runtime here to make sure the socket is correct
 	// before spawning a detached process
-	handler, err := getRuntimeHandler(runtimeSocket)
-	if err != nil {
-		return err
-	}
-	err = handler.close()
-	if err != nil {
-		log.Printf("failed to close runtime connection: %s", err.Error())
+	if runtimeSocket != "" {
+		handler, err := getRuntimeHandler(runtimeSocket)
+		if err == nil {
+			err = handler.close()
+			if err != nil {
+				log.Printf("failed to close runtime connection: %s", err.Error())
+			}
+		}
 	}
 
 	container.ContainerID = state.ID
@@ -132,16 +273,6 @@ func run(state specs.State) error {
 	}
 
 	var appArmorProfile string
-	// the decision whether a container is KubeArmor container or not is done
-	// based on two things:
-	// - if we managed to get container spec, then we check the init process
-	// - if we couldn't, we use container name from kubernetes annotations
-	// this might lead to some containers acting as KubeArmor to spawn a detached
-	// processes that are unneeded. However, the design of KubeArmor hook logic
-	// is built around being idempotent so same requests being sent over and over
-	// shouldn't be a security issue. We can always add more restrictions on that guess
-	// but we always need to make sure to never introduce any false negatives as KubeArmor
-	// running without knowledge of previous containers could be a security issue.
 	var isKubeArmor bool
 	specBytes, err := os.ReadFile(filepath.Join(state.Bundle, "config.json"))
 	if err != nil {
@@ -158,7 +289,7 @@ func run(state specs.State) error {
 		if err != nil {
 			return err
 		}
-		appArmorProfile = spec.Process.ApparmorProfile // check if Process is nil??
+		appArmorProfile = spec.Process.ApparmorProfile
 		isKubeArmor = spec.Process.Args[0] == "/KubeArmor/kubearmor"
 	}
 
@@ -167,9 +298,6 @@ func run(state specs.State) error {
 		if err != nil {
 			return err
 		}
-		// we still continue to try to send container details after starting the detached process
-		// to make sure if it was a false positive (container trying to act as KubeArmor), we still
-		// monitor it.
 	}
 	container = types.Container{
 		ContainerID:     state.ID,
@@ -205,10 +333,6 @@ func getNS(pid int) (uint32, uint32) {
 func sendContainer(container types.Container, operation types.HookOperation) error {
 	conn, err := net.Dial("unix", kubeArmorSocket)
 	if err != nil {
-		// not returning error here because this can happen in multiple cases
-		// that we don't want container creation to be blocked on:
-		// - hook was created before KubeArmor was running so the socket doesn't exist yet
-		// - KubeArmor crashed so there is nothing listening on socket
 		return nil
 	}
 
@@ -241,10 +365,9 @@ func sendContainer(container types.Container, operation types.HookOperation) err
 		if bytes.Equal(response, []byte("ok")) {
 			return nil
 		} else {
-			time.Sleep(50 * time.Millisecond) // try again in 50 ms
+			time.Sleep(50 * time.Millisecond)
 			continue
 		}
-
 	}
 }
 

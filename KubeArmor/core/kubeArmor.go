@@ -739,7 +739,8 @@ func KubeArmor() {
 
 	// Un-orchestrated workloads
 	if !dm.K8sEnabled && cfg.GlobalCfg.Policy {
-		// Check if cri socket set, if not then auto detect
+		// Check if cri socket set, if not then auto detect 
+		// only needed when not using OCI hooks
 		if !cfg.GlobalCfg.UseOCIHooks {
 			if cfg.GlobalCfg.CRISocket == "" {
 				if kl.GetCRISocket("") == "" {
@@ -751,8 +752,7 @@ func KubeArmor() {
 			} else {
 				// CRI socket supplied by user, check for existence
 				criSocketPath := strings.TrimPrefix(cfg.GlobalCfg.CRISocket, "unix://")
-				_, err := os.Stat(criSocketPath)
-				if err != nil {
+				if _, err := os.Stat(criSocketPath); err != nil {
 					enableContainerPolicy = false
 					dm.Logger.Warnf("Error while looking for CRI socket file %s", err.Error())
 				}
@@ -763,11 +763,20 @@ func KubeArmor() {
 			dm.SetContainerNSVisibility()
 
 			// monitor containers
-			if strings.Contains(cfg.GlobalCfg.CRISocket, "docker") {
+			if cfg.GlobalCfg.UseOCIHooks {
+				if cfg.GlobalCfg.HookFilePath != "" {
+					go dm.WatchKataHookFile(cfg.GlobalCfg.HookFilePath)
+					dm.Logger.Printf("Using Kata OCI hook file %s for monitoring containers", cfg.GlobalCfg.HookFilePath)
+				} else {
+					go dm.ListenToNonK8sHook()
+					dm.Logger.Printf("Using OCI Hooks for monitoring containers")
+				}
+			} else if strings.Contains(cfg.GlobalCfg.CRISocket, "docker") {
 				// update already deployed containers
 				dm.GetAlreadyDeployedDockerContainers()
 				// monitor docker events
 				go dm.MonitorDockerEvents()
+				dm.Logger.Printf("Using %s for monitoring containers", cfg.GlobalCfg.CRISocket)
 			} else if strings.Contains(cfg.GlobalCfg.CRISocket, "containerd") {
 				// insuring NRI monitoring only in case containerd is present
 				if cfg.GlobalCfg.NRIEnabled && dm.checkNRIAvailability() == nil {
@@ -777,20 +786,14 @@ func KubeArmor() {
 					// monitor containerd events
 					go dm.MonitorContainerdEvents()
 				}
+				dm.Logger.Printf("Using %s for monitoring containers", cfg.GlobalCfg.CRISocket)
 			} else if strings.Contains(cfg.GlobalCfg.CRISocket, "cri-o") {
 				// monitor crio events
 				go dm.MonitorCrioEvents()
-			} else if cfg.GlobalCfg.UseOCIHooks {
-				go dm.ListenToNonK8sHook()
-			} else {
-				enableContainerPolicy = false
-				dm.Logger.Warnf("Failed to monitor containers: %s is not a supported CRI socket.", cfg.GlobalCfg.CRISocket)
-			}
-
-			if cfg.GlobalCfg.UseOCIHooks {
-				dm.Logger.Printf("Using OCI Hooks for monitoring containers")
-			} else {
 				dm.Logger.Printf("Using %s for monitoring containers", cfg.GlobalCfg.CRISocket)
+			} else {
+				dm.Logger.Warnf("Failed to monitor containers: %s is not a supported CRI socket.", cfg.GlobalCfg.CRISocket)
+				enableContainerPolicy = false
 			}
 		}
 	}
@@ -804,10 +807,14 @@ func KubeArmor() {
 	}
 
 	if dm.K8sEnabled && cfg.GlobalCfg.Policy {
-		if cfg.GlobalCfg.UseOCIHooks &&
+		if cfg.GlobalCfg.UseOCIHooks && cfg.GlobalCfg.HookFilePath != "" {
+			go dm.WatchKataHookFile(cfg.GlobalCfg.HookFilePath)
+			dm.Logger.Printf("Using Kata OCI hook file %s for monitoring containers", cfg.GlobalCfg.HookFilePath)
+		} else if cfg.GlobalCfg.UseOCIHooks &&
 			(strings.Contains(dm.Node.ContainerRuntimeVersion, "cri-o") ||
 				(strings.Contains(dm.Node.ContainerRuntimeVersion, "containerd") && dm.checkNRIAvailability() == nil)) {
 			go dm.ListenToK8sHook()
+			dm.Logger.Printf("Using OCI Hooks for monitoring containers")
 		} else if dm.checkNRIAvailability() == nil {
 			// monitor NRI events
 			go dm.MonitorNRIEvents()
