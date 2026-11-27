@@ -98,6 +98,64 @@ spec:
         imagePullPolicy: [image pull policy]                   # DEFAULT - Always
 ```
 
+### Elasticsearch adapter
+
+The Elasticsearch adapter exports KubeArmor alerts from the relay server. Configure it under `spec.adapters.elasticsearch` in your `KubeArmorConfig`:
+
+```yaml
+spec:
+  adapters:
+    elasticsearch:
+      enabled: true
+      url: https://elasticsearch.example.com:9200
+      alertsIndex: kubearmor-alerts
+      auth:
+        secretName: elastic-secret
+        usernameKey: username
+        passwordKey: password
+        allowInsecureTLS: false
+        caCertSecretName: elastic-ca
+        caCertKey: ca.crt
+```
+
+The adapter is disabled by default. `alertsIndex` defaults to `kubearmor-alerts`; the default authentication Secret name and keys are `elastic-secret`, `username`, and `password`. The authentication keys are optional, so omit `auth` when Elasticsearch does not require credentials.
+
+| Field | Description |
+|-------|-------------|
+| `enabled` | Enables alert export to Elasticsearch. Defaults to `false`. |
+| `url` | Elasticsearch endpoint URL, including the scheme and port when needed. Set it when the adapter is enabled. |
+| `alertsIndex` | Index where alerts are written. Defaults to `kubearmor-alerts`. |
+| `auth.secretName` | Name of the Kubernetes Secret containing the credentials. Defaults to `elastic-secret`. |
+| `auth.usernameKey` | Key in the credentials Secret containing the username. Defaults to `username`. |
+| `auth.passwordKey` | Key in the credentials Secret containing the password. Defaults to `password`. |
+| `auth.allowInsecureTLS` | Skips TLS certificate verification when `true`. Keep this `false` for normal deployments. Defaults to `false`. |
+| `auth.caCertSecretName` | Optional Secret containing the CA certificate used to verify the Elasticsearch TLS certificate. |
+| `auth.caCertKey` | Key in the CA Secret containing the CA certificate. Defaults to `ca.crt`. |
+
+Create the referenced Secrets in the `kubearmor` namespace. For example, create the credentials Secret without putting credentials in the command line. Apply this Secret separately, and do not commit real credential values:
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: elastic-secret
+  namespace: kubearmor
+type: Opaque
+stringData:
+  username: replace-with-elasticsearch-username
+  password: replace-with-elasticsearch-password
+```
+
+If Elasticsearch uses a private CA, create a Secret with the CA certificate under the key configured by `auth.caCertKey` (shown above as `ca.crt`):
+
+```bash
+kubectl create secret generic elastic-ca \
+  --namespace kubearmor \
+  --from-file=ca.crt=./ca.crt
+```
+
+Set `auth.allowInsecureTLS: true` only when you intentionally need to skip certificate verification; using `auth.caCertSecretName` is preferred for a private CA.
+
 ## Verify if all the resources are up and running
 If a valid configuration is received, the operator will deploy jobs to your nodes to get the environment information and then start installing KubeArmor components.
 
