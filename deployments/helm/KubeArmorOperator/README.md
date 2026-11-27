@@ -76,26 +76,51 @@ spec:
     kubearmorImage:
         image: [image-repo:tag]                                # DEFAULT - kubearmor/kubearmor:stable
         imagePullPolicy: [image pull policy]                   # DEFAULT - Always
+        args: []                                               # DEFAULT - [] (extra args for the container)
+        env: []                                                # DEFAULT - [] (extra env vars for the container)
+        imagePullSecrets: []                                   # DEFAULT - [] (secrets to pull the image)
+        nodeSelector: {}                                       # DEFAULT - {} (restrict pods to matching nodes)
+        tolerations: []                                        # DEFAULT - [] (tolerate tainted nodes)
 
     # KubeArmor init image and pull policy
     kubearmorInitImage:
         image: [image-repo:tag]                                # DEFAULT - kubearmor/kubearmor-init:stable
         imagePullPolicy: [image pull policy]                   # DEFAULT - Always
+        args: []                                               # DEFAULT - [] (extra args for the container)
+        env: []                                                # DEFAULT - [] (extra env vars for the container)
+        imagePullSecrets: []                                   # DEFAULT - [] (secrets to pull the image)
+        nodeSelector: {}                                       # DEFAULT - {} (restrict pods to matching nodes)
+        tolerations: []                                        # DEFAULT - [] (tolerate tainted nodes)
 
     # KubeArmor relay image and pull policy
     kubearmorRelayImage:
         image: [image-repo:tag]                                # DEFAULT - kubearmor/kubearmor-relay-server:latest
         imagePullPolicy: [image pull policy]                   # DEFAULT - Always
+        args: []                                               # DEFAULT - [] (extra args for the container)
+        env: []                                                # DEFAULT - [] (extra env vars for the container)
+        imagePullSecrets: []                                   # DEFAULT - [] (secrets to pull the image)
+        nodeSelector: {}                                       # DEFAULT - {} (restrict pods to matching nodes)
+        tolerations: []                                        # DEFAULT - [] (tolerate tainted nodes)
 
     # KubeArmor controller image and pull policy
     kubearmorControllerImage:
         image: [image-repo:tag]                                # DEFAULT - kubearmor/kubearmor-controller:latest
         imagePullPolicy: [image pull policy]                   # DEFAULT - Always
+        args: []                                               # DEFAULT - [] (extra args for the container)
+        env: []                                                # DEFAULT - [] (extra env vars for the container)
+        imagePullSecrets: []                                   # DEFAULT - [] (secrets to pull the image)
+        nodeSelector: {}                                       # DEFAULT - {} (restrict pods to matching nodes)
+        tolerations: []                                        # DEFAULT - [] (tolerate tainted nodes)
 
     # kube-rbac-proxy image and pull policy
     kubeRbacProxyImage:
         image: [image-repo:tag]                                # DEFAULT - gcr.io/kubebuilder/kube-rbac-proxy:v0.15.0
         imagePullPolicy: [image pull policy]                   # DEFAULT - Always
+        args: []                                               # DEFAULT - [] (extra args for the container)
+        env: []                                                # DEFAULT - [] (extra env vars for the container)
+        imagePullSecrets: []                                   # DEFAULT - [] (secrets to pull the image)
+        nodeSelector: {}                                       # DEFAULT - {} (restrict pods to matching nodes)
+        tolerations: []                                        # DEFAULT - [] (tolerate tainted nodes)
 ```
 
 ## Verify if all the resources are up and running

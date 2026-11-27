@@ -13,22 +13,29 @@ import (
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
-// ImageSpec defines the image specifications
+// ImageSpec defines the image specifications for a KubeArmor component.
 type ImageSpec struct {
+	// Args are extra arguments passed to the component's container.
 	Args []string `json:"args,omitempty"`
 
+	// Env are extra environment variables for the component's container.
 	Env []corev1.EnvVar `json:"env,omitempty"`
 
+	// Image is the container image (repository:tag) for the component.
 	Image string `json:"image,omitempty"`
 
 	// +kubebuilder:validation:Enum=Always;IfNotPresent;Never
 	// +kubebuilder:default:=Always
+	// ImagePullPolicy is the image pull policy.
 	ImagePullPolicy string `json:"imagePullPolicy,omitempty"`
 
+	// ImagePullSecrets are secrets used to pull the component image.
 	ImagePullSecrets []corev1.LocalObjectReference `json:"imagePullSecrets,omitempty"`
 
+	// NodeSelector restricts the component pods to nodes matching these labels.
 	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
 
+	// Tolerations allow the component pods to be scheduled on tainted nodes.
 	Tolerations []corev1.Toleration `json:"tolerations,omitempty"`
 }
 
