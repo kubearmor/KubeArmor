@@ -184,3 +184,25 @@ func TestAddorUpdateNodeSelector(t *testing.T) {
 		})
 	})
 }
+
+func TestImageTag(t *testing.T) {
+	tests := []struct {
+		name  string
+		image string
+		want  string
+	}{
+		{name: "tagged image", image: "kubearmor/kubearmor-operator:v1.6.0", want: "v1.6.0"},
+		{name: "registry with port", image: "localhost:5000/kubearmor/kubearmor-operator:v1.6.0", want: "v1.6.0"},
+		{name: "registry with port and no tag", image: "localhost:5000/kubearmor/kubearmor-operator", want: ""},
+		{name: "no tag", image: "kubearmor/kubearmor-operator", want: ""},
+		{name: "digest only", image: "kubearmor/kubearmor-operator@sha256:0123456789abcdef", want: ""},
+		{name: "tag and digest", image: "kubearmor/kubearmor-operator:v1.6.0@sha256:0123456789abcdef", want: "v1.6.0"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := imageTag(tt.image); got != tt.want {
+				t.Errorf("imageTag(%q) = %q, want %q", tt.image, got, tt.want)
+			}
+		})
+	}
+}
