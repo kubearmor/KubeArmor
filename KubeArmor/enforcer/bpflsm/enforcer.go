@@ -400,6 +400,7 @@ func (be *BPFEnforcer) TraceEvents() {
 		log := be.Monitor.BuildLogBase(event.EventID, mon.ContextCombined{
 			ContainerID: containerID,
 			ContextSys: mon.SyscallContext{
+				Ts:   event.Ts, // kernel event time (bpf_ktime_get_ns), used for the log timestamp
 				PID:  event.PID,
 				PPID: event.PPID,
 				UID:  event.UID,

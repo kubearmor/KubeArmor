@@ -179,6 +179,7 @@ func (p *Preset) TraceEvents() {
 		log := p.Monitor.BuildLogBase(event.EventID, mon.ContextCombined{
 			ContainerID: containerID,
 			ContextSys: mon.SyscallContext{
+				Ts:   event.Ts,
 				PID:  event.PID,
 				PPID: event.PPID,
 				UID:  event.UID,
