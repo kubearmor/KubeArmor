@@ -9,6 +9,8 @@ import (
 
 	"github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/common"
 	"github.com/stretchr/testify/assert"
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 )
 
 func TestSetCriSocket(t *testing.T) {
@@ -79,5 +81,69 @@ func TestCriSocketIsUnderMountedDir(t *testing.T) {
 			setCriSocket(runtime, label, &args)
 			assert.Equal(t, []string{"-criSocket=unix://" + socket}, args)
 		}
+	}
+}
+
+func TestControllerDeploymentNeedsUpdate(t *testing.T) {
+	previous := common.IfNodeWithSecurtiyFs
+	common.IfNodeWithSecurtiyFs = false
+	t.Cleanup(func() { common.IfNodeWithSecurtiyFs = previous })
+
+	newDeployment := func(args []string, tolerations []corev1.Toleration) *appsv1.Deployment {
+		return &appsv1.Deployment{
+			Spec: appsv1.DeploymentSpec{
+				Template: corev1.PodTemplateSpec{
+					Spec: corev1.PodSpec{
+						Containers:  []corev1.Container{{Name: "manager", Args: args}},
+						Tolerations: tolerations,
+					},
+				},
+			},
+		}
+	}
+	args := []string{"--leader-elect", "--webhook-port=9443"}
+	toleration := corev1.Toleration{Key: "dedicated", Operator: corev1.TolerationOpEqual, Value: "security", Effect: corev1.TaintEffectNoSchedule}
+
+	tests := []struct {
+		name     string
+		deployed *appsv1.Deployment
+		desired  *appsv1.Deployment
+		want     bool
+	}{
+		{
+			name:     "nothing changed",
+			deployed: newDeployment(args, []corev1.Toleration{toleration}),
+			desired:  newDeployment(args, []corev1.Toleration{toleration}),
+			want:     false,
+		},
+		{
+			name:     "nil and empty tolerations are the same",
+			deployed: newDeployment(args, nil),
+			desired:  newDeployment(args, []corev1.Toleration{}),
+			want:     false,
+		},
+		{
+			name:     "toleration added",
+			deployed: newDeployment(args, nil),
+			desired:  newDeployment(args, []corev1.Toleration{toleration}),
+			want:     true,
+		},
+		{
+			name:     "toleration removed",
+			deployed: newDeployment(args, []corev1.Toleration{toleration}),
+			desired:  newDeployment(args, nil),
+			want:     true,
+		},
+		{
+			name:     "args changed",
+			deployed: newDeployment(args, nil),
+			desired:  newDeployment([]string{"--leader-elect", "--webhook-port=9444"}, nil),
+			want:     true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, controllerDeploymentNeedsUpdate(tt.deployed, tt.desired))
+		})
 	}
 }
