@@ -502,7 +502,9 @@ type FileType struct {
 
 // NetworkProtocolType Structure
 type NetworkProtocolType struct {
-	Protocol   string            `json:"protocol"`
+	Protocol   string            `json:"protocol,omitempty"`
+	Port       uint16            `json:"port,omitempty"`
+	IP         string            `json:"ip,omitempty"`
 	FromSource []MatchSourceType `json:"fromSource,omitempty"`
 	Pts        *bool             `json:"pts,omitempty"`
 	Severity   int               `json:"severity,omitempty"`
