@@ -66,6 +66,13 @@ spec:
     # optionally drop the Resource field (full cmdline) from process visibility logs
     dropResourceFromProcessLogs: false                         # DEFAULT - false
 
+    # TLS configuration for KubeArmor and relay communication
+    tls:
+      enable: false                                           # DEFAULT - false
+      extraDnsNames: []                                      # additional DNS names for relay TLS certificate
+      extraIpAddresses: []                                    # additional IP addresses for relay TLS certificate
+
+
     # enabling NRI
     # Naming convention for kubearmor daemonset in case of NRI will be effective only when initially NRI is available & enabled. 
     # In case snitch service account token is already present before its deployment, the naming convention won't show NRI, 
