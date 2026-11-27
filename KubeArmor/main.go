@@ -84,23 +84,23 @@ func main() {
 
 	if err := cleanupBpfMaps(bpfMapsDir, kl.RemoveSafe); err != nil {
 		kg.Errf("Failed to read BPF map directory: %v", err)
-		return
+		os.Exit(1)
 	}
 
 	dir, err := filepath.Abs(filepath.Dir(os.Args[0]))
 	if err != nil {
 		kg.Err(err.Error())
-		return
+		os.Exit(1)
 	}
 
 	if err := os.Chdir(dir); err != nil {
 		kg.Err(err.Error())
-		return
+		os.Exit(1)
 	}
 
 	if err := cfg.LoadConfig(); err != nil {
 		kg.Err(err.Error())
-		return
+		os.Exit(1)
 	}
 
 	if cfg.GlobalCfg.EnablePprof {
