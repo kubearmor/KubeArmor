@@ -501,6 +501,9 @@ func (dm *KubeArmorDaemon) SetHealthStatus(serviceName string, healthStatus grpc
 
 // KubeArmor Function
 func KubeArmor() {
+	// enforce runtime resource quotas (memory limit, scheduling priority)
+	kl.ApplyResourceQuotas(cfg.GlobalCfg.MaxMemoryMB, cfg.GlobalCfg.NiceLevel)
+
 	// create a daemon
 	dm := NewKubeArmorDaemon()
 	// Enable KubeArmorHostPolicy for both VM and KVMAgent and in non-k8s env
