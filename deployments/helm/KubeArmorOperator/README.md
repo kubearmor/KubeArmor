@@ -66,11 +66,20 @@ spec:
     # optionally drop the Resource field (full cmdline) from process visibility logs
     dropResourceFromProcessLogs: false                         # DEFAULT - false
 
+    # enable seccomp (secure computing mode) hardening for KubeArmor
+    # reduces the attack surface by restricting syscalls the process can make
+    seccompEnabled: false                                      # DEFAULT - false
+
+
     # enabling NRI
     # Naming convention for kubearmor daemonset in case of NRI will be effective only when initially NRI is available & enabled. 
     # In case snitch service account token is already present before its deployment, the naming convention won't show NRI, 
     # it will be based on the runtime present. This happens because operator won't get KubearmorConfig event(initially).
     enableNRI: [true|false] # DEFAULT - false
+
+    # port for the KubeArmor controller (webhook server)
+    controllerPort: 9443                                      # DEFAULT - 9443
+
 
     # KubeArmor image and pull policy
     kubearmorImage:
