@@ -141,42 +141,41 @@ func (kh *K8sHandler) DoRequest(cmd string, data any, path string) ([]byte, erro
 // == Deployment == //
 // ================ //
 
-// PatchDeploymentWithAppArmorAnnotations Function
-func (kh *K8sHandler) PatchResourceWithAppArmorAnnotations(namespaceName, deploymentName string, appArmorAnnotations map[string]string, kind string) error {
-	if !kl.IsK8sEnv() { // not Kubernetes
-		return nil
-	}
-
-	spec := `{"spec":{"template":{"metadata":{"annotations":{"kubearmor-policy":"enabled",`
-	if kind == "CronJob" {
-		spec = `{"spec":{"jobTemplate":{"spec":{"template":{"metadata":{"annotations":{"kubearmor-policy":"enabled",`
-	}
-
-	count := len(appArmorAnnotations)
+// appArmorAnnotationsPatch Function
+func appArmorAnnotationsPatch(appArmorAnnotations map[string]string, kind string) ([]byte, error) {
+	annotations := map[string]string{"kubearmor-policy": "enabled"}
 
 	for k, v := range appArmorAnnotations {
 		if v == "unconfined" {
 			continue
 		}
 
-		spec = spec + `"container.apparmor.security.beta.kubernetes.io/` + k + `":"localhost/` + v + `"`
-
-		if count > 1 {
-			spec = spec + ","
-		}
-
-		count--
+		annotations["container.apparmor.security.beta.kubernetes.io/"+k] = "localhost/" + v
 	}
 
+	template := map[string]any{"metadata": map[string]any{"annotations": annotations}}
+
 	if kind == "CronJob" {
-		spec = spec + `}}}}}}}`
-	} else {
-		spec = spec + `}}}}}`
+		return json.Marshal(map[string]any{"spec": map[string]any{"jobTemplate": map[string]any{"spec": map[string]any{"template": template}}}})
+	}
+
+	return json.Marshal(map[string]any{"spec": map[string]any{"template": template}})
+}
+
+// PatchDeploymentWithAppArmorAnnotations Function
+func (kh *K8sHandler) PatchResourceWithAppArmorAnnotations(namespaceName, deploymentName string, appArmorAnnotations map[string]string, kind string) error {
+	if !kl.IsK8sEnv() { // not Kubernetes
+		return nil
+	}
+
+	spec, err := appArmorAnnotationsPatch(appArmorAnnotations, kind)
+	if err != nil {
+		return err
 	}
 
 	switch kind {
 	case "StatefulSet":
-		_, err := kh.K8sClient.AppsV1().StatefulSets(namespaceName).Patch(context.Background(), deploymentName, types.StrategicMergePatchType, []byte(spec), metav1.PatchOptions{})
+		_, err := kh.K8sClient.AppsV1().StatefulSets(namespaceName).Patch(context.Background(), deploymentName, types.StrategicMergePatchType, spec, metav1.PatchOptions{})
 		if err != nil {
 			return err
 		}
@@ -187,7 +186,7 @@ func (kh *K8sHandler) PatchResourceWithAppArmorAnnotations(namespaceName, deploy
 			return err
 		}
 		replicas := *rs.Spec.Replicas
-		_, err = kh.K8sClient.AppsV1().ReplicaSets(namespaceName).Patch(context.Background(), deploymentName, types.MergePatchType, []byte(spec), metav1.PatchOptions{})
+		_, err = kh.K8sClient.AppsV1().ReplicaSets(namespaceName).Patch(context.Background(), deploymentName, types.MergePatchType, spec, metav1.PatchOptions{})
 		if err != nil {
 			return err
 		}
@@ -207,18 +206,18 @@ func (kh *K8sHandler) PatchResourceWithAppArmorAnnotations(namespaceName, deploy
 
 		return nil
 	case "DaemonSet":
-		_, err := kh.K8sClient.AppsV1().DaemonSets(namespaceName).Patch(context.Background(), deploymentName, types.MergePatchType, []byte(spec), metav1.PatchOptions{})
+		_, err := kh.K8sClient.AppsV1().DaemonSets(namespaceName).Patch(context.Background(), deploymentName, types.MergePatchType, spec, metav1.PatchOptions{})
 		if err != nil {
 			return err
 		}
 		return nil
 	case "Deployment":
-		_, err := kh.K8sClient.AppsV1().Deployments(namespaceName).Patch(context.Background(), deploymentName, types.StrategicMergePatchType, []byte(spec), metav1.PatchOptions{})
+		_, err := kh.K8sClient.AppsV1().Deployments(namespaceName).Patch(context.Background(), deploymentName, types.StrategicMergePatchType, spec, metav1.PatchOptions{})
 		if err != nil {
 			return err
 		}
 	case "CronJob":
-		_, err := kh.K8sClient.BatchV1().CronJobs(namespaceName).Patch(context.Background(), deploymentName, types.StrategicMergePatchType, []byte(spec), metav1.PatchOptions{})
+		_, err := kh.K8sClient.BatchV1().CronJobs(namespaceName).Patch(context.Background(), deploymentName, types.StrategicMergePatchType, spec, metav1.PatchOptions{})
 		if err != nil {
 			return err
 		}
