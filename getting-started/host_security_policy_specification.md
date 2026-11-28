@@ -66,6 +66,10 @@ spec:
       pts: [true|false]                    # --> optional
       fromSource:
       - path: [absolute executable path]
+    matchDNSQueries:
+    - domain: [domain name]
+      fromSource:
+      - path: [absolute executable path]
 
   device:
     matchDevice:
@@ -308,7 +312,7 @@ Now, we will briefly explain how to define a host security policy.
 
 * Network
 
-  In the case of network, there is currently one match type: matchProtocols. You can define specific protocols among TCP, UDP, and ICMP.
+  In the case of network, there are two match types: matchProtocols and matchDNSQueries. With matchProtocols, you can define specific protocols among TCP, UDP, and ICMP; with matchDNSQueries, you can match the DNS queries that the host processes on the selected nodes issue.
 
   ```text
     network:
@@ -316,12 +320,64 @@ Now, we will briefly explain how to define a host security policy.
       - protocol: [protocol(,)]            # --> [ TCP | tcp | UDP | udp | ICMP | icmp ]
         pts: [true|false]                  # --> optional
         fromSource:
-        - path: [absolute file path]
+        - path: [absolute executable path]
+      matchDNSQueries:
+      - domain: [domain name]
+        fromSource:
+        - path: [absolute executable path]
   ```
 
   * pts
 
     As with process executions, pts: false scopes the protocol rule to connections made by processes that have a pseudo-terminal attached. Only the BPF-LSM enforcer implements `pts`: the AppArmor and SELinux enforcers ignore it, so on a host using either of those LSMs the rule applies to every matching connection, whether or not a pseudo-terminal is attached.
+
+* DNS Queries
+
+  matchDNSQueries matches DNS queries by the domain name that is being resolved. KubeArmor inspects the DNS queries at the kernel level, thus a rule applies to the DNS lookups made by the host processes on the selected nodes, not to the network traffic toward the resolved addresses.
+
+  ```text
+    network:
+      matchDNSQueries:
+      - domain: [domain name]              # e.g., example.com
+        fromSource:
+        - path: [absolute executable path]
+  ```
+
+  In each match, there are two options.
+
+  * domain
+
+    The domain name to match. A rule for `example.com` also matches its subdomains such as `api.example.com` if `api.example.com` is resolved, because KubeArmor matches the domain suffix by stripping the leading subdomain labels from the queried name. Leading and trailing dots of the value are ignored.
+
+    The BPF-based enforcer matches at most 10 nested subdomain labels (MAX_NESTED_DNS_LABELS = 10) and extracts at most 63 characters of the queried domain name; any characters beyond that limit are not considered.
+
+  * fromSource
+
+    If a path is specified in fromSource, only the DNS queries issued by the executable at the path are matched. Otherwise, the DNS queries from all the executables on the selected nodes are matched.
+
+  A DNS query rule supports the Allow, Audit, and Block actions like the other match types. With an Allow rule, the domains that are not covered by any Allow rule follow the default posture of the host processes, which makes DNS filtering with a whitelist possible. fromSource is optional for an Allow rule and is not strictly required.
+
+  For example, the following policy blocks the DNS lookups for `google.com` issued by `/usr/bin/curl`, so curl fails to resolve the domain while the other executables can still resolve it.
+
+  ```yaml
+  apiVersion: security.kubearmor.com/v1
+  kind: KubeArmorHostPolicy
+  metadata:
+    name: block-dns-query-of-curl
+  spec:
+    severity: 10
+    nodeSelector:
+      matchLabels:
+        kubernetes.io/hostname: kubearmor-dev
+    network:
+      matchDNSQueries:
+      - domain: google.com
+        fromSource:
+        - path: /usr/bin/curl
+    action: Block
+  ```
+
+  > **Note** DNS query matching is only supported by the BPF LSM enforcer, and it inspects the DNS queries that are sent to port 53 (both UDP and TCP). DNS over TLS and DNS over HTTPS are not inspected. For a complete guide with the alert format, see [KubeArmor DNS Enforcement Guide](kubearmor_dns_enforcement.md).
 
 * Device
 
