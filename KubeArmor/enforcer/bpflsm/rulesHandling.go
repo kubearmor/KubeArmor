@@ -9,8 +9,10 @@ import (
 	"strings"
 
 	"github.com/cilium/ebpf"
+	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
 	mon "github.com/kubearmor/KubeArmor/KubeArmor/monitor"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
+	"golang.org/x/sys/unix"
 )
 
 // Bit Flags for Map Rule Mask
@@ -483,6 +485,11 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 	be.ContainerMapLock.Lock()
 	defer be.ContainerMapLock.Unlock()
 
+	// A full rule map fails every remaining Put with E2BIG; report that once per update
+	// instead of once per rule, and say what to change.
+	var failed putFailures
+	defer failed.report(be, id, newrules)
+
 	// Check if Container ID is registered in Map or not
 	if _, ok := be.ContainerMap[id]; !ok {
 		// It maybe possible that CRI has unregistered the containers but K8s construct still has not sent this update while the policy was being applied,
@@ -539,7 +546,7 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 	for key, val := range newrules.ProcessRuleList {
 		be.ContainerMap[id].Rules.ProcessRuleList[key] = val
 		if err := be.ContainerMap[id].Map.Put(key, val); err != nil {
-			be.Logger.Errf("error adding rule to map for container %s: %s", id, err)
+			failed.add(err)
 		}
 	}
 	for key, val := range newrules.ArgumentsList {
@@ -576,7 +583,7 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 	for key, val := range newrules.FileRuleList {
 		be.ContainerMap[id].Rules.FileRuleList[key] = val
 		if err := be.ContainerMap[id].Map.Put(key, val); err != nil {
-			be.Logger.Errf("error adding rule to map for container %s: %s", id, err)
+			failed.add(err)
 		}
 	}
 
@@ -619,7 +626,7 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 	for key, val := range newrules.NetworkRuleList {
 		be.ContainerMap[id].Rules.NetworkRuleList[key] = val
 		if err := be.ContainerMap[id].Map.Put(key, val); err != nil {
-			be.Logger.Errf("error adding rule to map for container %s: %s", id, err)
+			failed.add(err)
 		}
 	}
 	if newrules.CapWhiteListPosture {
@@ -642,7 +649,7 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 	for key, val := range newrules.CapabilitiesRuleList {
 		be.ContainerMap[id].Rules.CapabilitiesRuleList[key] = val
 		if err := be.ContainerMap[id].Map.Put(key, val); err != nil {
-			be.Logger.Errf("error adding rule to map for container %s: %s", id, err)
+			failed.add(err)
 		}
 	}
 }
@@ -770,4 +777,51 @@ func domaintoMap(idx int, domain, src, namespace string, m map[InnerKey][2]uint1
 		}
 		insertRule(idx, m, key, val)
 	}
+}
+
+// putFailures counts rule map writes that failed during one UpdateContainerRules call
+type putFailures struct {
+	n     int
+	first error
+}
+
+func (p *putFailures) add(err error) {
+	if p.n == 0 {
+		p.first = err
+	}
+	p.n++
+}
+
+// report logs one summary line for the failed writes of an update
+func (p *putFailures) report(be *BPFEnforcer, id string, rules RuleList) {
+	if p.n == 0 {
+		return
+	}
+	want := ruleMapEntries(rules)
+	if errors.Is(p.first, unix.E2BIG) || errors.Is(p.first, unix.ENOSPC) {
+		be.Logger.Warnf("container %s: %d of ~%d rule map entries NOT loaded, those rules are not enforced: the map holds %d (%s). "+
+			"Raise %s or use fewer, broader rules (each matchDirectories rule also takes one entry per parent directory). First error: %s",
+			id, p.n, want, be.InnerMapSpec.MaxEntries, cfg.ConfigMaxRulesPerContainer, cfg.ConfigMaxRulesPerContainer, p.first)
+		return
+	}
+	be.Logger.Warnf("container %s: %d rule map writes failed (~%d entries wanted), those rules are not enforced. First error: %s",
+		id, p.n, want, p.first)
+}
+
+// ruleMapEntries estimates the entries a rule set needs in the container's inner map
+// (process and file rules on the same key share one entry, plus the whitelist posture keys)
+func ruleMapEntries(rules RuleList) int {
+	keys := make(map[InnerKey]struct{})
+	for _, l := range []map[InnerKey][2]uint16{rules.ProcessRuleList, rules.FileRuleList, rules.NetworkRuleList, rules.CapabilitiesRuleList} {
+		for k := range l {
+			keys[k] = struct{}{}
+		}
+	}
+	n := len(keys)
+	for _, on := range []bool{rules.ProcWhiteListPosture, rules.FileWhiteListPosture, rules.NetWhiteListPosture, rules.DNSNetWhiteListPosture, rules.CapWhiteListPosture} {
+		if on {
+			n++
+		}
+	}
+	return n
 }
