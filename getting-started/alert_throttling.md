@@ -2,7 +2,7 @@
 
 Alert throttling is necessary to prevent overwhelming recipients with a flood of notifications. KubeArmor may bombard users with excessive alerts, leading to alert fatigue, where users become desensitized to notifications. Current throttling implementation is based on the frequency of the alerts. 
 
-> **Note** Alert Throttling is done per container, it's not system wide.
+> **Note** Alert Throttling is done per container, it's not system wide. For host policy alerts (`KubeArmorHostPolicy`), throttling is done per host process (executable path), so a noisy host process does not suppress alerts from other host processes.
 
 ### Usage
 

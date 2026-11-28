@@ -240,6 +240,11 @@ type BaseFeeder struct {
 type OuterKey struct {
 	PidNs uint32
 	MntNs uint32
+
+	// HostProcess is only set for host policy alerts. Host alerts have no
+	// pid/mnt namespace key, so without it every host alert on the node would
+	// share the {0, 0} bucket and one noisy host process could throttle all others.
+	HostProcess string
 }
 
 type AlertThrottleState struct {
@@ -782,17 +787,16 @@ func (fd *Feeder) PushLog(log tp.Log) {
 			((log.Type == "MatchedPolicy" || log.Type == "MatchedHostPolicy") &&
 				(log.Enforcer == "AppArmor" || log.Enforcer == "SELinux" || log.Enforcer == "eBPF Monitor") &&
 				log.PolicyName != "DefaultPosture") {
-			fd.ContainerNsKeyLock.RLock()
-			nsKey := fd.ContainerNsKey[log.ContainerID]
-			fd.ContainerNsKeyLock.RUnlock()
-			alert, throttle := fd.ShouldDropAlertsPerContainer(nsKey.PidNs, nsKey.MntNs)
-			if alert && throttle {
-				return
-			} else if alert && !throttle {
-				log.Operation = "AlertThreshold"
-				log.Type = "SystemEvent"
-				log.MaxAlertsPerSec = cfg.GlobalCfg.MaxAlertPerSec
-				log.DroppingAlertsInterval = cfg.GlobalCfg.ThrottleSec
+			if key, ok := fd.alertThrottleKey(log); ok {
+				alert, throttle := fd.shouldDropAlerts(key)
+				if alert && throttle {
+					return
+				} else if alert && !throttle {
+					log.Operation = "AlertThreshold"
+					log.Type = "SystemEvent"
+					log.MaxAlertsPerSec = cfg.GlobalCfg.MaxAlertPerSec
+					log.DroppingAlertsInterval = cfg.GlobalCfg.ThrottleSec
+				}
 			}
 		}
 		pbAlert := pb.Alert{}
@@ -959,13 +963,36 @@ func loadTLSCredentials(ip string) (credentials.TransportCredentials, error) {
 	return creds, err
 }
 
-func (fd *Feeder) ShouldDropAlertsPerContainer(pidNs, mntNs uint32) (bool, bool) {
-	currentTimestamp := kl.GetCurrentTimeStamp()
-
-	key := OuterKey{
-		PidNs: pidNs,
-		MntNs: mntNs,
+// alertThrottleKey returns the throttle bucket for an alert and whether the
+// alert should go through throttling at all.
+//   - host policy alerts get one bucket per host process
+//   - container alerts get one bucket per container (pid ns, mnt ns)
+//   - container alerts whose namespaces are not known yet are not throttled,
+//     so they can't fall into (and share) the zero-value {0, 0} bucket
+func (fd *Feeder) alertThrottleKey(log tp.Log) (OuterKey, bool) {
+	if log.Type == "MatchedHostPolicy" {
+		return OuterKey{HostProcess: log.ProcessName}, true
 	}
+
+	fd.ContainerNsKeyLock.RLock()
+	nsKey, ok := fd.ContainerNsKey[log.ContainerID]
+	fd.ContainerNsKeyLock.RUnlock()
+
+	if !ok || (nsKey.PidNs == 0 && nsKey.MntNs == 0) {
+		return OuterKey{}, false
+	}
+
+	return OuterKey{PidNs: nsKey.PidNs, MntNs: nsKey.MntNs}, true
+}
+
+// ShouldDropAlertsPerContainer reports whether the alert for the given container
+// should be turned into an AlertThreshold event (first bool) and dropped (second bool).
+func (fd *Feeder) ShouldDropAlertsPerContainer(pidNs, mntNs uint32) (bool, bool) {
+	return fd.shouldDropAlerts(OuterKey{PidNs: pidNs, MntNs: mntNs})
+}
+
+func (fd *Feeder) shouldDropAlerts(key OuterKey) (bool, bool) {
+	currentTimestamp := kl.GetCurrentTimeStamp()
 
 	fd.AlertMapLock.Lock()
 	defer fd.AlertMapLock.Unlock()
