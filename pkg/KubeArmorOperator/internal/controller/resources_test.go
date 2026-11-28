@@ -81,3 +81,12 @@ func TestCriSocketIsUnderMountedDir(t *testing.T) {
 		}
 	}
 }
+
+func TestGenerateDaemonsetWithoutInitContainer(t *testing.T) {
+	ds := generateDaemonset("kubearmor-test", "bpf", "containerd", "run_containerd_containerd.sock", "", "yes", "yes", "no", false, "")
+	assert.Empty(t, ds.Spec.Template.Spec.InitContainers)
+
+	ds = generateDaemonset("kubearmor-test", "bpf", "containerd", "run_containerd_containerd.sock", "", "yes", "yes", "no", true, "")
+	assert.Len(t, ds.Spec.Template.Spec.InitContainers, 1)
+	assert.Equal(t, common.GetApplicationImage(common.KubeArmorInitName), ds.Spec.Template.Spec.InitContainers[0].Image)
+}
