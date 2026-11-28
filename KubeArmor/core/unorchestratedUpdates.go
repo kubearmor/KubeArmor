@@ -6,6 +6,7 @@ package core
 import (
 	"encoding/json"
 	"os"
+	"path/filepath"
 	"regexp"
 	"slices"
 	"strings"
@@ -802,6 +803,12 @@ func (dm *KubeArmorDaemon) ParseAndUpdateContainerSecurityPolicy(event tp.K8sKub
 // ====================== //
 
 func (dm *KubeArmorDaemon) backupPolicy(kind string, metadata map[string]string, spec any) {
+	fname, ok := policyBackupPath(metadata["policyName"])
+	if !ok {
+		kg.Warnf("Invalid policy name for backup (%s)", metadata["policyName"])
+		return
+	}
+
 	// Check for "/opt/kubearmor/policies" path. If dir not found, create the same
 	if _, err := os.Stat(cfg.PolicyDir); err != nil {
 		if err = os.MkdirAll(cfg.PolicyDir, 0700); err != nil {
@@ -823,7 +830,7 @@ func (dm *KubeArmorDaemon) backupPolicy(kind string, metadata map[string]string,
 	var file *os.File
 	var err error
 
-	if file, err = os.Create(cfg.PolicyDir + metadata["policyName"] + ".yaml"); err == nil {
+	if file, err = os.Create(filepath.Clean(fname)); err == nil {
 		if policyBytes, err := json.Marshal(backup); err == nil {
 			if _, err = file.Write(policyBytes); err == nil {
 				if err := file.Close(); err != nil {
@@ -914,10 +921,24 @@ func (dm *KubeArmorDaemon) restoreKubeArmorPolicies() {
 	}
 }
 
+// policyBackupPath returns the backup file path for a policy name
+// the name is used as a single file name component under cfg.PolicyDir,
+// so it must not carry path separators or parent directory references
+func policyBackupPath(name string) (string, bool) {
+	if name == "" || strings.Contains(name, "/") || strings.Contains(name, "\\") || strings.Contains(name, "..") {
+		return "", false
+	}
+	return cfg.PolicyDir + name + ".yaml", true
+}
+
 // removeBackUpPolicy Function
 func (dm *KubeArmorDaemon) removeBackUpPolicy(name string) {
 
-	fname := cfg.PolicyDir + name + ".yaml"
+	fname, ok := policyBackupPath(name)
+	if !ok {
+		kg.Warnf("Invalid policy name for backup (%s)", name)
+		return
+	}
 	// Check for "/opt/kubearmor/policies" path. If dir not found, create the same
 	if _, err := os.Stat(fname); err != nil {
 		kg.Printf("Backup policy [%v] not exist", fname)
