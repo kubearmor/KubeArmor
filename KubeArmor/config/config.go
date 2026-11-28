@@ -65,10 +65,13 @@ type KubearmorConfig struct {
 	StateAgent    bool // enable KubeArmor state agent
 	UseOCIHooks   bool
 
-	AlertThrottling   bool  // Enable/Disable Alert Throttling
-	MaxAlertPerSec    int32 // Maximum alerts allowed per second
-	ThrottleSec       int32 // Number of seconds for which subsequent alerts will be dropped
-	AnnotateResources bool  // enable annotations by kubearmor if kubearmor-controller is not present
+	AlertThrottling bool  // Enable/Disable Alert Throttling
+	MaxAlertPerSec  int32 // Maximum alerts allowed per second
+	ThrottleSec     int32 // Number of seconds for which subsequent alerts will be dropped
+	// MaxRulesPerContainer is the size of each container's BPF-LSM rule map (entries, not
+	// policy lines: a matchDirectories rule also takes one entry per parent directory)
+	MaxRulesPerContainer uint32
+	AnnotateResources    bool // enable annotations by kubearmor if kubearmor-controller is not present
 
 	ProcFsMount string // path where procfs is hosted
 
@@ -134,6 +137,7 @@ const (
 	ConfigAlertThrottling                string = "alertThrottling"
 	ConfigMaxAlertPerSec                 string = "maxAlertPerSec"
 	ConfigThrottleSec                    string = "throttleSec"
+	ConfigMaxRulesPerContainer           string = "maxRulesPerContainer"
 	ConfigAnnotateResources              string = "annotateResources"
 	ConfigProcFsMount                    string = "procfsMount"
 	ConfigDropResourceFromProcessLogs    string = "dropResourceFromProcessLogs"
@@ -205,6 +209,8 @@ func readCmdLineParams() {
 	maxAlertPerSec := flag.Int(ConfigMaxAlertPerSec, 10, "Maximum alerts allowed per second")
 
 	throttleSec := flag.Int(ConfigThrottleSec, 30, "Time period for which subsequent alerts will be dropped (in sec)")
+
+	maxRulesPerContainer := flag.Int(ConfigMaxRulesPerContainer, DefaultMaxRulesPerContainer, "BPF-LSM: rule map entries per container (each costs ~450 bytes of kernel memory per container with a policy)")
 
 	annotateResources := flag.Bool(ConfigAnnotateResources, false, "for kubearmor deployment without kubearmor-controller")
 
@@ -292,6 +298,8 @@ func readCmdLineParams() {
 	viper.SetDefault(ConfigMaxAlertPerSec, *maxAlertPerSec)
 
 	viper.SetDefault(ConfigThrottleSec, *throttleSec)
+
+	viper.SetDefault(ConfigMaxRulesPerContainer, *maxRulesPerContainer)
 
 	viper.SetDefault(ConfigAnnotateResources, *annotateResources)
 
@@ -448,6 +456,7 @@ func LoadDynamicConfig() {
 	GlobalCfg.AlertThrottling = viper.GetBool(ConfigAlertThrottling)
 	GlobalCfg.MaxAlertPerSec = int32(viper.GetInt(ConfigMaxAlertPerSec))
 	GlobalCfg.ThrottleSec = int32(viper.GetInt(ConfigThrottleSec))
+	GlobalCfg.MaxRulesPerContainer = validMaxRulesPerContainer(viper.GetInt(ConfigMaxRulesPerContainer))
 	GlobalCfg.InitTimeout = viper.GetString(ConfigInitTimeout)
 
 	GlobalCfg.SystemMonitor = viper.GetBool(ConfigSystemMonitor)
@@ -463,4 +472,20 @@ func LoadDynamicConfig() {
 	GlobalCfg.NetworkPolicyEnforcer = viper.GetBool(ConfigNetworkPolicyEnforcer)
 
 	kg.Printf("Final Configuration [%+v]", GlobalCfg)
+}
+
+const (
+	// DefaultMaxRulesPerContainer is the BPF-LSM per-container rule map size used before it was configurable
+	DefaultMaxRulesPerContainer = 256
+	// MaxMaxRulesPerContainer caps maxRulesPerContainer (~29 MiB of kernel memory per container)
+	MaxMaxRulesPerContainer = 65536
+)
+
+// validMaxRulesPerContainer returns n, or the default when n is out of range
+func validMaxRulesPerContainer(n int) uint32 {
+	if n < 1 || n > MaxMaxRulesPerContainer {
+		kg.Warnf("%s=%d is out of range (1-%d), using %d", ConfigMaxRulesPerContainer, n, MaxMaxRulesPerContainer, DefaultMaxRulesPerContainer)
+		return DefaultMaxRulesPerContainer
+	}
+	return uint32(n)
 }

@@ -80,12 +80,17 @@ func NewBPFEnforcer(node tp.Node, pinpath string, logger *fd.Feeder, monitor *mo
 	be.ContainerMap = make(map[string]ContainerKV)
 	be.ContainerMapLock = new(sync.RWMutex)
 
+	maxRules := cfg.GlobalCfg.MaxRulesPerContainer
+	if maxRules == 0 { // config not loaded (e.g. tests)
+		maxRules = cfg.DefaultMaxRulesPerContainer
+	}
 	be.InnerMapSpec = &ebpf.MapSpec{
 		Type:       ebpf.Hash,
 		KeySize:    400,
 		ValueSize:  4,
-		MaxEntries: 256,
+		MaxEntries: maxRules,
 	}
+	be.Logger.Printf("BPF-LSM rule map: up to %d entries per container (%s)", maxRules, cfg.ConfigMaxRulesPerContainer)
 
 	be.BPFContainerMap, err = ebpf.NewMapWithOptions(&ebpf.MapSpec{
 		Type:       ebpf.HashOfMaps,
