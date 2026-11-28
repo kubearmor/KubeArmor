@@ -196,6 +196,15 @@ func (ae *AppArmorEnforcer) DestroyAppArmorEnforcer() error {
 	return nil
 }
 
+// appArmorProfileNameRegex matches profile names that are safe to use both as a
+// file name under /etc/apparmor.d and as the profile name in the profile text
+var appArmorProfileNameRegex = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9_.-]*$`)
+
+// isValidAppArmorProfileName Function
+func isValidAppArmorProfileName(name string) bool {
+	return appArmorProfileNameRegex.MatchString(name) && !strings.Contains(name, "..")
+}
+
 // ================================= //
 // == AppArmor Profile Management == //
 // ================================= //
@@ -212,7 +221,7 @@ func (ae *AppArmorEnforcer) RegisterAppArmorProfile(podName, profileName string,
 
 	// this path is expected to have a single component "apparmor-profile"
 	// and this is to ensure that the filename has no path separators or parent directory references
-	if strings.Contains(profileName, "/") || strings.Contains(profileName, "\\") || strings.Contains(profileName, "..") {
+	if !isValidAppArmorProfileName(profileName) {
 		ae.Logger.Warnf("Invalid appArmor profile name (%s)", profileName)
 		return false
 	}
@@ -300,7 +309,7 @@ func (ae *AppArmorEnforcer) UnregisterAppArmorProfile(podName, profileName strin
 
 	// this path is expected to have a single component "apparmor-profile"
 	// and this is to ensure that the filename has no path separators or parent directory references
-	if strings.Contains(profileName, "/") || strings.Contains(profileName, "\\") || strings.Contains(profileName, "..") {
+	if !isValidAppArmorProfileName(profileName) {
 		ae.Logger.Warnf("Invalid appArmor profile name (%s)", profileName)
 		return false
 	}
@@ -509,7 +518,7 @@ func (ae *AppArmorEnforcer) UpdateAppArmorProfile(endPoint tp.EndPoint, appArmor
 	if policyCount, newProfile, ok := ae.GenerateAppArmorProfile(appArmorProfile, securityPolicies, endPoint.DefaultPosture, privileged); ok {
 		// this path is expected to have a single component "apparmor-profile"
 		// and this is to ensure that the filename has no path separators or parent directory references
-		if strings.Contains(appArmorProfile, "/") || strings.Contains(appArmorProfile, "\\") || strings.Contains(appArmorProfile, "..") {
+		if !isValidAppArmorProfileName(appArmorProfile) {
 			ae.Logger.Warnf("Invalid AppArmor profile name (%s)", appArmorProfile)
 			return
 		}
